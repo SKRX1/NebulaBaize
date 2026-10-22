@@ -514,7 +514,10 @@ class BrowserServer(McpServerBase):
              "Use this INSTEAD of writing your own Node DOM stub: the sandbox already "
              "implements window/document/location/canvas-2d/audio/timers/localStorage/"
              "observers, seeds Math.random for reproducible runs, and names exactly which "
-             "global is missing if the page needs something it does not have. Combine with "
+             "global is missing if the page needs something it does not have. Inline "
+             "handlers parsed from markup (onclick=...) run in the SAME realm as the "
+             "page scripts, so window/document references inside them are valid. "
+             "Combine with "
              "browser__screenshot when you also need to see pixels."),
          "inputSchema": {"type": "object",
                          "properties": {
