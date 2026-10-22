@@ -281,6 +281,14 @@ function main() {
   const ctx = vm.createContext(sandbox, { name: 'nebula-sim' });
   // Deterministic randomness *inside* the realm (host Math is shared, the vm's is not).
   try { vm.runInContext('Math.random = __rand;', ctx); } catch (_) { /* pre-ES5 host */ }
+  // Inline handlers (onclick=... parsed from innerHTML/attrs) need a factory that runs
+  // INSIDE the realm so the generated body can see window/document/etc. The host Node
+  // scope has none of those.
+  try {
+    const maker = vm.runInContext('(function (body) { try { return new Function(body); } catch (e) { return null; } })', ctx);
+    sandbox.__inlineFnMaker = maker;
+    sandbox.document.__env.__inlineFnMaker = maker;
+  } catch (_) { /* pre-ES5 host */ }
 
   const runSource = (code, filename) => {
     try {

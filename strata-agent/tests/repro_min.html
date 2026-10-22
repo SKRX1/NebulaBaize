@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html><head><title>min</title></head>
+<body>
+<div id="root"><div class="lv only">one static card</div></div>
+<script>
+window.P = function () { return document.querySelectorAll('.lv').length; };
+window.Q = function () { return document.querySelectorAll('#root .lv').length; };
+window.R = function () { return document.querySelector('.lv') ? 1 : 0; };
+</script>
+</body></html>

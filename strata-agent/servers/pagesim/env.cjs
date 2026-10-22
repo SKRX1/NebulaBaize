@@ -201,7 +201,9 @@ class El {
     this.parentElement = null;
     this.textContent = a.text || '';
     this.innerText = this.textContent;
-    this.innerHTML = '';
+    this.__innerHTML = '';
+    this.__innerDirty = false;
+    if (this._attrs) { for (const k of Object.keys(this._attrs)) { if (/^on[a-z]+$/.test(k) && typeof this._attrs[k] === 'string') { try { this[k] = (this.__env.__inlineFnMaker || Function)(this._attrs[k]); } catch (e) { /* page code error */ } } } }
     this.value = a.value || '';
     this.checked = false;
     this.disabled = false;
@@ -339,6 +341,51 @@ class El {
   }
   toBlob(cb) { cb(null); }
   set capture(v) {} get capture() { return false; }
+  // innerHTML now real: assignment parses the fragment into child nodes (registered +
+  // linked, so compound selectors see them); reads return the stored string, or a
+  // coarse serialization once the tree was mutated after the parse.
+  get innerHTML() { return this.__innerDirty ? this.__serialize() : this.__innerHTML; }
+  set innerHTML(s) { this.__parseFragment(String(s)); this.__innerDirty = false; }
+  get outerHTML() { const t = this.tagName.toLowerCase(); return '<' + t + '>' + this.innerHTML + '</' + t + '>'; }
+  __serialize() {
+    let out = '';
+    for (const n of this.childNodes) {
+      if (n.nodeType === 3) out += n.textContent;
+      else if (n.nodeType === 1) out += n.outerHTML;
+    }
+    return out;
+  }
+  __wireInline() {
+    for (const k of Object.keys(this._attrs || {})) {
+      if (/^on[a-z]+$/.test(k) && typeof this._attrs[k] === 'string') {
+        try { this[k] = (this.__env.__inlineFnMaker || Function)(this._attrs[k]); } catch (e) { this.__env.__onError(e, 'inline ' + k); }
+      }
+    }
+  }
+  __parseFragment(s) {
+    this.childNodes.length = 0;
+    this.__innerHTML = s;
+    if (!s) return;
+    const doc = this.ownerDocument;
+    const stack = [this];
+    const re = /<\/([a-zA-Z][\w:-]*)>|<([a-zA-Z][\w:-]*)((?:[^>\x22\x27]|\x22[^"]*\x22|\x27[^\x27]*\x27)*)\/?>|([^<]+)/g;
+    let m;
+    while ((m = re.exec(s))) {
+      if (m[1]) { stack.pop(); continue; }
+      const parent = stack[stack.length - 1];
+      if (m[2]) {
+        const el = doc.__make(m[2], Object.assign({ __dyn: true }, doc.__parseTagAttrsLite(m[3] || '')));
+        el.parentNode = parent; el.parentElement = parent;
+        parent.childNodes.push(el);
+        el.__wireInline();
+        if (m[3].slice(-1) !== '/') stack.push(el);
+      } else if (m[4] && m[4].trim()) {
+        const n = doc.createTextNode(m[4]);
+        n.parentNode = parent;
+        parent.childNodes.push(n);
+      }
+    }
+  }
 }
 
 function parseInlineStyle(text) {
@@ -350,24 +397,87 @@ function parseInlineStyle(text) {
   return o;
 }
 
+// ---- compound selector support (groups: adjacent conditions = same element) --------
+function parseSelector(sel) {
+  const s = String(sel || '').trim();
+  if (!s) return null;
+  const raw = s.match(/[.#]?[a-zA-Z][\w-]*|\[[^\]]+\]/g);
+  if (!raw || raw.length === 0) return null;
+  const groups = [];
+  let pos = 0, lastEnd = -1;
+  for (const tok of raw) {
+    const at = s.indexOf(tok, pos);
+    if (at < 0) return null;
+    if (groups.length === 0) groups.push({ conds: [tok], combBefore: null });
+    else if (at === lastEnd) groups[groups.length - 1].conds.push(tok); // adjacent
+    else groups.push({ conds: [tok], combBefore: s.slice(lastEnd, at).includes('>') ? '>' : ' ' });
+    pos = at + tok.length; lastEnd = pos;
+  }
+  return groups;
+}
+function matchCond(el, tok) {
+  if (!el || el.nodeType !== 1) return false;
+  if (tok[0] === '#') return el.id === tok.slice(1);
+  if (tok[0] === '.') return el.classList.contains(tok.slice(1));
+  if (tok[0] === '[') {
+    const m = /^\[([\w-]+)(?:([~^|*$]?=)\s*(?:"([^"]*)"|('[^']*')|([^\]]*)))?\]$/.exec(tok);
+    if (!m) return false;
+    const v = el.getAttribute(m[1]);
+    if (v === null) return false;
+    if (!m[2]) return true;
+    const want = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[5] !== undefined ? m[5] : '';
+    const val = String(v);
+    if (m[2] === '=') return val === want;
+    if (m[2] === '^=') return val.slice(0, want.length) === want;
+    if (m[2] === '$=') return want ? val.slice(-want.length) === want : false;
+    if (m[2] === '*=') return !!want && val.indexOf(want) >= 0;
+    if (m[2] === '~=') return val.split(/\s+/).indexOf(want) >= 0;
+    if (m[2] === '|=') return val === want || val.startsWith(want + '-');
+    return false;
+  }
+  return el.tagName === tok.toUpperCase();
+}
+function matchGroup(el, conds) {
+  if (!el || el.nodeType !== 1) return false;
+  return conds.every((c) => matchCond(el, c));
+}
+function matchGroups(el, groups) {
+  const last = groups.length - 1;
+  if (!matchGroup(el, groups[last].conds)) return false;
+  let cursor = el.parentNode;          // ancestor to test against group last-1
+  for (let i = last - 1; i >= 0; i--) {
+    const comb = groups[i + 1].combBefore;
+    if (!cursor) return false;
+    if (comb === '>') {
+      if (!matchGroup(cursor, groups[i].conds)) return false;
+    } else {
+      let anc = cursor;
+      while (anc && !matchGroup(anc, groups[i].conds)) anc = anc.parentNode;
+      if (!anc) return false;
+      cursor = anc;                    // matched ancestor; next group checks ABOVE it
+    }
+    cursor = cursor.parentNode;        // move above the matched node for the next group
+  }
+  return true;
+}
 function matchSimple(el, sel) {
   const s = String(sel || '').trim();
   if (!s) return false;
-  if (s[0] === '#') return el.id === s.slice(1);
-  if (s[0] === '.') return el.classList.contains(s.slice(1));
-  return el.tagName === s.toUpperCase();
+  const g = parseSelector(s);
+  if (!g) return false;
+  return matchGroups(el, g);
 }
 
-function flatten(nodes, out) {
+function flatten(nodes, out, seen) {
   for (const n of nodes) {
+    if (seen) { if (seen.has(n)) continue; seen.add(n); }
     out.push(n);
-    if (n.childNodes && n.childNodes.length) flatten(n.childNodes, out);
+    if (n.childNodes && n.childNodes.length) flatten(n.childNodes, out, seen);
   }
   return out;
 }
-
 function queryAll(nodes, sel) {
-  const all = flatten(nodes, []);
+  const all = flatten(nodes, [], new Set());
   const parts = String(sel || '').split(',').map((x) => x.trim()).filter(Boolean);
   if (!parts.length) return [];
   return all.filter((el) => parts.some((p) => matchSimple(el, p)));
@@ -401,10 +511,17 @@ class Doc {
     this.documentElement.appendChild(this.body);
   }
 
+  __parseTagAttrsLite(text) {
+    const o = {};
+    const re = /([\w-]+)\s*=\s*(\x22([^\x22]*)\x22|\x27([^\x27]*)\x27|([^\s\x22\x27<>]+))/g;
+    let m;
+    while ((m = re.exec(String(text)))) o[m[1]] = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[5];
+    return o;
+  }
   __make(tag, attrs) {
     const el = new El(tag, this.__env, attrs);
     el.ownerDocument = this;
-    this.__all.push(el);
+    if (el.id) this.__byId[el.id] = el; if (!attrs || !attrs.__dyn) this.__all.push(el);
     if (el.id) this.__byId[el.id] = el;
     return el;
   }

@@ -221,6 +221,52 @@ def main() -> int:
     else:
         print(f"(no page at the live workspace {ws!r} -- live case skipped)")
 
+    # --- 6) dynamic-DOM contract locks, 2026-10-22 -----------------------------------------
+    # These lock the three root causes fixed that week: compound selectors see nodes created
+    # by an innerHTML assignment, the document query counts each dynamic node EXACTLY ONCE
+    # (the flatten/registry double-count bug), and an inline onclick parsed out of innerHTML
+    # runs in the SAME realm as the page scripts, so `window` inside it is the sandbox global.
+    # Every assertion is differential: the injected arm is compared against a no-injection arm
+    # so a "luckily correct" stub can never pass.
+    dyn = os.path.join(HERE, "tests", "repro_dyn_dom.html")
+    ocl = os.path.join(HERE, "tests", "repro_onclick.html")
+
+    # 6a) differential dedupe: inject -> 3 (1 static + 2 parsed), no inject -> 1.
+    inj = run_job({"page": dyn, "steps": 2,
+                   "actions": [{"frame": 0, "type": "click", "target": "btn-start"}],
+                   "probes": {"n": "document.querySelectorAll('.lv').length"}})
+    ctrl = run_job({"page": dyn, "steps": 2,
+                    "probes": {"n": "document.querySelectorAll('.lv').length"}})
+    ok(inj["ok"] is True and inj["probes"]["n"] == 3,
+       f"injected dynamic nodes must be counted exactly once (3), got {inj['probes']['n']}")
+    ok(ctrl["ok"] is True and ctrl["probes"]["n"] == 1,
+       f"the no-injection arm must see only the static node (1), got {ctrl['probes']['n']}")
+
+    # 6b) end-to-end inline onclick: inject, then click the injected node. Differential arm:
+    # click WITHOUT the injection step -- no card0 exists, the click falls back to body, so
+    # the handler must not have run. If the realm factory ever regresses, the first arm fails.
+    e2e = run_job({"page": ocl, "steps": 4,
+                   "actions": [{"frame": 0, "type": "click", "target": "btn-start"},
+                               {"frame": 1, "type": "click", "target": "card0"}],
+                   "probes": {"hit": "window.state.hit0", "ran": "window.state.injected",
+                              "count": "document.querySelectorAll('#panel .lv').length"}})
+    ok(e2e["ok"] is True, f"inline-onclick page must run clean, errors={e2e.get('errors')}")
+    ok(e2e["probes"]["ran"] == 1, f"the injection handler must have run, got {e2e['probes']['ran']}")
+    ok(e2e["probes"]["count"] == 2, f"compound selector must see the parsed subtree (2), got {e2e['probes']['count']}")
+    ok(e2e["probes"]["hit"] == 1,
+       f"inline onclick parsed from innerHTML must fire in the realm, got {e2e['probes']['hit']}")
+    arm = run_job({"page": ocl, "steps": 4,
+                   "actions": [{"frame": 0, "type": "click", "target": "card0"}],
+                   "probes": {"hit": "window.state.hit0"}})
+    ok(arm["probes"]["hit"] == 0,
+       f"no-injection control: body must get the click and the handler must stay silent, got {arm['probes']['hit']}")
+
+    # 6c) the realm-factory wiring is the one line that makes 6b work; lock it as text so a
+    # refactor that drops it fails CI BEFORE the behavioral test loses its cause.
+    src = open(os.path.join(SERVERS, "pagesim", "run.cjs"), encoding="utf-8").read()
+    ok("sandbox.document.__env.__inlineFnMaker = maker;" in src,
+       "run.cjs must wire the realm factory into env.__inlineFnMaker (where El reads it)")
+
     print(f"PAGE-SIM: {checks} checks passed")
     return 0
 
