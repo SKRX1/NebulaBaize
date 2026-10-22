@@ -13,6 +13,10 @@
  *   Phase B (summariser 500s):
  *     5. the pre-condense fails -> history left UNTOUCHED, no final compact turn fired
  *
+ * NOTE (2026-10-23 guard): compactConversation now defers the CHUNKED path when
+ *   auto==true AND the auto-drive chain is active (autoDriveDepth>0); this test runs the
+ *   MANUAL path (confirm -> click) with chain idle, so the guard never engages here. Its
+ *   guard twin lives in tests/test_precondense_guard.mjs.
  * Run: node tests/test_chunked_compact.mjs
  */
 import fs from "fs";

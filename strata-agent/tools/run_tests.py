@@ -66,6 +66,7 @@ SUITES = [
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)
     "tests/test_compact_reset.py",         # 2026-10-20: reset_prompt_tokens zeroes occupancy (fixes wedged compact)
     "tests/test_chunked_compact.mjs",      # 2026-10-20: oversized history folds in bounded chunks before the single-shot compact
+    "tests/test_precondense_guard.mjs",    # 2026-10-23: chain-active guard defers chunking for auto mid-task; manual/idle unchanged
     "tests/test_compact_target.mjs",       # 2026-10: the compression-target slider actually moves the post-compact tail budget
     "tests/test_stale_tab.mjs",            # 2026-10-20: stale tab detects newer server build and reloads itself once
     "tests/test_model_registry.py",

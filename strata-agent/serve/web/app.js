@@ -3305,7 +3305,7 @@ async function precondenseAndCompact(auto) {
         ? "【此前累计摘要】\n" + carry + "\n\n【对话历史片段 " + (i + 1) + "/" + chunks.length + "】\n" + part + "\n\n请把两段合并为一份更紧凑的摘要，保留全部关键信息。"
         : "【对话历史片段 " + (i + 1) + "/" + chunks.length + "】\n" + part + "\n\n请输出该片段的紧凑摘要。";
       carry = await llmSummarize(prompt);
-      toast("info", t("insp.compact.chunking", {i: i + 1, n: chunks.length}), undefined, 2500);
+      if (i === 0) toast("info", t("insp.compact.chunking", {i: 1, n: chunks.length}), undefined, 2500);   // noise reduction: single toast at the first fold carrying the total, not one per chunk
     }
     // Keep a small recent tail verbatim (same intent as the post-compact tail, tighter budget so the
     // final single-shot compact request is guaranteed to fit: preSummary + tail + prompt < window).
@@ -3347,7 +3347,10 @@ function compactConversation(auto = false) {
   // first (the old single-shot 400ed "even when compacting" exactly on oversized histories).
   const budget = compactReqBudgetChars();
   const total = messages.reduce((s, m) => s + estMsgChars(m), 0) + t("insp.compact.prompt").length;
-  if (total > budget) { if (!resumeSnapshot) resumeSnapshot = taskResumeSnapshot() || {leftItems: null}; precondenseAndCompact(auto); return; }
+  if (total > budget) {
+    if (auto && autoDriveDepth > 0) { pendingCompact = false; resumeSnapshot = null; return; }   // chain-active guard: chunking a RUNNING task is the interruption; defer to the chain tail (exhausted/idle fires normally)
+    if (!resumeSnapshot) resumeSnapshot = taskResumeSnapshot() || {leftItems: null}; precondenseAndCompact(auto); return;
+  }
   $("input").value = t("insp.compact.prompt");
   send();
 }
