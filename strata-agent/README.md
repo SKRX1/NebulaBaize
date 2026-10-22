@@ -8,6 +8,7 @@
 2. **设计决策的「直接代码落点」单独成 commit**，与对应 DESIGN.md 章节同轨（例：§1 归档/语义摘要 = gateway.py 落点 + session.py 归档指针 + 两门禁锁；§2 输出预算天花板 = 前端字段 + 后端 read + 契约测试）。
 3. 每个 commit 只纳入与本次决策相关的文件，**不把一次性脚本/根垃圾带进基线**；commit message 点明它固化的是哪条决策。
 4. **scratch 卫生**：工作区根 `tools\` 是纯 scratch（一次性脚本命名族 `_find/_patch/_scan/_r_/_t_`，git tracked=0），用毕即删、不堆积；常驻门禁锁一律落 `strata-agent\tools\`，二者边界不容混淆——清理 scratch 逐个点名删，绝不宽 glob 扫尾、绝不跨目录误删常驻资产。
+5. **绿 → 打 tag → 推锚闭环**：全套 run_tests 真跑全绿后，给当时的干净 HEAD 打一个附注 tag 作里程碑锚（命名 `v-baseline-YYYY-MM-DD`，message 写明「全绿+树净+HEAD哈希」），再把门禁表「上次实跑绿」列推到该 commit；推进只认真跑证据（见「实测边界」脚注），回退用 `tools\_rollback_verify.py` 校验（checkout 该 tag 重跑全套仍绿即坐实它是真能用的回退点）。
 
 ### 门禁锁清单（run_tests SUITES 引用的常驻门禁，防退化）
 下列门禁已登记进 `tools/run_tests.py` 的 SUITES，CI 任一改动触碰其守护面即自动跑；上游不可达时自跳过返回 0（防 CI 假红）：
