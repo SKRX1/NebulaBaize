@@ -13,11 +13,11 @@
 
 | 门禁 | 守护内容 | 上次实跑绿（人工观测锚）|
 |---|---|---|
-| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | 5e8ab49 (2026-10-22，全套 ALL GREEN) |
-| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| 5e8ab49 (2026-10-22，全套 ALL GREEN) |
-| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| 5e8ab49 (2026-10-22，全套 ALL GREEN) |
-| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| 5e8ab49 (2026-10-22，全套 ALL GREEN)（登记本轮实跑）|
-| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| 5e8ab49 (2026-10-22，全套 ALL GREEN) |
+| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | 52b7820 (2026-10-22，全套 ALL GREEN 本轮实跑) |
+| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| 52b7820 (2026-10-22，全套 ALL GREEN 本轮实跑) |
+| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| 52b7820 (2026-10-22，全套 ALL GREEN 本轮实跑) |
+| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| 52b7820 (2026-10-22，全套 ALL GREEN 本轮实跑)（登记本轮实跑）|
+| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| 52b7820 (2026-10-22，全套 ALL GREEN 本轮实跑) |
 
 ### 实测边界（诚实记录，避免后续误判）
 
