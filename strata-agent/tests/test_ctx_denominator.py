@@ -1,11 +1,20 @@
 """Resident regression gate: the context-window DENOMINATOR must be the engine's REAL n_ctx,
-learned from its own /health -- not a hardcoded 128K fallback.
+learned from its own /health -- the hardcoded fallback is only a last resort when the engine
+is silent, NOT a baseline to compare against.
 
 Root cause it locks (2026-10 report "panel shows 50% but the gateway said 92%"): the proactive
 guard and the output cap used a hardcoded denominator (131072) that never learned the engine's
-real n_ctx (here 262144). So a chat at ~46% of the REAL window read as 92% on the gateway side
-and fired far too early. The fix is GatewayState.ctx_window() = env override > polled real
-n_ctx > fallback, shared by the guard and compute_output_cap.
+real n_ctx, so a chat at ~46% of the REAL window read as 92% on the gateway side and fired far
+too early. The fix is GatewayState.ctx_window() = env override > polled real n_ctx > fallback,
+shared by the guard and compute_output_cap.
+
+BASELINE IS READ FROM THE RUNTIME (2026-10-23), not written as a literal: the fallback constant
+below is taken from http_server.GatewayState itself, so when the operator deliberately reconfigures
+the engine to a real window that happens to EQUAL the fallback, this gate does NOT turn that into a
+false red. The "it learned the real value vs fell back" discrimination only has power when the real
+window differs from the fallback; when they are equal it is delegated to the mechanism tests below
+(fake-poll says X -> uses X; engine silent -> uses the fallback). The user reconfigured the engine's
+real window to 131072 on 2026-10-23, which is exactly this case.
 
 Self-contained: imports the CURRENT on-disk http_server (this gate locks the SOURCE, so it is
 correct whether or not the running gateway has been restarted) and polls the same /health the
@@ -32,6 +41,10 @@ def check(label, cond, extra=""):
         FAILURES.append(label)
 
 
+def skip(label, extra=""):
+    print("  SKIP " + label + (("  " + extra) if extra else ""))
+
+
 spec = importlib.util.spec_from_file_location("hs_mod", os.path.join(ROOT, "runtime", "http_server.py"))
 hs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(hs)
@@ -48,48 +61,65 @@ try:
 except Exception:
     real = None
 
+# Baseline read FROM THE RUNTIME -- the gateway's own fallback constant, not a literal in this test.
+FALLBACK = hs.GatewayState(ENGINE_URL).max_context
+
 st = hs.GatewayState(ENGINE_URL)
 resolved = st.ctx_window()
 
 print("CONTEXT-WINDOW DENOMINATOR (no double denominator):")
 
+# Mechanism (always runs -- this is the gatekeeper that proves ctx_window CONSUMES the poll):
+# fake-poll a value distinct from the fallback; ctx_window must use the polled value, and only
+# fall back to the runtime constant when the poll is silent. This is the discrimination that does
+# not depend on the live engine's number, so it stays valid even when real == fallback.
+saved = hs.endpoint_max_context
+try:
+    fake_probe = FALLBACK + 66528          # "engine says something != the fallback"
+    hs.endpoint_max_context = lambda url, ttl=60.0: fake_probe
+    check("ctx_window uses the polled value when present", st.ctx_window() == fake_probe, str(fake_probe))
+    hs.endpoint_max_context = lambda url, ttl=60.0: None       # engine silent -> fallback
+    check("ctx_window falls back to the runtime constant when the engine is silent",
+          st.ctx_window() == FALLBACK, str(FALLBACK))
+finally:
+    hs.endpoint_max_context = saved
+
 if real is None:
-    # Engine not answering /health: we cannot prove the denominator == real window right now.
-    # Fall back to proving the mechanism on a fake, then SKIP the live equality check (no false red).
-    print("  SKIP live engine /health unreachable -- mechanism-only checks below")
-    # Mechanism: ctx_window must consult endpoint_max_context (the poll), and only fall back
-    # to the 128K constant when that returns None.
-    saved = hs.endpoint_max_context
-    try:
-        hs.endpoint_max_context = lambda url, ttl=60.0: 999000   # fake "engine says 999000"
-        check("ctx_window uses the polled value when present", st.ctx_window() == 999000, str(resolved))
-        hs.endpoint_max_context = lambda url, ttl=60.0: None       # engine silent -> fallback
-        check("ctx_window falls back to the constant when engine is silent", st.ctx_window() == 131072)
-    finally:
-        hs.endpoint_max_context = saved
+    skip("live engine /health unreachable -- live equality check skipped (no false red)")
 else:
     # The heart of the gate: with no env override, the gateway's denominator MUST equal the
     # number the frontend panel shows (both come from this same /health). One number, no split.
     check("gateway denominator == the frontend's real window", resolved == real,
           "gateway=" + str(resolved) + " frontend=" + str(real))
-    check("and that is NOT the old hardcoded 128K fallback", resolved != 131072, "resolved=" + str(resolved))
+    # Discrimination has power only when the real window differs from the runtime fallback.
+    # When the operator deliberately set the real window == fallback (2026-10-23: 131072), the
+    # live equality above IS the proof; do not turn that into a false red here.
+    if real != FALLBACK:
+        check("and that is NOT the runtime fallback constant (the denominator learned)",
+              resolved != FALLBACK, "resolved=" + str(resolved))
+    else:
+        skip("real window == runtime fallback (operator-set); equality is the proof,"
+             " discrimination delegated to the mechanism tests above")
 
 # Env override always wins, in both directions, regardless of the poll.
 st_env = hs.GatewayState(ENGINE_URL)
 st_env._ctx_env = "200000"
-st_env.max_context = 131072
+st_env.max_context = FALLBACK
 check("explicit env override beats the poll", st_env.ctx_window() == 200000, str(st_env.ctx_window()))
 
 # The real-world trigger math: a chat at ~46% of the REAL window must NOT fire the 92% guard,
-# while the OLD 128K denominator would have (the bug). Uses whatever denominator is in force.
+# while the OLD fallback denominator would have (the bug). Only meaningful when the real window
+# is larger than the fallback; when they are equal the split cannot exist, so this is skipped.
 lp = 121000
 win = st.ctx_window()
 guard_fires = bool(win) and lp >= int(win * 0.92)
-old_fires = lp >= int(131072 * 0.92)
-if real is not None and resolved == real and resolved > 131072:
+old_fires = lp >= int(FALLBACK * 0.92)
+if real is not None and resolved == real and resolved > FALLBACK:
     check("46%-of-real no longer trips the guard (the bug is gone)", guard_fires is False,
           "pct=" + str(round(100 * lp / win)))
-    check("the old 128K denominator WOULD have fired (proves the split)", old_fires is True)
+    check("the old fallback denominator WOULD have fired (proves the split)", old_fires is True)
+else:
+    skip("real window == fallback -> no double-denominator split to demonstrate; trigger math skipped")
 
 print("\nCTX-DENOMINATOR: " + ("ALL PASSED" if not FAILURES else "FAILURES: " + ", ".join(FAILURES)))
 sys.exit(0 if not FAILURES else 1)
