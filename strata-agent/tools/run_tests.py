@@ -28,6 +28,7 @@ NODE = shutil.which("node") or r"C:\Users\sk\.workbuddy\binaries\node\versions\2
 SUITES = [
     "tests/test_smoke.py",
     "tests/test_undefined_names.py",
+    "tests/test_code_hygiene.py",     # 2026-10-22: stub/swallow/todo must stay within _hygiene_baseline.json (anti-drift)
     "tests/test_skillhub.py",
     "tests/test_registry_server.py",
     "tests/test_memory_server_tools.py",
