@@ -1,0 +1,19 @@
+auto_approve:
+  - "memory__recall"
+  - "memory__remember"
+  - "memory__store"
+  - "websearch__search"
+require_approval:
+  - "filesystem__write"
+  - "shell__exec"
+  - "memory__forget"
+  # registry: the six mutations change what the agent can run (remote code execution
+  # by design). Read-only tools (list/get) and the probe (test) are NOT listed — they
+  # change nothing. Keep in lockstep with serve/server.py's _APPROVAL_TOOLS.
+  - "registry__add_server"
+  - "registry__update_server"
+  - "registry__delete_server"
+  - "registry__add_skill"
+  - "registry__update_skill"
+  - "registry__delete_skill"
+destructive_force_confirm: true

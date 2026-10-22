@@ -1,0 +1,37 @@
+{
+  "selected": "iq3-xxs",
+  "models": [
+    {
+      "id": "iq3-xxs",
+      "name": "swift-1.5-iq3_xxs",
+      "kind": "local",
+      "base_url": "",
+      "model": "swift-1.5-iq3_xxs",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    },
+    {
+      "id": "iq3-s",
+      "name": "swift-1.5-iq3_s",
+      "kind": "local",
+      "base_url": "",
+      "model": "swift-1.5-iq3_s",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    }
+  ]
+}

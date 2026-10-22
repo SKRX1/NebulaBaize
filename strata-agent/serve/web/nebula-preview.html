@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>星云酱 · 表情预览</title>
+<!-- 直接复用真实的主题与样式，所见即所得 -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 28px; font: 14px/1.5 var(--st-font, system-ui);
+         background: var(--st-bg, #0e1116); color: var(--st-text, #e7ebf0); }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.lead { color: var(--st-ink-muted, #8a93a3); margin: 0 0 22px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .tile { background: var(--st-surface, #161b22); border: 1px solid var(--st-line, #232a33);
+          border-radius: 12px; padding: 16px; display: flex; flex-direction: column;
+          align-items: center; gap: 12px; }
+  .tile .lbl { font-size: 12px; color: var(--st-ink-soft, #b6bfcc); text-align: center; }
+  .tile .lbl b { color: var(--st-text, #e7ebf0); display: block; font-size: 13px; }
+  .row { display: flex; gap: 28px; align-items: center; margin: 26px 0 8px; flex-wrap: wrap; }
+  .row .st-pill { position: relative; }
+  .note { color: var(--st-ink-muted, #8a93a3); font-size: 12px; margin-top: 26px; max-width: 720px; }
+  /* 让预览页里胶囊的布局正常 */
+  .st-pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 8px;
+             border-radius: 999px; border: 1px solid var(--st-line, #232a33); background: var(--st-surface-2, #1b212b); }
+  #pill-text { font-size: 12px; color: var(--st-ink-soft, #b6bfcc); }
+  .hidden-tpl { display: none; }
+</style>
+</head>
+<body>
+  <h1>星云酱 · 表情 / 形态预览</h1>
+  <p class="lead">顶部状态胶囊里的「她在干活」指示灯，现在是一颗有脸的星形小精灵。下面是她处理不同状态 / 不同任务时的样子。</p>
+
+  <div class="row" id="live-row"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="note">
+    说明：idle（静止）是完全静止 + 眯眯笑；tool（执行中）/ generating（生成中）睁眼微笑带腮红、星尘环绕；
+    reading（读取中）眼睛左右轻扫；queued（排队中）轻轻脉动；error（出错）瞪眼抖一下 + 一滴汗；
+    done（完成）^_^ 大笑 + 星光弹一下（瞬时）。工具运行时还会叠加任务小道具：
+    搜索=放大镜、写码=铅笔、执行=齿轮、画图=星星。
+  </p>
+
+  <!-- 真实 SVG 模板（与 index.html 中的 #pill-neb 一致） -->
+  <svg class="hidden-tpl" id="tpl" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle class="neb-ring" cx="12" cy="12" r="9.8"/>
+    <g class="neb-orbit">
+      <circle class="neb-p neb-p--hi" cx="12" cy="2.6" r="1.5"/>
+      <circle class="neb-p" cx="20.6" cy="14.8" r="1.2"/>
+      <circle class="neb-p neb-p--hi" cx="4.8" cy="18" r="1.7"/>
+      <circle class="neb-p" cx="18.2" cy="5.6" r="1.05"/>
+      <circle class="neb-p" cx="3.2" cy="8.6" r="1.15"/>
+    </g>
+    <circle class="neb-core" cx="12" cy="12" r="5.4"/>
+    <circle class="neb-body" cx="12" cy="12" r="7.8"/>
+    <g class="neb-cheek">
+      <circle class="neb-cheek-l" cx="7.2" cy="13.6" r="1.4"/>
+      <circle class="neb-cheek-r" cx="16.8" cy="13.6" r="1.4"/>
+    </g>
+    <g class="neb-face">
+      <g class="neb-eye neb-eye--l">
+        <circle class="e-open" cx="9" cy="11" r="1.7"/>
+        <circle class="e-shine" cx="8.4" cy="10.3" r="0.55"/>
+        <path class="e-closed" d="M7.3 11.3 Q9 12.9 10.7 11.3"/>
+      </g>
+      <g class="neb-eye neb-eye--r">
+        <circle class="e-open" cx="15" cy="11" r="1.7"/>
+        <circle class="e-shine" cx="14.4" cy="10.3" r="0.55"/>
+        <path class="e-closed" d="M13.3 11.3 Q15 12.9 16.7 11.3"/>
+      </g>
+      <path class="m m-smile" d="M10 14.3 Q12 15.9 14 14.3"/>
+      <path class="m m-flat"  d="M10.3 14.7 L13.7 14.7"/>
+      <path class="m m-o"     d="M12 13.7 a1.1 1.1 0 1 0 0.01 0"/>
+      <path class="m m-sad"   d="M10 15.4 Q12 13.8 14 15.4"/>
+      <path class="m m-happy" d="M9.2 13.9 Q12 17.2 14.8 13.9"/>
+    </g>
+    <g class="neb-prop">
+      <g class="p-search"><circle class="p-ring" cx="19.4" cy="5.2" r="2"/><line class="p-handle" x1="20.8" y1="6.6" x2="22.6" y2="8.4"/></g>
+      <g class="p-code"><path class="p-pen" d="M17.4 3.2 l3.2 0 -1.6 3.4 z"/></g>
+      <g class="p-shell"><circle class="p-cog" cx="19" cy="5" r="1.9"/></g>
+      <g class="p-image"><path class="p-star" d="M19 1.6 l.8 1.7 1.9 .2 -1.4 1.3 .4 1.9 -1.7 -.9 -1.7 .9 .4 -1.9 -1.4 -1.3 1.9 -.2 z"/></g>
+      <path class="p-sweat" d="M17.6 6.6 q-1.1 1.7 0 2.6 q1.1 -.9 0 -2.6 z"/>
+      <path class="p-spark" d="M12 1.2 l.55 1.3 1.4 .2 -1 1 .25 1.4 -1.2 -.75 -1.2 .75 .25 -1.4 -1 -1 1.4 -.2 z"/>
+    </g>
+  </svg>
+
+  <script>
+    const tpl = document.getElementById("tpl");
+    const tiles = [
+      { state: "idle",       label: "静止",         sub: "idle" },
+      { state: "tool",       label: "执行中",       sub: "tool" },
+      { state: "reading",    label: "读取中",       sub: "reading" },
+      { state: "generating", label: "生成中",       sub: "generating" },
+      { state: "queued",     label: "排队中",       sub: "queued" },
+      { state: "error",      label: "出错",         sub: "error" },
+      { state: "done",       label: "完成·瞬时",    sub: "done" },
+      { state: "tool", task: "search", label: "搜索任务", sub: "tool + search" },
+      { state: "tool", task: "code",   label: "写码任务", sub: "tool + code" },
+      { state: "tool", task: "shell",  label: "执行任务", sub: "tool + shell" },
+      { state: "tool", task: "image",  label: "画图任务", sub: "tool + image" },
+    ];
+    const grid = document.getElementById("grid");
+    for (const t of tiles) {
+      const tile = document.createElement("div"); tile.className = "tile";
+      const svg = tpl.cloneNode(true);
+      svg.removeAttribute("id"); svg.classList.add("nebula");
+      svg.dataset.state = t.state;
+      if (t.task) svg.dataset.task = t.task;
+      const lbl = document.createElement("div"); lbl.className = "lbl";
+      lbl.innerHTML = `<b>${t.label}</b>${t.sub}`;
+      tile.appendChild(svg); tile.appendChild(lbl); grid.appendChild(tile);
+    }
+    // 一行「真实胶囊」演示：循环播放各状态，方便看动画
+    const liveRow = document.getElementById("live-row");
+    const pill = document.createElement("span");
+    pill.className = "st-pill"; pill.id = "pill"; pill.dataset.state = "idle";
+    const liveSvg = tpl.cloneNode(true);
+    liveSvg.removeAttribute("id"); liveSvg.classList.add("nebula"); liveSvg.id = "pill-neb";
+    liveSvg.dataset.state = "generating";
+    const txt = document.createElement("span"); txt.id = "pill-text"; txt.textContent = "演示中…";
+    pill.appendChild(liveSvg); pill.appendChild(txt); liveRow.appendChild(pill);
+    const seq = ["generating","reading","tool","queued","done","idle"];
+    let i = 0;
+    setInterval(() => {
+      i = (i + 1) % seq.length;
+      liveSvg.dataset.state = seq[i];
+      const map = {generating:"生成中",reading:"读取中",tool:"执行中",queued:"排队中",done:"完成",idle:"空闲"};
+      txt.textContent = map[seq[i]];
+    }, 1400);
+  </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+# ---------------------------------------------------------------------------
+# Strata workspace git baseline — track core assets, ignore noise.
+# Tracked: source under strata-agent/ (.py/.js/.mjs/.cjs/.css/.html/.svg/.json/.yaml/.woff2),
+#   fonts/, the persistent GATE locks, core config, the agent entry points, DESIGN.md,
+#   RULES.md, and the top-level deploy docs/scripts.
+# Ignored: caches, backups, screenshots, run logs/outputs, scratch, one-shot scripts.
+# ---------------------------------------------------------------------------
+
+# caches
+__pycache__/
+*.pyc
+
+# backups (anchor-edit tooling) + nested config backup dir
+*.bak
+*.bak-*
+strata-agent/config/.backups/
+
+# screenshots / images / run artifacts
+*.png
+*.log
+out/
+strata-agent/tests/tests/
+strata-agent/tests/_scratch_*/
+strata-agent/tools/_backup/
+
+# one-shot tooling under strata-agent/tools/
+strata-agent/tools/_patch_*
+strata-agent/tools/_read_*
+strata-agent/tools/_verify_*
+strata-agent/tools/*_report.txt
+strata-agent/tools/_ab_*.py
+strata-agent/tools/_archive_design_stub.py
+strata-agent/tools/_baseline_probe.py
+strata-agent/tools/_cache_experiment.py
+strata-agent/tools/_dbg_paste.py
+strata-agent/tools/_deep_probe*.py
+strata-agent/tools/_deploy_*.py
+strata-agent/tools/_fix_i18n_comma.py
+strata-agent/tools/_full_run7.txt
+strata-agent/tools/_gw_precheck.py
+strata-agent/tools/_i18n_audit.cjs
+strata-agent/tools/_inject_size.py
+strata-agent/tools/_live_vision.py
+strata-agent/tools/_measure_schema.py
+strata-agent/tools/_ondemand_quality_stub.py
+strata-agent/tools/_overhead_probe.py
+strata-agent/tools/_pid_probe.ps1
+strata-agent/tools/_reforge_*.py
+strata-agent/tools/_semantic_summarize_stub.py
+strata-agent/tools/_show_session.py
+strata-agent/tools/_switch_llm.py
+strata-agent/tools/_usage_probe.py
+
+# GATE locks under tools/ — must stay tracked (run_tests SUITES depends on them).
+!strata-agent/tools/_seg_scroll_baseline.py
+!strata-agent/tools/_semantic_summarizer_gate.py
+!strata-agent/tools/_archive_gate.py
+
+# one-shot verification pages / recon snapshots
+strata-agent/serve/_*.html
+strata-agent/serve/seg_scroll_verify.html
+strata-agent/serve/web/_recon*.txt
+strata-agent/serve/web/*.newtmp
+strata-agent/tests/_c_probe_page.html
+
+# runtime-generated data + native/bin build output + sharded artifacts (not source)
+strata-agent/data/
+strata-agent/logs/
+strata-agent/native
+strata-agent/bin
+strata-agent/parts/
+strata-agent/_incoming/
+strata-agent/selftest.txt
+strata-agent/_grep_ins_out.txt
+strata-agent/_seg.txt
+
+# historical zip snapshots (git is now the snapshot mechanism; zip backups are noise)
+strata-agent/outputs/
+
+# runtime memory / archive / design stores (autonomous-memory runtime, not source)
+.design/
+.strata-archive/
+.strata-memory/
+.workbuddy/
+patches/
+
+# root scratch tooling + shell-redirect garbage (ROOT-anchored, never sub-trees)
+/tools/
+/nul
+/new
+/Date.now()
+/,n.count('{s}'))
+/vision_test.html
+/sample_small.html
+/_loop.txt
+/_loop2.txt
+/_loopseg.txt
+/_pid.txt
+/_r2.log
+/_r3.log
+/_restart_8099.log
+/_u.txt
+/_ver.txt
+/_vmod.txt
+/selftest.txt
+/setup.bat
+
+# draft rule file (official is RULES.md; draft is a transient working copy)
+RULES.draft.md

@@ -1,0 +1,11 @@
+name: "example"
+description: "Example skill — a self-contained tool server (copy this folder to add a skill)"
+tools:
+  - mcp: "example-server"
+    command: "python"
+    args: ["$SKILL_DIR/example_server.py"]
+permissions:
+  filesystem: ["read"]
+triggers:
+  - "example"
+requires_env: {}

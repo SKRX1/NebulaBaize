@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "note": "skillhub 内置目录。stage 会把条目下载/拷贝到 _incoming/ 隔离区并生成 draft.json；激活（写入 mcp_servers.json）是单独的、需用户确认的步骤，不在 round 1。trust: builtin=本项目自带 / official=MCP 官方参考实现 / community=社区 / unverified=对话临时指定。",
+  "entries": [
+    {
+      "name": "strata-skill-template",
+      "title": "最小技能骨架（离线可用）",
+      "description": "本项目自带的最小 MCP 技能模板：纯标准库、零第三方依赖，拷到隔离区即可探活。想自制技能时从它改起。",
+      "trust": "builtin",
+      "provides": ["hello（示例工具，改成你的实现即可）"],
+      "fetch": {"kind": "template", "from": "skills/"},
+      "spec": {"args": ["$DIR/server.py"], "env": {"PYTHONPATH": "$DIR"}},
+      "needs": null,
+      "notes": "server.py 里改 call_tool 就是自己的技能；skill.yaml 是声明式技能描述（triggers/permissions）。"
+    },
+    {
+      "name": "mcp-server-fetch",
+      "title": "网页抓取（官方）",
+      "description": "抓取网页并转换成适合 LLM 阅读的文本/markdown，带分页与长度控制。",
+      "trust": "official",
+      "provides": ["fetch"],
+      "fetch": {"kind": "git", "url": "https://github.com/modelcontextprotocol/servers.git", "subdir": "src/fetch"},
+      "spec": {},
+      "needs": "pip install mcp-server-fetch",
+      "notes": "官方参考实现；sparse checkout 只取 src/fetch 子目录。本机未装 mcp 包，探活会报缺少依赖——属预期，装上即可。"
+    },
+    {
+      "name": "mcp-server-git",
+      "title": "Git 仓库读取（官方）",
+      "description": "读取/搜索本地 git 仓库：log、diff、show、status 等只读操作。",
+      "trust": "official",
+      "provides": ["git_log", "git_diff", "git_show", "git_status"],
+      "fetch": {"kind": "git", "url": "https://github.com/modelcontextprotocol/servers.git", "subdir": "src/git"},
+      "spec": {},
+      "needs": "pip install mcp-server-git",
+      "notes": "官方参考实现；激活时通常还要用 args 指定 --repository 路径。"
+    },
+    {
+      "name": "mcp-server-sqlite",
+      "title": "SQLite 查询（官方）",
+      "description": "只读查询 SQLite 数据库：列出表、读 schema、执行 SELECT。",
+      "trust": "official",
+      "provides": ["list_tables", "describe_table", "read_query"],
+      "fetch": {"kind": "git", "url": "https://github.com/modelcontextprotocol/servers.git", "subdir": "src/sqlite"},
+      "spec": {},
+      "needs": "pip install mcp-server-sqlite",
+      "notes": "官方参考实现；激活时用 args 指定 .db 文件路径。"
+    },
+    {
+      "name": "mcp-server-time",
+      "title": "时间与时区（官方）",
+      "description": "当前时间、时区转换。",
+      "trust": "official",
+      "provides": ["get_current_time", "convert_time"],
+      "fetch": {"kind": "git", "url": "https://github.com/modelcontextprotocol/servers.git", "subdir": "src/time"},
+      "spec": {},
+      "needs": "pip install mcp-server-time",
+      "notes": "官方参考实现。"
+    }
+  ]
+}
