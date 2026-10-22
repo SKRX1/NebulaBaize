@@ -87,3 +87,5 @@ README「实测边界/诚实记录」小节用于承载「区分确定性实测 
 门禁锁清单可加「上次实跑绿」列，但须注明它是人工实跑观测锚（最后一次全套ALL GREEN的commit），非git自动字段；只改文档不重跑全套时该锚合理不变
 工作区根 tools\ = 纯 scratch（git tracked=0，删除是零 git 影响的卫生操作）；常驻门禁锁一律在 strata-agent\tools\ 子目录——删 scratch 前务必按此边界甄别，勿跨目录误删
 run_tests 的 post-green 钩子 = 全套 ALL GREEN 后自动跑 _rollback_verify --no-nest 复验最新 tag；rollback 脚本绝不可作为 SUITES 成员（会自递归），只能作 main() 全绿后的后置钩子
+抽屉开关类"两态语义预览"优先复用已写准的现有 i18n 键渲染，零新键即不动键数对账测试
+观测锚/探针脚本若被 README 诚实记录小节引用，即升格为常驻资产，纳入 git 跟踪，不得当 scratch 删除
