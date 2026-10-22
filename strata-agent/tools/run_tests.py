@@ -148,6 +148,26 @@ def main() -> int:
     for _, ok, line in results:
         print(("PASS " if ok else "FAIL ") + line)
     print("REGRESSION: " + ("ALL GREEN" if all_ok else "RED — contract broken"))
+
+    # Post-green hook (2026-10-22): once the whole suite is green, auto-run the
+    # rollback verify against the latest milestone tag. --no-nest so it does NOT
+    # spawn another full suite (recursion guard). This is the green->tag->anchor
+    # loop's live check; a failure here turns the run red.
+    if all_ok:
+        rv = os.path.join(ROOT, "tools", "_rollback_verify.py")
+        try:
+            r = subprocess.run([PY, rv, "--no-nest"], capture_output=True,
+                               text=True, timeout=120, cwd=ROOT)
+            out = ((r.stdout or "") + ("\n[stderr]\n" + r.stderr if r.stderr else "")).strip()
+            print("---- post-green rollback verify ----")
+            print(out)
+            all_ok = (r.returncode == 0)
+        except Exception as e:
+            print("---- post-green rollback verify ----")
+            print("could not run rollback verify: %s" % e)
+            all_ok = False
+        print("REGRESSION (incl. post-green): " + ("ALL GREEN" if all_ok else "RED — contract broken"))
+
     return 0 if all_ok else 1
 
 
