@@ -86,3 +86,4 @@ run_tests 的常驻门禁命名用 _*_gate.py 前缀下划线(区别于 tests/)�
 README「实测边界/诚实记录」小节用于承载「区分确定性实测 vs 端到端不经济故未跑」的诚实标注；凡机制靠纯函数/契约测试坐实、端到端受算力物理限制未跑的，必须显式标注「未跑+不经济原因」，不得谎称有端到端数据
 门禁锁清单可加「上次实跑绿」列，但须注明它是人工实跑观测锚（最后一次全套ALL GREEN的commit），非git自动字段；只改文档不重跑全套时该锚合理不变
 工作区根 tools\ = 纯 scratch（git tracked=0，删除是零 git 影响的卫生操作）；常驻门禁锁一律在 strata-agent\tools\ 子目录——删 scratch 前务必按此边界甄别，勿跨目录误删
+run_tests 的 post-green 钩子 = 全套 ALL GREEN 后自动跑 _rollback_verify --no-nest 复验最新 tag；rollback 脚本绝不可作为 SUITES 成员（会自递归），只能作 main() 全绿后的后置钩子
