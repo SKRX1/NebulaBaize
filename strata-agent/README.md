@@ -11,13 +11,29 @@
 ### 门禁锁清单（run_tests SUITES 引用的常驻门禁，防退化）
 下列门禁已登记进 `tools/run_tests.py` 的 SUITES，CI 任一改动触碰其守护面即自动跑；上游不可达时自跳过返回 0（防 CI 假红）：
 
-| 门禁 | 守护内容 |
-|---|---|
-| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 |
-| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）|
-| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）|
-| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）|
-| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）|
+| 门禁 | 守护内容 | 上次实跑绿（人工观测锚）|
+|---|---|---|
+| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | 5e8ab49 (2026-10-22，全套 ALL GREEN) |
+| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| 5e8ab49 (2026-10-22，全套 ALL GREEN) |
+| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| 5e8ab49 (2026-10-22，全套 ALL GREEN) |
+| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| 5e8ab49 (2026-10-22，全套 ALL GREEN)（登记本轮实跑）|
+| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| 5e8ab49 (2026-10-22，全套 ALL GREEN) |
+
+### 实测边界（诚实记录，避免后续误判）
+
+> 这一列是**人工实跑观测锚**（最后一次整套 run_tests 全绿的 commit），非 git 自动字段；
+> 各锁文件进入 git 历史的 commit 见 DESIGN.md 对应章节。
+
+以下结论明确区分「确定性实测」与「端到端未跑/不经济」，后续 agent 勿把下列项误当成已有端到端实测：
+
+- **DESIGN.md §2 输出预算天花板**：机制正确性由**确定性契约测试**坐实（直接对纯函数
+  `compute_output_cap` 喂不同 ceiling 参数对照 65536>32768>16384 单调）。**端到端「真突破
+  32768」未跑**——本机生成约 23 token/s，破 32768 需约 24 分钟、60000 需约 43 分钟，远超
+  工具单次超时，且模型不会自然生成几万 token 就主动 stop；属物理限制非 bug，判定不经济
+  故不跑，不谎称有端到端长跑数据。
+- **DESIGN.md §1 归档/语义摘要**：归档零损失、折叠省量、决策存活率均为**隔离桩 + 常驻门禁**
+  实测；语义摘要器判准非 100%（实测 3/4，漏 1 条），靠白名单硬规则兜底。
+
 
 
 让 Strata 具备**完整智能体能力**的纯插件扩展包：自主执行循环、MCP 工具、记忆系统、Skills、权限/沙箱。**零修改 Strata**，升级后指向此包即可。
