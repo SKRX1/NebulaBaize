@@ -1279,3 +1279,14 @@ body.side-collapsed .st-ctx-menu { display: none; }
   border-radius: 50%; background: var(--st-ok, #3ec78a);
   animation: pulseDot 1.4s var(--st-ease) infinite;
 }
+
+/* B1: two-state preview for the recommended-only sub-checkbox.
+   Both phrases render via data-i18n (filled by applyI18n); JS only flips
+   data-state on the container, and this rule lights up the active tier.
+   Dim = secondary ink; the active tier uses the info semantic colour. */
+.st-check__preview { display: flex; flex-direction: column; gap: 2px; margin-top: 4px;
+  font-size: var(--st-fs-sm); line-height: 1.3; }
+.st-check__preview > span { color: var(--st-ink-muted); }
+.st-check__preview[data-state="on"] > span:first-of-type,
+.st-check__preview[data-state="off"] > span:last-of-type {
+  color: var(--st-info-text); font-weight: 600; }

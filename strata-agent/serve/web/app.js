@@ -7409,6 +7409,7 @@ function loadDrawer(s = settings) {
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
   $("s-autosteps-rec").checked = !!s.autostepsRec;
+  syncRecPreview(!!s.autostepsRec);
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
   $("s-compactpct").value = s.compactPct || 0;
   $("s-compactpct-row").hidden = !s.autocompact;
@@ -7488,6 +7489,8 @@ $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked",
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
 $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", String($("s-archiveon").getAttribute("aria-checked") !== "true"));
 $("s-autosteps").onclick = () => $("s-autosteps").setAttribute("aria-checked", String($("s-autosteps").getAttribute("aria-checked") !== "true"));
+  $("s-autosteps-rec").onchange = () => syncRecPreview($("s-autosteps-rec").checked);
+  syncRecPreview($("s-autosteps-rec").checked);
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
@@ -7866,3 +7869,10 @@ document.addEventListener("click", (e) => {
   memSubTab = b.dataset.mem; applyMemSubTab();
 });
 applyMemSubTab();  // ensure a panel is visible from first paint
+// B1 two-state preview for the recommended-only sub-checkbox: highlights which tier is active.
+// ON = recommended only (checkbox checked); OFF = recommended + normal (checkbox unchecked).
+// Text lives on the two data-i18n spans (filled by applyI18n); this only flips data-state.
+function syncRecPreview(checked) {
+  const p = document.querySelector(".st-check__preview");
+  if (p) p.dataset.state = checked ? "on" : "off";
+}

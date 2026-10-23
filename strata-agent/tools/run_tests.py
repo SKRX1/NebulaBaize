@@ -40,6 +40,7 @@ SUITES = [
     "tests/test_sidebar_tree.mjs",
     "tests/test_switch_busy.mjs",
     "tests/test_switch_busy_e2e.mjs",
+    "tests/test_rec_preview.mjs",   # 2026-10-23: B1 two-state preview for the recommended-only checkbox (diff differential)
     "tests/test_edit_resend.mjs",
     "tests/test_steps_fold.mjs",        # 2026-10-20: 执行过程折叠（工具回合收纳中间段，结束自动折叠）
     "tests/test_think_segments.mjs",
