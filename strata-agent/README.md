@@ -15,11 +15,11 @@
 
 | 门禁 | 守护内容 | 上次实跑绿（人工观测锚）|
 |---|---|---|
-| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-22-c (2026-10-23, real-run ALL GREEN incl. post-green hook, log lines 184/195/196) |
-| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-22-c (2026-10-23, real-run ALL GREEN incl. post-green hook, log lines 184/195/196) |
-| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-22-c (2026-10-23, real-run ALL GREEN incl. post-green hook, log lines 184/195/196) |
-| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-22-c (2026-10-23, real-run ALL GREEN incl. post-green hook, log lines 184/195/196)|
-| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-22-c (2026-10-23, real-run ALL GREEN incl. post-green hook, log lines 184/195/196) |
+| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-23 (2026-10-23, real-run ALL GREEN incl. post-green hook, log _suite_verify.log; prior tag 00bb0fd verified a working rollback point) |
+| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-23 (2026-10-23, real-run ALL GREEN incl. post-green hook, log _suite_verify.log; prior tag 00bb0fd verified a working rollback point) |
+| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-23 (2026-10-23, real-run ALL GREEN incl. post-green hook, log _suite_verify.log; prior tag 00bb0fd verified a working rollback point) |
+| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-23 (2026-10-23, real-run ALL GREEN incl. post-green hook, log _suite_verify.log; prior tag 00bb0fd verified a working rollback point)|
+| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-23 (2026-10-23, real-run ALL GREEN incl. post-green hook, log _suite_verify.log; prior tag 00bb0fd verified a working rollback point) |
 
 ### 实测边界（诚实记录，避免后续误判）
 
@@ -48,6 +48,8 @@
     故 VERDICT 只作「人工瞥一眼、须甄别」，**不作硬触发闸**；观测锚验证了当初「判别函数写不准会
     误吞正常清单」这条风险属实。日后若某会话的真幻觉（finish=stop 且工具名为真工具）稳定 >1/10，
     再按锚点三件套启用显示层折叠并配差分测试。
+
+- **本轮三笔提交登记（2026-10-23，纯文档/配置/规则拍板，不重跑全套）**：门禁「上次实跑绿」锚按 README 第5条『绿→打 tag→推锚』闭环推到本轮**真跑全套+post-green 全绿**的 commit（tag `v-baseline-2026-10-23`，deref e7dc617；post-green 真 checkout 前一 tag `00bb0fd` 重跑仍绿、坐实其可用）。本轮三笔各单独成 commit（仓库切分惯例、绝不 -A 夹带、用惯例身份）：`6303612` i18n 抽屉两态预览键 on=仅推荐/off=推荐+普通（中英各一对，零破坏键数对账，部署 MD5 i18n.js MATCH）；`9c60007` config/models.json 运行时漂移 selected 改 iq3-xxs（漂移单独成笔）；`e7dc617` RULES.md 两条规则条目（i18n 键复用、观测锚升格）。此登记条目本身即纯文档 commit，故它不进锚（锚停在实跑绿 commit e7dc617 合理，非本轮口头推）。事项2（攒实战轮次再跑观测锚）为延迟观察项，本轮无新增实战轮次、未到判定点、不强行推进。
 
 
 
