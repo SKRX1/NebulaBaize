@@ -2,7 +2,9 @@
 # Single-point-of-failure guard: snapshot the source-of-truth serve/web/ plus the tests/
 # suite plus the deployment-chain assets (2026-10-21: tests added, then the deploy chain:
 # deploy_host_patch.bat + tools/apply_host_patch.py + tools/_patch_browser_resolve.py;
-# 2026-10-22 §2: runtime/http_server.py added — the output-budget-ceiling backend change)
+# 2026-10-22 §2: runtime/http_server.py added — the output-budget-ceiling backend change;
+# 2026-10-23: permanent gates (_seg_scroll_baseline/_semantic_summarizer_gate/_archive_gate
+# + run_tests.py) and now _mirror_parity_gate.py joined the deploy chain)
 # into a zip under outputs/ (no cloud sync client detected on this box -- user drags it up).
 # Layout: web files keep the bare root, tests under tests/, deploy chain under deploy/.
 import os, zipfile, datetime
@@ -27,6 +29,7 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
               os.path.join("tools", "_seg_scroll_baseline.py"),
               os.path.join("tools", "_semantic_summarizer_gate.py"),
               os.path.join("tools", "_archive_gate.py"),
+              os.path.join("tools", "_mirror_parity_gate.py"),
               os.path.join("tools", "run_tests.py"),
               os.path.join("runtime", "gateway.py"),
               os.path.join("runtime", "http_server.py"),   # 2026-10-22 §2 backend: raisable output ceiling
