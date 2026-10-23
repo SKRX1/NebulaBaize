@@ -121,6 +121,7 @@ SUITES = [
     "tools/_semantic_summarizer_gate.py",   # live-gate: LLM semantic summarizer >= keyword on decision survival (self-skips if upstream down)
     "tools/_archive_gate.py",   # deterministic gate: archive write/read zero-loss + whitelist N=3 + default-on (locks the recoverable-archive design)
     "tests/test_ctx_denominator.py",   # 2026-10: the gateway denominator == the engine's real n_ctx (no 128K-vs-256K split)
+    "tools/_mirror_parity_gate.py",   # 2026-10-23: parasite mirror must be byte-identical to serve/web (locks the deploy/MIR rule; self-skips if the mirror folder is absent)
 ]
 
 
