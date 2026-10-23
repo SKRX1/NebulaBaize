@@ -2402,16 +2402,17 @@ function extractNextSteps(text) {
   for (const raw of m[1].split("\n")) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
-    let recommended = false, avoid = false;
-    let body = trimmed.replace(/^[\*\u2022]+\s*/, () => { recommended = true; return ""; }).trim();
+    let recommended = false, avoid = false, hold = false;
+    let body = trimmed.replace(/^\?\s*/, () => { hold = true; return ""; }).trim();   // "?" = 列给您看但 AI 等您答，不自动跑
+    body = body.replace(/^[\*\u2022]+\s*/, () => { recommended = true; return ""; }).trim();
     body = body.replace(/^[!✗×x]+\s*/i, () => { avoid = true; return ""; }).trim();   // "!" = AI does NOT advise (risky / net-negative)
     body = body.replace(/^[\+\-–]+/, "").trim();     // remaining bullet chars (not the recommend marker)
     if (!body) continue;
     const i = body.indexOf("："), j = body.indexOf(":");
     const sep = i > 0 && (j < 0 || i < j) ? i : (j > 0 ? j : -1);
     steps.push(sep > 0
-      ? {label: body.slice(0, sep).trim(), detail: body.slice(sep + 1).trim(), recommended, avoid}
-      : {label: body, detail: "", recommended, avoid});
+      ? {label: body.slice(0, sep).trim(), detail: body.slice(sep + 1).trim(), recommended, avoid, hold}
+      : {label: body, detail: "", recommended, avoid, hold});
   }
   return {text: (text.slice(0, m.index) + text.slice(m.index + m[0].length)).trim(), steps};
 }
@@ -2460,15 +2461,17 @@ function renderNextSteps(el, m) {
     //   recommended -> "推荐建议" (green, top), optional -> "下一步建议" (gray, middle),
     //   avoid       -> "不推荐建议" (amber, bottom). Selection stores ORIGINAL indices (data-step),
     //   so grouping only reorders the DOM — the selected-set still maps back into m.steps.
-    const recs = [], rest = [], avoid = [];
-    m.steps.forEach((s, i) => (s.recommended ? recs : (s.avoid ? avoid : rest)).push({s, i}));
-    const hasRec = recs.length > 0, hasRest = rest.length > 0, hasAvoid = avoid.length > 0;
+    const recs = [], rest = [], avoid = [], hold = [];
+    m.steps.forEach((s, i) => (s.recommended ? recs : s.avoid ? avoid : s.hold ? hold : rest).push({s, i}));
+    const hasRec = recs.length > 0, hasRest = rest.length > 0, hasAvoid = avoid.length > 0, hasHold = hold.length > 0;
 
     const chip = ({s, i}) => {
       const on = sel.has(i);
       let tier = "", badge = "";
       if (s.recommended) { tier = " next-step--rec";    badge = `<span class="next-step__badge">${esc(t("nextsteps.badge"))}</span>`; }
       else if (s.avoid)  { tier = " next-step--avoid"; badge = `<span class="next-step__badge next-step__badge--avoid">${esc(t("nextsteps.avoid.badge"))}</span>`; }
+      else if (s.hold)   { tier = " next-step--hold";  badge = `<span class="next-step__badge next-step__badge--hold">${esc(t("nextsteps.hold.badge"))}</span>`; }
+      else               { tier = " next-step--rest"; }                              // 普通档橙 chip（自动跑）
       const chk = on ? '<svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-check"/></svg>' : "";
       return `<button type="button" class="next-step${on ? " next-step--on" : ""}${tier}" data-step="${i}"` +
         ` aria-pressed="${on}" title="${esc(s.detail ? `${s.label}：${s.detail}` : s.label)}">` +
@@ -2478,6 +2481,7 @@ function renderNextSteps(el, m) {
     const group = (kind, items) => {
       const cls = kind === "rec" ? " next-steps__group--rec"
                 : kind === "avoid" ? " next-steps__group--avoid"
+                : kind === "hold" ? " next-steps__group--hold"
                 : " next-steps__group--rest";
       const tt = t(`nextsteps.${kind}.title`), sb = t(`nextsteps.${kind}.sub`);
       return `<span class="next-steps__group${cls}">` +
@@ -2489,6 +2493,7 @@ function renderNextSteps(el, m) {
     let html = "";
     if (hasRec)   html += group("rec", recs);
     if (hasRest)  html += group(hasRec ? "more" : "solo", rest);
+    if (hasHold)  html += group("hold", hold);
     if (hasAvoid) html += group("avoid", avoid);
 
     html += sel.size
@@ -2516,7 +2521,7 @@ function maybeAutoDrive(m) {
   if (m.error || m.notice || m.limit) return;        // ambiguous / needs-approval / round-limit → stop
   // pick: recommended-only by default, else every suggestion — never auto-drive "不推荐" (risky) steps
   const picks = m.steps.map((s, i) => ({s, i}))
-    .filter(({s}) => !s.avoid && (settings.autostepsRec ? !!s.recommended : true))
+    .filter(({s}) => !s.avoid && !s.hold)                              // 绿橙都跑·红永不跑·?等您答(纯C无勾选)
     .map(({i}) => i);
   if (!picks.length) return;                          // nothing eligible (e.g. rec-only but no rec)
   if (autoDriveDepth >= AUTO_DRIVE_MAX) {             // chain cap reached: hand back to the human
@@ -3868,7 +3873,7 @@ $("chat-scroll").addEventListener("scroll", (e) => {
 // The workspace-specific system prompt (working dir + plan/next-steps conventions). Kept as a helper
 // so apiMessages can compose it with the always-on base prompt, persona, and RAG context.
 function workspaceSystem(ws) {
-  let txt = `Working directory: ${ws}\nThe agent reads, writes, and runs commands in this folder. Use it as the default target for file and shell operations.\n\n任务若包含多个步骤，请在执行过程中用下面的「计划清单」格式跟踪进度：每完成一项就把对应的 [ ] 改成 [x]。清单放在回答开头附近（不要放进代码块以外的地方造成歧义），右侧面板会把它渲染成进度条。若任务很简单（一步完成），可以不输出：\n\`\`\`plan\n- [ ] 第一步\n- [x] 第二步（已完成）\n- [ ] 第三步\n\`\`\`\n\n执行命令或写文件后，务必确认结果符合预期（读回文件内容、查看命令输出）；若出现报错，先修复再继续，不要在未验证时就宣布任务完成。\n\n当你判断一项任务已经彻底完成（不再需要调用任何工具）时，在回答的末尾用下面格式给出 2-4 条「下一步建议」，每条一句话、可作为按钮直接点击执行。用行首符号标注优劣（前端据此分色排序，不要写进正文）：\n- 行首 \`*\`：你真正推荐、净收益高且风险低的（置顶、绿色、标「推荐」）；\n- 行首无符号的 \`-\`：可选、中性（排中间、灰色）；\n- 行首 \`!\`：你不推荐、坏处多或风险高、但用户可能仍有理由考虑的（排最后、琥珀色、标「不推荐」，仍可由用户决定是否采纳，例如"直接重启服务（会丢失现场）"）。\n若任务尚未完成，不要输出这个代码块：\n\`\`\`next-steps\n* 推荐项\n- 可选项\n! 不推荐项\n\`\`\``;
+  let txt = `Working directory: ${ws}\nThe agent reads, writes, and runs commands in this folder. Use it as the default target for file and shell operations.\n\n任务若包含多个步骤，请在执行过程中用下面的「计划清单」格式跟踪进度：每完成一项就把对应的 [ ] 改成 [x]。清单放在回答开头附近（不要放进代码块以外的地方造成歧义），右侧面板会把它渲染成进度条。若任务很简单（一步完成），可以不输出：\n\`\`\`plan\n- [ ] 第一步\n- [x] 第二步（已完成）\n- [ ] 第三步\n\`\`\`\n\n执行命令或写文件后，务必确认结果符合预期（读回文件内容、查看命令输出）；若出现报错，先修复再继续，不要在未验证时就宣布任务完成。\n\n当你判断一项任务已经彻底完成（不再需要调用任何工具）时，在回答的末尾用下面格式给出 2-4 条「下一步建议」，每条一句话、可作为按钮直接点击执行。用行首符号标注优劣（前端据此分色、并据此决定是否自动续跑——颜色即决定）：\n- 行首 \`*\`：你真正推荐、净收益高且风险低的（置顶、绿色、标「推荐」，自动续跑会跑它）；\n- 行首无符号的 \`-\`：可选、中性、值得顺手做的（排中间、黄色，自动续跑会跑它）；\n- 行首 \`!\`：你不推荐、坏处多或风险高的（排最后、红色、标「不推荐」，自动续跑绝不自动跑它，仅由用户决定）；\n- 行首 \`?\`：你已列出但在**等用户真实回复/需要用户拍板或自定义**的（蓝色、标「等你确认」，自动续跑绝不自动跑它——这是防止自我复读的停等信号）。\n重要：当你这一轮其实是在等用户拍板（需要决策、或该等用户真实回复/自定义）时，本轮就不要输出 next-steps 块，别给自己塞一个会被自动跑的建议而推进自我复读。\n若任务尚未完成，不要输出这个代码块：\n\`\`\`next-steps\n* 推荐项\n- 可选项\n! 不推荐项\n\`\`\``;
   // H2.5: decision proposals should also use the 推荐 / 不推荐 verdict so the UI can tier them.
   txt += `\n\n当你用「决策卡」给出多方案对比（proposal 代码块）时，给每个选项填 verdict：用 "推荐" 标注你最建议采纳的、"不推荐" 标注坏处多/风险高但用户仍可能考虑的，其余留空或写中性结论。前端会把"推荐"标绿置顶、"不推荐"标琥珀排最后。`;
   // H2: autonomous memory maintenance. The agent may discover durable, cross-task memory during a
@@ -7408,8 +7413,6 @@ function loadDrawer(s = settings) {
   $("s-memcompact").setAttribute("aria-checked", String(!!s.memCompactLLM));
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
-  $("s-autosteps-rec").checked = !!s.autostepsRec;
-  syncRecPreview(!!s.autostepsRec);
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
   $("s-compactpct").value = s.compactPct || 0;
   $("s-compactpct-row").hidden = !s.autocompact;
@@ -7489,8 +7492,6 @@ $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked",
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
 $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", String($("s-archiveon").getAttribute("aria-checked") !== "true"));
 $("s-autosteps").onclick = () => $("s-autosteps").setAttribute("aria-checked", String($("s-autosteps").getAttribute("aria-checked") !== "true"));
-  $("s-autosteps-rec").onchange = () => syncRecPreview($("s-autosteps-rec").checked);
-  syncRecPreview($("s-autosteps-rec").checked);
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
@@ -7523,7 +7524,6 @@ $("s-apply").onclick = async () => {
               memCompactLLM: $("s-memcompact").getAttribute("aria-checked") === "true",
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",
               autosteps: $("s-autosteps").getAttribute("aria-checked") === "true",
-              autostepsRec: $("s-autosteps-rec").checked,
               autoresume: $("s-autoresume").getAttribute("aria-checked") === "true",
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,
@@ -7872,7 +7872,3 @@ applyMemSubTab();  // ensure a panel is visible from first paint
 // B1 two-state preview for the recommended-only sub-checkbox: highlights which tier is active.
 // ON = recommended only (checkbox checked); OFF = recommended + normal (checkbox unchecked).
 // Text lives on the two data-i18n spans (filled by applyI18n); this only flips data-state.
-function syncRecPreview(checked) {
-  const p = document.querySelector(".st-check__preview");
-  if (p) p.dataset.state = checked ? "on" : "off";
-}

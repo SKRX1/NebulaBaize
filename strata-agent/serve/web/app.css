@@ -888,11 +888,12 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .next-steps__group--rec .next-steps__title { color: var(--st-accent-text); }
 .next-steps__group--rec .next-steps__sub { color: color-mix(in srgb, var(--st-accent-text) 70%, var(--st-ink-muted)); }
 /* 下一步建议 group — neutral secondary tier */
-.next-steps__group--rest .next-steps__title { color: var(--st-ink); }
-.next-steps__group--rest .next-steps__sub { color: var(--st-ink-muted); }
+.next-steps__group--rest .next-steps__title { color: var(--st-yellow-text); }
+.next-steps__group--rest .next-steps__sub { color: color-mix(in srgb, var(--st-yellow-text) 70%, var(--st-ink-muted)); }
 /* 不推荐建议 group — amber warning system (the "caution" tier, sorted last) */
-.next-steps__group--avoid .next-steps__title { color: var(--st-warn-text); }
-.next-steps__group--avoid .next-steps__sub { color: color-mix(in srgb, var(--st-warn-text) 70%, var(--st-ink-muted)); }
+.next-steps__group--avoid .next-steps__title { color: var(--st-danger-text); }
+.next-steps__group--hold .next-steps__title { color: var(--st-info-text); }
+.next-steps__group--avoid .next-steps__sub { color: color-mix(in srgb, var(--st-danger-text) 70%, var(--st-ink-muted)); }
 
 /* chip base = neutral secondary (下一步建议); recommended chips override to green below */
 .next-step { display: inline-flex; align-items: center; max-width: 100%; height: 32px; padding: 0 14px;
@@ -914,13 +915,21 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
   font-size: var(--st-fs-xs); font-weight: var(--st-fw-semibold); line-height: 1; letter-spacing: .02em;
   padding: 2px 6px; border-radius: 6px; background: var(--st-accent); color: var(--st-accent-ink); }
 .next-step--rec.next-step--on .next-step__badge { background: var(--st-accent-ink); color: var(--st-accent); }
+/* normal/optional chip — yellow (auto-run, listed-as-proposal) */
+.next-step--rest { border-color: color-mix(in srgb, var(--st-yellow) 50%, var(--st-border)); background: var(--st-yellow-tint); color: var(--st-yellow-text); }
+.next-step--rest:hover { background: color-mix(in srgb, var(--st-yellow) 20%, var(--st-surface)); }
+.next-step--rest.next-step--on { background: var(--st-yellow); color: #4a3a00; border-color: var(--st-yellow); }
+/* hold chip — info blue (listed for you, but AI waits for your real reply; never auto-run) */
+.next-step--hold { border-color: color-mix(in srgb, var(--st-info) 45%, var(--st-border)); background: var(--st-info-tint); color: var(--st-info-text); }
+.next-step--hold:hover { background: color-mix(in srgb, var(--st-info) 20%, var(--st-surface)); }
+.next-step--hold.next-step--on { background: var(--st-info); color: #fff; border-color: var(--st-info); }
 /* not-recommended chip — amber caution system, with a solid "不推荐" badge */
-.next-step--avoid { border-color: color-mix(in srgb, var(--st-warn) 50%, var(--st-border)); background: var(--st-warn-tint); color: var(--st-warn-text); }
-.next-step--avoid:hover { background: color-mix(in srgb, var(--st-warn) 20%, var(--st-surface)); }
-.next-step--avoid.next-step--on { background: var(--st-warn); color: #1b1402; border-color: var(--st-warn); }
-.next-step--avoid.next-step--on:hover { background: color-mix(in srgb, var(--st-warn) 85%, #000); }
-.next-step__badge--avoid { background: var(--st-warn); color: #fff; }
-.next-step--avoid.next-step--on .next-step__badge--avoid { background: #1b1402; color: var(--st-warn); }
+.next-step--avoid { border-color: color-mix(in srgb, var(--st-danger) 50%, var(--st-border)); background: var(--st-danger-tint); color: var(--st-danger-text); }
+.next-step--avoid:hover { background: color-mix(in srgb, var(--st-danger) 20%, var(--st-surface)); }
+.next-step--avoid.next-step--on { background: var(--st-danger); color: #fff; border-color: var(--st-danger); }
+.next-step--avoid.next-step--on:hover { background: color-mix(in srgb, var(--st-danger) 85%, #000); }
+.next-step__badge--avoid { background: var(--st-danger); color: #fff; }
+.next-step--avoid.next-step--on .next-step__badge--avoid { background: #fff; color: var(--st-danger); }
 .next-steps__acts { display: inline-flex; gap: 6px; align-items: center; }
 
 /* autonomous auto-drive pill (shown while the AI is driving the next steps) */
@@ -1290,3 +1299,14 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .st-check__preview[data-state="on"] > span:first-of-type,
 .st-check__preview[data-state="off"] > span:last-of-type {
   color: var(--st-info-text); font-weight: 600; }
+ 
+
+/* --- autosteps colour legend (retired checkbox -> static 4-colour key) --- */
+.st-legend { display: block; }
+.st-legend__list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.st-legend__list li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs-sm); color: var(--st-ink-soft); }
+.st-legend__dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.st-legend__dot--rec    { background: var(--st-accent); }
+.st-legend__dot--normal { background: var(--st-yellow); }
+.st-legend__dot--hold   { background: var(--st-info); }
+.st-legend__dot--avoid  { background: var(--st-danger); }

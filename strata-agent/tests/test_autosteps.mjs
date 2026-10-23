@@ -7,7 +7,7 @@ environment, and verifies the contract these two features introduced:
   Recommended marker   a leading * / • inside a ```next-steps line marks the step recommended.
   Recommended-first    renderNextSteps orders recommended steps first, but keeps the ORIGINAL
                        index via data-step so selSteps (stored as original indices) keeps mapping.
-  Auto-drive pick      maybeAutoDrive picks recommended-only when autostepsRec, else every step.
+  Auto-drive pick      maybeAutoDrive runs every non-avoid, non-hold step (green+yellow). Avoid=red never runs; hold=blue waits for the user.
   Auto-drive guards    skips when off / busy / error / notice / limit / no eligible picks.
   Chain cap            AUTO_DRIVE_MAX (5) auto steps, then hands back (depth reset to 0).
 
@@ -165,14 +165,14 @@ console.log("AUTO-STEPS / RECOMMENDED-FIRST:");
   check("off: depth stays 0", ad.depth === 0);
 }
 
-// T6: ON + recommended-only -> picks just the recommended index, shows pill, schedules the fire
+// T6: ON -> green+normal both run (autostepsRec retired, filter ignores it); shows pill, schedules the fire
 {
   api.resetAutoDrive();
   api.setSettings({ autosteps: true, autostepsRec: true });
   const m = parseMsg(["* 推荐一：说明", "- 普通一：详情"]);   // steps[0] recommended, steps[1] not
   api.maybeAutoDrive(m);
   const ad = api.getAutoDrive();
-  check("rec-only: picks exactly the recommended index", JSON.stringify([...m.selSteps].sort()) === JSON.stringify([0]), JSON.stringify(m.selSteps));
+  check("green+normal both run (autostepsRec retired): picks both", JSON.stringify([...m.selSteps].sort()) === JSON.stringify([0, 1]), JSON.stringify(m.selSteps));
   check("rec-only: depth incremented to 1", ad.depth === 1, "depth=" + ad.depth);
   check("rec-only: pill shown", pill().hidden === false);
   check("rec-only: fire scheduled", ad.timer !== null);

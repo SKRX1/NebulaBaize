@@ -46,6 +46,7 @@
   --st-info:#0f97ff;     --st-info-tint:#e8f4ff;    --st-info-text:#0668c2;
   --st-warn:#e39b0b;     --st-warn-tint:#fff6e0;    --st-warn-text:#8a5a00;   /* (derived) */
   --st-danger:#e0283f;   --st-danger-tint:#fdecee;  --st-danger-text:#b01a2e; /* (derived) */
+--st-yellow:#f5c518;   --st-yellow-tint:#fff8e1;   --st-yellow-text:#8a6d00;  /* pure yellow (distinct from orange warn) */
 
   --st-code-bg:#1b1f23;  --st-code-ink:#e6e9ec;  /* code blocks stay dark in both themes (derived) */
 
@@ -77,6 +78,7 @@
   --st-info:#3aa9ff;     --st-info-tint:rgba(58,169,255,.12);  --st-info-text:#7cc4ff;
   --st-warn:#f5b53d;     --st-warn-tint:rgba(245,181,61,.12);  --st-warn-text:#f8c96a;
   --st-danger:#ff5a6e;   --st-danger-tint:rgba(255,90,110,.12);--st-danger-text:#ff8a98;
+--st-yellow:#facc15;   --st-yellow-tint:rgba(250,204,21,.12);  --st-yellow-text:#fde047;
 
   --st-code-bg:#0a0c0e;  --st-code-ink:#e6e9ec;
 
