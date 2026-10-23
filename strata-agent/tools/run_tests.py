@@ -50,6 +50,7 @@ SUITES = [
     "tests/test_auto_memory.mjs",
     "tests/test_proposal_card.mjs",
     "tests/test_autosteps.mjs",
+    "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_thinking.mjs",
     "tests/test_interrupted_resume.mjs",
     "tests/test_interrupt_log.mjs",
