@@ -15,12 +15,13 @@
 
 | 门禁 | 守护内容 | 上次实跑绿（人工观测锚）|
 |---|---|---|
-| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-23-f (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD b36dd70 on master; post-green hook verified tag -e deref 18f1bef as a working rollback point this session) |
-| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-23-f (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD b36dd70 on master; post-green hook verified tag -e deref 18f1bef as a working rollback point this session) |
-| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-23-f (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD b36dd70 on master; post-green hook verified tag -e deref 18f1bef as a working rollback point this session) |
-| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-23-f (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD b36dd70 on master; post-green hook verified tag -e deref 18f1bef as a working rollback point this session)|
-| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-23-f (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD b36dd70 on master; post-green hook verified tag -e deref 18f1bef as a working rollback point this session) |
-| `tools/_mirror_parity_gate.py` + `serve/web` ↔ `Strata-main\serve\web` | 寄生镜像必须与权威源逐文件 MD5 一致（部署/MIR 铁律锁，镜像目录不在时自跳过）| v-baseline-2026-10-23-f (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD b36dd70 on master; post-green hook verified tag -e deref 18f1bef as a working rollback point this session)
+| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session) |
+| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session) |
+| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session) |
+| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session) |
+| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session) |
+| `tools/_mirror_parity_gate.py` + `serve/web` ↔ `Strata-main\serve\web` | 寄生镜像必须与权威源逐文件 MD5 一致（部署/MIR 铁律锁，镜像目录不在时自跳过）| v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session)
+| `tests/test_card_guard_no_autodrive.mjs` | 决策卡轮次整轮不自动跑（等用户拍板）+ 卡轮次照旧出全档条 + 红/蓝永不跑 | v-baseline-2026-10-23-g (2026-10-23, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 11dd9bc on master; post-green hook verified tag -g deref 11dd9bc this session) |
 
 ### 实测边界（诚实记录，避免后续误判）
 
@@ -167,3 +168,4 @@ python runtime\gateway.py --daemon
 - `at: "YYYY-MM-DDTHH:MM"`：一次性（触发后自动消费）
 
 实测：周期项会反复触发、一次性项到点才触发、调度器睡到最近的下一个触发点再跑（真实墙钟，绝不伪造触发）。离线测试 case10 验证 interval/每日/一次性三种触发 + 重排 + 一次性消费。
+- **本轮登记（2026-10-23，决策卡=人工拍板优先级，用户拍板语义，非纯文档，进锚链）**：本轮 commit `11dd9bc` feat 级——前端 `maybeAutoDrive` 新增守卫（app.js:2520）：本轮有可见决策卡即整轮不自动跑（等人拍板，防自我复读）；**废**旧铁律「卡轮次不输出 next-steps 块」→卡轮次照旧出全档条（绿/黄可点但不被跑掉、红/蓝永不跑）；系统 prompt 措辞（app.js:3877）已与守卫对齐（卡轮次照旧输出 next-steps 块）。新增差分契约测试 `tests/test_card_guard_no_autodrive.mjs`（双探针：目标组有卡→不排程/对照组无卡→照排程；卡全 dismissed→恢复；仅红条→不排程）17/17 绿，已注册进 SUITES（紧跟 test_autosteps 同批）并入 git 跟踪。部署：deploy_frontend.py 1 COPY + 镜像对账门禁 21/21 全绿。门禁表 6 行锚 + 新锁第 7 行统一推到本轮实跑绿 tag `v-baseline-2026-10-23-g`（deref 坐实指向 11dd9bc，钩子真 checkout 该 tag 重跑仍绿、坐实可用）。本登记条本身为纯文档 commit，按习例不进锚。
