@@ -6347,6 +6347,7 @@ async function streamAssistant() {
   let firstAt = null, thinkStart = null, usage = null, frame = 0;
   let sawUsage = false, sumCompletion = 0, sumReasoning = 0, turnReasoning = null;
   let sawDone = false;                // the gateway closes every healthy turn with [DONE]; missing = cut off
+  let finishReason = null;              // last non-null choices[0].finish_reason this turn ("length" = output budget ran dry mid-turn)
   let rawContent = "";                   // Step4-E: exact concatenation of content deltas (raw model output)
   const t0 = performance.now();          // request start: the basis for total task duration
   let genStart = null;                    // first *content* token (decode-speed base, excludes thinking/tool gaps)
@@ -6417,6 +6418,8 @@ async function streamAssistant() {
         }
         if (j.strata_mcp) { m._lastActivityAt = Date.now(); onTool(m, j.strata_mcp); }
         if (j.strata_approval) { onApproval(j.strata_approval); }
+        const fr = j.choices && j.choices[0] && j.choices[0].finish_reason;
+        if (fr) finishReason = fr;
         const d = (j.choices && j.choices[0] && j.choices[0].delta) || {};
         const lastTool = m.tools && m.tools.length ? m.tools[m.tools.length - 1] : null;   // a new round after a tool
         if (d.reasoning_content) {
@@ -6479,6 +6482,19 @@ async function streamAssistant() {
   // restart. Without this check a half-streamed answer looked exactly like a finished one -- the "it
   // just stopped for no reason" report. Mark it so the UI says so and the auto-resume can pick it up.
   markTruncatedIfCut(m, sawDone, stopId);
+  // A single-round turn whose own output budget ran dry (finish_reason=length) is an
+  // interruption too: the model stopped mid-task because ITS budget ran dry, not because
+  // the task is done. The gateway still sent a clean [DONE], so markTruncatedIfCut above
+  // correctly returned false and the connection is healthy -- but the TASK is unfinished.
+  // Stamp it so the already-proven auto-resume rail (which keys on m.truncated) carries it
+  // on. Guarded so it cannot mis-fire: only a length-capped turn that made real progress,
+  // and only when no fatal/notice/stopped path already owns this turn. lengthCapped keeps
+  // the provenance distinct from a transport cut.
+  if (finishReason === "length" && !m.error && !m.stopped && !m.notice && !m.truncated
+      && (m.text || m.reasoning || (m.tools && m.tools.length))) {
+    m.truncated = true;
+    m.lengthCapped = true;
+  }
   // A dead turn and a dead gateway look identical in the stream, but the user's next move is
   // completely different (press Continue vs restart the service). One cheap probe settles it.
   if (m.truncated) m.gatewayDown = await gatewayIsDown();

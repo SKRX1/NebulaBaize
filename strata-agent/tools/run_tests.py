@@ -57,6 +57,7 @@ SUITES = [
     "tests/test_interrupt_log.mjs",
     "tests/test_stream_done.mjs",
     "tests/test_conn_cut_resume.mjs",   # 2026-10-20: transport cut == truncated, NOT fatal
+    "tests/test_length_cap_resume.mjs",   # 2026-10: finish_reason=length single-round cap -> feeds the resume rail (differential)
     "tests/test_dynamic_output_cap.py", # 2026-10-20: dynamic per-round cap + fs append mode
     "tests/test_output_ceiling.py",   # 2026-10: the write-hardened 32768 ceiling is raisable from the frontend
     "tests/test_bottom_anchor.mjs",
