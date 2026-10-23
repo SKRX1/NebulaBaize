@@ -1042,7 +1042,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, speedDropPct: 50, archiveOn: true, memCompactLLM: false, cnThink: false, designLang: "auto", persona: "",
-                  maxCeiling: "",
+                  maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
@@ -2423,9 +2423,19 @@ function composeStepsMessage(steps, idxs, extra) {
   const picked = (idxs || []).map((i) => steps[i]).filter(Boolean);
   const typed = String(extra || "").trim();
   if (!picked.length) return typed;
-  const line = (s) => (s.detail ? `${s.label}：${s.detail}` : s.label);
-  const body = picked.length === 1 ? line(picked[0])
-    : t("nextsteps.combo") + "\n" + picked.map((s, i) => `${i + 1}. ${line(s)}`).join("\n");
+  // C-tier: a "?" chip click means "confirmed, proceed with your default" — the sent text
+  // must read as a decision, not a question, so the model does not re-ask.
+  const line = (s) => s.hold
+    ? `${t("nextsteps.hold.confirm")} ${s.detail ? `${s.label}：${s.detail}` : s.label}`
+    : (s.detail ? `${s.label}：${s.detail}` : s.label);
+  const anyExec = picked.some((s) => !s.hold);
+  let body;
+  if (picked.length === 1) {
+    body = anyExec ? `${t("nextsteps.exec.prefix")} ${line(picked[0])}` : line(picked[0]);
+  } else {
+    body = t("nextsteps.combo") + "\n" + picked.map((s, i) => `${i + 1}. ${line(s)}`).join("\n");
+    if (anyExec) body += `\n\n${t("nextsteps.exec.prefixAll")}`;
+  }
   return typed ? `${body}\n\n${t("nextsteps.extra", {text: typed})}` : body;
 }
 // The send button says whether the typed text will be attached, so "多选 + 自定义一句话" is predictable.
@@ -3895,6 +3905,10 @@ function workspaceSystem(ws) {
   txt += memBlock("propose-rules", true, memOn);
   txt += memBlock("propose-knowledge", false, memOn);
   txt += memBlock("propose-experience", false, memOn);
+  // 2026-10: the wording iron law — clickable executable tiers must read as imperative so a
+  // click is a decision, not a question; and the "?" tier must ship an explicit default so a
+  // click means "ratify the default" and the agent must not re-ask.
+  txt += `\n\n【建议条措辞铁律】凡「可执行档」（推荐 * / 一般 - / 不推荐 !）的建议必须写成祈使陈述句（例：「跑一遍全套回归」），不要写成疑问句或「让用户补一下信息」的句子——用户点击即代表拍板执行，你不得再反问；「? 等你确认」档必须在本轮正文里写明你建议的默认值/默认方案（例：「默认取 16384 词」），因为用户点击 = 授权按该默认执行，你不得反问；若确实无法预设默认值（真正开放的问题），改用决策卡 proposal 或在正文里直陈，不要放进 ? 档。`;
   // H2: always-on memory, composed from THREE scopes in precedence order (lowest first): global ->
   // group -> workspace. Later, more specific tiers can refine/override earlier ones. Global entries
   // apply to every workspace (universal); group entries to every workspace in that group (the
@@ -6282,9 +6296,12 @@ async function streamAssistant() {
   const _te = modelThinking();
   if (_te) {
     body.reasoning_effort = _te;             // explicit level (off/low/medium/high)
-    const _tb = thinkingBudget(_te);         // 跟随模型 returns null -> no cap sent
+    // 思考预算：显式数值框(settings.thinkBudget)优先，否则跟随档位(thinkingBudget)。
+    const _tb = (settings.thinkBudget && +settings.thinkBudget > 0) ? +settings.thinkBudget : thinkingBudget(_te);
     if (_tb) body.reasoning_budget_tokens = _tb;
   }
+  // 方案A增强：正文保底额度随请求发出(后端 compute_output_cap 据此给正文留独立预算)。
+  if (settings.answerFloor && +settings.answerFloor > 0) body.answer_floor_tokens = +settings.answerFloor;
   // auto (跟随模型): omit BOTH -> the engine's own default (currently xhigh, uncapped)
   if (settings.temperature > 0) {
     Object.assign(body, {temperature: +settings.temperature, top_p: +settings.top_p, top_k: +settings.top_k});
@@ -7403,6 +7420,7 @@ function loadDrawer(s = settings) {
   for (const b of $("s-thinking").children) b.setAttribute("aria-checked", String(b.dataset.v === _tv));
   $("s-temp").value = s.temperature; $("s-topp").value = s.top_p; $("s-topk").value = s.top_k;
   $("s-max").value = s.max; $("s-ceiling").value = s.maxCeiling; $("s-seed").value = s.seed;
+  $("s-thinkbudget").value = s.thinkBudget; $("s-answerfloor").value = s.answerFloor;
   $("s-show").setAttribute("aria-checked", String(!!s.show));
   $("s-esp").setAttribute("aria-checked", String(s.esp !== false));
   $("esp-row").hidden = !projectionLoaded();
@@ -7440,9 +7458,10 @@ async function loadShared() {
 function sharedDefaults(s) {
   const d = {reasoning_effort: s.thinking, temperature: +s.temperature};
   if (s.thinking && s.thinking !== THINK_AUTO) {
-    const b = thinkingBudget(s.thinking);
+    const b = (s.thinkBudget && +s.thinkBudget > 0) ? +s.thinkBudget : thinkingBudget(s.thinking);
     if (b) d.reasoning_budget_tokens = b;
   }
+  if (s.answerFloor && +s.answerFloor > 0) d.answer_floor_tokens = +s.answerFloor;
   if (+s.temperature > 0) Object.assign(d, {top_p: +s.top_p, top_k: +s.top_k});
   if (s.seed) d.seed = +s.seed;
   if (s.max) d.max_tokens = +s.max;
@@ -7516,6 +7535,7 @@ $("s-apply").onclick = async () => {
   if (_ts) { _ts.thinking = _tm; saveSessions(); renderSessions(); }
   settings = {thinking: _tm, temperature: +$("s-temp").value, top_p: +$("s-topp").value,
               top_k: +$("s-topk").value, max: $("s-max").value.trim(), maxCeiling: $("s-ceiling").value.trim(), seed: $("s-seed").value.trim(),
+              thinkBudget: $("s-thinkbudget").value.trim(), answerFloor: $("s-answerfloor").value.trim(),
               show: $("s-show").getAttribute("aria-checked") === "true",
               esp: $("s-esp").getAttribute("aria-checked") === "true",
               mcp: $("s-mcp").getAttribute("aria-checked") === "true",

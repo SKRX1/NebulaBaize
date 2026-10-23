@@ -51,6 +51,7 @@ SUITES = [
     "tests/test_proposal_card.mjs",
     "tests/test_autosteps.mjs",
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
+    "tests/test_compose_steps.mjs",   # 2026-10-24: click a suggestion = a decision, not a question (exec prefix + hold confirm branch)
     "tests/test_thinking.mjs",
     "tests/test_interrupted_resume.mjs",
     "tests/test_interrupt_log.mjs",
@@ -95,6 +96,7 @@ SUITES = [
     "tests/test_nextsteps_group.mjs",   # 2026-10-20: 推荐建议置顶 + 「推荐」徽标 + 绿/灰双色分组
     "tests/test_proposal_tier.mjs",     # 2026-10-20: 决策卡推荐选项绿档 + 推荐徽标 + 主/幽灵按钮分档
     "tests/test_suggestion_tiers.mjs",  # 2026-10-20: 建议三档（推荐/可选/不推荐）解析+渲染+proposal+i18n
+    "tests/test_format_fence_differential.mjs",  # 2026-10-23: FORMAT-ROOT-CAUSE differential gate (inline-mention->0 chips vs standalone fence->4 chips, four tier groups)
     "tests/test_code_style.mjs",        # 2026-10-20: 代码块语法高亮 + 思考区围栏渲染成真代码卡片
     "tests/test_shell_timeout.py",
     "tests/test_agent_loop.py",
