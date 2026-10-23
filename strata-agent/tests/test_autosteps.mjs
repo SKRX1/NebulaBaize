@@ -49,7 +49,7 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 const injected = appCode + `
 ;window.__api = {
-  extractNextSteps, renderNextSteps, maybeAutoDrive, sendSelectedSteps, composeStepsMessage,
+  extractNextSteps, renderNextSteps, maybeAutoDrive, sendSelectedSteps, composeStepsMessage, t,
   stopAutoDrive, showAutoDrivePill,
   setSettings: (patch) => { settings = {...settings, ...patch}; },
   clearTimer: () => { if (autoDriveTimer) { clearTimeout(autoDriveTimer); autoDriveTimer = null; } },
@@ -146,11 +146,11 @@ console.log("AUTO-STEPS / RECOMMENDED-FIRST:");
     { label: "C", detail: ""   },
   ];
   const one = api.composeStepsMessage(steps, [0], "");
-  check("single pick keeps exact wording", one === "A：da", JSON.stringify(one));
+  check("single pick gets exec prefix + label", one === api.t("nextsteps.exec.prefix") + " A：da", JSON.stringify(one));
   const combo = api.composeStepsMessage(steps, [0, 1], "");
   check("combo numbers the picks", combo.includes("1. A：da") && combo.includes("2. B：db"), JSON.stringify(combo));
   const withExtra = api.composeStepsMessage(steps, [2], "顺便 X");
-  check("typed text appended to body", withExtra.startsWith("C") && withExtra.includes("顺便 X"), JSON.stringify(withExtra));
+  check("typed text has exec prefix + body", withExtra.startsWith(api.t("nextsteps.exec.prefix")) && withExtra.includes("C") && withExtra.includes("顺便 X"), JSON.stringify(withExtra));
 }
 
 // T5: switch OFF -> nothing happens
