@@ -22,6 +22,9 @@ set UPSTREAM_URL=http://127.0.0.1:8080/v1
 set MODEL=strata
 set API_KEY=
 set PORT=8099
+REM --- 2026-10-23: per-round output budget (see runtime/http_server.py L97/L107) ---
+set STRATA_MAX_OUTPUT=16384
+set STRATA_MAX_OUTPUT_CEILING=49152
 
 REM --- Build args ---
 set ARGS=--serve --url "%UPSTREAM_URL%" --model "%MODEL%" --port %PORT%

@@ -653,6 +653,16 @@
       <span class="muted small" data-i18n="drawer.thinking.hint">按任务记忆：切换任务会自动切到该任务的强度；新任务沿用上次选择</span>
     </div>
     <div class="st-field">
+      <label class="st-label" for="s-thinkbudget"><span data-i18n="drawer.thinkBudget">思考预算</span> <output data-i18n="drawer.thinkBudget.hint">跟随档位（可手动覆盖）</output></label>
+      <input class="st-input" id="s-thinkbudget" type="number" min="1" step="1" placeholder="跟随档位（低1024/中4096/高32768）"
+             data-i18n-attr="placeholder:drawer.thinkBudget.ph,title:drawer.thinkBudget.tip">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-answerfloor"><span data-i18n="drawer.answerFloor">正文保底</span> <output data-i18n="drawer.answerFloor.hint">思考满后正文至少留出的额度</output></label>
+      <input class="st-input" id="s-answerfloor" type="number" min="1" step="1" placeholder="16384"
+             data-i18n-attr="placeholder:drawer.answerFloor.ph,title:drawer.answerFloor.tip">
+    </div>
+    <div class="st-field">
       <label class="st-label" for="s-temp"><span data-i18n="drawer.temp">Temperature</span> <output id="o-temp"></output></label>
       <input class="st-slider" type="range" id="s-temp" min="0" max="1.5" step="0.05">
       <span class="muted small" data-i18n="drawer.temp.hint">0 = always the most likely word (exact, repeatable)</span>

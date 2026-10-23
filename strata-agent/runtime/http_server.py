@@ -113,28 +113,42 @@ OUTPUT_CEILING = int(os.environ.get("STRATA_MAX_OUTPUT_CEILING", "32768"))
 # the call or emit nothing useful).
 _CONTEXT_MARGIN = 4096
 _MIN_CAP = 2048
+# 正文保底额度：思考满额后，发给引擎的闸门里必须为正文(回答/写文件)至少留出的 token 数。
+# 引擎把 max_tokens 当作"思考+正文合计闸门"，所以这里给的是二者相加的总闸门；
+# 前端显式发来 answer_floor_tokens 时用前端值，未发时用此默认(16384)。留空(0)=旧行为(满额ceiling)。
+_DEFAULT_ANSWER_FLOOR = 16384
 
 
-def compute_output_cap(asked, max_context, last_prompt, ceiling=OUTPUT_CEILING):
+def compute_output_cap(asked, max_context, last_prompt, ceiling=OUTPUT_CEILING,
+                       reasoning_budget=0, answer_floor=0):
     """Dynamic single-round generation budget (the fix for "capped at 8192").
 
     asked        -- composer's explicit Max tokens (0/None = not set)
     max_context  -- engine context window in tokens (0/None = unknown)
     last_prompt  -- this session's last recorded prompt tokens (0/None = none)
     ceiling      -- hard ceiling; never exceeded
+    reasoning_budget -- 思考预算：引擎侧思考链可占用的 token 上限（前端档位/数值框发来）
+    answer_floor     -- 正文保底额度：思考满额后正文至少留出的 token 数（方案A增强）
 
-    Honours an explicit ask as a cap but clamps it to the ceiling, and never lets the
-    budget exceed the FREE space of the window -- so a huge ask can never produce an
-    upstream 400 ("max_tokens + prompt > n_ctx"). When the window is unknown we fall
-    back to the bare ceiling/ask. Pure function: unit-tested in tests/test_dynamic_output_cap.py.
+    方案A增强：当 asked 未设但给了 reasoning_budget / answer_floor 时，发给引擎的总闸门
+    = 思考预算 + 正文保底，保证思考吃满后正文仍有独立预算、不再 finish_reason=length。
+    二者相加再受 ceiling 与 free 双约束（仍不可能触发上游 400）。
+    默认 reasoning_budget=answer_floor=0 时行为与旧版完全一致（向后兼容，现有测试不破）。
     """
+    # 有效请求闸门：显式 asked 优先；否则若给了思考/正文分项，二者相加作为总闸门。
+    eff = asked if (asked and asked > 0) else ((reasoning_budget or 0) + (answer_floor or 0))
     if max_context:
         free = (max_context - (last_prompt or 0) - _CONTEXT_MARGIN)
         if free < _MIN_CAP:
             free = _MIN_CAP
-        return min(asked if asked and asked > 0 else ceiling, ceiling, free)
+        # eff<=0（都没填）时回退 ceiling，保持旧行为；否则 min(eff, ceiling, free)。
+        if eff and eff > 0:
+            return min(eff, ceiling, free)
+        return min(ceiling, free)
     # Window unknown: we can't measure free space, but the ceiling still binds.
-    return min(asked, ceiling) if asked and asked > 0 else ceiling
+    if eff and eff > 0:
+        return min(eff, ceiling)
+    return ceiling
 
 
 # Reasoning effort is FORWARDED from the caller instead of being pinned here. It used to be a
@@ -1975,6 +1989,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
             _ceiling = int((body or {}).get("max_ceiling") or 0) or OUTPUT_CEILING
         except Exception:
             _ceiling = OUTPUT_CEILING
+        # 方案A增强：正文保底额度（前端发来；0=用 _DEFAULT_ANSWER_FLOOR 参与计算）。
+        try:
+            _answer_floor = int((body or {}).get("answer_floor_tokens") or 0) or _DEFAULT_ANSWER_FLOOR
+        except Exception:
+            _answer_floor = _DEFAULT_ANSWER_FLOOR
         # Thinking level: honour the composer's selector instead of pinning one here (see above).
         effort = reasoning_effort_of(body)
         budget = reasoning_budget_of(body)        # None for 跟随模型 / off
@@ -2217,7 +2236,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 # composer's explicit Max tokens is honoured as a cap but is itself clamped to
                 # OUTPUT_CEILING. `_lp` is this conversation's last recorded prompt usage
                 # (prompt_tokens_for), a safe proxy for how full the window already is.
-                out_cap = compute_output_cap(_asked, _win or self.state.ctx_window(), _lp, _ceiling)
+                out_cap = compute_output_cap(_asked, _win or self.state.ctx_window(), _lp, _ceiling,
+                                          reasoning_budget=budget, answer_floor=_answer_floor)
                 view = system_view_with_fallback(messages)
                 acc = {"content": "", "reasoning": "", "tool_calls": [], "finish": None, "usage": None}
                 shown_content = ""           # how much of the CLEANED content we've SSE'd so far

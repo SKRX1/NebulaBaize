@@ -162,5 +162,55 @@ class FsAppendTest(unittest.TestCase):
         self.assertIn("append", err)
 
 
+
+class SeparatedThinkAnswerFloorTest(unittest.TestCase):
+    """方案A增强：思考预算与正文保底分开算，证明思考吃满后正文仍有独立预算。
+
+    显式传 ceiling=32768（出厂默认），不依赖环境变量——测试必须对运行环境的
+    STRATA_MAX_OUTPUT_CEILING 免疫。CEIL 仅在默认环境成立，本类一律用字面 32768。
+    """
+    STD = 32768
+
+    # 核心场景（用户截图 low 档）：思考=1024 吃满，正文保底=16384 独立可用。
+    # 旧版只给到 finish=length 的 ~1.2K；现在思考满后正文仍有 16384。
+    def test_low_think_keeps_full_answer_floor(self):
+        # 总闸门 = 1024 + 16384 = 17408；窗口空 free=126976，ceiling=32768 -> 取 17408
+        self.assertEqual(
+            compute_output_cap(0, 131072, 0, ceiling=self.STD,
+                               reasoning_budget=1024, answer_floor=16384), 17408)
+
+    # 中档思考 4096 + 正文保底 16384 = 20480。
+    def test_medium_think_plus_floor(self):
+        self.assertEqual(
+            compute_output_cap(0, 131072, 0, ceiling=self.STD,
+                               reasoning_budget=4096, answer_floor=16384), 20480)
+
+    # 思考+正文相加超过 ceiling -> ceiling 赢（绝不超过总天花板）。
+    def test_sum_over_ceiling_clamped(self):
+        # 20000 + 16384 = 36384 > 32768 -> 32768
+        self.assertEqual(
+            compute_output_cap(0, 131072, 0, ceiling=self.STD,
+                               reasoning_budget=20000, answer_floor=16384), 32768)
+
+    # 长历史：free 成为绑定约束（思考+正文再大也受剩余窗口封顶，绝不触发上游 400）。
+    def test_long_history_window_wins(self):
+        # free = 131072 - 120000 - 4096 = 6976；eff=17408 -> min(17408, 32768, 6976)=6976
+        self.assertEqual(
+            compute_output_cap(0, 131072, 120000, ceiling=self.STD,
+                               reasoning_budget=1024, answer_floor=16384), 6976)
+
+    # 向后兼容：asked=0 且无任何分项 -> 回退 ceiling（旧行为，现有测试依赖此点）。
+    def test_no_components_falls_back_to_ceiling(self):
+        self.assertEqual(
+            compute_output_cap(0, 131072, 0, ceiling=self.STD), self.STD)
+
+    # 显式 asked 优先于分项（asked 是用户对该轮的硬封顶）。
+    def test_explicit_ask_outranks_components(self):
+        # asked=8192 优先；分项即便更大也不覆盖显式 asked
+        self.assertEqual(
+            compute_output_cap(8192, 131072, 0, ceiling=self.STD,
+                               reasoning_budget=1024, answer_floor=16384), 8192)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
