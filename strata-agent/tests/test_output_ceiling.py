@@ -79,7 +79,7 @@ class StaticWiringTest(unittest.TestCase):
     def test_backend_reads_body_field(self):
         src = read_text(RUNTIME / 'http_server.py')
         self.assertIn('get("max_ceiling")', src)
-        self.assertIn('compute_output_cap(_asked, _win or self.state.ctx_window(), _lp, _ceiling)', src)
+        self.assertIn('answer_floor=_answer_floor)', src)  # 2026-10-24: call is multiline with kwargs now
 
 
 if __name__ == "__main__":

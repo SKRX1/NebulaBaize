@@ -60,7 +60,7 @@ appCode += `
 ;window.__api = {
   apiMessages, BASE_SYSTEM, recallKnowledge, recallQuery, maybeAutoLearn, maybeAutoCompact, compactConversation,
   loadDrawer, applyDrawer: () => { const h = $("s-apply").onclick; return h ? h() : undefined; }, DEFAULTS,
-  workspaceSystem, userText, activeSession,
+  workspaceSystem, userText, activeSession, t,
   extractMemoryProposals, maybeProposeMemory, approveRulesDraft, discardRulesDraft, loadMemoryState,
   renderRulesBanner, renderRulesDraftBody, syncRulesMergeBtn,
   getRulesSel: () => rulesSel, setRulesSel: (v) => { rulesSel = v; },
@@ -469,8 +469,8 @@ console.log("\n=== H3: next-step multi-select + expandable approval banner ===")
   check("clear drops the whole selection", !host.querySelector("[data-steps-send]") && !host.querySelector(".next-step--on"));
 
   // composed message text (pure function - send() itself needs the network)
-  check("single pick keeps the old wording", api.composeStepsMessage(steps, [1]) === "性能压测");
-  check("single pick with detail becomes label：detail", api.composeStepsMessage(steps, [0]) === "浏览器实玩：打开 index.html 玩一轮反馈手感");
+  check("single pick gets exec prefix + label", api.composeStepsMessage(steps, [1]) === api.t("nextsteps.exec.prefix") + " 性能压测");
+  check("single pick with detail gets exec prefix", api.composeStepsMessage(steps, [0]) === api.t("nextsteps.exec.prefix") + " 浏览器实玩：打开 index.html 玩一轮反馈手感");
   const combo = api.composeStepsMessage(steps, [0, 1, 2]);
   check("multi pick composes a numbered batch", /Please do the following in order:/.test(combo) && /1\. 浏览器实玩：/.test(combo) && /3\. 横屏适配：/.test(combo));
   check("empty selection composes nothing", api.composeStepsMessage(steps, []) === "");
@@ -801,8 +801,8 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   const steps = [{label: "横屏适配", detail: "改 CSS"}, {label: "性能压测"}];
   check("custom text alone composes to itself", api.composeStepsMessage(steps, [], "顺手改字体") === "顺手改字体");
   const one = api.composeStepsMessage(steps, [0], "顺手改字体");
-  check("single pick + custom text keeps both", one.startsWith("横屏适配：改 CSS") && /Also: 顺手改字体/.test(one), one);
-  check("no custom text keeps the old wording", api.composeStepsMessage(steps, [0]) === "横屏适配：改 CSS");
+  check("single pick + custom text has exec prefix and both", one.startsWith(api.t("nextsteps.exec.prefix")) && one.includes("横屏适配：改 CSS") && /Also: 顺手改字体/.test(one), one);
+  check("no custom text single pick gets exec prefix", api.composeStepsMessage(steps, [0]) === api.t("nextsteps.exec.prefix") + " 横屏适配：改 CSS");
   const many = api.composeStepsMessage(steps, [0, 1], "顺手改字体");
   check("multi pick + custom text has the batch and the extra",
     /Please do the following in order/.test(many) && /2\. 性能压测/.test(many) && /Also: 顺手改字体/.test(many), many);
