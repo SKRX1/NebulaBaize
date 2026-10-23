@@ -89,3 +89,6 @@ README「实测边界/诚实记录」小节用于承载「区分确定性实测 
 run_tests 的 post-green 钩子 = 全套 ALL GREEN 后自动跑 _rollback_verify --no-nest 复验最新 tag；rollback 脚本绝不可作为 SUITES 成员（会自递归），只能作 main() 全绿后的后置钩子
 抽屉开关类"两态语义预览"优先复用已写准的现有 i18n 键渲染，零新键即不动键数对账测试
 观测锚/探针脚本若被 README 诚实记录小节引用，即升格为常驻资产，纳入 git 跟踪，不得当 scratch 删除
+Windows cmd 里 Python 单行 -c 含双引号会被解析破坏（"unbalanced double quotes"）；复杂脚本改写进 .py 文件再执行，别用 -c 内联双引号。
+确定性出前端像素样本：复制真实 index.html 去 web/ 前缀、注入结构化 steps 数组直喂 renderNextSteps（不走 markdown 解析避开转义），先 browser__render 读 DOM 确认注入脚本跑通（看 title 探针）再 screenshot。
+每轮给用户的建议必须用标准 ```next-steps``` 围栏输出（行首 * 推荐 / 无符号 - 一般 / ? 等用户确认 / ! 不推荐，颜色即决定），不得用散文罗列建议代替围栏
