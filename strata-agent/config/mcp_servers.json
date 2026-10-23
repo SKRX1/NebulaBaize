@@ -75,7 +75,7 @@
   },
   "mcp": {
     "timeout_s": 330,
-    "max_result_chars": 30000,
+    "max_result_chars": 60000,
     "max_rounds": 1000,
     "server_timeout_s": 0,
     "turn_budget_s": 3600,
@@ -88,7 +88,7 @@
     "tail_budget_ratio": 0.4,
     "frozen_cap_ratio": 0.5,
     "frozen_refold_budget": null,
-    "tool_result_cap": 10000,
+    "tool_result_cap": 60000,
     "tool_head_lines": 15,
     "tool_tail_lines": 15,
     "tool_keep_recent": 3
