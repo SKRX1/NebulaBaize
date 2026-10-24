@@ -48,6 +48,38 @@
         "high"
       ],
       "think_default": "auto"
+    },
+    {
+      "id": "iq3_xxs",
+      "name": "swift-iq3_xxs-界面",
+      "kind": "local",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "swift-iq3_xxs",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    },
+    {
+      "id": "swift-iq3_s",
+      "name": "swift-iq3_s界面",
+      "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "swift-iq3_s",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
     }
   ]
 }
