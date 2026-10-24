@@ -100,3 +100,5 @@ i18n data-i18n-attr 多属性分隔符是逗号(如 "placeholder:key,title:key")
 前端 JS 契约测试：调用未定义符号语法合法、node --check 查不出，必须用 jsdom boot 断言 helper 是真 function 且在最小输入上跑出正确结果，静态层再锁「定义+调用点」成对存在
 run_tests.py SUITES 登记的 .mjs 必须自带 process.exit(失败数?1:0)，否则 jsdom timer 会吊住进程 30s 超时被杀
 门禁锚串行链已含「纯文档登记 commit 可含门禁表锚推进的 diff」这一合法情形：登记 commit 本身不进锚，但它承载「把门禁表锚推进到上一个真跑绿 commit」的改动，二者同落一个 commit 是允许的（本次 e06890c 即 7行门禁表diff + 1行登记条）
+在 core.autocrlf=true 的 Windows 仓库里用 Python 脚本写回源文件前，必须先 `git ls-files --eol <file>` 查真实行尾；判据不能只看字节数猜，否则会把 index=LF 的文件整文件规范化成 CRLF、git diff 虚高成全文件改动（实测虚报 5742 行 vs 真实 52 行）
+校验"改动是否干净"用 `git diff --numstat`（默认 autocrlf 行为）：应只剩你真正插入/删除的行数；若某文件 diff 接近全文行数即行尾污染信号，须从 HEAD blob 重建还原
