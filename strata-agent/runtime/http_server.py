@@ -359,6 +359,39 @@ def looks_like_narration(text: str) -> bool:
     return bool(_NARRATE_RE.search(s[-160:]))
 
 
+def hallucinated_tool_call(text: str, known: set | None) -> bool:
+    """True when the model TRIED to make a tool call that the parser then dropped: an XML
+    `<function=NAME>` block in the answer text whose NAME is not a real tool, but which
+    carries a `<parameter=...>` block -- i.e. the model wrote an *action* (an attempted
+    call), not prose about the format.
+
+    This is the "plan checklist hallucinated as a tool call" shape (2026-10-24 report):
+    the model emits the markdown plan fence as `<tool_call><function=plan>` + a
+    `<parameter=...>` argument, `text_tool_calls` rightfully drops it because `plan` is
+    not a real tool, and the round ends with non-empty text and no call -- which reads as
+    "answered", so the turn breaks mid-task and the composer offers 继续.
+
+    The DIFFERENTIAL guard against口径污染 (auto-knowledge 2026-10-23 00:19): a *normal*
+    answer that merely QUOTES the format in prose -- `<function=some_name> ... </function>`
+    with NO parameter block, i.e. an explanation -- must NOT match. Only a `<function=>`
+    block that actually carries a `<parameter=>` (an attempted action with arguments) is a
+    hallucinated call. This is the exact inverse of the existing test case 2 ("prose that
+    merely mentions the format is not executed"), so the two tests lock the boundary.
+    """
+    if not text or not any(k in text for k in _ANY_CALL_MARKUP):
+        return False
+    known = known or set()
+    norm_known = {_norm_tool(k) for k in known}
+    for m in _CALL_FUNC_RE.finditer(text):
+        name = (m.group(1) or "").strip()
+        if not name or name in known:
+            continue                     # empty, or a real tool = rescued, not a drop
+        if _norm_tool(name) in norm_known:
+            continue                     # tolerant-match maps it back = it WAS rescued
+        if _CALL_PARAM_RE.search(m.group(2)):
+            return True                  # unknown name + a parameter block = an attempted action
+    return False
+
 def _ilog_append(path: str, entry: dict) -> None:
     """Append one interruption record as a single JSON line (creates the dir if needed)."""
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -2441,6 +2474,25 @@ class GatewayHandler(BaseHTTPRequestHandler):
                                    reasoning_chars=len(acc["reasoning"] or ""),
                                    text="模型本轮只输出了思考，没有产出正文或调用工具，所以看起来像停住了。"
                                         "已产出的内容都保留，点「继续」可让它接着做。")
+                    # B (2026-10-24): the model hallucinated the markdown plan/next-steps
+                    # fence as an XML tool call -- `<function=plan>` + a `<parameter=...>`
+                    # argument, with a NAME the parser drops. The round then looks "answered"
+                    # (non-empty text, no real call) and would break mid-task, which the user
+                    # reports as an interruption that needs a manual 继续. It wrote an ACTION,
+                    # so keep working. Uses the SAME cap (nudges) as the narration guard, so a
+                    # model that keeps doing this is bounded, and only the *action* shape (an
+                    # unknown name that CARRIES a parameter block) matches -- a normal answer
+                    # that merely QUOTES the format stays prose and is not resumed here.
+                    elif nudges[0] < 2 and hallucinated_tool_call(acc["content"], known_tools):
+                        nudges[0] += 1
+                        messages.append({"role": "assistant", "content": acc["content"]})
+                        messages.append({"role": "user", "content":
+                                         "[system] 你刚才把计划/建议用 <function=...> 写成了工具调用的样子，"
+                                         "但它不是真正的工具调用（解析器无法识别那个名字），所以回合差点在这里结束。"
+                                         "如果任务还没做完：现在用正确的工具调用语法真正执行下一步；"
+                                         "如果那只是给用户的计划清单，请用 markdown 围栏写，不要写成工具调用语法。"})
+                        touch()
+                        continue
                     elif tool_rounds[0] and nudges[0] < 2 and narration:
                         # The model ANSWERED with its own plan: "目录为空、Node v24 可用。开始分块
                         # 构建。" and then EOS with no tool call. "Has text" was being read as "has
