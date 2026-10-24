@@ -43,6 +43,7 @@ SUITES = [
     "tests/test_switch_busy.mjs",
     "tests/test_switch_busy_e2e.mjs",
     "tests/test_edit_resend.mjs",
+    "tests/test_edit_modal_images.mjs",     # 2026-10-24: edit-modal scope parametrization (dim2 image -> multimodal part) + hard-delete now undoable (dim3 differential)
     "tests/test_steps_fold.mjs",        # 2026-10-20: 执行过程折叠（工具回合收纳中间段，结束自动折叠）
     "tests/test_think_segments.mjs",
     "tests/test_think_latest_open.mjs",

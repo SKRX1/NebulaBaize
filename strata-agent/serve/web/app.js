@@ -6743,7 +6743,7 @@ $("input").addEventListener("input", () => {
   if ($("input").value.startsWith("/")) openSlashMenu(); else closeSlashMenu();
   syncStepsSendLabel();                    // a selected chip + typed text sends both: say so on the button
 });
-function autosize() { const t = $("input"); t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`; }
+function autosize(el) { const t = el || $("input"); t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`; }
 $("input").addEventListener("input", autosize);
 
 // ------------------------------------------------------------------ P0-1: Regenerate & Edit
@@ -6785,7 +6785,7 @@ function ensureEditUI() {
   if ($("edit-modal")) return;
   const style = document.createElement("style");
   style.textContent =
-    "#edit-modal .st-modal__card{max-width:620px}\n" +
+    "#edit-modal .st-modal__card{max-width:min(880px,94vw)}\n" +
     ".edit-preview{max-height:180px;overflow:auto;border:1px solid var(--st-line,#dee5ee);border-radius:10px;padding:8px 10px;margin-top:10px;background:var(--st-bg,#f9fafb)}\n" +
     ".edit-preview__ph{font-size:12px;color:var(--st-ink-muted,#6f6f6f);margin-bottom:6px}\n" +
     ".edit-preview__item{font-size:13px;color:var(--st-ink-muted,#6f6f6f);text-decoration:line-through;opacity:.85;padding:3px 0;border-bottom:1px solid var(--st-line-soft,#eee);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n" +
@@ -6811,9 +6811,11 @@ function ensureEditUI() {
       '<div class="st-modal__head"><span class="card-title" data-i18n="ctx.edit.title">编辑这条任务对话</span>' +
         '<button class="st-btn st-btn--icon" id="edit-x" aria-label="Close"><svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chevron"/></svg></button></div>' +
       '<div class="st-modal__body" style="padding:14px 16px">' +
-        '<textarea id="edit-area" class="st-textarea" style="min-height:96px;width:100%;resize:vertical"></textarea>' +
+        '<textarea id="edit-area" class="st-textarea" style="min-height:160px;width:100%;resize:vertical"></textarea>' +
+        '<div class="attachments" id="edit-attachments" hidden></div>' +
         '<div class="edit-preview" id="edit-preview"></div>' +
         '<div style="font-size:13px;font-weight:600;margin-top:12px" data-i18n="ctx.edit.strategy">发送后如何处理此后的内容</div>' +
+        '<div class="edit-willapply" id="edit-willapply"></div>' +
         '<div class="edit-strategy" id="edit-strategy" role="radiogroup">' +
           '<div class="edit-strategy__opt" role="radio" data-v="soft" aria-checked="true" tabindex="0"><div class="t" data-i18n="ctx.edit.soft">软删除</div><div class="h" data-i18n="ctx.edit.soft.hint">删除但保留在撤销栈，5 秒内可恢复</div></div>' +
           '<div class="edit-strategy__opt" role="radio" data-v="hard" aria-checked="false" tabindex="0"><div class="t" data-i18n="ctx.edit.hard">真删除</div><div class="h" data-i18n="ctx.edit.hard.hint">直接永久删除，无撤销</div></div>' +
@@ -6828,11 +6830,16 @@ function ensureEditUI() {
     '</div>';
   document.body.appendChild(m);
   if (window.i18n && window.i18n.applyI18n) window.i18n.applyI18n(m);
-  const setStrategy = (v) => { m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === v ? "true" : "false")); m.dataset.strategy = v; };
+  const setStrategy = (v) => { m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === v ? "true" : "false")); m.dataset.strategy = v; const w = m.querySelector("#edit-willapply"); if (w) w.textContent = t("ctx.edit.willapply", {s: t("ctx.edit." + v)}); };
   m.querySelectorAll(".edit-strategy__opt").forEach(opt => {
     opt.addEventListener("click", () => setStrategy(opt.dataset.v));
     opt.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setStrategy(opt.dataset.v); } });
   });
+  // design dim1+2: autosize the edit box like the composer; paste routes through addFiles
+  // (target=#edit-area, list=editAttachments) so the modal can hold its own images.
+  const _ea = m.querySelector("#edit-area");
+  _ea.addEventListener("input", () => autosize(_ea));
+  _ea.addEventListener("paste", (e) => handlePasteImage(e, _ea, {cursor: true, list: editAttachments, render: renderEditAttachments}));
   m.querySelector("#edit-x").onclick = closeEditModal;
   m.querySelector("#edit-cancel").onclick = closeEditModal;
   m.addEventListener("click", (e) => { if (e.target === m) closeEditModal(); });
@@ -6841,6 +6848,7 @@ function ensureEditUI() {
 }
 
 let editingIndex = -1;
+let editAttachments = [];             // modal-scoped images (never shared with the composer globals)
 function openEditModal(i) {
   if (busy) abortStream();                 // streaming protection: stop any in-flight generation first
   const msg = messages[i];
@@ -6856,10 +6864,13 @@ function openEditModal(i) {
     (n > 0 ? after.map(x => '<div class="edit-preview__item">' + esc(((x.role === "user" ? "▸ " : "◆ ") + (x.text || "")).slice(0, 90)) + "</div>").join("") : '<div class="edit-preview__item">（无）</div>');
   m.dataset.strategy = "soft";
   m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === "soft" ? "true" : "false"));
+  editAttachments = (msg.images || []).filter((a) => a && a.url).map((a) => ({...a}));
+  renderEditAttachments();
+  const _ea2 = m.querySelector("#edit-area"); autosize(_ea2);
   m.hidden = false;
   m.querySelector("#edit-area").focus();
 }
-function closeEditModal() { const m = $("edit-modal"); if (m) m.hidden = true; editingIndex = -1; }
+function closeEditModal() { const m = $("edit-modal"); if (m) m.hidden = true; editingIndex = -1; editAttachments = []; }
 
 function confirmEdit() {
   const i = editingIndex;
@@ -6867,14 +6878,15 @@ function confirmEdit() {
   const m = $("edit-modal");
   const strategy = m.dataset.strategy || "soft";
   const newText = m.querySelector("#edit-area").value.trim();
+  const imgs = editAttachments.slice();   // capture BEFORE closeEditModal clears the modal list
   closeEditModal();
   if (!newText) { toast("warn", t("ctx.edit.empty")); return; }
   // Same-text resend is ALLOWED on purpose: it means "regenerate from here" (retry this turn).
   // Only an empty body is rejected. (2026-10-20: the old unchanged-guard blocked legit retries.)
-  editResend(i, newText, strategy);
+  editResend(i, newText, strategy, imgs);
 }
 
-function editResend(i, newText, strategy) {
+function editResend(i, newText, strategy, images) {
   if (busy) abortStream();
   const removed = messages.slice(i + 1);
   const originalText = messages[i].text;
@@ -6882,16 +6894,13 @@ function editResend(i, newText, strategy) {
     branchSeq += 1;
     branches.push({id: branchSeq, label: t("branch.view") + " " + branchSeq + t("branch.fork", {n: i + 1}), messages: clone(messages), at: i});
   }
-  if (strategy === "soft") {
-    undoStack = {at: i + 1, removed, editedFrom: originalText, editedTo: newText};
-  } else {
-    undoStack = null;
-  }
+  const _beforeImgs = messages[i].images;   // what the edited message had before this edit
+  undoStack = {at: i + 1, removed, editedFrom: originalText, editedTo: newText, editedFromImages: _beforeImgs};
   messages.length = i + 1;                          // truncate in place
-  messages[i] = {...messages[i], text: newText};
+  messages[i] = {...messages[i], text: newText, images: (images && images.length) ? images : messages[i].images};
   saveChat();
   renderChat();
-  if (strategy === "soft") showUndoToast(removed.length);
+  if (strategy === "soft" || strategy === "hard") showUndoToast(removed.length);
   streamAssistant();
 }
 
@@ -6901,10 +6910,11 @@ function showUndoToast(n) {
 function undoEdit() {
   if (!undoStack) return;
   if (busy) abortStream();
-  const {at, removed, editedFrom} = undoStack;
+  const {at, removed, editedFrom, editedFromImages} = undoStack;
   messages.length = at;                             // drop the regenerated tail
   for (const x of removed) messages.push(x);        // restore the downstream turns
   if (editedFrom != null && messages[at - 1]) messages[at - 1].text = editedFrom;  // revert the edit itself
+  if (messages[at - 1]) messages[at - 1].images = editedFromImages;  // revert pasted images too
   undoStack = null;
   saveChat();
   renderChat();
@@ -7049,8 +7059,8 @@ function isTextFile(f) {
 let attachPidSeq = 0;                                // stable per-attachment number (deleting the middle never renumbers the rest)
 function attachNextPid() { return ++attachPidSeq; }
 // Insert a [img:N] reference at the caret in the composer, so the user can see WHERE the image sits.
-function insertPlaceholder(pid) {
-  const inp = $("input");
+function insertPlaceholder(pid, target) {
+  const inp = target || $("input");
   if (!inp) return;
   const tag = ` [img:${pid}] `;
   const s = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
@@ -7058,14 +7068,14 @@ function insertPlaceholder(pid) {
   inp.value = inp.value.slice(0, s) + tag + inp.value.slice(e);
   const caret = s + tag.length;
   try { inp.setSelectionRange(caret, caret); } catch (err) { /* jsdom */ }
-  autosize();
+  autosize(target);
 }
 // Remove a removed attachment's [img:N] placeholder from the composer (kept in sync with the gallery).
-function removePlaceholder(pid) {
-  const inp = $("input");
+function removePlaceholder(pid, target) {
+  const inp = target || $("input");
   if (!inp) return;
   inp.value = inp.value.replace(new RegExp(`\\s*\\[img:${pid}\\]\\s*`, "g"), " ").replace(/ {2,}/g, " ").trim();
-  autosize();
+  autosize(target);
 }
 // Split a message into alternating text/image segments driven by [img:N] placeholders. images are
 // matched by their stable pid. Any image no placeholder references is appended at the END so nothing
@@ -7091,7 +7101,7 @@ function mixedSegments(m) {
   for (const a of imgs) if (!used[a.pid]) segs.push({type: "image", url: a.url, name: a.name});
   return segs;
 }
-function addFiles(files, opts = {}) {
+function addFiles(files, opts = {}, target) {
   for (const f of files) {
     if (f.type.startsWith("image/")) {
       if (!health.images) { toast("warn", t("toast.imgoff.title"), t("toast.imgoff.msg")); continue; }
@@ -7099,8 +7109,9 @@ function addFiles(files, opts = {}) {
       const r = new FileReader();
       r.onload = () => {
         const a = {kind: "image", name: f.name || "pasted image", url: r.result, pid: attachNextPid()};
-        attachments.push(a); renderAttachments();
-        if (opts.cursor) insertPlaceholder(a.pid);   // drop the [img:N] reference at the caret
+        const _list = opts.list || attachments; const _render = opts.render || renderAttachments;
+        _list.push(a); _render();
+        if (opts.cursor) insertPlaceholder(a.pid, target);   // drop the [img:N] reference at the caret
       };
       r.readAsDataURL(f);
       continue;
@@ -7131,11 +7142,12 @@ function userText(m) {
   const files = (m.files || []).filter((f) => f.text != null);
   return [m.text, ...files.map(fileBlock)].filter((s) => s).join("\n\n");
 }
-function renderAttachments() {
+function renderAttachments(list) {
   const box = $("attachments");
-  box.hidden = !attachments.length;
+  const _l = list || attachments;
+  box.hidden = !_l.length;
   box.innerHTML = "";
-  attachments.forEach((a, i) => {
+  _l.forEach((a, i) => {
     if (a.kind === "image" && a.url) {
       // a real thumbnail of the pasted/dropped picture, double-click to enlarge
       const thumb = document.createElement("div");
@@ -7164,6 +7176,22 @@ function renderAttachments() {
     x.onclick = () => { attachments.splice(i, 1); renderAttachments(); };
     c.appendChild(x);
     box.appendChild(c);
+  });
+}
+function renderEditAttachments() {
+  const box = document.getElementById("edit-attachments");
+  if (!box) return;
+  box.hidden = !editAttachments.length;
+  box.innerHTML = "";
+  editAttachments.forEach((a, i) => {
+    if (a.kind === "image" && a.url) {
+      const thumb = document.createElement("div"); thumb.className = "att-thumb";
+      const im = document.createElement("img"); im.src = a.url; im.alt = a.name || "image"; thumb.appendChild(im);
+      const x = document.createElement("button"); x.type = "button"; x.className = "att-thumb__x"; x.textContent = "×";
+      x.onclick = () => { if (a.pid) removePlaceholder(a.pid, document.getElementById("edit-area")); editAttachments.splice(i, 1); renderEditAttachments(); };
+      thumb.appendChild(x); thumb.addEventListener("dblclick", () => openImageView(a.url, a.name)); box.appendChild(thumb);
+      return;
+    }
   });
 }
 $("attach-btn").onclick = () => $("file").click();
@@ -7205,7 +7233,7 @@ async function ingestDrop(files) {
   }
   loadKnowledgePanel();
 }
-$("input").addEventListener("paste", (e) => {
+function handlePasteImage(e, textarea, opts) {
   if (!health.images) return;
   const cd = e.clipboardData || window.clipboardData;
   if (!cd) return;
@@ -7219,8 +7247,9 @@ $("input").addEventListener("paste", (e) => {
       .map((it) => (typeof it.getAsFile === "function" ? it.getAsFile() : null))
       .filter(Boolean);
   }
-  if (files.length) { e.preventDefault(); addFiles(files, {cursor: true}); }
-});
+  if (files.length) { e.preventDefault(); addFiles(files, opts, textarea); }
+}
+$("input").addEventListener("paste", (e) => handlePasteImage(e, $("input"), {cursor: true}));
 
 // ─────────────────────────────────────────────────────────────────────
 // Step1-G · Debug drawer + one-click diagnosis
