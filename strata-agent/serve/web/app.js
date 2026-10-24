@@ -1484,12 +1484,14 @@ function batchDelete() {
   if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   const ids = [...batchSel];
   if (!confirm(t("side.batch.delconfirm", {n: ids.length}))) return;
+  const backup = sessions.slice();
   sessions = sessions.filter((s) => !batchSel.has(s.id));
   if (!sessions.length) sessions.push({id: newSessionId(), title: "", workspace: "", messages: [],
                                        permission: "auto", updatedAt: Date.now()});
   if (!findSession(activeId)) { activeId = sessions[0].id; messages = sessions[0].messages || []; renderChat(); syncCtxFromSession(); }
   batchSel.clear(); batchMode = false;
   saveSessions(); renderSessions(); syncPermSelect();
+  toast("info", t("side.batch.deleted", {n: ids.length}), "", 5000, {label: t("toast.undo"), run: () => { sessions = backup; if (!findSession(activeId)) activeId = sessions[0].id; messages = (findSession(activeId) || {}).messages || []; saveSessions(); renderSessions(); renderChat(); syncCtxFromSession(); }});
 }
 function batchMove(path) {
   const p = wsNorm(path);
