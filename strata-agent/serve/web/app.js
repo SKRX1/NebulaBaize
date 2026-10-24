@@ -2005,7 +2005,7 @@ function msgEl(m, i) {
       }
       el.appendChild(wrap);
     }
-    if (m.images && m.images.length) {
+    if (m.images && m.images.length && !mixedSegments(m)) {
       const wrap = document.createElement("div");
       wrap.className = "msg-images";
       for (const im of m.images) {
@@ -2016,7 +2016,23 @@ function msgEl(m, i) {
     }
     const b = document.createElement("div");
     b.className = "st-bubble";
-    b.textContent = m.text;
+    const mseg = mixedSegments(m);
+    if (mseg) {
+      // placeholders present: lay text and images out interleaved, exactly where the user placed them
+      for (const sg of mseg) {
+        if (sg.type === "image") {
+          const img = document.createElement("img");
+          img.src = sg.url; img.alt = sg.name || "image"; img.className = "inline-msg-img"; img.title = t("img.view");
+          b.appendChild(img);
+        } else {
+          const span = document.createElement("span");
+          span.innerHTML = markdown(sg.text);
+          b.appendChild(span);
+        }
+      }
+    } else {
+      b.textContent = m.text;
+    }
     el.appendChild(b);
     const meta = document.createElement("div");
     meta.className = "st-msg__meta";
@@ -3975,8 +3991,20 @@ function apiMessages() {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);
       const text = userText(m);
-      out.push({role: "user", content: imgs.length ? [{type: "text", text},
-        ...imgs.map((i) => ({type: "image_url", image_url: {url: i.url}}))] : text});
+      const segs = mixedSegments(m);
+      if (segs) {
+        // placeholders present: emit text/image blocks in the order the user placed them (OpenAI
+        // multimodal accepts any text<->image order). file attachments are appended as trailing text.
+        const blocks = segs.map((sg) => (sg.type === "image"
+          ? {type: "image_url", image_url: {url: sg.url}}
+          : {type: "text", text: sg.text.trim()})).filter((b) => b.type === "image_url" || b.text);
+        const fileTxt = (m.files || []).filter((f) => f.text != null).map(fileBlock).join("\n\n");
+        if (fileTxt) blocks.push({type: "text", text: fileTxt});
+        out.push({role: "user", content: blocks.length ? blocks : text});
+      } else {
+        out.push({role: "user", content: imgs.length ? [{type: "text", text},
+          ...imgs.map((i) => ({type: "image_url", image_url: {url: i.url}}))] : text});
+      }
     } else if (!(busy && busy.msg === m)) {            // the answer being asked for now is not history yet
       out.push(...assistantMessages(m));
     }
@@ -7001,13 +7029,67 @@ function isTextFile(f) {
   return f.type.startsWith("text/") || /json|xml|javascript|yaml|toml|x-sh|x-python/.test(f.type) ||
          TEXT_EXT.test(f.name) || /(^|[\\/])(makefile|dockerfile|readme|license)$/i.test(f.name);
 }
-function addFiles(files) {
+// Mixed text+image message support (the 'image between the words' request). A textarea cannot hold
+// image pixels, so an attached image is referenced by a stable [img:N] placeholder typed at the caret;
+// send-assembly and bubble-render both route through mixedSegments() so they agree on the layout.
+// Returns null when the message has no placeholders, meaning the caller keeps the old
+// 'text bubble + top gallery' behaviour (so existing tests that pass images without placeholders pass).
+let attachPidSeq = 0;                                // stable per-attachment number (deleting the middle never renumbers the rest)
+function attachNextPid() { return ++attachPidSeq; }
+// Insert a [img:N] reference at the caret in the composer, so the user can see WHERE the image sits.
+function insertPlaceholder(pid) {
+  const inp = $("input");
+  if (!inp) return;
+  const tag = ` [img:${pid}] `;
+  const s = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+  const e = inp.selectionEnd != null ? inp.selectionEnd : s;
+  inp.value = inp.value.slice(0, s) + tag + inp.value.slice(e);
+  const caret = s + tag.length;
+  try { inp.setSelectionRange(caret, caret); } catch (err) { /* jsdom */ }
+  autosize();
+}
+// Remove a removed attachment's [img:N] placeholder from the composer (kept in sync with the gallery).
+function removePlaceholder(pid) {
+  const inp = $("input");
+  if (!inp) return;
+  inp.value = inp.value.replace(new RegExp(`\\s*\\[img:${pid}\\]\\s*`, "g"), " ").replace(/ {2,}/g, " ").trim();
+  autosize();
+}
+// Split a message into alternating text/image segments driven by [img:N] placeholders. images are
+// matched by their stable pid. Any image no placeholder references is appended at the END so nothing
+// is ever lost. null = no placeholders (caller keeps the old gallery layout).
+function mixedSegments(m) {
+  const imgs = (m.images || []).filter((a) => a && a.url);
+  const byPid = {};
+  for (const a of imgs) byPid[a.pid] = a;
+  const text = m.text || "";
+  const re = /\[img:(\d+)\]/g;
+  const segs = [];
+  let last = 0, used = {}, hit = false;
+  let mm;
+  while ((mm = re.exec(text))) {
+    hit = true;
+    if (mm.index > last) segs.push({type: "text", text: text.slice(last, mm.index)});
+    const a = byPid[mm[1]];
+    if (a && !used[a.pid]) { segs.push({type: "image", url: a.url, name: a.name}); used[a.pid] = 1; }
+    last = mm.index + mm[0].length;
+  }
+  if (!hit) return null;
+  if (last < text.length) segs.push({type: "text", text: text.slice(last)});
+  for (const a of imgs) if (!used[a.pid]) segs.push({type: "image", url: a.url, name: a.name});
+  return segs;
+}
+function addFiles(files, opts = {}) {
   for (const f of files) {
     if (f.type.startsWith("image/")) {
       if (!health.images) { toast("warn", t("toast.imgoff.title"), t("toast.imgoff.msg")); continue; }
       if (f.size > 20e6) { toast("warn", t("toast.imgtoolarge.title"), t("toast.imgtoolarge.msg", {name: f.name})); continue; }
       const r = new FileReader();
-      r.onload = () => { attachments.push({kind: "image", name: f.name || "pasted image", url: r.result}); renderAttachments(); };
+      r.onload = () => {
+        const a = {kind: "image", name: f.name || "pasted image", url: r.result, pid: attachNextPid()};
+        attachments.push(a); renderAttachments();
+        if (opts.cursor) insertPlaceholder(a.pid);   // drop the [img:N] reference at the caret
+      };
       r.readAsDataURL(f);
       continue;
     }
@@ -7053,8 +7135,9 @@ function renderAttachments() {
       const x = document.createElement("button");
       x.type = "button"; x.className = "att-thumb__x"; x.setAttribute("aria-label", t("attach.remove"));
       x.textContent = "×";
-      x.onclick = (e) => { e.stopPropagation(); attachments.splice(i, 1); renderAttachments(); };
+      x.onclick = (e) => { e.stopPropagation(); if (a.pid) removePlaceholder(a.pid); attachments.splice(i, 1); renderAttachments(); };
       thumb.appendChild(x);
+      if (a.pid) thumb.title = `${t("img.view")} · [img:${a.pid}]`;
       thumb.addEventListener("dblclick", () => openImageView(a.url, a.name));
       box.appendChild(thumb);
       return;
@@ -7112,8 +7195,19 @@ async function ingestDrop(files) {
 }
 $("input").addEventListener("paste", (e) => {
   if (!health.images) return;
-  const files = [...(e.clipboardData || {}).files || []].filter((f) => f.type.startsWith("image/"));
-  if (files.length) { e.preventDefault(); addFiles(files); }
+  const cd = e.clipboardData || window.clipboardData;
+  if (!cd) return;
+  // Most clipboard sources (screenshot tools, IM apps, the OS clipboard) hand the image
+  // through clipboardData.items and leave .files empty; getAsFile() is the only way to
+  // reach them. .files alone silently dropped every such paste (the "paste stopped working" report).
+  let files = [...(cd.files || [])].filter((f) => f && f.type && f.type.startsWith("image/"));
+  if (!files.length && typeof cd.items === "object") {
+    files = [...cd.items]
+      .filter((it) => it && it.kind === "file" && it.type && it.type.startsWith("image/"))
+      .map((it) => (typeof it.getAsFile === "function" ? it.getAsFile() : null))
+      .filter(Boolean);
+  }
+  if (files.length) { e.preventDefault(); addFiles(files, {cursor: true}); }
 });
 
 // ─────────────────────────────────────────────────────────────────────
