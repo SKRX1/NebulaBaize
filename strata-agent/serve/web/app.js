@@ -3736,6 +3736,18 @@ let streamingFollow = true;            // while a turn streams, stick to the new
 function nearBottom() { const s = $("chat-scroll"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
 // Where the newest text actually is: the tail segment of the running turn, or - when that tail is an open
 // thought / tool block - the body inside it (a closed block only shows its one-line summary, so aim at it).
+// The on-screen .st-msg node that currently represents message `m` IN THIS session,
+// or null when `m` lives in another (viewed-away) session -- same judgement as
+// liveTailEl. Callers must skip the DOM write and only accumulate data when it is
+// null; switching back runs renderChat, which rebuilds from the messages array and
+// shows everything that accumulated meanwhile.
+function liveMsgEl(m) {
+  if (!busy || busy.msg !== m || busy.sessionId !== activeId) return null;
+  const idx = messages.indexOf(m);
+  if (idx < 0) return null;
+  for (const e of $("chat").querySelectorAll(".st-msg")) if (+e.dataset.i === idx) return e;
+  return null;
+}
 function liveTailEl() {
   if (!busy || !busy.msg) return null;
   const list = $("chat").querySelectorAll(".st-msg");
@@ -6375,15 +6387,16 @@ async function streamAssistant() {
   let genStart = null;                    // first *content* token (decode-speed base, excludes thinking/tool gaps)
   m.startAt = t0;                         // persisted so the footer can tick live and survive reloads
   m._lastActivityAt = Date.now();         // idle-watchdog clock for the running-tool timeout timer
-  const paint = () => { frame = 0; updateAssistant(el, m, true); if (busy.sessionId === activeId) scrollDown(); };
+  const paint = () => { frame = 0; const el = liveMsgEl(m); if (el) updateAssistant(el, m, true); if (busy.sessionId === activeId) scrollDown(); };
   // Live duration ticker: updates the footer clock every 500ms while this turn streams. The task panel is
   // repainted here too — its checklist is derived from the streaming text, so it must not wait for the
   // 1 Hz /metrics poll (and it used to wait for the end of the turn, which made it look frozen).
   const liveTimer = setInterval(() => {
     if (!(busy && busy.msg === m)) return;
-    renderStats(el, m, true);
+    const el = liveMsgEl(m);          // null while viewing another session: DOM rows have no home
+    if (el) renderStats(el, m, true);
     renderInspector();
-    tickToolTimers(el, m);             // live "timeout-wait" countdown on running tool cards
+    if (el) tickToolTimers(el, m);    // live "timeout-wait" countdown on running tool cards
     if (streamingFollow && busy.sessionId === activeId) scrollDown();
     if ($("debug-drawer") && $("debug-drawer").dataset.open === "true") { renderDebug(); renderGatewayDebug(); }   // Step1-G + Step4-D: live capture view
   }, 500);
