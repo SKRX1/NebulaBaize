@@ -4796,7 +4796,7 @@ function renderRulesDraftCard() {
   if (head) head.hidden = false;
   // index-based data attributes: rule text may contain quotes, which would break an
   // attribute that embeds it verbatim
-  list.innerHTML = pendingDraft.map((e2, i) => '<div class="kb-source"><span class="kb-source__name">' + esc(e2) +
+  list.innerHTML = pendingDraft.map((e2, i) => '<div class="kb-source"><span class="kb-source__name" title="' + esc(e2) + '">' + esc(e2) +
     '</span><button class="st-btn st-btn--ghost st-btn--sm" data-rd-merge="' + i + '">' + t("rules.banner.merge") +
     '</button><button class="st-btn st-btn--ghost st-btn--sm" data-rd-discard="' + i + '">' + t("rules.banner.discard") + '</button></div>').join("");
 }
@@ -4890,7 +4890,7 @@ async function openWeeklyModal() {
   } else {
     list.innerHTML = weeklyEntries.map((e, i) => {
       const cfg = MEMORY_STORES[e.store];
-      return `<div class="kb-source"><span class="kb-source__name">${esc(e.text)}</span>` +
+      return `<div class="kb-source"><span class="kb-source__name" title="${esc(e.text)}">${esc(e.text)}</span>` +
         `<span class="muted small">${esc(e.ts || "")} · ${esc(cfg.title)} ${scopeBadge(e.scope, currentGroup)}</span>` +
         `<button class="st-btn st-btn--ghost st-btn--sm" data-weekly-undo="${i}">${t("mem.auto.undo")}</button></div>`;
     }).join("");
@@ -4952,7 +4952,7 @@ async function renderAutoMemoryCard() {
     const pd = drafts[store] || [];
     if (pd.length) {
       html += `<div class="kb-source kb-source--head"><span class="kb-source__name"><b>${esc(t("mem.auto.pending", {s: cfg.title}))}</b></span></div>`;
-      html += pd.map((e2, i) => `<div class="kb-source"><span class="kb-source__name">${esc(e2)}</span>` +
+      html += pd.map((e2, i) => `<div class="kb-source"><span class="kb-source__name" title="${esc(e2)}">${esc(e2)}</span>` +
         `<button class="st-btn st-btn--ghost st-btn--sm" data-auto-merge="${store}:${i}">${t("rules.banner.merge")}</button>` +
         `<button class="st-btn st-btn--ghost st-btn--sm" data-auto-discard="${store}:${i}">${t("rules.banner.discard")}</button></div>`).join("");
     }
@@ -4980,7 +4980,7 @@ async function renderAutoMemoryCard() {
           : (down !== scope)
             ? `<button class="st-btn st-btn--ghost st-btn--sm" data-auto-demote="${idx}">${t("mem.auto.demote")} ▼</button>`
             : "";
-        html += `<div class="kb-source"><span class="kb-source__name">${esc(a.text)}</span>` +
+        html += `<div class="kb-source"><span class="kb-source__name" title="${esc(a.text)}">${esc(a.text)}</span>` +
           `<span class="muted small">${esc(a.ts || "")} · ${esc(cfg.title)} ${badge}</span>` +
           `<button class="st-btn st-btn--ghost st-btn--sm" data-auto-undo="${idx}">${t("mem.auto.undo")}</button>` +
           `<button class="st-btn st-btn--ghost st-btn--sm" data-auto-archive="${idx}">${t("mem.auto.archive")}</button>` +
