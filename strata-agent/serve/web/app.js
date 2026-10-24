@@ -3127,6 +3127,7 @@ function renderInspector() {
       // B: idle + not fully ticked -> surface WHY it looks done-but-not (the close-out reminder).
       // Streaming (planLive) keeps the bare list so the live bar still moves during the turn.
       if (!planLive && done < plan.length) html += `<li class="ins-plan-remind">${esc(t("insp.plan.reminder", {n: plan.length - done}))}</li>`;
+      if (!planLive && done >= plan.length) html += `<li class="ins-plan-complete">${esc(t("insp.plan.complete"))}</li>`;
       if (pl.innerHTML !== html) pl.innerHTML = html;
     }
   } else if (planPending) {

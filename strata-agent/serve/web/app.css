@@ -691,6 +691,7 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 /* B: the "finished but never wrote the all-ticked summary" reminder line -- idle + unticked only */
 .ins-plan-list li.ins-plan-remind { color: var(--st-info); font-style: italic; padding-top: 6px;
                                   border-top: 1px solid var(--st-border, currentColor); }
+.ins-plan-list li.ins-plan-complete { color: var(--st-accent-text); font-weight: var(--st-fw-semibold, 600); padding-top: 6px; }
 .ins-file-list li, .ins-test-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .ins-file-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ins-tag { font-size: 11px; font-weight: var(--st-fw-medium); padding: 1px 6px; border-radius: 5px; flex: none; }
@@ -1018,7 +1019,7 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .kb-panel__list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 200px; }
 .kb-source { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--st-r-sm); font-size: var(--st-fs-xs); color: var(--st-ink-soft); }
 .kb-source:hover { background: var(--st-surface-2); }
-.kb-source__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-source__name { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .kb-source .st-btn--icon { width: 22px; height: 22px; border-radius: 50%; visibility: hidden; flex: none; }
 .kb-source:hover .st-btn--icon { visibility: visible; }
 .kb-source .st-btn--icon .st-icon { width: 14px; height: 14px; }

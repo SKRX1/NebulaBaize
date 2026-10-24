@@ -54,7 +54,7 @@ for (const [label, needle] of STATIC) {
 // esc() must escape the double quote — the char that would otherwise break title="...".
 check("app.js esc() escapes double quotes", /const esc = [\s\S]{0,200}"/.test(src) && /&quot;/.test(src));
 // the root cause we are guarding against must still be the single-line ellipsis rule.
-check("app.css keeps single-line ellipsis on .kb-source__name", /\.kb-source__name\s*\{[^}]*text-overflow:\s*ellipsis/.test(css));
+check("app.css .kb-source__name allows wrapping (plan-A widened ellipsis)", /\.kb-source__name\s*\{[^}]*white-space:\s*normal/.test(css));
 
 // --- runtime differential through the REAL esc() -----------------------------------------
 // grab the real esc definition line from source and evaluate it in this realm.

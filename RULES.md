@@ -102,3 +102,7 @@ run_tests.py SUITES 登记的 .mjs 必须自带 process.exit(失败数?1:0)，�
 门禁锚串行链已含「纯文档登记 commit 可含门禁表锚推进的 diff」这一合法情形：登记 commit 本身不进锚，但它承载「把门禁表锚推进到上一个真跑绿 commit」的改动，二者同落一个 commit 是允许的（本次 e06890c 即 7行门禁表diff + 1行登记条）
 在 core.autocrlf=true 的 Windows 仓库里用 Python 脚本写回源文件前，必须先 `git ls-files --eol <file>` 查真实行尾；判据不能只看字节数猜，否则会把 index=LF 的文件整文件规范化成 CRLF、git diff 虚高成全文件改动（实测虚报 5742 行 vs 真实 52 行）
 校验"改动是否干净"用 `git diff --numstat`（默认 autocrlf 行为）：应只剩你真正插入/删除的行数；若某文件 diff 接近全文行数即行尾污染信号，须从 HEAD blob 重建还原
+重启8099须用 Start-Process 分离发射（默认执行策略会拒加载.ps1导致脚本静默失败），且脚本须ASCII路径入口或纯ASCII内容
+常驻重启脚本禁止写死PID——必须netstat现查监听+CIM解析父链，因进程树每次重启都会洗牌使快照PID过期
+agent会话寄生在被重启的gateway进程树下，故重启脚本的真杀动作只能分离执行；dry-run只查不杀可直接跑
+给「显示层截断」做放宽时，若该选择器已有门禁静态锁（如 test_memory_card_title 锁 .kb-source__name 省略号），放宽CSS必须同步翻转该锁为「锁放宽态」保持防漂移，否则全套必红
