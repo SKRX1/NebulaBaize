@@ -99,3 +99,4 @@ app.js/i18n.js 等含中文的前端文件必须用文件工具(UTF-8)读写，�
 i18n data-i18n-attr 多属性分隔符是逗号(如 "placeholder:key,title:key")，不是竖线
 前端 JS 契约测试：调用未定义符号语法合法、node --check 查不出，必须用 jsdom boot 断言 helper 是真 function 且在最小输入上跑出正确结果，静态层再锁「定义+调用点」成对存在
 run_tests.py SUITES 登记的 .mjs 必须自带 process.exit(失败数?1:0)，否则 jsdom timer 会吊住进程 30s 超时被杀
+门禁锚串行链已含「纯文档登记 commit 可含门禁表锚推进的 diff」这一合法情形：登记 commit 本身不进锚，但它承载「把门禁表锚推进到上一个真跑绿 commit」的改动，二者同落一个 commit 是允许的（本次 e06890c 即 7行门禁表diff + 1行登记条）
