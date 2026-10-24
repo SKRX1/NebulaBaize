@@ -1,4 +1,4 @@
-"""Regression tests for the dynamic per-round output ceiling (2026-10-20).
+﻿"""Regression tests for the dynamic per-round output ceiling (2026-10-20).
 
 Covers two things that together kill the "single turn capped at 8192" report:
 
@@ -32,6 +32,7 @@ CEIL = OUTPUT_CEILING  # 32768 by default
 
 
 class ComputeOutputCapTest(unittest.TestCase):
+    STD = 32768   # pin the factory default so these two cases are immune to a drifted OUTPUT_CEILING
     # Window empty (what the user's screenshot looked like: ~5% used) -> full ceiling.
     def test_empty_window_uses_ceiling(self):
         self.assertEqual(compute_output_cap(0, 131072, 0), CEIL)
@@ -39,7 +40,8 @@ class ComputeOutputCapTest(unittest.TestCase):
 
     # Half-full window: ceiling still applies (free space > ceiling).
     def test_half_full_window_uses_ceiling(self):
-        self.assertEqual(compute_output_cap(0, 131072, 80000), CEIL)
+        # free = 131072 - 80000 - 4096 = 46976 > STD, so the pinned ceiling wins.
+        self.assertEqual(compute_output_cap(0, 131072, 80000, ceiling=self.STD), self.STD)
 
     # Near-full window: budget auto-shrinks to what's free, never 400.
     def test_near_full_window_shrinks(self):
@@ -61,8 +63,8 @@ class ComputeOutputCapTest(unittest.TestCase):
 
     # Composer asks above ceiling AND window free is also small -> ceiling wins.
     def test_ceiling_wins_over_ask_and_window(self):
-        # asked 50000, ceiling 32768, free 37076 -> min = 32768
-        self.assertEqual(compute_output_cap(50000, 131072, 90000), CEIL)
+        # asked 50000, ceiling 32768 (pinned), free 36976 -> min(eff,ceiling,free) = 32768
+        self.assertEqual(compute_output_cap(50000, 131072, 90000, ceiling=self.STD), self.STD)
 
     # Composer asks something, window free is the binding constraint -> window wins.
     def test_window_wins_when_smaller_than_ask_and_ceiling(self):

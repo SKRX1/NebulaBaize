@@ -97,3 +97,5 @@ Windows cmd 里 Python 单行 -c 含双引号会被解析破坏（"unbalanced do
 输出前自检裁决A-vs-B（2026-10-23 拍板）：每轮都必须独立成行落笔真围栏块；本轮若在等用户拍板，不得整块漏发围栏——用蓝档(等你确认)作停等闸，绿/黄只填被误跑也无害的动作。此条裁决推翻「停等轮不出建议条以防自我复读」旧读法(规则B旧解)。
 app.js/i18n.js 等含中文的前端文件必须用文件工具(UTF-8)读写，禁止用 PowerShell 控制台 Get-Content 读回(GBK 会显示乱码且可能损坏中文注释)
 i18n data-i18n-attr 多属性分隔符是逗号(如 "placeholder:key,title:key")，不是竖线
+前端 JS 契约测试：调用未定义符号语法合法、node --check 查不出，必须用 jsdom boot 断言 helper 是真 function 且在最小输入上跑出正确结果，静态层再锁「定义+调用点」成对存在
+run_tests.py SUITES 登记的 .mjs 必须自带 process.exit(失败数?1:0)，否则 jsdom timer 会吊住进程 30s 超时被杀
