@@ -118,6 +118,40 @@ _MIN_CAP = 2048
 # 前端显式发来 answer_floor_tokens 时用前端值，未发时用此默认(16384)。留空(0)=旧行为(满额ceiling)。
 _DEFAULT_ANSWER_FLOOR = 16384
 
+# ── Resident-contention split (2026-10-24) ──────────────────────────────────────────
+# The guard line: a conversation whose OWN last-reported occupancy is at/over this fraction
+# of the window genuinely filled its share -- a 400 then is a real overflow, fix = compact.
+# Below the line, a 400 on a modest conversation is the SHARED resident KV pool contending
+# across live sessions (see the _agent_stream note).
+_GUARD_FRACTION = 0.92
+# Honest wording for a resident-contention refusal (the frontend noticeText prefers n.text, so
+# this reaches the banner verbatim -- no i18n key needed; the guidance is machine-generated).
+_CONTENTION_TEXT = (
+    "上游拒收，但本会话占用还不到窗口的多数（非真正的窗口溢出）。"
+    "若静默重试已失败，说明引擎共享驻留预算仍紧张：关闭闲置会话或新建一个任务后点「继续」。"
+)
+
+
+def overflow_action(last_prompt, window, retried):
+    """Decide what to do when the upstream 400s a NON-compact request with a context-overflow.
+
+    Pure and side-effect free so it is directly testable (tests/test_resident_retry.py).
+      last_prompt -- THIS conversation's own last reported occupancy (0/None = never reported)
+      window      -- the engine's real window from ctx_window() (0/None = unknown)
+      retried     -- True when we already quietly resent this request once (one retry budget)
+    Returns "retry" | "notice_contention" | "compact".
+    """
+    # A chat that never reported usage (a brand-new conversation whose first send was refused)
+    # occupies almost nothing -- it cannot be a contention victim. Treat it like the guard does.
+    if not last_prompt or not window:
+        return "compact"
+    under_line = last_prompt < int(window * _GUARD_FRACTION)
+    if not under_line:
+        return "compact"                      # genuinely near the ceiling: resend would loop
+    if not retried:
+        return "retry"                        # contention smell + retry budget available
+    return "notice_contention"               # resend already failed: report it honestly
+
 
 def compute_output_cap(asked, max_context, last_prompt, ceiling=OUTPUT_CEILING,
                        reasoning_budget=0, answer_floor=0):
@@ -2202,6 +2236,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             hb_stop.set()
             sse("[DONE]")
 
+        overflow_retried = False     # one quiet resend budget for a resident-contention 400
         try:
             for rnd in range(1, self.state.max_rounds + 1):
                 turn_no[0] = rnd
@@ -2303,9 +2338,26 @@ class GatewayHandler(BaseHTTPRequestHandler):
                             # loop forever. Surface a plain (non-recoverable) error instead.
                             sse({"error": {"message": f"upstream error: context window exceeded even when compacting"}})
                             break
-                        # Recoverable: the upstream refuses to truncate the prompt, so it 400s
-                        # "exceeds the context window". Keep everything streamed so far and offer
-                        # 继续 after the user compacts history -- not a fatal red error.
+                        # ── 2026-10-24: resident-contention vs true-overflow split. ──
+                        # A 400 here is NOT always "the window is full". The n_ctx window is
+                        # per-conversation and this conversation is often nowhere near it (the panel
+                        # said 53%): what actually ran out is the engine's SHARED resident KV pool
+                        # (--kv-resident budget, the conversation cache across ALL live sessions),
+                        # and it refuses the request that TRIGGERED the eviction without reserving
+                        # room for its own output. The eviction has now made room, so quietly
+                        # resending THIS same request usually succeeds -- the user should never see
+                        # a scary banner for it. Only if the resend ALSO fails do we surface a
+                        # notice, and then we say what it actually is (contention), not the generic
+                        # wording that misled the user this time.
+                        _act = overflow_action(_lp, _win or self.state.ctx_window(), overflow_retried)
+                        if _act == "retry":
+                            overflow_retried = True
+                            time.sleep(1.0)          # let the engine finish the eviction it just did
+                            continue                 # same messages, same round -- quiet resend
+                        if _act == "notice_contention":
+                            notice("context_overflow", text=_CONTENTION_TEXT)
+                            break
+                        # "compact": near the ceiling for real -- a resend would 400 again.
                         notice("context_overflow",
                                text="上下文已超出模型上下文窗口，上游拒绝生成。"
                                     "请开启自动压缩或发送 /compact 精简历史后点「继续」。")
