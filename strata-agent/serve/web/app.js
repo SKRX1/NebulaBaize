@@ -1064,8 +1064,6 @@ const CN_THINK_RULE =
   "【思考语言·强制】无论用户使用何种语言、无论上下文中出现多少英文代码/报错/文档/技术名词，你的全部内部思考（reasoning / 思维链）都必须且只能使用简体中文进行推导、解释与自我提问。" +
   "仅以下「标识符」允许保留英文：变量名、函数名、类名、API 或库名、命令与缩写；除此之外所有说明、推理、举例、反思维持用中文。最终回答也须保持简体中文。\n";
 // 近因版：作为系统消息数组末条（RAG 之后、历史之前），紧贴生成位置，避免被多轮历史稀释（方案 B）。
-const CN_THINK_RULE_TAIL =
-  "【思考语言·强制·重申】再次强调：你接下去的每一轮内部思考（reasoning）都必须且只能使用简体中文（标识符可保留英文），不要因为上下文里有英文代码、报错或文档就切换成英文思考。";
 let settings = {...DEFAULTS, ...store.get("sampling", {})};
 let messages = store.get("chat", []);
 let undoStack = null;                 // {at, removed:[...], editedFrom, editedTo} — last soft/hard delete, for undo
@@ -3982,11 +3980,6 @@ function apiMessages() {
   // F3: knowledge retrieved for this turn (empty unless recall returned something useful).
   if (lastRag && lastRag.trim()) out.push({role: "system", content:
     "【已检索到的相关经验知识（仅供参考，若与当前问题无关请忽略）】\n" + lastRag.trim()});
-  // 强制中文思考·近因位置：作为系统消息数组末条（RAG 之后、历史之前），紧贴生成位置，
-  // 不被多轮历史稀释（方案 B）。与首因版互为双锚，覆盖「偶尔中文、大多英文」的漂移。
-  if (settings.cnThink) {
-    out.push({role: "system", content: CN_THINK_RULE_TAIL});
-  }
   for (const m of messages) {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);

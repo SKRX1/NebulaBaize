@@ -121,7 +121,7 @@ console.log("\n=== F1/F6: base system prompt + Chinese-output + cnThink ===");
 }
 
 // ================================================================ F1b: cnThink dual-position (首因 + 近因) — 修复「多轮后大多不中文思考」
-console.log("\n=== F1b: cnThink 首因+近因双位置注入 ===");
+console.log("\n=== F1b: cnThink 单锚注入（合并后首因版为唯一锚点） ===");
 {
   api.setSessions([]); api.setActiveId(null); api.setLastRag("");
   // 多轮历史：大量英文代码/报错上下文，模拟「漂移」场景
@@ -138,16 +138,16 @@ console.log("\n=== F1b: cnThink 首因+近因双位置注入 ===");
   const lastSys = sysMsgs[sysMsgs.length - 1];
   check("cnThink ON -> 首条 system 含强制中文思考规则（首因）",
         /思考语言·强制/.test(firstSys.content), JSON.stringify(firstSys.content.slice(0, 40)));
-  check("cnThink ON -> 末条 system 含强制中文思考重申（近因，紧贴生成位置）",
-        lastSys.role === "system" && lastSys !== firstSys && /思考语言·强制·重申/.test(lastSys.content),
-        JSON.stringify(lastSys.content.slice(0, 40)));
+  check("cnThink ON -> 合并后只有1条 system 且含中文思考规则（单锚）",
+        sysMsgs.length === 1 && /思考语言·强制/.test(sysMsgs[0].content),
+        JSON.stringify({n: sysMsgs.length, first: sysMsgs[0].content.slice(0, 40)}));
   check("cnThink ON -> 首因规则位于 BASE_SYSTEM 之前（不再是末尾温柔一句）",
         firstSys.content.indexOf("思考语言·强制") < firstSys.content.indexOf("【语言】"));
   // 关闭后两条都不应出现
   api.setSettings({ cnThink: false });
   const off = api.apiMessages();
   check("cnThink OFF -> 首条 system 不再含中文思考规则", !/思考语言/.test(off[0].content));
-  check("cnThink OFF -> 不再注入近因重申 system 消息",
+  check("cnThink OFF -> no separate cnThink system message (merged into first, gate removes it)",
         !off.some((x) => x.role === "system" && /思考语言·强制·重申/.test(x.content)));
   api.setSettings({ cnThink: false });
 }
