@@ -22,7 +22,8 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "runtime"))
-from http_server import looks_like_narration, text_tool_calls  # noqa: E402
+from http_server import (hallucinated_tool_call, looks_like_narration,
+                      text_tool_calls)  # noqa: E402
 
 KNOWN = {"filesystem__write", "shell__exec"}
 UNK = "nonexistent_tool"
@@ -117,6 +118,41 @@ def main() -> int:
         s = "".join(rng.choice("abcde开始下一步完成你？123 ") for _ in range(rng.randint(0, 50)))
         assert isinstance(looks_like_narration(s), bool)
     check("narration fuzz: 200 random strings safe", True)
+
+    # ── Bare-server-prefix rescue (2026-10-24): the differential pair ──────────────
+    # A small quantized model that degrades to TEXT-XML writes just the SERVER half of
+    # the server__tool convention (`<function=shell>` for `shell__exec`). The rescue is
+    # safe only where nothing is guessed: a server contributing EXACTLY ONE tool to
+    # `known`. Same input shape, only the server's tool count differs -- that is what
+    # makes this a differential, not two independent assertions.
+    FULL = {"shell__exec", "filesystem__read", "filesystem__write", "memory__recall"}
+    single = "<function=shell>\n<parameter=command>\nls\n</parameter>\n</function>\n"
+    multi = "<function=filesystem>\n<parameter=path>\na\n</parameter>\n</function>\n"
+    c_s, cl_s = fuzz_one(single, FULL)
+    c_m, cl_m = fuzz_one(multi, FULL)
+    check("differential: single-tool server rescued, multi-tool server not",
+          len(c_s) == 1 and c_m == [], (c_s, c_m))
+    check("bare prefix maps to the REAL namespaced name",
+          c_s and c_s[0]["function"]["name"] == "shell__exec", c_s)
+    check("rescued call keeps its arguments",
+          c_s and json.loads(c_s[0]["function"]["arguments"]).get("command") == "ls", c_s)
+    check("rescued call: stray tags cleaned from the answer",
+          "</function>" not in cl_s and "</tool_call>" not in cl_s, cl_s)
+    check("ambiguous server: text left as prose (no guessing)",
+          "<function=filesystem>" in cl_m, cl_m)
+    # hallucinated_tool_call must stay consistent with the rescue: a call that the
+    # rescue maps back was NOT dropped, so it must not be reported as a hallucination;
+    # an ambiguous prefix that stays prose IS still an attempted-but-dropped action.
+    check("hallucinated: a rescued bare prefix is not a drop",
+          hallucinated_tool_call(single, FULL) is False)
+    check("hallucinated: an ambiguous bare prefix + params is still a drop",
+          hallucinated_tool_call(multi, FULL) is True)
+    # the map itself: derived from `known`, so it tracks whatever the gateway advertises
+    from http_server import _prefix_tool_map  # noqa: E402
+    pm = _prefix_tool_map(FULL)
+    check("prefix map: single-tool server present",
+          pm.get("shell") == "shell__exec" and pm.get("memory") == "memory__recall", pm)
+    check("prefix map: multi-tool server absent (ambiguous)", "filesystem" not in pm, pm)
 
     print(f"\nTOOLCALL-FUZZ: {len(OK)} checks passed")
     return 0

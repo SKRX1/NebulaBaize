@@ -275,6 +275,26 @@ def _norm_tool(name: str) -> str:
     return s
 
 
+# ── Bare-server-name rescue (2026-10-24) ────────────────────────────────────────────
+# A small quantized model that degrades to TEXT-XML calls often writes just the SERVER
+# half of the server__tool convention: `<function=shell>` where the real tool is
+# `shell__exec`. `_norm_tool` cannot help -- the bare prefix normalizes to itself and
+# equals no full name, so the call is dropped and the round ends with no tool run.
+# Mapping the prefix back is safe ONLY when that server contributes exactly ONE tool to
+# `known`: then there is nothing to guess. A server with several tools (filesystem,
+# memory, browser, registry, schedule, skillhub) stays ambiguous and is left as prose --
+# the fuzz invariant "a recovered name must be a real tool" must not be paid for with a
+# coin flip. Derived from `known` itself, so it tracks the live tool set automatically.
+def _prefix_tool_map(known):
+    """bare server prefix -> its tool name, for servers exposing exactly one tool."""
+    buckets = {}
+    for k in known or ():
+        if "__" not in k:
+            continue                      # no namespace separator = not a server__tool
+        buckets.setdefault(_norm_tool(k.split("__", 1)[0]), []).append(k)
+    return {p: names[0] for p, names in buckets.items() if len(names) == 1}
+
+
 def text_tool_calls(text: str, known: set | None = None):
     """Recover tool calls the model wrote as XML *text* -> (calls, text_without_them).
 
@@ -291,6 +311,7 @@ def text_tool_calls(text: str, known: set | None = None):
         return [], text
     calls, spans = [], []
     norm_map = {_norm_tool(k): k for k in known} if known else {}
+    prefix_map = _prefix_tool_map(known) if known else {}
     for m in _CALL_FUNC_RE.finditer(text):
         name = m.group(1).strip()
         if not name:
@@ -301,6 +322,11 @@ def text_tool_calls(text: str, known: set | None = None):
             # server__tool convention). Map it back instead of silently dropping the
             # call -- an unrun markup call is exactly what users report as "工具调不动".
             real = norm_map.get(_norm_tool(name))
+            if real is None:
+                # Second tolerance layer: the model wrote only the SERVER half
+                # (`<function=shell>` for `shell__exec`). Safe only for a server that
+                # contributes exactly one tool to `known` -- no guessing involved.
+                real = prefix_map.get(_norm_tool(name))
             if real is None:
                 continue
             name = real
@@ -388,6 +414,8 @@ def hallucinated_tool_call(text: str, known: set | None) -> bool:
             continue                     # empty, or a real tool = rescued, not a drop
         if _norm_tool(name) in norm_known:
             continue                     # tolerant-match maps it back = it WAS rescued
+        if _prefix_tool_map(known).get(_norm_tool(name)):
+            continue                     # bare-prefix rescue maps it back = it WAS rescued
         if _CALL_PARAM_RE.search(m.group(2)):
             return True                  # unknown name + a parameter block = an attempted action
     return False
