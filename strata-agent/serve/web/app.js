@@ -2039,7 +2039,8 @@ function msgEl(m, i) {
     const acts = document.createElement("div");
     acts.className = "st-msg__actions";
     acts.innerHTML = `<button class="st-btn st-btn--icon" data-action="copy" aria-label="${esc(t("ctx.copy"))}" title="${esc(t("ctx.copy"))}">${icon("copy")}</button>` +
-      `<button class="st-btn st-btn--icon" data-action="edit" aria-label="${esc(t("ctx.edit"))}" title="${esc(t("ctx.edit"))}">${icon("edit")}</button>`;
+      `<button class="st-btn st-btn--icon" data-action="edit" aria-label="${esc(t("ctx.edit"))}" title="${esc(t("ctx.edit"))}">${icon("edit")}</button>` +
+      `<button class="st-btn st-btn--icon st-btn--danger" data-action="delete" aria-label="${esc(t("ctx.delete"))}" title="${esc(t("ctx.delete"))}">${icon("trash")}</button>`;
     el.appendChild(acts);
   } else {
     el.innerHTML = `<div class="st-bubble"></div><div class="next-steps" hidden></div><div class="proposals" hidden></div><div class="st-msg__meta"><span class="meta-text"></span>` +
@@ -2047,7 +2048,8 @@ function msgEl(m, i) {
       `<button class="st-btn continue-btn" data-action="continue" hidden>继续</button>` +
       `<button class="st-btn msg-fold" data-action="fold" hidden></button>` +
       `<button class="st-btn st-btn--icon" data-msg-copy aria-label="${esc(t("ctx.copy.answer"))}" title="${esc(t("ctx.copy.answer"))}">${icon("copy")}</button>` +
-      `<button class="st-btn st-btn--icon" data-action="regen" aria-label="${esc(t("ctx.regen"))}" title="${esc(t("ctx.regen"))}">${icon("regenerate")}</button></div>`;
+      `<button class="st-btn st-btn--icon" data-action="regen" aria-label="${esc(t("ctx.regen"))}" title="${esc(t("ctx.regen"))}">${icon("regenerate")}</button>` +
+      `<button class="st-btn st-btn--icon st-btn--danger" data-action="delete" aria-label="${esc(t("ctx.delete"))}" title="${esc(t("ctx.delete"))}">${icon("trash")}</button></div>`;
     updateAssistant(el, m, false);
   }
   return el;
@@ -3870,6 +3872,7 @@ $("chat").addEventListener("click", (e) => {
     if (action === "fold") { foldAll(act.closest(".st-msg"), messages[i]); return; }
     if (action === "edit") { openEditModal(i); return; }
     if (action === "regen") { doRegenerate(i); return; }
+    if (action === "delete") { deleteMessage(i); return; }
   }
   // a tool block: its open state lives in the message (the answer is rebuilt while it streams), so the click sets it
   const sum = e.target.closest(".tool-call > summary");
@@ -7838,10 +7841,14 @@ function openCtxMenu(x, y, items) {
 
 function deleteMessage(i) {
   if (busy && busy.msg === messages[i]) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
+  if (typeof window.confirm === "function") {
+    try { if (!window.confirm(t("ctx.delete.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
+  }
+  const removed = messages[i];
   messages.splice(i, 1);
   saveChat();
   renderChat();
-  toast("info", t("toast.msgdeleted.title"));
+  toast("info", t("toast.msgdeleted.title"), "", 5000, {label: t("toast.undo"), run: () => { messages.splice(i, 0, removed); saveChat(); renderChat(); }});
 }
 
 $("chat").addEventListener("contextmenu", (e) => {
