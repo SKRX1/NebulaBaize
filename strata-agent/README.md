@@ -15,13 +15,13 @@
 
 | 门禁 | 守护内容 | 上次实跑绿（人工观测锚）|
 |---|---|---|
-| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session) |
-| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session) |
-| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session) |
-| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session) |
-| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session) |
-| `tools/_mirror_parity_gate.py` + `serve/web` ↔ `Strata-main\serve\web` | 寄生镜像必须与权威源逐文件 MD5 一致（部署/MIR 铁律锁，镜像目录不在时自跳过）| v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session)
-| `tests/test_card_guard_no_autodrive.mjs` | 决策卡轮次整轮不自动跑（等用户拍板）+ 卡轮次照旧出全档条 + 红/蓝永不跑 | v-baseline-2026-10-24-b (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 7bbc4b7 on master; deref verified 7bbc4b7 = HEAD this session) |
+| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session) |
+| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session) |
+| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session) |
+| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session) |
+| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session) |
+| `tools/_mirror_parity_gate.py` + `serve/web` ↔ `Strata-main\serve\web` | 寄生镜像必须与权威源逐文件 MD5 一致（部署/MIR 铁律锁，镜像目录不在时自跳过）| v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session)
+| `tests/test_card_guard_no_autodrive.mjs` | 决策卡轮次整轮不自动跑（等用户拍板）+ 卡轮次照旧出全档条 + 红/蓝永不跑 | v-baseline-2026-10-24-d (2026-10-24, real-run ALL GREEN incl. post-green hook, tree clean, HEAD e8b4244 on master; deref verified e8b4244 = HEAD this session) |
 
 ### 实测边界（诚实记录，避免后续误判）
 
@@ -65,6 +65,7 @@
 
 - **本轮登记（2026-10-24，修过时 ComputeOutputCap 用例 + 新贴图集契约测试 + 新基线锚，非纯文档，进锚链）**：两笔 commit——`4233cee` test 链（钉 ComputeOutputCapTest 两用例 ceiling=self.STD(32768) 对齐兄弟类对漂移免疫约定 + 新建 tests/test_paste_contract.mjs 锁「只有调用点无定义」ReferenceError 缺陷 + 登记进 SUITES + RULES 两条测试链记忆）；`7bbc4b7` config/models.json 新增本地模型 swift-iq3_xxs / swift-iq3_s。两笔落地后真跑全套 run_tests（74 SUITES 成员全 PASS，含 post-green rollback verify VERDICT: TAG IS A WORKING ROLLBACK POINT ALL GREEN，工作树干净）——按 README 第5条闭环给该真跑绿 commit 打附注 tag `v-baseline-2026-10-24-b`（deref 坐实指向 7bbc4b7），门禁表 7 行锚已统一推到 -2026-10-24-b。本登记条本身为纯文档 commit，按习例不进锚（锚停在实跑绿 commit 7bbc4b7 合理）。
 - **本轮登记（2026-10-24，记忆分层瘦身健康态 + 新基线锚 + 召回抽查，纯文档登记，不进锚）**：本轮三件事（均为拍板，无代码改动，瘦身仅触及运行时数据目录 .strata-memory/ 不在 git 基线）——①全套 run_tests 真跑 ALL GREEN（含 post-green 钩子、74 SUITES 成员全 PASS、i18n 996 键×2 绿）后给真跑绿 HEAD a7e55fa 打附注 tag v-baseline-2026-10-24-c（deref 坐实指向 a7e55fa）；②带 STRATA_MAX_OUTPUT_CEILING=32768 env 真跑 _rollback_verify 复验新锚 -c 真能回退（checkout→全套→恢复HEAD，VERDICT ALL GREEN，避开无 env 的 test_dynamic_output_cap 假红）；③用只存在于非铁律内容的词（淡绿白 #eef4ef / muted灰文字≥4.5硬筛 / 灰绿梯度六档 / 拍板选D #d0e0cf）实测 memory__recall 双路命中，按需召回通道健康，证明分层核心假设成立（非铁律内容靠 semantic.db 召回）。门禁表锚不动——本轮无门禁测试代码改动。本登记条本身即纯文档 commit，不进锚（锚停在瘦身健康态真跑绿 commit a7e55fa 合理）。
+- **本轮登记（2026-10-24，rollback_verify 默认注入 env + 门禁锚推进到 -d，feat 级，进锚链）**：本轮 commit `e8b4244` feat 级——`tools/_rollback_verify.py` 在 run_full_suite 加 `env.setdefault('STRATA_MAX_OUTPUT_CEILING','32768')`（setdefault 保显式 env 优先），使 post-green 钩子/rollback 复验不再靠手动 set 防 test_dynamic_output_cap 的无 env 假红；py_compile 绿 + 在当前 master 顶端无外部 env 真跑全套 `REGRESSION (incl. post-green): ALL GREEN`（当事人 test_dynamic_output_cap OK + test_output_ceiling OK 双绿，覆盖本次注入无回归）。按 README 第5条『绿→打 tag→推锚』闭环给该真跑绿 commit 打附注 tag `v-baseline-2026-10-24-d`（deref 坐实指向 e8b4244），门禁表 7 行锚已统一推到 -d；并 recall 复验已落账的降级条（rollback 手动带 env 可省）双路命中。本登记条本身为纯文档 commit，按惯例不进锚（锚停在 feat 真跑绿 commit e8b4244 合理）。
 
 让 Strata 具备**完整智能体能力**的纯插件扩展包：自主执行循环、MCP 工具、记忆系统、Skills、权限/沙箱。**零修改 Strata**，升级后指向此包即可。
 
