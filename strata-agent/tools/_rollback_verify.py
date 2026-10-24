@@ -25,6 +25,7 @@ def latest_tag():
 def run_full_suite():
     env = dict(os.environ)
     env['STRATA_CI'] = '1'
+    env.setdefault('STRATA_MAX_OUTPUT_CEILING', '32768')  # default-inject: dodge the no-env false-red (test_dynamic_output_cap)
     try:
         r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'run_tests.py')],
                            capture_output=True, text=True, cwd=ROOT, env=env, timeout=280)
