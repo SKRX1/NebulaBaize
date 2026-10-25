@@ -758,7 +758,8 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
                     transition: opacity var(--st-dur) var(--st-ease); }
 .st-session__pin { flex: none; display: inline-flex; color: var(--st-ink-muted); }
 .st-session__more { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px;
-                    border-radius: 50%; opacity: 0; pointer-events: none; }
+                    border-radius: 50%; opacity: .38; pointer-events: auto; }   /* A: visible enough to aim, always clickable */
+.st-session__more::after { content: ""; position: absolute; inset: -4px; }   /* A+B: transparent 30px hit target */
 .st-session__more .st-icon { width: 14px; height: 14px; }
 .st-session:hover .st-session__more, .st-session__more:focus-visible { opacity: 1; pointer-events: auto; }
 .st-session:hover .st-session__time { opacity: 0; }   /* the "···" takes the timestamp's place */
