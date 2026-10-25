@@ -131,7 +131,7 @@ SUITES = [
     "tools/_archive_gate.py",   # deterministic gate: archive write/read zero-loss + whitelist N=3 + default-on (locks the recoverable-archive design)
     "tests/test_ctx_denominator.py",   # 2026-10: the gateway denominator == the engine's real n_ctx (no 128K-vs-256K split)
     "tests/test_resident_retry.py",   # 2026-10-24: resident-contention vs true-overflow split (quiet retry, budget is one)
-    "tools/_mirror_parity_gate.py",   # 2026-10-23: parasite mirror must be byte-identical to serve/web (locks the deploy/MIR rule; self-skips if the mirror folder is absent)
+    "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)
 ]
 
 
