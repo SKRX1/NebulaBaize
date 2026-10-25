@@ -69,6 +69,8 @@
 
 让 Strata 具备**完整智能体能力**的纯插件扩展包：自主执行循环、MCP 工具、记忆系统、Skills、权限/沙箱。**零修改 Strata**，升级后指向此包即可。
 
+- **本轮登记（2026-10-25，沙箱 browser__sim DOM 语义对齐真实浏览器 9 项，feat 级；锚不推——差分锁实跑绿 50/50 + 全套 SUITES 全绿，post-green 未在净树重跑故不推，下次全绿自然推进）**：commit `41516fb` fix(pagesim)——env.cjs 修 9 项（事件冒泡/委托全路径 capture→target→bubble、stopPropagation 断上行、非冒泡停 target、textContent getter 聚合子树/setter 换单文本节点、children 仅元素而 childNodes 留空白文本、兄弟导航四向 getter、appendChild 忽略额外参数+已入树节点移动语义、insertBefore 真插入、:not/:is/:first-child/:checked 伪类作为同元素条件）；run.cjs 去 dispatchPointer 双触发；新增夹具 tests/repro_dom_semantics.html（运行时构树，静态扫描元素平铺故不带静态断言）；test_page_sim.py 第 7 节 15 新增断言全部等于真实浏览器预期值（35→50 全绿，差分锁）。生效边界：pagesim 属后端/servers，重启 8099 即生效，不涉前端部署。
+
 ## 依赖
 - Strata 在运行（默认 `http://127.0.0.1:8080`，OpenAI 兼容 API）。
 - Python 3.10+（建议用管理版运行时）。纯标准库优先；内置缩进式 YAML 解析器已覆盖本项目所有配置（嵌套映射/序列/流式列表/引号标量），PyYAML 仅可选增强。第三方仅 sqlite-vec 可选。
