@@ -3711,6 +3711,11 @@ function renderStats(el, m, streaming) {
   // rounds); say why the token chips are missing instead of silently dropping the whole row.
   if (s.partial) parts.push(`<span class="stat" title="${esc(t("stat.nousage.tip"))}">${esc(t("stat.nousage"))}</span>`);
   if (roundChip) parts.push(roundChip);
+  // plan-complete badge: this turn's own checklist fully ticked -> echo the panel's completion
+  // signal down in the footer chip row (mirrors insp.plan.complete).
+  const _fp = m.plan || [];
+  if (_fp.length && _fp.every((p) => p.done))
+    parts.push(`<span class="stat stat--done" title="${esc(t("stat.plan.done.tip"))}">` + `${icon("check", "st-icon st-icon--xs")}<span>${esc(t("stat.plan.done"))}</span></span>`);
   // The seed belongs in this row, next to the other per-turn figures: it is a property of THIS
   // generation, not of the app. Click copies it (delegated handler on #chat) so it can be pasted
   // back into the drawer to replay the turn.

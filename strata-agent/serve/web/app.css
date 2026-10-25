@@ -1035,6 +1035,7 @@ body.side-collapsed .kb-panel { display: none !important; }
 .stat--dur { color: var(--st-text); }
 .stat--live { color: var(--st-info-text); background: var(--st-info-tint); }
 .stat--ctx.stat--ok { color: var(--st-accent-text); background: var(--st-accent-tint); }
+.stat--done { color: var(--st-accent-text); background: var(--st-accent-tint); }
 .stat--ctx.stat--warn { color: var(--st-warn-text); background: var(--st-warn-tint); }
 .stat--ctx.stat--danger { color: var(--st-danger-text); background: var(--st-danger-tint); }
 /* seed chip: a per-turn figure that is click-to-copy, so it reads as an affordance, not a label */
