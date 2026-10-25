@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from llm_client import StrataClient
 from planner import Planner
 from executor import Executor
+from toolcall_parse import hallucinated_tool_call, looks_like_narration
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are Strata Agent, an autonomous agent. Use the available tools to plan, act, "
@@ -240,6 +241,7 @@ class AgentLoop:
         trace = []
         self._verify_attempts = 0
 
+        nudges = [0]   # per-turn budget for the finalize-branch guards (B action-shape cap 5, narration cap 2)
         for rnd in range(1, self.max_rounds + 1):
             # --- automatic context management: fold old turns if over budget ---
             compressed = self._maybe_compress()
@@ -259,6 +261,33 @@ class AgentLoop:
                                         "final": action.final_answer is not None})
             step = Step(round=rnd, thinking=action.thinking, tool=None,
                         arguments=None, result=None)
+            # ── finalize-branch guards (mirror of http_server run_with_mcp) ──
+            # The model can (a) write the markdown plan fence AS a tool-call shape, or
+            # (b) narrate the next step without doing it. Both used to fall through to the
+            # finalize `break` below and stop a mid-task turn. Discriminators live in the
+            # SHARED module so both chains judge them identically. Each guard keeps working
+            # when it fires; the budget caps it so a model stuck on the pattern is bounded.
+            known = {t["name"] for t in self._tools}
+            if (action.final_answer is not None and not action.actions
+                    and nudges[0] < 5 and hallucinated_tool_call(action.final_answer, known)):
+                nudges[0] += 1
+                messages.append({"role": "assistant", "content": action.final_answer})
+                messages.append({"role": "user", "content":
+                                 "[system] 你刚才把计划/建议用 <function=...> 写成了工具调用的样子，"
+                                 "但它不是真正的工具调用（解析器无法识别那个名字），所以回合差点在这里结束。"
+                                 "如果任务还没做完：现在用正确的工具调用语法真正执行下一步；"
+                                 "如果那只是给用户的计划清单，请用 markdown 围栏写，不要写成工具调用语法。"})
+                continue
+            if (action.final_answer is not None and not action.actions
+                    and nudges[0] < 2 and looks_like_narration(action.final_answer)):
+                nudges[0] += 1
+                messages.append({"role": "assistant", "content": action.final_answer})
+                messages.append({"role": "user", "content":
+                                 "[system] 你刚才只描述了下一步，并没有调用任何工具，所以回合就结束了。"
+                                 "如果任务还没做完：现在就调用工具真正执行，不要只说明计划。"
+                                 "如果确实已经全部完成：用一句话明确说明「已完成」和产出文件，"
+                                 "不要再用「开始/接下来」这类措辞。"})
+                continue
             if action.final_answer is not None:
                 step.final = True
                 self._commit({"role": "assistant", "content": action.final_answer})

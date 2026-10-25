@@ -104,6 +104,8 @@ SUITES = [
     "tests/test_code_style.mjs",        # 2026-10-20: 代码块语法高亮 + 思考区围栏渲染成真代码卡片
     "tests/test_shell_timeout.py",
     "tests/test_agent_loop.py",
+    "tests/test_hallucinated_resume.py",   # 2026-10-25: http_server-chain plan-action resume; registers an already-green test this refactor touches (was orphaned)
+    "tests/test_loop_finalize_resume.py",  # 2026-10-25: loop.py finalize-branch resume (the 8099 agent chain), driven through the real AgentLoop + shared toolcall_parse discriminators
     "tests/test_turn_budget.py",
     "tests/test_empty_round.py",
     "tests/test_turn_guard.py",
