@@ -246,7 +246,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .scroll-latest:hover { transform: translateY(-1px); }
 .scroll-latest .st-icon { color: var(--st-accent); }
 @keyframes scrollLatestIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.chat { max-width: 860px; margin: 0 auto; padding: var(--st-s-8) var(--st-s-6) var(--st-s-6); display: flex;
+.chat { max-width: var(--st-chat-w); margin: 0 auto; padding: var(--st-s-8) var(--st-s-6) var(--st-s-6); display: flex;
         flex-direction: column; gap: var(--st-s-6); }
 .chat-empty { margin: 12vh auto 0; text-align: center; }
 .chat-empty__title { font-weight: var(--st-fw-black); font-size: var(--st-fs-display); line-height: var(--st-lh-tight);
@@ -416,7 +416,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .mem-kb-item:last-child { border-bottom: none; }
 .mem-actions { margin-top: 10px; }
 .st-textarea#mem-rules-edit { width: 100%; min-height: 120px; resize: vertical; }
-.st-composer { max-width: 860px; margin: 0 auto; }
+.st-composer { max-width: var(--st-chat-w); margin: 0 auto; }
 .st-composer textarea { max-height: 40vh; }
 .st-btn--send { width: 42px; padding: 0; }
 .composer-hint { font-size: var(--st-fs-xs); color: var(--st-ink-muted); margin-right: var(--st-s-2); font-variant-numeric: tabular-nums;
