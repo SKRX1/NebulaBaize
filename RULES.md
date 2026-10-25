@@ -108,3 +108,8 @@ agent会话寄生在被重启的gateway进程树下，故重启脚本的真杀�
 给「显示层截断」做放宽时，若该选择器已有门禁静态锁（如 test_memory_card_title 锁 .kb-source__name 省略号），放宽CSS必须同步翻转该锁为「锁放宽态」保持防漂移，否则全套必红
 前端权威源现在只有工作区strata-agent/serve/web一处，改前端不再需要deploy_frontend.py镜像到Strata-main（该脚本已退役归档）
 setup_env.py改写清单现只剩mcp_servers.json+run_standalone.bat两项（deploy_to_strata/deploy_host_patch已归档，死条目已清）
+改共享默认行为（如 autostepsRec）会联动断言该默认的门禁测试：应把无关测试的开关 pin 回旧值（test_card_guard 钉 false），把新默认的行为锁放在它专属测试（test_autosteps 差分正/负例），避免一个改动污染多个差分对
+recommended-only 开关复活铁律：默认勾上→auto-drive 只跑绿；取消勾→绿+橙；红/蓝永不变；接线面 loadDrawer+saveSettings+onclick 三处必须齐全，否则 filter 读不到 settings 形同虚设
+
+任务完成轮必须输出 next-steps 建议条（哪怕本轮只是单步收尾/选定项执行）：漏发=疏漏非渲染bug——面板完成徽标与底部绿勾只在我输出的 next-steps 围栏被渲染时才亮，围栏不发徽标就永远不出，此为坐实根因（2026-10-25）
+凡多步任务，回答开头即用 ```plan 围栏写清单（边做边勾）；任何收尾轮（含单步收尾）都必须给出建议条：决策卡/等拍板轮用 ? 档作停等闸、绿黄只填被误跑也无害的动作，绝不整块漏发
