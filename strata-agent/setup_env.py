@@ -64,8 +64,6 @@ def main():
     set_re = re.compile(r'(?m)^set\s+PYTHON=.*$')
     bats = [
         os.path.join(AGENT, "run_standalone.bat"),
-        os.path.join(AGENT, "deploy_to_strata.bat"),
-        os.path.join(AGENT, "deploy_host_patch.bat"),
     ]
     for b in bats:
         if not os.path.exists(b):

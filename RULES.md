@@ -106,3 +106,5 @@ run_tests.py SUITES 登记的 .mjs 必须自带 process.exit(失败数?1:0)，�
 常驻重启脚本禁止写死PID——必须netstat现查监听+CIM解析父链，因进程树每次重启都会洗牌使快照PID过期
 agent会话寄生在被重启的gateway进程树下，故重启脚本的真杀动作只能分离执行；dry-run只查不杀可直接跑
 给「显示层截断」做放宽时，若该选择器已有门禁静态锁（如 test_memory_card_title 锁 .kb-source__name 省略号），放宽CSS必须同步翻转该锁为「锁放宽态」保持防漂移，否则全套必红
+前端权威源现在只有工作区strata-agent/serve/web一处，改前端不再需要deploy_frontend.py镜像到Strata-main（该脚本已退役归档）
+setup_env.py改写清单现只剩mcp_servers.json+run_standalone.bat两项（deploy_to_strata/deploy_host_patch已归档，死条目已清）
