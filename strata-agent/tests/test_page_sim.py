@@ -267,6 +267,51 @@ def main() -> int:
     ok("sandbox.document.__env.__inlineFnMaker = maker;" in src,
        "run.cjs must wire the realm factory into env.__inlineFnMaker (where El reads it)")
 
+    # --- 7) DOM semantics contract, 2026-10-25 --------------------------------------------
+    # The sandbox's DOM layer was audited against real-browser behaviour with runtime-built
+    # fixtures (static-scanned elements stay flat by design, so the fixture builds its tree
+    # at runtime). Nine behaviours were measured broken and fixed in env.cjs:
+    #   bubbling/capture delegation, stopPropagation, non-bubbling stops at target,
+    #   textContent getter aggregates the subtree / setter replaces it with one text node,
+    #   children is element-only while childNodes keeps whitespace text nodes,
+    #   sibling navigation (nextSibling/nextElementSibling/...), appendChild ignores extra
+    #   args and MOVES attached nodes, insertBefore really inserts,
+    #   :not()/:is()/:first-child/:checked parse as same-element conditions.
+    # Every value below is what a REAL browser reports (see the fixture's comments).
+    sem = os.path.join(HERE, "tests", "repro_dom_semantics.html")
+    r7 = run_job({"page": sem, "steps": 1, "probes": {"g": "g"}})
+    ok(r7["ok"] is True, f"DOM semantics fixture must run clean, errors={r7.get('errors')}")
+    g7 = r7["probes"]["g"]
+    ok(g7["children_len"] == 2 and g7["cn_len"] == 3,
+       f"children = element nodes only, childNodes keeps whitespace text, got {g7}")
+    ok(g7["qsa_card"] == 2 and g7["qsa_card_doc"] == 2,
+       f"subtree and document queries must both see the parsed tree, got {g7}")
+    ok(g7["tc_get"] == "a b", f"textContent getter must aggregate the subtree, got {g7!r}")
+    ok(g7["fec_tag"] == "DIV" and g7["ns"] == "#text" and g7["nes"] == "card"
+       and g7["pes"] == "null" and g7["pps"] == "#text",
+       f"sibling navigation must follow real DOM order, got {g7}")
+    c = g7["counts"]
+    ok(c == {"btn": 1, "inline": 1, "root": 1, "doc_bub": 1, "doc_cap": 1, "win": 1},
+       f"full event path (target+inline+bubble+capture+window) must fire exactly once "
+       f"each, got {c}")
+    ok(g7["after_stop"] == 0, f"stopPropagation must stop the upward path, got {g7}")
+    ok(g7["nb"] == {"inner": 1, "root_delta": 0},
+       f"non-bubbling events must stay at the target, got {g7}")
+    ok(g7["append_order"] == ",x1,x2",
+       f"appendChild ignores extra args (append order), got {g7['append_order']!r}")
+    ok(g7["order_after_ib"] == ",x2,x1",
+       f"insertBefore really inserts / moves the node, got {g7['order_after_ib']!r}")
+    ok(g7["tc_after"] == {"cn": 1, "ct": "T", "kids": 0},
+       f"textContent setter replaces children with one text node, got {g7}")
+    ok(g7["not_sel"] == 2 and g7["not_done"] == 0 and g7["is_sel"] == 2,
+       f":not()/:is() must parse as same-element conditions, got {g7}")
+    ok(g7["first"] == 1 and g7["checked_sel"] == 0,
+       f":first-child/:checked pseudo-classes must evaluate, got {g7}")
+    ok(g7["attr_sel"] == 1 and g7["closest_ok"] is True,
+       f"attribute selectors/closest must see runtime-built nodes, got {g7}")
+    ok(g7["replace_tree"] is True and g7["after_remove"] == 0,
+       f"replaceChild/removeChild must keep the tree consistent, got {g7}")
+
     print(f"PAGE-SIM: {checks} checks passed")
     return 0
 

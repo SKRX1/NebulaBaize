@@ -196,14 +196,13 @@ class El {
       if (k.startsWith('data-')) this.dataset[k.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = a[k];
     }
     this.childNodes = [];
-    this.children = this.childNodes;
     this.parentNode = null;
     this.parentElement = null;
-    this.textContent = a.text || '';
-    this.innerText = this.textContent;
+    this.__text = a.text || '';
+    this.innerText = this.__text;
     this.__innerHTML = '';
     this.__innerDirty = false;
-    if (this._attrs) { for (const k of Object.keys(this._attrs)) { if (/^on[a-z]+$/.test(k) && typeof this._attrs[k] === 'string') { try { this[k] = (this.__env.__inlineFnMaker || Function)(this._attrs[k]); } catch (e) { /* page code error */ } } } }
+    if (this._attrs) { for (const k of Object.keys(this._attrs)) { if (/^on[a-z]+$/.test(k) && typeof this._attrs[k] === 'string') { try { this[k] = (env.__inlineFnMaker || Function)(this._attrs[k]); } catch (e) { /* page code error */ } } } }
     this.value = a.value || '';
     this.checked = false;
     this.disabled = false;
@@ -262,9 +261,57 @@ class El {
 
   get firstChild() { return this.childNodes[0] || null; }
   get lastChild() { return this.childNodes[this.childNodes.length - 1] || null; }
+  // Real DOM: children is element nodes only; childNodes keeps text nodes (incl.
+  // whitespace between elements -- parseFragment keeps them for this reason).
+  get children() { return this.childNodes.filter((n) => n.nodeType === 1); }
+  get firstElementChild() { return this.children[0] || null; }
+  get lastElementChild() { return this.children[this.children.length - 1] || null; }
+  get childElementCount() { return this.children.length; }
+  get nextSibling() {
+    const p = this.parentNode;
+    if (!p) return null;
+    const i = p.childNodes.indexOf(this);
+    return (i >= 0 && p.childNodes[i + 1]) || null;
+  }
+  get previousSibling() {
+    const p = this.parentNode;
+    if (!p) return null;
+    const i = p.childNodes.indexOf(this);
+    return (i > 0 && p.childNodes[i - 1]) || null;
+  }
+  get nextElementSibling() {
+    const p = this.parentNode;
+    if (!p) return null;
+    const sib = p.children; const i = sib.indexOf(this);
+    return (i >= 0 && sib[i + 1]) || null;
+  }
+  get previousElementSibling() {
+    const p = this.parentNode;
+    if (!p) return null;
+    const sib = p.children; const i = sib.indexOf(this);
+    return (i > 0 && sib[i - 1]) || null;
+  }
+  // textContent: aggregate the subtree when it has nodes, else the stored text.
+  get textContent() {
+    if (!this.childNodes.length) return this.__text;
+    let out = '';
+    for (const n of this.childNodes) out += n.textContent;
+    return out;
+  }
+  set textContent(s) {
+    const v = String(s);
+    this.childNodes.length = 0;
+    this.__text = v;
+    if (this.ownerDocument && v) {
+      const t = this.ownerDocument.createTextNode(v);
+      t.parentNode = this;
+      this.childNodes.push(t);
+      this.__text = '';
+    }
+  }
 
   addEventListener(type, fn, opts) {
-    (this.__listeners[type] = this.__listeners[type] || []).push({ fn, once: !!(opts && opts.once) });
+    (this.__listeners[type] = this.__listeners[type] || []).push({ fn, once: !!(opts && opts.once), opts: opts || false });
   }
   removeEventListener(type, fn) {
     const l = this.__listeners[type];
@@ -274,31 +321,74 @@ class El {
     const e = ev || {};
     const type = e.type;
     if (!type) return true;
+    if (e.__bubbled) { this.__fire(type, e, undefined, true); return !e.defaultPrevented; }
+    // Real DOM: capture down the ancestor path, fire at target, bubble back up when
+    // ev.bubbles. Delegation (a listener on document/body catching bubbled events)
+    // is one of the most common page patterns -- it must work in the sandbox too.
     if (e.target === undefined || e.target === null) e.target = this;
-    if (e.currentTarget === undefined) e.currentTarget = this;
-    const l = (this.__listeners[type] || []).slice();
-    for (const it of l) {
-      try { it.fn.call(this, e); } catch (err) { this.__env.__onError(err, `event:${type}`); }
-      if (it.once) this.removeEventListener(type, it.fn);
-    }
-    const inline = this[`on${type}`];
-    if (typeof inline === 'function') {
-      try { inline.call(this, e); } catch (err) { this.__env.__onError(err, `on${type}`); }
+    const env = this.__env;
+    const doc = this.ownerDocument || (this.__api_doc ? this : null) || env.document;
+    const chain = [];
+    let n = this;
+    while (n && n.nodeType !== 9) { chain.unshift(n); n = n.parentNode; }
+    chain.unshift(doc);                                   // document
+    chain.unshift(env);                                   // window at the top
+    if (e.defaultPrevented === undefined) e.defaultPrevented = false;
+    if (!e.preventDefault) e.preventDefault = function () { this.defaultPrevented = true; };
+    if (!e.stopPropagation) e.stopPropagation = function () { this.__stop = true; };
+    e.__bubbled = true;
+    const top = chain.length - 1;
+    e.eventPhase = 1;
+    for (let i = top; i >= 1 && !e.__stop; i--) { if (chain[i] !== this) chain[i].__fire(type, e, true); }
+    e.eventPhase = 2;
+    const t = chain.indexOf(e.target) >= 0 ? chain.indexOf(e.target) : top + 1; // target itself
+    if (!e.__stop) this.__fire(type, e, false, true);
+    if (e.bubbles) {
+      e.eventPhase = 3;
+      const p = this.parentNode;
+      let j = chain.indexOf(p);
+      for (; j >= 0 && !e.__stop; j--) if (chain[j] !== this) chain[j].__fire(type, e, false);
     }
     return !e.defaultPrevented;
   }
+  __fire(type, e, capture) {
+    const l = ((this.__listeners && this.__listeners[type]) || []).filter((x) => {
+      const wantCap = !!(x.opts && (x.opts === true || x.opts.capture));
+      return capture === undefined ? true : (wantCap === capture);
+    });
+    for (const it of l) {
+      if (e.__stop) return;
+      e.currentTarget = this;
+      try { it.fn.call(this, e); } catch (err) { this.__env.__onError(err, `event:${type}`); }
+      if (it.once) this.removeEventListener(type, it.fn);
+    }
+    if (!capture) {
+      const inline = this[`on${type}`];
+      if (typeof inline === 'function') {
+        e.currentTarget = this;
+        try { inline.call(this, e); } catch (err) { this.__env.__onError(err, `on${type}`); }
+      }
+    }
+  }
   click() { return this.dispatchEvent({ type: 'click', bubbles: true }); }
   focus() {} blur() {} select() {} scrollIntoView() {} setPointerCapture() {} releasePointerCapture() {}
-  insertBefore(n, ref) { return this.appendChild(n, ref); }
-  appendChild(n, before) {
+  insertBefore(n, ref) {
     if (!n) return n;
+    if (n.parentNode) n.parentNode.removeChild(n);   // real DOM moves an attached node
     n.parentNode = this; n.parentElement = this;
-    const i = before ? this.childNodes.indexOf(before) : -1;
+    const i = ref ? this.childNodes.indexOf(ref) : -1;
     if (i >= 0) this.childNodes.splice(i, 0, n); else this.childNodes.push(n);
     return n;
   }
+  appendChild(n) {   // real DOM ignores any second argument
+    if (!n) return n;
+    if (n.parentNode) n.parentNode.removeChild(n);   // real DOM moves an attached node
+    n.parentNode = this; n.parentElement = this;
+    this.childNodes.push(n);
+    return n;
+  }
   append(...ns) { ns.forEach((n) => this.appendChild(typeof n === 'string' ? this.ownerDocument.createTextNode(n) : n)); }
-  prepend(...ns) { ns.forEach((n) => this.appendChild(n, this.childNodes[0])); }
+  prepend(...ns) { ns.forEach((n) => this.insertBefore(typeof n === 'string' ? this.ownerDocument.createTextNode(n) : n, this.childNodes[0])); }
   removeChild(n) { const i = this.childNodes.indexOf(n); if (i >= 0) this.childNodes.splice(i, 1); return n; }
   replaceChild(n, old) { this.removeChild(old); return this.appendChild(n); }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
@@ -379,7 +469,7 @@ class El {
         parent.childNodes.push(el);
         el.__wireInline();
         if (m[3].slice(-1) !== '/') stack.push(el);
-      } else if (m[4] && m[4].trim()) {
+      } else if (m[4]) {
         const n = doc.createTextNode(m[4]);
         n.parentNode = parent;
         parent.childNodes.push(n);
@@ -401,7 +491,7 @@ function parseInlineStyle(text) {
 function parseSelector(sel) {
   const s = String(sel || '').trim();
   if (!s) return null;
-  const raw = s.match(/[.#]?[a-zA-Z][\w-]*|\[[^\]]+\]/g);
+  const raw = s.match(/[.#]?[a-zA-Z][\w-]*|\[[^\]]+\]|:[a-zA-Z-]+(?:\([^)]*\))?/g);
   if (!raw || raw.length === 0) return null;
   const groups = [];
   let pos = 0, lastEnd = -1;
@@ -434,6 +524,26 @@ function matchCond(el, tok) {
     if (m[2] === '~=') return val.split(/\s+/).indexOf(want) >= 0;
     if (m[2] === '|=') return val === want || val.startsWith(want + '-');
     return false;
+  }
+  if (tok[0] === ':') {
+    const m = /^:([a-zA-Z-]+)(?:\(([^)]*)\))?$/.exec(tok);
+    if (!m) return false;
+    const name = m[1], arg = m[2];
+    const doc = el.ownerDocument || (el.__env && el.__env.document);
+    switch (name) {
+      case 'not': return arg ? !matchSimple(el, arg) : false;
+      case 'is': case 'where': return arg ? matchSimple(el, arg) : false;
+      case 'first-child': { const sib = el.parentNode ? el.parentNode.children : [el]; return sib[0] === el; }
+      case 'last-child': { const sib = el.parentNode ? el.parentNode.children : [el]; return sib[sib.length - 1] === el; }
+      case 'only-child': { const sib = el.parentNode ? el.parentNode.children : [el]; return sib.length === 1 && sib[0] === el; }
+      case 'empty': return el.childNodes.length === 0 && !el.__text;
+      case 'checked': return el.checked === true;
+      case 'disabled': return el.disabled === true;
+      case 'hidden': return el.hidden === true;
+      case 'root': return doc ? el === doc.documentElement : false;
+      case 'focus': return doc ? doc.activeElement === el : false;
+      default: return false;   // :hover/:active etc need pixels -- honestly never matches
+    }
   }
   return el.tagName === tok.toUpperCase();
 }
@@ -541,7 +651,7 @@ class Doc {
   getElementsByClassName(c) { return queryAll(this.__all, '.' + c); }
   querySelector(sel) { return queryAll(this.__all, sel)[0] || null; }
   querySelectorAll(sel) { return queryAll(this.__all, sel); }
-  addEventListener(type, fn, opts) { (this.__listeners[type] = this.__listeners[type] || []).push({ fn, once: !!(opts && opts.once) }); }
+  addEventListener(type, fn, opts) { (this.__listeners[type] = this.__listeners[type] || []).push({ fn, once: !!(opts && opts.once), opts: opts || false }); }
   removeEventListener(type, fn) { const l = this.__listeners[type]; if (l) this.__listeners[type] = l.filter((x) => x.fn !== fn); }
   dispatchEvent(ev) {
     const type = ev && ev.type;
@@ -552,6 +662,18 @@ class Doc {
       if (it.once) this.removeEventListener(type, it.fn);
     }
     return true;
+  }
+  __fire(type, e, capture) {
+    const l = (this.__listeners[type] || []).filter((x) => {
+      const wantCap = !!(x.opts && (x.opts === true || x.opts.capture));
+      return capture === undefined ? true : (wantCap === capture);
+    });
+    for (const it of l) {
+      if (e.__stop) return;
+      e.currentTarget = this;
+      try { it.fn.call(this, e); } catch (err) { this.__env.__onError(err, `document:${type}`); }
+      if (it.once) this.removeEventListener(type, it.fn);
+    }
   }
   exitFullscreen() { return Promise.resolve(); }
   exitPointerLock() {}
@@ -784,9 +906,21 @@ function makeEnv(opts) {
 
   // ---- window level event target ------------------------------------------------------
   const winListeners = Object.create(null);
-  const addWinListener = (type, fn, opts) => { (winListeners[type] = winListeners[type] || []).push({ fn, once: !!(opts && opts.once) }); };
+  const addWinListener = (type, fn, opts) => { (winListeners[type] = winListeners[type] || []).push({ fn, once: !!(opts && opts.once), opts: opts || false }); };
   const removeWinListener = (type, fn) => { const l = winListeners[type]; if (l) winListeners[type] = l.filter((x) => x.fn !== fn); };
 
+  env.__fire = (type, e, capture) => {
+    const l = (winListeners[type] || []).filter((x) => {
+      const wantCap = !!(x.opts && (x.opts === true || x.opts.capture));
+      return capture === undefined ? true : (wantCap === capture);
+    });
+    for (const it of l) {
+      if (e.__stop) return;
+      e.currentTarget = env;
+      try { it.fn.call(env, e); } catch (err) { env.__onError(err, `window:${type}`); }
+      if (it.once) removeWinListener(type, it.fn);
+    }
+  };
   const dispatchWindow = (type, ev) => {
     const e = Object.assign({ type, target: env, currentTarget: env, defaultPrevented: false,
                               preventDefault() { this.defaultPrevented = true; },
@@ -798,7 +932,7 @@ function makeEnv(opts) {
     }
     const inline = env[`on${type}`];
     if (typeof inline === 'function') { try { inline.call(env, e); } catch (err) { env.__onError(err, `on${type}`); } }
-    doc.dispatchEvent(e);                     // document listeners see window events too
+    if (doc.__fire && !e.__stop) doc.__fire(type, e);   // document listeners see window events too
   };
 
   // ---- audio / image -----------------------------------------------------------------
@@ -930,8 +1064,7 @@ function makeEnv(opts) {
                    x, y, button: 0, buttons: type === 'pointerdown' || type === 'mousedown' ? 1 : 0,
                    bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse',
                    isPrimary: true, pressure: 0.5, preventDefault() {}, stopPropagation() {} };
-      target.dispatchEvent(ev);
-      dispatchWindow(type, ev);
+      target.dispatchEvent(ev);   // the bubbling path already reaches window/document
     },
     dispatchClick(targetId) {
       const t = (targetId && doc.getElementById(targetId)) || doc.body;
