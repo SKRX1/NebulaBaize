@@ -2550,7 +2550,7 @@ function maybeAutoDrive(m) {
   if (m.error || m.notice || m.limit) return;        // ambiguous / needs-approval / round-limit → stop
   // pick: recommended-only by default, else every suggestion — never auto-drive "不推荐" (risky) steps
   const picks = m.steps.map((s, i) => ({s, i}))
-    .filter(({s}) => !s.avoid && !s.hold)                              // 绿橙都跑·红永不跑·?等您答(纯C无勾选)
+    .filter(({s}) => !s.avoid && !s.hold && (!settings.autostepsRec || s.recommended))                              // 默认勾上=只推荐·取消勾=绿+橙都跑·红/蓝不跑
     .map(({i}) => i);
   if (!picks.length) return;                          // nothing eligible (e.g. rec-only but no rec)
   if (autoDriveDepth >= AUTO_DRIVE_MAX) {             // chain cap reached: hand back to the human
@@ -7589,6 +7589,7 @@ function loadDrawer(s = settings) {
   $("s-memcompact").setAttribute("aria-checked", String(!!s.memCompactLLM));
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
+  if ($("s-autosteps-rec")) $("s-autosteps-rec").setAttribute("aria-checked", String(s.autostepsRec !== false));
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
   $("s-compactpct").value = s.compactPct || 0;
   $("s-compactpct-row").hidden = !s.autocompact;
@@ -7669,6 +7670,7 @@ $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked",
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
 $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", String($("s-archiveon").getAttribute("aria-checked") !== "true"));
 $("s-autosteps").onclick = () => $("s-autosteps").setAttribute("aria-checked", String($("s-autosteps").getAttribute("aria-checked") !== "true"));
+$("s-autosteps-rec").onclick = () => { const on = $("s-autosteps-rec").getAttribute("aria-checked") !== "true"; $("s-autosteps-rec").setAttribute("aria-checked", String(on)); const pv = $("s-autosteps-rec").closest(".toggle-row").querySelector(".st-check__preview"); if (pv) pv.setAttribute("data-state", on ? "on" : "off"); };
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
@@ -7702,6 +7704,7 @@ $("s-apply").onclick = async () => {
               memCompactLLM: $("s-memcompact").getAttribute("aria-checked") === "true",
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",
               autosteps: $("s-autosteps").getAttribute("aria-checked") === "true",
+              autostepsRec: $("s-autosteps-rec") ? $("s-autosteps-rec").getAttribute("aria-checked") === "true" : true,
               autoresume: $("s-autoresume").getAttribute("aria-checked") === "true",
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,

@@ -91,7 +91,7 @@ console.log("CARD-GUARD-NO-AUTODRIVE:");
 // T1: differential pair -- visible card silences the whole turn, no-card control still drives
 {
   api.resetAutoDrive();
-  api.setSettings({ autosteps: true });
+  api.setSettings({ autosteps: true, autostepsRec: false });
 
   const target = makeMsg(CHIPS, [CARD]);
   api.maybeAutoDrive(target);
@@ -115,7 +115,7 @@ console.log("CARD-GUARD-NO-AUTODRIVE:");
 // T2: all cards dismissed -> the guard stops counting, auto-drive resumes
 {
   api.resetAutoDrive();
-  api.setSettings({ autosteps: true });
+  api.setSettings({ autosteps: true, autostepsRec: false });
   const m = makeMsg(CHIPS, [{ ...CARD, id: "c2", dismissed: true }]);
   api.maybeAutoDrive(m);
   const ad = api.getAutoDrive();
@@ -127,7 +127,7 @@ console.log("CARD-GUARD-NO-AUTODRIVE:");
 // T3: card present and only red chips -> nothing scheduled (red never ran, unchanged behaviour)
 {
   api.resetAutoDrive();
-  api.setSettings({ autosteps: true });
+  api.setSettings({ autosteps: true, autostepsRec: false });
   const target = makeMsg(["! Red only"], [CARD]);
   api.maybeAutoDrive(target);
   let ad = api.getAutoDrive();
@@ -146,7 +146,7 @@ console.log("CARD-GUARD-NO-AUTODRIVE:");
 // present and clickable), the guard stops only the AUTOMATIC run, never the display.
 {
   api.resetAutoDrive();
-  api.setSettings({ autosteps: true });
+  api.setSettings({ autosteps: true, autostepsRec: false });
   const host = doc.createElement("div");
   host.innerHTML = `<div class="next-steps" hidden></div>`;
   const m = makeMsg(CHIPS, [CARD]);
