@@ -88,6 +88,7 @@ appCode += `
   getWorkspaces: () => workspaces, setWorkspaces: (v) => { workspaces = v; },
   setActiveId: (id) => { activeId = id; }, getActiveId: () => activeId,
   getBatchMode: () => batchMode, getBatchSel: () => [...batchSel],
+  setBusy: (v) => { busy = v; }, getBusy: () => busy,
   sessionTitle, sessionPerm, wsLabel, wsLeaf, registerWorkspace, saveSessions,
 };`;
 win.eval(appCode);
@@ -405,6 +406,57 @@ seed();
   check("un-pinning restores registration order",
         JSON.stringify(order()) === JSON.stringify([WS_A, WS_B, ""]), JSON.stringify(order()));
   check("the pin marker is gone again", !wsEl(WS_B).querySelector(".st-ws__pin"));
+}
+
+// ================================================================ T8: busy-differential
+console.log("\n=== T8: busy differential (batchDelete + new task) ===");
+seed();
+{
+  const BUSY_SID = "s2";                 // the running task (not active, on purpose)
+  const runningMsg = [{role: "user", text: "x"}];
+  api.setActiveId("s1");
+  api.setBusy({sessionId: BUSY_SID, msg: runningMsg[0], origin: null});
+  api.renderSessions();
+
+  // -- batchDelete: selection does NOT contain the running task -> ALLOWED --
+  api.setBatchMode(true);
+  api.toggleBatchSel("s1");              // select only s1 (the active, not the running one)
+  const before = api.getSessions().length;
+  api.batchDelete();
+  check("T8 batchDelete: sel excludes running -> DELETED", api.getSessions().length < before,
+        String(api.getSessions().length));
+  api.setBatchMode(false);
+
+  // -- batchDelete: selection INCLUDES the running task -> BLOCKED --
+  seed();
+  api.setActiveId("s1");
+  api.setBusy({sessionId: BUSY_SID, msg: {role: "user", text: "x"}, origin: null});
+  api.setBatchMode(true);
+  api.toggleBatchSel(BUSY_SID);          // select the RUNNING task
+  api.toggleBatchSel("s3");
+  const before2 = api.getSessions().length;
+  api.batchDelete();
+  check("T8 batchDelete: sel includes running -> BLOCKED", api.getSessions().length === before2,
+        String(api.getSessions().length));
+  api.setBatchMode(false);
+  api.setBusy(null);
+
+  // -- new-task-btn and newTaskInWorkspace: busy no longer early-returns (static lock).
+  //    The runtime handoff is the same reference-handoff pattern the switch feature uses
+  //    (guarded by activeId === busy.sessionId); composer guard (send) is what stops an
+  //    actual run on the freshly created task until the current one finishes.
+  const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const newTaskBtnBody = src.split('$("new-task-btn").onclick = () => {')[1] || "";
+  const newTaskInWsBody = src.split("function newTaskInWorkspace(path) {")[1] || "";
+  const newBtnBody = src.split('$("new-btn").onclick = () => {')[1] || "";
+  const newTaskBtnHead = newTaskBtnBody.slice(0, 480);
+  const newTaskInWsHead = newTaskInWsBody.slice(0, 320);
+  const newBtnHead = newBtnBody.slice(0, 160);
+  check("T8 new-task-btn: NO busy early-return (static lock)", !/if \(busy\) \{[^}]*return; \}/.test(newTaskBtnHead), newTaskBtnHead.split("\n")[0]);
+  check("T8 newTaskInWorkspace: NO busy early-return (static lock)", !/if \(busy\) \{[^}]*return; \}/.test(newTaskInWsHead), newTaskInWsHead.split("\n")[0]);
+  check("T8 new-task-btn: reference handoff present", newTaskBtnHead.includes("busy.origin = owner"));
+  check("T8 newTaskInWorkspace: reference handoff present", newTaskInWsHead.includes("busy.origin = owner"));
+  check("T8 new-btn (clear current): STILL blocked by busy guard (static lock)", /if \(busy\) \{[^}]*return; \}/.test(newBtnHead), newBtnHead.split("\n")[0]);
 }
 
 console.log("\n" + (FAILURES.length ? "SIDEBAR TREE: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ")

@@ -1371,9 +1371,12 @@ function deleteTask(sid) {
 }
 // The chat button on a workspace row: a fresh task that already lives inside that folder, no picker.
 function newTaskInWorkspace(path) {
-  if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   const p = wsNorm(path);
   saveChat();                                  // persist the task we are leaving first
+  if (busy && busy.sessionId && activeId === busy.sessionId) {
+    const owner = findSession(busy.sessionId);
+    if (owner) { owner.messages = messages; busy.origin = owner; }
+  }
   registerWorkspace(p);
   const siblings = sessions.filter((s) => wsKey(s.workspace) === wsKey(p)).sort(taskOrder);
   const last = siblings[0];
@@ -1481,7 +1484,7 @@ function batchPin(on) {
 }
 function batchDelete() {
   if (!batchSel.size) { toast("warn", t("side.batch.none")); return; }
-  if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
+  if (busy && batchSel.has(busy.sessionId)) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   const ids = [...batchSel];
   if (!confirm(t("side.batch.delconfirm", {n: ids.length}))) return;
   const backup = sessions.slice();
@@ -1631,11 +1634,14 @@ $("kb-panel").addEventListener("click", async (e) => {
 $("workspace-btn").addEventListener("dblclick", () => { loadKnowledgePanel(); $("kb-panel").classList.toggle("open"); });
 
 $("new-task-btn").onclick = () => {
-  if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   // Persist through saveChat(), not by assigning `messages` directly: saveChat strips
   // the base64 image/file payloads, while a raw assignment bakes them into
   // localStorage and can blow the whole ~5 MB quota in one click.
   saveChat();
+  if (busy && busy.sessionId && activeId === busy.sessionId) {
+    const owner = findSession(busy.sessionId);
+    if (owner) { owner.messages = messages; busy.origin = owner; }
+  }
   openWorkspacePicker(/*newSession=*/ true);
 };
 
