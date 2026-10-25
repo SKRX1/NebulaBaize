@@ -4739,6 +4739,23 @@ $("archive-mgr-list").addEventListener("click", async (e) => {
   if (cancel) { renderArchiveManager(); }
 });
 async function renderMemory() { renderKbCard(); renderRulesCard(); renderNotesCard(); renderAutoMemoryCard(); renderGlobalCard(); }
+// A+C landing (approved 2026-10-26): one-click expand/collapse-all over the memory inline
+// lists. Default-folded + per-item lazy load already exist; this adds the batch action,
+// reusing the existing lazy-load path via the row button click.
+function memExpandAll(listId, expand) {
+  const list = $(listId); if (!list) return;
+  list.querySelectorAll(".mem-kb-item").forEach((item) => {
+    const pre = item.querySelector(".mem-src-body"); if (!pre) return;
+    if (expand) {
+      if (pre.dataset.loaded) { pre.hidden = false; }
+      else { const b = item.querySelector("[data-kb-view],[data-note-view]"); if (b) b.click(); }
+    } else { pre.hidden = true; }
+  });
+}
+if ($("mem-kb-expandall")) $("mem-kb-expandall").onclick = () => memExpandAll("mem-kb-list", true);
+if ($("mem-kb-foldall")) $("mem-kb-foldall").onclick = () => memExpandAll("mem-kb-list", false);
+if ($("mem-notes-expandall")) $("mem-notes-expandall").onclick = () => memExpandAll("mem-notes-list", true);
+if ($("mem-notes-foldall")) $("mem-notes-foldall").onclick = () => memExpandAll("mem-notes-list", false);
 
 async function renderKbCard() {
   const list = $("mem-kb-list");
