@@ -30,91 +30,88 @@ main { flex: 1; min-height: 0; display: flex; }
   .brand .brand-sub { display: none; }
 }
 
-/* ----------------------------------------------------- brand (星云 / Strata collaboration mark) */
+/* ----------------------------------------------------- brand (星云 golden-n Nebula mark) */
 .brand { display: flex; align-items: center; gap: 10px; flex: none; min-width: 0; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.12; min-width: 0; }
 .brand-title { display: flex; align-items: baseline; gap: 7px; }
-.brand-base { font: 600 12px/1 var(--st-font); color: var(--st-ink-muted); letter-spacing: .02em; }
-.brand-dot  { color: var(--st-line); font-size: 12px; transform: translateY(-1px); }
 .brand-name {
   font: 800 18px/1 "Outfit", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
   letter-spacing: -.01em;
-  background: linear-gradient(115deg, var(--st-accent) 0%, var(--st-info) 52%, var(--st-focus) 100%);
+  background: linear-gradient(115deg, var(--st-yellow) 0%, var(--st-warn) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .brand-sub {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
   margin-top: 3px; font: 500 11px/1.2 var(--st-font); color: var(--st-ink-muted);
 }
-.brand-sub b { color: var(--st-ink-soft); font-weight: 600; }
+.brand-author { color: #ff4326; font-weight: 700; }
+.brand-ai     { color: var(--st-accent-text); font-weight: 600; }
 .brand-sep { color: var(--st-line); }
-.brand-sub code {
-  font-family: var(--st-font-mono); font-size: 11px; font-weight: 600;
-  color: var(--st-accent-text); background: var(--st-accent-tint);
-  padding: 1px 6px; border-radius: 6px; white-space: nowrap;
+.brand-tag { color: var(--st-yellow); font-weight: 600; }
+/* animated mark: golden nebula -- a glowing core, a spinning swirl, breathing halo, orbiting dust */
+.brand-mark { width: 34px; height: 34px; flex: none; display: block;
+  filter: drop-shadow(0 0 6px rgba(245,201,21,.28)); }
+#brandCoreA  { stop-color: #ffe9a8; }
+#brandCoreB  { stop-color: var(--st-warn); }
+#brandSwirlA { stop-color: var(--st-yellow); }
+#brandSwirlB { stop-color: var(--st-warn); opacity: .55; }
+.brand-halo { fill: url(#brandCore); opacity: .30; transform-box: fill-box; transform-origin: center;
+  animation: brand-breathe 4s var(--st-ease) infinite; }
+.brand-core { fill: url(#brandCore); }
+.brand-arm  { fill: none; stroke: url(#brandSwirl); stroke-width: 1.4; opacity: .55; }
+.brand-arm--2 { opacity: .38; }
+.brand-swirl { transform-box: fill-box; transform-origin: center; animation: brand-spin 9s linear infinite; }
+.brand-dust  { transform-box: fill-box; transform-origin: center; animation: brand-spin 6s linear infinite reverse; }
+.brand-spark { fill: var(--st-yellow); }
+.brand-spark--2 { fill: var(--st-warn); }
+.brand-spark--3 { fill: #ffe9a8; }
+@keyframes brand-spin {
+  to { transform: rotate(360deg); }
 }
-/* animated mark: Strata base supports the 星云 orb (built on top of Strata) */
-.brand-mark { width: 30px; height: 33px; flex: none; display: block;
-  filter: drop-shadow(0 0 5px rgba(58,169,255,.18)); }
-#brandGradA  { stop-color: var(--st-accent); }
-#brandGradB  { stop-color: var(--st-info); }
-#brandGrad2A { stop-color: var(--st-info); }
-#brandGrad2B { stop-color: var(--st-focus); }
-.brand-halo { fill: none; stroke: url(#brandGrad2); stroke-width: 1; opacity: .4; }
-.brand-orb  { fill: url(#brandGrad2); }
-.brand-base { fill: url(#brandGrad); }
-.brand-link { stroke: var(--st-line); stroke-width: 1; stroke-dasharray: 2 3; opacity: .55; }
-.brand-pulse {
-  fill: var(--st-info);
-  animation: brand-rise 2.4s var(--st-ease) infinite;
-}
-.brand-pulse--2 { animation-delay: .8s; }
-.brand-pulse--3 { animation-delay: 1.6s; }
-@keyframes brand-rise {
-  0%   { transform: translateY(0);    opacity: 0; }
-  12%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translateY(-9px); opacity: 0; }
+@keyframes brand-breathe {
+  0%,100% { transform: scale(1);    opacity: .30; }
+  50%     { transform: scale(1.16); opacity: .45; }
 }
 @media (max-width: 640px) {
   .brand-sub { display: none; }
   .brand-name { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .brand-pulse { animation: none; opacity: .9; }
+  .brand-swirl, .brand-dust, .brand-halo { animation: none; }
 }
+[data-theme="light"] .brand-author { color: #d42a10; }
+[data-theme="light"] .brand-ai     { color: var(--st-accent-hover); }
+[data-theme="light"] .brand-tag { color: var(--st-yellow-text); }
+[data-theme="light"] .next-steps__group--avoid .next-steps__title { color: #d42a10; }
+[data-theme="light"] .next-steps__group--avoid .next-steps__sub { color: color-mix(in srgb, #d42a10 60%, var(--st-ink-muted)); }
+[data-theme="light"] .st-legend__dot--avoid { background: #d42a10; }
+[data-theme="light"] .next-step--avoid { border-color: color-mix(in srgb, #d42a10 55%, var(--st-border)); background: color-mix(in srgb, #d42a10 12%, transparent); color: #d42a10; }
+[data-theme="light"] .next-step--avoid.next-step--on { background: #d42a10; color: #fff; border-color: #d42a10; }
+[data-theme="light"] .next-step__badge--avoid { background: #d42a10; color: #fff; }
+[data-theme="light"] .next-step--avoid.next-step--on .next-step__badge--avoid { background: #fff; color: #d42a10; }
+[data-theme="light"] .brand-name { background: linear-gradient(115deg, #b8860b 0%, var(--st-warn) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
 
 /* ── 星云 working mark（顶部状态胶囊 + 流式光标共用一套视觉语言）────────────────────────
-   一颗绿色核心 + 五颗绕它转的星尘。它的“状态”而不是“文字”回答「她是不是在干活」：
-     generating : 核心亮起呼吸 + 快速绕转（转速跟真实 tok/s 联动）
-     reading    : 蓝色，中速
-     queued     : 琥珀，慢速
-     tool       : 绿色慢转 —— 回合还活着，只是引擎在等工具（原来的绿点会在这时“假装空闲”）
-     idle       : 完全静止 + 核心变暗 —— 一颗休眠的星云 = 静止
-   全部纯 CSS（胶囊用内联 SVG，光标用多层 radial-gradient），光标不需要额外 DOM 节点，
-   否则流式渲染的 reconciliation 会把它当成新内容反复重建。 */
-/* ── 星云 working mark: 星云酱，一颗有脸的星形小精灵 ─────────────────────────
-   状态：idle 静止 · tool 执行中 · reading 读取中 · generating 生成中
-         queued 排队中 · error 出错 · done 完成（瞬时庆祝）
-   任务形态（data-task，工具运行时叠加）：search 搜索 · code 写码 · shell 执行 · image 画图
-   全部纯 CSS，胶囊用内联 SVG；旧契约全部保留：5 颗星尘(2 亮)+1 核心+1 环仍在 .neb-orbit 内。 */
+   无脸金黄星云（与左上角 brand 同源）：一颗发光核心 + 一圈环 + 五颗绕它转的星尘 + 角落道具。
+   它的「动态」而不是「表情」回答「她是不是在干活」：
+     generating : 核心亮起呼吸发光 + 快速绕转（转速跟真实 tok/s 联动）+ 星尘全亮
+     reading    : 蓝色，中速，核心左右轻扫
+     queued     : 琥珀，慢速，核心温和脉动
+     tool       : 金黄慢转，回合还活着、引擎在等工具；角落亮起当前任务的小道具
+     error      : 红色，核心猛地一抖 + 一滴汗
+     idle       : 完全静止 + 核心变暗 = 一颗休眠的星云
+     done       : 核心弹跳 + 星光炸开 + 金光 = 完成绽放（瞬时）
+   全部纯 CSS（胶囊用内联 SVG，光标用多层 radial-gradient），不新增 DOM 节点。
+   门禁骨架：5 星尘(2 亮)+1 核心+1 环仍在 .neb-orbit 内。 */
 .nebula { width: 22px; height: 22px; flex: none; display: block; overflow: visible;
-  --neb-core: var(--st-ink-muted); --neb-dot: var(--st-ink-muted); --neb-spin: 6s; }
+  --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); --neb-spin: 6s; }
 .nebula .neb-ring { fill: none; stroke: var(--neb-core); stroke-width: .8; opacity: .18; }
 .nebula .neb-p    { fill: var(--neb-dot); opacity: .35; }
 /* one speck reads brighter than the rest: a real nebula is never evenly lit */
 .nebula .neb-p--hi { fill: color-mix(in srgb, var(--neb-dot) 45%, var(--st-ink)); }
-.nebula .neb-core { fill: var(--neb-core); opacity: .22; }                 /* 柔和的中心光晕 */
-.nebula .neb-body { fill: color-mix(in srgb, var(--neb-core) 46%, white); } /* 她的脸 */
+.nebula .neb-core { fill: var(--neb-core); opacity: .22; transform-box: fill-box; transform-origin: center; }
 .nebula .neb-orbit { transform-box: view-box; transform-origin: 50% 50%; }
-/* 脸的五官 */
-.nebula .neb-eye, .nebula .neb-face { transform-box: fill-box; transform-origin: center; }
-.nebula .e-open, .nebula .e-closed, .nebula .m { fill: #1b2330; stroke: #1b2330; }
-.nebula .e-open { stroke: none; }
-.nebula .e-closed { fill: none; stroke-width: 1.1; stroke-linecap: round; }
-.nebula .m { fill: none; stroke-width: 1.1; stroke-linecap: round; }
-.nebula .e-shine { fill: #ffffff; stroke: none; }
-.nebula .neb-cheek circle { fill: #ff8aa6; opacity: .55; }
 .nebula .neb-prop { display: none; }
 .nebula .neb-prop * { fill: var(--neb-core); stroke: var(--neb-core); stroke-width: 1.1; stroke-linecap: round; }
 .nebula .p-cog { fill: none; stroke-dasharray: 1.1 1.1; }
@@ -122,45 +119,15 @@ main { flex: 1; min-height: 0; display: flex; }
 .nebula .p-code, .nebula .p-shell, .nebula .p-image,
 .nebula .p-search, .nebula .p-sweat, .nebula .p-spark { display: none; }
 
-/* 默认（idle/静止）：眯眯笑的闭眼 + 小微笑，完全静止 = 一颗在休息的星云 */
-.nebula .e-open, .nebula .e-shine, .nebula .m { display: none; }
-.nebula .e-closed { display: block; }
-.nebula .m-smile { display: block; }
-.nebula .neb-cheek { display: none; }
-
-/* 工作状态共用：睁眼 + 星尘环绕 */
-.nebula[data-state="tool"] .e-closed,
-.nebula[data-state="generating"] .e-closed,
-.nebula[data-state="reading"] .e-closed,
-.nebula[data-state="queued"] .e-closed,
-.nebula[data-state="error"] .e-closed { display: none; }
-.nebula[data-state="tool"] .e-open,
-.nebula[data-state="generating"] .e-open,
-.nebula[data-state="reading"] .e-open,
-.nebula[data-state="queued"] .e-open,
-.nebula[data-state="error"] .e-open { display: block; }
-.nebula[data-state="tool"] .e-shine,
-.nebula[data-state="generating"] .e-shine { display: block; }
-
-/* 嘴型 */
-.nebula[data-state="tool"] .m-smile,
-.nebula[data-state="generating"] .m-smile { display: block; }
-.nebula[data-state="reading"] .m-o,
-.nebula[data-state="error"] .m-o { display: block; }
-.nebula[data-state="queued"] .m-flat { display: block; }
-
-/* 开心的状态加腮红 */
-.nebula[data-state="tool"] .neb-cheek,
-.nebula[data-state="generating"] .neb-cheek { display: block; }
-
-/* 各状态配色 + 转速（沿用旧契约） */
-.nebula[data-state="generating"] { --neb-core: var(--st-accent); --neb-dot: var(--st-info);   --neb-spin: 3.4s; }
+/* ── 各状态配色 + 转速（沿用旧契约：idle 绝不能有 animation）────────────── */
+.nebula[data-state="generating"] { --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); --neb-spin: 3.4s; }
 .nebula[data-state="reading"]    { --neb-core: var(--st-info);   --neb-dot: var(--st-info);   --neb-spin: 4.4s; }
 .nebula[data-state="queued"]     { --neb-core: var(--st-warn);   --neb-dot: var(--st-warn);   --neb-spin: 7s; }
-.nebula[data-state="tool"]       { --neb-core: var(--st-accent); --neb-dot: var(--st-info);   --neb-spin: 6.4s; }
+.nebula[data-state="tool"]       { --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); --neb-spin: 6.4s; }
 .nebula[data-state="error"]      { --neb-core: var(--st-danger, #ef4444); --neb-dot: var(--st-danger, #ef4444); --neb-spin: 5s; }
+.nebula[data-state="done"]       { --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); }
 
-/* 四个工作状态都要转（CSS 契约） */
+/* 四个工作状态都要转（CSS 契约）+ idle 静止不转 */
 .nebula[data-state="generating"] .neb-orbit,
 .nebula[data-state="reading"] .neb-orbit,
 .nebula[data-state="queued"] .neb-orbit,
@@ -173,32 +140,23 @@ main { flex: 1; min-height: 0; display: flex; }
 .nebula[data-state="reading"] .neb-core,
 .nebula[data-state="queued"] .neb-core,
 .nebula[data-state="tool"] .neb-core { opacity: .9; animation: neb-breathe 2.2s var(--st-ease) infinite; }
-.nebula[data-state="generating"] .neb-core { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-accent) 65%, transparent)); }
+.nebula[data-state="generating"] .neb-core { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-yellow) 65%, transparent)); }
 .nebula[data-state="reading"] .neb-core    { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-info) 60%, transparent)); }
 .nebula[data-state="queued"] .neb-core     { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-warn) 60%, transparent)); }
 
-/* reading：她在扫读页面 —— 眼睛左右轻移 */
-.nebula[data-state="reading"] .neb-eye { animation: neb-look 1.5s ease-in-out infinite; }
-@keyframes neb-look { 0%, 100% { transform: translateX(-0.9px); } 50% { transform: translateX(0.9px); } }
+/* reading：她在扫读 —— 核心左右轻移（动态从脸转移到核心） */
+.nebula[data-state="reading"] .neb-core { animation: neb-look 1.5s ease-in-out infinite; }
 /* queued：耐心等待的小脉动 */
-.nebula[data-state="queued"] .neb-body { animation: neb-pulse 1.5s var(--st-ease) infinite; }
-@keyframes neb-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(.94); } }
-/* error：受惊 —— 瞪大眼 + 抖一下 + 一滴汗 */
-.nebula[data-state="error"] .e-open { r: 2.3; }
-.nebula[data-state="error"] .neb-face { animation: neb-shake .35s ease-in-out 2; }
+.nebula[data-state="queued"] .neb-core { animation: neb-pulse 1.5s var(--st-ease) infinite; }
+/* error：受惊 —— 核心猛地一抖 + 一滴汗 */
+.nebula[data-state="error"] .neb-core { opacity: .95; animation: neb-shake .35s ease-in-out 2; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-danger, #ef4444) 65%, transparent)); }
 .nebula[data-state="error"] .neb-prop,
 .nebula[data-state="error"] .p-sweat { display: block; }
-@keyframes neb-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1px); } 75% { transform: translateX(1px); } }
-/* done：回合收尾的庆祝 —— ^_^ 笑眼 + 大笑 + 星光 + 弹一下 */
-.nebula[data-state="done"] .e-open { display: none; }
-.nebula[data-state="done"] .e-closed { display: block; }
-.nebula[data-state="done"] .m-happy { display: block; }
-.nebula[data-state="done"] .neb-cheek { display: block; }
+/* done：回合收尾的庆祝 —— 核心弹一下 + 星光炸开 + 金光 */
+.nebula[data-state="done"] .neb-core { opacity: 1; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--st-yellow) 70%, transparent)); animation: neb-bounce .5s var(--st-ease); }
 .nebula[data-state="done"] .neb-prop,
 .nebula[data-state="done"] .p-spark { display: block; }
-.nebula[data-state="done"] .neb-prop * { fill: var(--st-warn); stroke: var(--st-warn); }
-.nebula[data-state="done"] .neb-face { animation: neb-bounce .5s var(--st-ease); }
-@keyframes neb-bounce { 0% { transform: translateY(0); } 30% { transform: translateY(-1.4px); } 60% { transform: translateY(0); } 80% { transform: translateY(-.6px); } 100% { transform: translateY(0); } }
+.nebula[data-state="done"] .neb-prop * { fill: var(--st-yellow); stroke: var(--st-yellow); }
 
 /* 任务形态：只亮起当前任务的小道具 */
 .nebula[data-task="search"] .neb-prop { display: block; }
@@ -214,9 +172,12 @@ main { flex: 1; min-height: 0; display: flex; }
 
 @keyframes neb-spin { to { transform: rotate(360deg); } }
 @keyframes neb-breathe { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+@keyframes neb-look { 0%, 100% { transform: translateX(-0.9px); } 50% { transform: translateX(0.9px); } }
+@keyframes neb-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(.86); } }
+@keyframes neb-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.2px); } 75% { transform: translateX(1.2px); } }
+@keyframes neb-bounce { 0% { transform: translateY(0); } 30% { transform: translateY(-2px); } 60% { transform: translateY(0); } 80% { transform: translateY(-.8px); } 100% { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
-  .nebula .neb-orbit, .nebula .neb-core, .nebula .neb-eye,
-  .nebula .neb-body, .nebula .neb-face { animation: none; }
+  .nebula .neb-orbit, .nebula .neb-core { animation: none; }
   .nebula { --neb-spin: 0s; }
 }
 #drawer-close .st-icon { transform: rotate(-90deg); }
@@ -321,16 +282,16 @@ main { flex: 1; min-height: 0; display: flex; }
 .cursor > .ans > .ans-md:last-child p:last-child::after {
   content: ""; display: inline-block; width: 17px; height: 17px; margin-left: 6px; vertical-align: -3px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle 1.5px at 50% 9%,  color-mix(in srgb, var(--st-info) 45%, var(--st-ink)) 99%, transparent 100%),
-    radial-gradient(circle 1.2px at 88% 62%, var(--st-info) 99%, transparent 100%),
-    radial-gradient(circle 1.6px at 26% 79%, var(--st-info) 99%, transparent 100%),
-    radial-gradient(circle 1.1px at 75% 26%, var(--st-info) 99%, transparent 100%),
-    radial-gradient(circle 1.2px at 13% 39%, var(--st-info) 99%, transparent 100%),
-    radial-gradient(circle at 50% 50%, transparent 0 4px,
-      color-mix(in srgb, var(--st-accent) 55%, transparent) 4.2px 5px, transparent 5.3px),
-    radial-gradient(circle at 50% 50%, var(--st-accent) 0 3.2px, transparent 3.5px);
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--st-accent) 45%, transparent));
+ background:
+   radial-gradient(circle 1.5px at 50% 11%,  color-mix(in srgb, #ffe9a8 90%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.2px at 85% 60%,  color-mix(in srgb, var(--st-warn) 80%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.7px at 24% 78%,  color-mix(in srgb, #ffe9a8 70%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.1px at 73% 27%,  color-mix(in srgb, var(--st-yellow) 85%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.3px at 15% 41%,  color-mix(in srgb, var(--st-warn) 70%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 3.1px at 50% 50%, #ffe9a8 0 35%, color-mix(in srgb, var(--st-warn) 88%, transparent) 90%, transparent 100%),
+   radial-gradient(ellipse 7.5px 2.3px at 50% 50%, color-mix(in srgb, var(--st-yellow) 48%, transparent) 0 55%, transparent 72%),
+   radial-gradient(ellipse 2.3px 7.5px at 50% 50%, color-mix(in srgb, var(--st-warn) 44%, transparent) 0 55%, transparent 72%);
+ filter: drop-shadow(0 0 3.5px color-mix(in srgb, var(--st-yellow) 55%, transparent));
   animation: neb-caret 4.6s linear infinite;
 }
 /* the paragraph rule above already put it on the last line - don't paint a second one below */
@@ -803,7 +764,7 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 .img-viewer__body img { max-width: 100%; max-height: 78vh; border-radius: var(--st-r-md); object-fit: contain; display: block; }
 /* composer attachment thumbnail (pasted / dropped pictures) */
 .attachments { display: flex; flex-wrap: wrap; gap: var(--st-s-2); }
-.att-thumb { position: relative; width: 64px; height: 64px; border-radius: var(--st-r-md); overflow: hidden;
+.att-thumb { position: relative; width: 44px; height: 44px; border-radius: var(--st-r-md); overflow: hidden;
              border: 1px solid var(--st-line); background: var(--st-surface-2); cursor: zoom-in; flex: none; }
 .att-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .att-thumb__x { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%;
@@ -897,9 +858,9 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .next-steps__group--rest .next-steps__title { color: var(--st-yellow-text); }
 .next-steps__group--rest .next-steps__sub { color: color-mix(in srgb, var(--st-yellow-text) 70%, var(--st-ink-muted)); }
 /* 不推荐建议 group — amber warning system (the "caution" tier, sorted last) */
-.next-steps__group--avoid .next-steps__title { color: var(--st-danger-text); }
+.next-steps__group--avoid .next-steps__title { color: #ff4326; }
 .next-steps__group--hold .next-steps__title { color: var(--st-info-text); }
-.next-steps__group--avoid .next-steps__sub { color: color-mix(in srgb, var(--st-danger-text) 70%, var(--st-ink-muted)); }
+.next-steps__group--avoid .next-steps__sub { color: color-mix(in srgb, #ff4326 70%, var(--st-ink-muted)); }
 
 /* chip base = neutral secondary (下一步建议); recommended chips override to green below */
 .next-step { display: inline-flex; align-items: center; max-width: 100%; height: 32px; padding: 0 14px;
@@ -930,12 +891,12 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .next-step--hold:hover { background: color-mix(in srgb, var(--st-info) 20%, var(--st-surface)); }
 .next-step--hold.next-step--on { background: var(--st-info); color: #fff; border-color: var(--st-info); }
 /* not-recommended chip — amber caution system, with a solid "不推荐" badge */
-.next-step--avoid { border-color: color-mix(in srgb, var(--st-danger) 50%, var(--st-border)); background: var(--st-danger-tint); color: var(--st-danger-text); }
-.next-step--avoid:hover { background: color-mix(in srgb, var(--st-danger) 20%, var(--st-surface)); }
-.next-step--avoid.next-step--on { background: var(--st-danger); color: #fff; border-color: var(--st-danger); }
-.next-step--avoid.next-step--on:hover { background: color-mix(in srgb, var(--st-danger) 85%, #000); }
-.next-step__badge--avoid { background: var(--st-danger); color: #fff; }
-.next-step--avoid.next-step--on .next-step__badge--avoid { background: #fff; color: var(--st-danger); }
+.next-step--avoid { border-color: color-mix(in srgb, #ff4326 55%, var(--st-border)); background: color-mix(in srgb, #ff4326 16%, transparent); color: #ff4326; }
+.next-step--avoid:hover { background: color-mix(in srgb, #ff4326 26%, var(--st-surface)); }
+.next-step--avoid.next-step--on { background: #ff4326; color: #fff; border-color: #ff4326; }
+.next-step--avoid.next-step--on:hover { background: color-mix(in srgb, #ff4326 85%, #000); }
+.next-step__badge--avoid { background: #ff4326; color: #fff; }
+.next-step--avoid.next-step--on .next-step__badge--avoid { background: #fff; color: #ff4326; }
 .next-steps__acts { display: inline-flex; gap: 6px; align-items: center; }
 
 /* autonomous auto-drive pill (shown while the AI is driving the next steps) */
@@ -1241,7 +1202,7 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .mem-tabpanel{display:none}
 
 /* -------------------------------------------- Sparks (灵感便签) */
-.spark-strip{display:flex;flex-direction:column;gap:6px;max-width:860px;margin:0 auto var(--st-s-3);padding:8px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:var(--st-r-lg);box-shadow:var(--st-sh-bar)}
+.spark-strip{display:flex;flex-direction:column;gap:6px;max-width:none;margin:0 auto var(--st-s-3);padding:8px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:var(--st-r-lg);box-shadow:var(--st-sh-bar)}
 .spark-strip textarea{border:0;outline:0;resize:none;background:transparent;color:var(--st-ink);font:400 var(--st-fs-base)/1.5 var(--st-font);padding:6px 8px}
 .spark-strip__bar{display:flex;align-items:center;gap:6px}
 .spark-add{display:flex;flex-direction:column;gap:8px;margin-bottom:var(--st-s-4)}
@@ -1264,10 +1225,15 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .spark-rich__bar{display:flex;gap:4px}
 .spark-rich__btn{width:30px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--st-line);border-radius:var(--st-r-sm);background:var(--st-surface);color:var(--st-ink);cursor:pointer;font:600 var(--st-fs-base)/1 var(--st-font)}
 .spark-rich__btn:hover{border-color:var(--st-accent);color:var(--st-accent)}
-.spark-rich__ed{min-height:64px;max-height:240px;overflow:auto;cursor:text}
+.spark-rich__ed{min-height:140px;max-height:320px;overflow:auto;cursor:text}
 .spark-rich__ed:focus{outline:0;border-color:var(--st-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--st-accent) 22%,transparent)}
 .spark-rich__ed[data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--st-ink-muted);pointer-events:none}
-.spark-edit-ta.rich{min-height:64px;cursor:text}
+.spark-edit-ta.rich{min-height:160px;cursor:text}
+.spark-edit-ta.rich img,.spark-rich__ed img,.spark-item__text img{display:inline-block;width:44px;height:44px;object-fit:cover;vertical-align:middle;margin:2px 4px;border-radius:var(--st-r-md);cursor:pointer;border:1px solid var(--st-line);background:var(--st-surface)}
+
+
+.spark-edit-ta.rich img:hover,.spark-rich__ed img:hover,.spark-item__text img:hover,.spark-edit-ta.rich img:focus,.spark-rich__ed img:focus{outline:2px solid var(--st-accent);outline-offset:1px}
+.spark-edit-ta.rich{height:auto!important;max-height:460px;overflow:auto}
 /* Rendered rich text inside list/memory items: keep basic formatting legible */
 .spark-item__text ul,.spark-item__text ol{margin:4px 0;padding-left:20px}
 .spark-item__text li{margin:2px 0}
@@ -1288,6 +1254,8 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .spark-memory{margin-top:var(--st-s-4)}
 .spark-memory-item{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
 .mem-tabpanel.is-active{display:flex}
+/* memory page: full-page scroll is the ONLY scroll axis; these lists extend naturally (no inner scroll) */
+#view-memory #mem-kb-list,#view-memory #mem-rules-draft,#view-memory #mem-notes-list,#view-memory #mem-auto-list{overflow-y:visible;max-height:none}
 /* sidebar live badge: the task currently streaming (2026-10-21). Green like the
    recommended tier; gentle pulse, NOT the hard steps(2) blink. */
 .st-session__live {
@@ -1316,4 +1284,6 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .st-legend__dot--rec    { background: var(--st-accent); }
 .st-legend__dot--normal { background: var(--st-yellow); }
 .st-legend__dot--hold   { background: var(--st-info); }
-.st-legend__dot--avoid  { background: var(--st-danger); }
+.st-legend__dot--avoid  { background: #ff4326; }
+#spark-list, #spark-memory-list { max-height: 420px; }
+.spark-wrap{max-width:var(--st-chat-w)}

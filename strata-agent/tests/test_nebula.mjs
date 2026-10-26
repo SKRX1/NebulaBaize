@@ -125,37 +125,36 @@ console.log("\n=== 5: the streaming caret is the same nebula ===");
   check("caret is frozen under reduced motion", /prefers-reduced-motion: reduce\)[\s\S]{0,160}neb-caret|\.cursor > \.ans > \.ans-md:last-child p:last-child::after\s*\{\s*animation:\s*none/.test(css));
 }
 
-// ── 6) 星云酱：拟人脸 + 任务形态 + 完成态 ───────────────────────────────────
-console.log("\n=== 6: 星云酱 — a cute face with per-task expressions ===");
+// ── 6) 无脸金黄星云：动态承载在核心/轨道/道具上（表情已删除，与左上角同源） ──
+console.log("\n=== 6: faceless golden nebula — state lives in motion, not a face ===");
 {
   const neb = doc.getElementById("pill-neb");
-  // 结构：脸 + 五官都在，旧契约（5 星尘/2 亮/1 核心/1 环）不受影响
-  check("she has a face disc", !!neb.querySelector(".neb-body"));
-  check("two eyes", neb.querySelectorAll(".neb-eye").length === 2);
-  check("each eye has open + closed variants", neb.querySelectorAll(".e-open").length === 2 && neb.querySelectorAll(".e-closed").length === 2);
-  check("five mouth shapes (smile/flat/o/sad/happy)", neb.querySelectorAll(".m").length === 5);
-  check("two cheeks", neb.querySelectorAll(".neb-cheek circle").length === 2);
+  // 无脸校验：脸盘 / 眼 / 嘴 / 腮红全部不存在（状态改由动态表达）
+  check("faceless: no face disc", !neb.querySelector(".neb-body"));
+  check("faceless: no eyes", neb.querySelectorAll(".neb-eye").length === 0);
+  check("faceless: no mouths", neb.querySelectorAll(".m").length === 0);
+  check("faceless: no cheeks", !neb.querySelector(".neb-cheek"));
+  // 骨架仍是金黄星云：核心承载动态，任务道具组仍在
+  check("core is the dynamic carrier", !!neb.querySelector(".neb-core") &&
+        /\.nebula \.neb-core\s*\{[^}]*transform-box:\s*fill-box/.test(css));
   check("task props group present", !!neb.querySelector(".neb-prop"));
 
-  // 默认 idle：闭眼眯笑 + 完全静止（无 animation）
-  check("idle shows closed eyes", /\.nebula \.e-closed\s*\{\s*display:\s*block/.test(css));
-  check("idle hides open eyes (no peeking)", /\.nebula \.e-open,\s*\.nebula \.e-shine,\s*\.nebula \.m\s*\{\s*display:\s*none/.test(css));
+  // idle = 完全静止（无 animation），状态由「核心呼吸发光 / 转速 / 道具」区分
   check("idle has no animation (still = 静止)", !/\.nebula\[data-state="idle"\][^{]*\{[^}]*animation:/.test(css));
-
-  // 工作状态睁眼 + 微笑/腮红
-  check("working/generating open their eyes", /\.nebula\[data-state="generating"\] \.e-open/.test(css) && /\.nebula\[data-state="tool"\] \.e-open/.test(css));
-  check("generating wears a blush", /\.nebula\[data-state="generating"\] \.neb-cheek\s*\{\s*display:\s*block/.test(css));
-
-  // reading 是扫读（眼睛左右移），queued 是等待（脉动），error 是受惊（瞪眼+抖+汗）
-  check("reading scans left/right", /neb-look/.test(css) && /\.nebula\[data-state="reading"\] \.neb-eye\s*\{\s*animation:\s*neb-look/.test(css));
-  check("queued gently pulses", /neb-pulse/.test(css) && /\.nebula\[data-state="queued"\] \.neb-body\s*\{\s*animation:\s*neb-pulse/.test(css));
-  check("error startles: bigger eyes", /\.nebula\[data-state="error"\] \.e-open\s*\{\s*r:\s*2\.3/.test(css));
-  check("error shakes", /neb-shake/.test(css) && /\.nebula\[data-state="error"\] \.neb-face\s*\{\s*animation:\s*neb-shake/.test(css));
+  check("generating core breathes + glows", /neb-breathe/.test(css) &&
+        /\.nebula\[data-state="generating"\] \.neb-core\s*\{[^}]*filter:/.test(css));
+  check("reading scans left/right (core)", /neb-look/.test(css) &&
+        /\.nebula\[data-state="reading"\] \.neb-core\s*\{[^}]*animation:\s*neb-look/.test(css));
+  check("queued gently pulses (core)", /neb-pulse/.test(css) &&
+        /\.nebula\[data-state="queued"\] \.neb-core\s*\{[^}]*animation:\s*neb-pulse/.test(css));
+  check("error startles: core shakes", /neb-shake/.test(css) &&
+        /\.nebula\[data-state="error"\] \.neb-core\s*\{[^}]*animation:\s*neb-shake/.test(css));
   check("error shows a sweat drop", /\.nebula\[data-state="error"\] \.p-sweat\s*\{\s*display:\s*block/.test(css));
-
-  // done：^_^ 笑眼 + 大笑 + 星光 + 弹一下
-  check("done celebrates with ^_^ + big smile + sparkle",
-        /\.nebula\[data-state="done"\] \.m-happy/.test(css) && /\.nebula\[data-state="done"\] \.p-spark/.test(css) && /neb-bounce/.test(css));
+  // done：核心弹一下 + 星光炸开 + 金光
+  check("done celebrates: core bounce + sparkle",
+        /neb-bounce/.test(css) &&
+        /\.nebula\[data-state="done"\] \.neb-core\s*\{[^}]*animation:\s*neb-bounce/.test(css) &&
+        /\.nebula\[data-state="done"\] \.p-spark/.test(css));
 
   // 任务形态：不同工具 → 不同道具
   check("search shows a magnifier", /\.nebula\[data-task="search"\] \.p-search\s*\{\s*display:\s*block/.test(css));
