@@ -114,3 +114,7 @@ recommended-only 开关复活铁律：默认勾上→auto-drive 只跑绿；取�
 凡多步任务，回答开头即用 ```plan 围栏写清单（边做边勾）；任何收尾轮（含单步收尾）都必须给出建议条：决策卡/等拍板轮用 ? 档作停等闸、绿黄只填被误跑也无害的动作，绝不整块漏发
 README 追加前必须 `git ls-files --eol` 核对 index 行尾，写入用与 index 一致的行尾（本仓 README index=LF）；混入异行尾致 diff 虚高时 soft reset 后按文件原行尾重建，勿硬掰全局
 含 CJK 的命令行内联 python -c 会被代码页吞码点产生错字；CJK 写入必须走纯 ASCII 脚本文件（码点用 \uXXXX），写完必须读回对账
+改 serve/web CSS 配色前先用脚本读回锚点真实字节（CRLF 文件），每个锚点校验命中数=1 再替换，防误伤
+写回 serve/web 文件用 open(...,newline='') 保持原 CRLF，写完用 rb 读回核对 CRLF 对数与孤立 LF 数
+嵌套双引号在 PowerShell 里会吞掉 python -c 的引号，多行锚点脚本一律写成 .py 文件再跑
+CRLF 文件的锚点替换脚本必须按文件真实换行符动态转换锚点块再匹配（读 rb 判断 crlf，匹配串 .replace 成对应换行），写回用 wb 保持原换行
