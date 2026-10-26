@@ -237,10 +237,18 @@ class McpServerBase:
         # Serialize writes: progress notifications can be emitted from a tool's pump
         # thread while the main thread sends the result, and interleaved frames corrupt
         # the stream. The lock keeps each frame atomic.
-        with self._send_lock:
-            if OUT is not None:
-                OUT.write(data)
-                OUT.flush()
-                return
-            sys.stdout.write(data.decode("utf-8"))              # a text stream a host handed us
-            sys.stdout.flush()
+        # 2026-10-27: a client that gave up first (timeout/cancel closes the pipe) makes
+        # this write hit BrokenPipeError. It used to escape as an uncaught exception and
+        # crash the whole server with exit 1 (the "server process not alive" the harness
+        # then reported on the NEXT request). A dead pipe is now a silent no-op: the
+        # reader thread reaches EOF and run() exits cleanly with 0.
+        try:
+            with self._send_lock:
+                if OUT is not None:
+                    OUT.write(data)
+                    OUT.flush()
+                    return
+                sys.stdout.write(data.decode("utf-8"))          # a text stream a host handed us
+                sys.stdout.flush()
+        except (BrokenPipeError, OSError, ValueError):
+            return

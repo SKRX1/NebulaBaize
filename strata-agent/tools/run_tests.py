@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
@@ -152,10 +153,26 @@ def run_suite(rel: str) -> tuple[bool, str]:
 
 
 def main() -> int:
-    results = []
-    for s in SUITES:
-        ok, line = run_suite(s)
-        results.append((s, ok, line))
+    # 2026-10-27: run the suites concurrently (bounded pool, results kept by index so
+    # the printed order is unchanged). Default 4 workers, not the full core count --
+    # a few suites are timing-sensitive and CPU contention can flake them. Override with
+    # STRATA_TESTS_WORKERS; STRATA_TESTS_SERIAL=1 forces back to the old serial path.
+    if os.environ.get("STRATA_TESTS_SERIAL") == "1":
+        workers = 1
+    else:
+        workers = int(os.environ.get("STRATA_TESTS_WORKERS") or 0) or min(4, os.cpu_count() or 1)
+    results = [None] * len(SUITES)
+    if workers <= 1:
+        for i, s in enumerate(SUITES):
+            ok, line = run_suite(s)
+            results[i] = (s, ok, line)
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(run_suite, s): i for i, s in enumerate(SUITES)}
+            for fut in as_completed(futs):
+                ok, line = fut.result()
+                results[futs[fut]] = (SUITES[futs[fut]], ok, line)
+    for s, ok, line in results:
         print(line)
     print("---- regression summary ----")
     all_ok = all(ok for _, ok, _ in results)
