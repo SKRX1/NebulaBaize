@@ -118,10 +118,11 @@ README 追加前必须 `git ls-files --eol` 核对 index 行尾，写入用与 i
 写回 serve/web 文件用 open(...,newline='') 保持原 CRLF，写完用 rb 读回核对 CRLF 对数与孤立 LF 数
 嵌套双引号在 PowerShell 里会吞掉 python -c 的引号，多行锚点脚本一律写成 .py 文件再跑
 CRLF 文件的锚点替换脚本必须按文件真实换行符动态转换锚点块再匹配（读 rb 判断 crlf，匹配串 .replace 成对应换行），写回用 wb 保持原换行
-shell_server.py 长输出截断路径：送 smart_decode 前须 trim 末尾不完整多字节序列（对齐完整 UTF-8 字符边界），防 GBK 兜底抢跑致整段乱码
 判别式/守卫类兜底：放宽判据时差分锁必须同时锁正例（新形状）与负例（原误判边界），防口径污染
 品牌区/胶囊这类「CSS 与 DOM 分两个文件」的视觉改动，落地时必须同轮把 index.html 的 DOM 一起改，不能只改 CSS 那一半
 commit 落在 detached HEAD（从 v-baseline tag checkout 来）时 master 不会自动跟上，落地后必须 git checkout master && git merge --ff-only <sha> 快进落账，防止改动再被下一次 checkout 洗掉
 brand-sub 内要让冒号紧贴其标签词，须把冒号并入词所在的 span（词+冒号同 span），不要拆成相邻 span——否则被 .brand-sub 的 gap 推离产生空隙
 视觉索引登记条若本轮现象有变（如冒号归词），须把差分对账结论追加进对应登记条备注并 commit 落账 master，而非仅更新像素文件
+shell_server.py 长输出截断路径：送 smart_decode 前须 trim 末尾不完整多字节序列（对齐完整 UTF-8 字符边界），防 GBK 兜底抢跑致整段乱码
 模型宣布「已完成」的同一轮：plan 栏要么整栏不发，要么把已完成项勾成 [x] 只留真正 pending 项；严禁「正文说完成 + plan 全 [ ] + 完成徽标不亮」的自相矛盾显示
+RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git add→立刻写回工作树完整7行→commit 只落 index），中文从已有字节复制、按文件真实行尾（index LF/工作树 CRLF）落笔，git apply 严格匹配易失败时优先用此法
