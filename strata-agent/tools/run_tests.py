@@ -54,6 +54,7 @@ SUITES = [
     "tests/test_auto_memory.mjs",
     "tests/test_mem_expand_all.mjs",   # 2026-10-26: A+C landing - memExpandAll real-fn differential (expand reveals loaded body / fold hides all)
     "tests/test_proposal_card.mjs",
+    "tests/test_tool_progress_label.mjs",   # 2026-10-27: tool-card title must be three-state (running/progress = neutral, ok===false = red, ok===true = result) -- locks the live-progress-shown-as-error bug from the screenshot
     "tests/test_autosteps.mjs",
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_compose_steps.mjs",   # 2026-10-24: click a suggestion = a decision, not a question (exec prefix + hold confirm branch)

@@ -2115,7 +2115,14 @@ function toolBodyHtml(tool) {
   if (!tool.open) return "";
   let body = `<div class="tool-call__label">${t("tool.arguments")}</div><pre class="tool-call__pre">${esc(toolArgs(tool) || t("tool.writing.args"))}</pre>`;
   if (tool.result != null) {
-    body += `<div class="tool-call__label">${tool.ok ? t("tool.result") : t("mon.state.error")}${tool.chars ? ` · ${t("tool.chars", {n: fmt(tool.chars)})}` : ""}` +
+    // 2026-10-27: three-state label (A+B root-cause fix). A running/progress
+    // tool is NOT an error -- it turns red only when the result event comes back
+    // with ok===false. The old binary `tool.ok ? result : error` read a LIVE
+    // progress append (ok still undefined, state running) as red, which is
+    // exactly the bug in the screenshot.
+    const lbl = tool.state === "running" ? t("tool.state.running")
+          : tool.ok === false ? t("mon.state.error") : t("tool.result");
+    body += `<div class="tool-call__label">${lbl}${tool.chars ? ` · ${t("tool.chars", {n: fmt(tool.chars)})}` : ""}` +
             `${tool.truncated ? ", " + t("tool.cut") : ""}</div><pre class="tool-call__pre">${esc(tool.result)}</pre>`;
   }
   return body;
