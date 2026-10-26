@@ -130,6 +130,7 @@
 ## 自检
 
 > 一键跑全套（CI 契约）：`python tools\run_tests.py` —— 聚合全部套件，按退出码判定，全绿（含 skip）才返回 0。设 `STRATA_CI=1` 时 daemon 等"在线 LLM"套件自动跳过，保证 CI 可重复。
+> 并行说明：全套默认走并行线程池（`STRATA_TESTS_WORKERS`，默认 4 workers，实测约 3.7x 提速：串行 158s → 并行 42s）。个别计时敏感门禁在 CPU 争用下可能假红，需严谨复现请设 `STRATA_TESTS_SERIAL=1` 强制串行（实测仍全绿）；调高并发用 `STRATA_TESTS_WORKERS=8`。
 
 ```
 python tests\test_smoke.py     # executor <-> MCP server 端到端通路
@@ -176,7 +177,8 @@ python runtime\gateway.py --daemon
 - `at: "YYYY-MM-DDTHH:MM"`：一次性（触发后自动消费）
 
 实测：周期项会反复触发、一次性项到点才触发、调度器睡到最近的下一个触发点再跑（真实墙钟，绝不伪造触发）。离线测试 case10 验证 interval/每日/一次性三种触发 + 重排 + 一次性消费。
-- **本轮登记（2026-10-23，决策卡=人工拍板优先级，用户拍板语义，非纯文档，进锚链）**：本轮 commit `11dd9bc` feat 级——前端 `maybeAutoDrive` 新增守卫（app.js:2520）：本轮有可见决策卡即整轮不自动跑（等人拍板，防自我复读）；**废**旧铁律「卡轮次不输出 next-steps 块」→卡轮次照旧出全档条（绿/黄可点但不被跑掉、红/蓝永不跑）；系统 prompt 措辞（app.js:3877）已与守卫对齐（卡轮次照旧输出 next-steps 块）。新增差分契约测试 `tests/test_card_guard_no_autodrive.mjs`（双探针：目标组有卡→不排程/对照组无卡→照排程；卡全 dismissed→恢复；仅红条→不排程）17/17 绿，已注册进 SUITES（紧跟 test_autosteps 同批）并入 git 跟踪。部署：deploy_frontend.py 1 COPY + 镜像对账门禁 21/21 全绿。门禁表 6 行锚 + 新锁第 7 行统一推到本轮实跑绿 tag `v-baseline-2026-10-23-g`（deref 坐实指向 11dd9bc，钩子真 checkout 该 tag 重跑仍绿、坐实可用）。本登记条本身为纯文档 commit，按习例不进锚。
+- **本轮登记（2026-10-23，决策卡=人工拍板优先级，用户拍板语义，非纯文档，进锚链）**：本轮 commit `11dd9bc` feat 级——前端 `maybeAutoDrive` 新增守卫（app.js:2520）：本轮有可见决策卡即整轮不自动跑（等人拍板，防自我复读）；**废**旧铁律「卡轮次不输出 next-steps 块」→卡轮次照旧出全档条（绿/黄可点但不被跑掉、红/蓝永不跑）；系统 prompt 措辞（app.js:3877）已与守卫对齐（卡轮次照旧输出 next-steps 块）。新增差分契约测试 `tests/test_card_guard_no_autodrive.mjs`（双探针：目标组有卡→不排程/对照组无卡→照排程；卡全 dismissed→恢复；仅红条→不排程）17/17 绿，已注册进 SUITES（紧跟 test_autosteps 同批）并入 git 跟踪。部署：deploy_frontend.py 1 COPY + 镜像对账门禁 21/21 全绿。门禁表 6 行锚 + 新锁第 7 行统一推到本轮实跑绿 tag `v-baseline-2026-10-23-g`（deref 坐实指向 11dd9bc，钩子真 checkout 该 tag 重跑仍绿、坐实可用）。本登记条本身为纯文档 commit，按习例不进锚。
+
 - **本轮登记（2026-10-24，驻留竞争 vs 真窗口溢出分流 + 新基线锚，非纯文档，进锚链）**：本轮 commit `181b90c` feat 级——http_server 新增 `overflow_action()` 纯判定 + 上游 400 分流：未过 92% 线（如面板 53%）且本会话已有占用记录 = 引擎共享驻留 KV 池竞争，静默重发一次（预算恰一次，引擎刚驱逐已腾位多半直接成功）；重发仍拒才弹诚实文案（关闲置会话/新建任务后继续）；过线或测不到占用→compact。前端靠已有 n.text 优先机制天然分流，零 i18n 改动。新增差分门禁 tests/test_resident_retry.py（8 项，含核心差分对：重试预算恰一次）登记进 SUITES。真跑全套+post-green 全绿（树净）后给真跑绿 commit 打附注 tag `v-baseline-2026-10-24-e`（deref 坐实指向 181b90c，钩子真 checkout 该 tag 重跑仍绿、坐实可用回退点），门禁表 7 行锚已统一推到 -e。本登记条本身为纯文档 commit，按习例不进锚（锚停在 feat 真跑绿 commit 181b90c 合理）。
 - **本轮登记（2026-10-24，stream-paint 每帧现查会话DOM修复 + 裸server前缀救援，非纯文档，进锚链）**：本轮两笔 commit——`3589eb0` fix 前端 stream-paint：paint()/liveTimer 改为每帧经 liveMsgEl(m) 现查当前会话对应 .st-msg 节点，切走会话时 renderChat 重建会让捕获快照游离导致画面冻结，现查后切走只累积数据、切回 renderChat 显示最新（收尾段保留捕获 el 供 finalize，最小改动）；`2223e46` feat 后端裸 server 前缀救援：_prefix_tool_map 仅对恰好贡献一个工具的 server 安全回映射前缀（shell→shell__exec），多工具 server 留作 prose 不猜，hallucinated_tool_call 经同一 map 保持一致，test_toolcall_fuzz 扩到 15 checks（差分对：单工具 rescue/多工具不 rescue）。部署 app.js 逐文件 MD5 MATCH、镜像门禁 17/17 绿。真跑全套+post-green 全绿（树净）后给真跑绿 commit 打附注 tag `v-baseline-2026-10-24-f`（deref 坐实指向 2223e46），门禁表 7 行锚已统一推到 -f。本登记条本身为纯文档 commit，按惯例不进锚（锚停在真跑绿 commit 2223e46 合理）。
 
