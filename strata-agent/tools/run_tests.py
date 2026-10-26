@@ -104,6 +104,7 @@ SUITES = [
     "tests/test_format_fence_differential.mjs",  # 2026-10-23: FORMAT-ROOT-CAUSE differential gate (inline-mention->0 chips vs standalone fence->4 chips, four tier groups)
     "tests/test_code_style.mjs",        # 2026-10-20: 代码块语法高亮 + 思考区围栏渲染成真代码卡片
     "tests/test_shell_timeout.py",
+    "tests/test_shell_utf8_trim.py",   # 2026-10-26: shell output byte-boundary UTF-8 trim (no mojibake)
     "tests/test_agent_loop.py",
     "tests/test_hallucinated_resume.py",   # 2026-10-25: http_server-chain plan-action resume; registers an already-green test this refactor touches (was orphaned)
     "tests/test_loop_finalize_resume.py",  # 2026-10-25: loop.py finalize-branch resume (the 8099 agent chain), driven through the real AgentLoop + shared toolcall_parse discriminators
