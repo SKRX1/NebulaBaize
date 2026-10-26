@@ -192,6 +192,6 @@ def hallucinated_tool_call(text: str, known: set | None) -> bool:
             continue                     # tolerant-match maps it back = it WAS rescued
         if _prefix_tool_map(known).get(_norm_tool(name)):
             continue                     # bare-prefix rescue maps it back = it WAS rescued
-        if _CALL_PARAM_RE.search(m.group(2)):
+        if _CALL_PARAM_RE.search(m.group(2)) or "</parameter>" in m.group(2):
             return True                  # unknown name + a parameter block = an attempted action
     return False

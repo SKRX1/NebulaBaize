@@ -68,6 +68,16 @@ def main() -> int:
     check("empty text -> False", hallucinated_tool_call("", KNOWN) is False)
     check("plain text -> False", hallucinated_tool_call("全部完成。", KNOWN) is False)
 
+    # Differential lock for the STRAY-CLOSER action shape (2026-10-26 report): a markdown
+    # plan list inside <function=plan> whose parameter block has only a stray </parameter>
+    # closer (no opening <parameter= tag) is still an ATTEMPTED ACTION -> resume. The prose
+    # quote above has NO closer at all and stays False, so the two lock the boundary.
+    STRAY_CLOSER = ("<tool_call>\n<function=plan>\n"
+                    "- [ ] step one\n- [ ] step two\n"
+                    "</parameter>\n</function>\n</tool_call>")
+    check("stray-closer action shape (markdown list + stray closer) -> True",
+          hallucinated_tool_call(STRAY_CLOSER, KNOWN) is True)
+
     # ── 2) probe 1 end-to-end: the action shape RESUMES the turn ──────────────
     print("\n=== 2: probe 1 -- a hallucinated plan-action keeps the turn working ===")
     st = fresh_state()
