@@ -876,7 +876,27 @@ function codeBlock(lang, code) {
     `<button class="st-btn st-btn--icon st-code__copy" data-code-copy aria-label="${esc(t("ctx.copy.code"))}">${icon("copy")}</button>` +
     `</div><pre><code>${hl(code, l)}</code></pre></div>`;
 }
+// Defense against a known model hallucination: the model sometimes writes the ```plan``` markdown
+// checklist as a TOOL-CALL XML scaffold (<function=plan> ... </function>, <parameter=...>,
+// <tool_call>), which the action parser discards, so the raw XML tags render as English litter
+// in the chat. We strip scaffold tags that occupy their OWN line and keep the content between them
+// (the checklist lines), so the text still renders as a checklist. Only whole-line tags from the
+// closed tool-call vocabulary are removed; inline angle brackets in prose and fenced code (which
+// never reaches blocks()) are untouched. Idempotent: cleaned text matches nothing on a second pass.
+const TOOLCALL_TAG_RE = /^<\/?(?:antml:)?(?:function|parameter|tool_call)[^>]*>\s*$/i;
+function stripToolCallScaffolding(text) {
+  const src = String(text == null ? "" : text);
+  if (src.indexOf("<") < 0) return src;                          // fast path: no angle brackets
+  const lines = src.split("\n");
+  let touched = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (TOOLCALL_TAG_RE.test(lines[i].trim())) { lines[i] = ""; touched = true; }
+  }
+  if (!touched) return src;                                      // nothing matched -> original
+  return lines.join("\n");
+}
 function blocks(text) {
+  text = stripToolCallScaffolding(text);
   const out = [], lines = text.split("\n");
   let para = [], list = null;
   const flushPara = () => { if (para.length) out.push(`<p>${para.map(inline).join("<br>")}</p>`); para = []; };
@@ -3006,12 +3026,23 @@ function classifyTool(t) {
 // The block is matched WITH or WITHOUT its closing fence: while a turn streams the closing fence has not
 // arrived yet, and the panel must still be able to show the checklist the model is currently working on.
 function planBlocks(text) {
-  const out = [], re = /```plan[^\n]*\n([\s\S]*?)(```|$)/gi;
+  const out = [];
+  const src = text || "";
   let m;
-  while ((m = re.exec(text || "")) !== null) {
+  const mdRe = /```plan[^\n]*\n([\s\S]*?)(```|$)/gi;
+  while ((m = mdRe.exec(src)) !== null) {
     out.push({raw: m[1], at: m.index, len: m[0].length, closed: m[2] === "```"});
     if (!m[0].length) break;                       // safety: never loop on a zero-length match
   }
+  // XML-plan form: the model’s hallucination of writing the ```plan``` checklist as a
+  // tool-call scaffold (<function=plan> ... </function>). The action parser discards it, so
+  // without this branch the panel misses the checklist and the raw tags render as litter.
+  const xmlRe = /<function=plan[^>]*>([\s\S]*?)(<\/function>|$)/gi;
+  while ((m = xmlRe.exec(src)) !== null) {
+    out.push({raw: m[1], at: m.index, len: m[0].length, closed: m[2] === "</function>"});
+    if (!m[0].length) break;
+  }
+  out.sort((a, b) => a.at - b.at);                 // consumers read the LAST block by position
   return out;
 }
 function parsePlanItems(raw) {
