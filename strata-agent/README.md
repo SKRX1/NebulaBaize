@@ -194,4 +194,4 @@ python runtime\gateway.py --daemon
 ## 视觉留档索引（`_evidence/`）
 
 - `brand_golden_hi.png`：品牌区暗色高分辨率留档（走运行服务 8099，CSS 已加载）——标题「星云」金黄渐变、无 Strata 字样；副行「作者 : 时空象容」整段火红 `#ff4326`、「AI : …」整段绿、冒号与各自名字同色；顶部 idle 胶囊为金黄无脸星云，与左上角品牌区同源。
-- `brand_golden_hi_light.png`：品牌区浅色主题（`data-theme="light"`）留档——亮色覆盖下三者分色不串：金黄（深一档 `#b8860b`）、深红 `#d42a10`、绿。
+- `brand_golden_hi_light.png`：品牌区浅色主题（`data-theme="light"`）留档——亮色覆盖下三者分色不串：金黄（深一档 `#b8860b`）、深红 `#d42a10`、绿。（2026-10-26 冒号归词差分对账：副行现「作者:」「AI:」冒号并入各自标签词 span、词内零间隙，浅色沙箱像素复验冒号紧贴各自名字、分色无溢出；commit 95e93f4 落 master。）
