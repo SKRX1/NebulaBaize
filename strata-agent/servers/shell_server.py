@@ -24,7 +24,44 @@ _ABS_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|[\\/]{2}|/)")
 # config/mcp_servers.json, otherwise the transport gives up before this server answers.
 _TIMEOUT = 30
 _MAX_TIMEOUT = 300
-_MAX_OUTPUT_BYTES = 800_000
+# Raised 800KB -> 2MB (2026-10-26): daily outputs almost never reach 2MB, so truncation
+# -- and with it the multi-byte-boundary mojibake -- basically never fires now. The
+# _trim_incomplete_utf8_tail guard below covers the rare case it does.
+_MAX_OUTPUT_BYTES = 2_000_000
+
+
+def _trim_incomplete_utf8_tail(data: bytes) -> bytes:
+    """Drop a trailing INCOMPLETE UTF-8 multi-byte sequence so the decoder always sees
+    whole characters.
+
+    This runs ONLY on a truncated capture (see the truncation path in call_tool). A
+    truncation can land mid-character; if the surviving bytes happen to also be valid
+    GBK, smart_decode's GBK fallback would win and return a whole-segment mojibake
+    (the 2026-10-26 finding: "星云智能体" truncated by 1 byte -> "鏄熶簯鏅鸿兘浣"). Trimming
+    the dangling lead+continutions back to the last whole character keeps smart_decode
+    on its UTF-8-first path. Complete sequences -- and whole non-UTF8 (GBK) captures --
+    are returned untouched.
+
+    Expected length by UTF-8 lead byte:
+        0xC0-0xDF -> 2, 0xE0-0xEF -> 3, 0xF0-0xF7 -> 4 (RFC 3629).
+    """
+    if not data:
+        return data
+    n = len(data)
+    i = n - 1
+    while i >= 0 and (data[i] & 0xC0) == 0x80:   # walk back over continuation bytes
+        i -= 1
+    if i < 0:
+        return data                              # all continuation -- pass through
+    lead = data[i]
+    if lead < 0x80:
+        return data                              # plain ASCII -- always complete
+    expected = (2 if lead < 0xE0 else            # 110xxxxx -> 2-byte
+                3 if lead < 0xF0 else            # 1110xxxx -> 3-byte
+                4)                               # 11110xxx -> 4-byte
+    if (n - i) >= expected:
+        return data                              # last char is whole -- nothing to trim
+    return data[:i]                              # trim the incomplete trailing char
 
 
 def _denied(cmd: str) -> bool:
@@ -35,7 +72,7 @@ def _denied(cmd: str) -> bool:
 def _unbalanced_quotes(cmd: str) -> bool:
     """True when double quotes are an odd count -> the shell would enter a continuation
     / hang waiting for the close quote. The classic trigger is a trailing backslash
-    just before a closing quote (...\") which escapes it. We run such commands anyway
+    just before a closing quote (\") which escapes it. We run such commands anyway
     (the new stdin=DEVNULL makes them self-resolve), but flag them for the model."""
     return cmd.count('"') % 2 == 1
 
@@ -242,11 +279,22 @@ class ShellServer(McpServerBase):
             return f"error: could not run command: {e}"
         elapsed = time.monotonic() - t0
 
-        text = smart_decode(out_b)
-        err = smart_decode(err_b)
-        if len(out_b) > _MAX_OUTPUT_BYTES or len(err_b) > _MAX_OUTPUT_BYTES:
-            text += f"\n…[output truncated to {_MAX_OUTPUT_BYTES} bytes]"
-        result = text + (("\n[stderr]\n" + err) if err.strip() else "")
+        # Decode whole captures normally; only a capture that actually got truncated is
+        # trimmed to a clean UTF-8 boundary first. A whole capture is decoded as-is so a
+        # genuine GBK (cmd.exe built-in) stream is never mangled -- trim only ever sees a
+        # truncated UTF-8 stream (the only thing that can land mid-character).
+        trunc = ""
+        if len(out_b) > _MAX_OUTPUT_BYTES:
+            text = smart_decode(_trim_incomplete_utf8_tail(out_b[:_MAX_OUTPUT_BYTES]))
+            trunc += f"\n…[stdout truncated to {_MAX_OUTPUT_BYTES} bytes]"
+        else:
+            text = smart_decode(out_b)
+        if len(err_b) > _MAX_OUTPUT_BYTES:
+            err = smart_decode(_trim_incomplete_utf8_tail(err_b[:_MAX_OUTPUT_BYTES]))
+            trunc += f"\n…[stderr truncated to {_MAX_OUTPUT_BYTES} bytes]"
+        else:
+            err = smart_decode(err_b)
+        result = text + trunc + (("\n[stderr]\n" + err) if err.strip() else "")
         if exit_code != 0:
             result += f"\n[exit {exit_code}]"
         result += f"\n[elapsed {elapsed:.1f}s]"
