@@ -24,7 +24,7 @@ _ABS_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|[\\/]{2}|/)")
 # config/mcp_servers.json, otherwise the transport gives up before this server answers.
 _TIMEOUT = 30
 _MAX_TIMEOUT = 300
-_MAX_OUTPUT_BYTES = 400_000
+_MAX_OUTPUT_BYTES = 800_000
 
 
 def _denied(cmd: str) -> bool:

@@ -121,7 +121,7 @@ def case07_compression_counts_tool_calls():
         s.append({"role": "assistant", "content": None, "tool_calls": [
             {"id": f"c{i}", "type": "function",
              "function": {"name": "filesystem__write",
-                          "arguments": json.dumps({"path": f"/p/{i}.py", "content": "A" * 3000})}}]})
+                          "arguments": json.dumps({"path": f"/p/{i}.py", "content": "A" * 4000})}}]})
         s.append({"role": "tool", "tool_call_id": f"c{i}", "content": "ok"})
     # before the fix this was 23 (tool_calls counted as 0) -> compression never fired
     assert s._total_chars() > s.max_chars, s._total_chars()

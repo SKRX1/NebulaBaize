@@ -14,7 +14,7 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "runtime"))
 
-from memory.session import (SessionMemory, write_tool_log_text, read_tool_log)  # noqa: E402
+from memory.session import (SessionMemory, write_tool_log_text, read_tool_log, estimate_tokens)  # noqa: E402
 
 
 def _big(n, size=600):
@@ -28,7 +28,7 @@ def test_frozen_note_bounded_after_many_compactions():
         s.append(_big(i, 600))
         s.compress()
     # frozen note must stay under its cap, not grow without bound
-    assert len(s._frozen_text) <= int(2000 * s.frozen_cap_ratio) + 2000, len(s._frozen_text)
+    assert estimate_tokens(s._frozen_text) <= int(2000 * s.frozen_cap_ratio) + 2000, estimate_tokens(s._frozen_text)
     # total compressed context must stay bounded (not blow up to raw size)
     total = sum(s._msg_chars(m) for m in s.as_messages())
     assert total <= s.max_chars * 1.6, total
@@ -83,7 +83,7 @@ def test_incremental_folds_only_oldest_needed():
     s = SessionMemory(max_chars=2000, keep_tail_min=2)
     s.append({"role": "system", "content": "intent"})
     for i in range(20):
-        s.append(_big(i, 150))
+        s.append(_big(i, 600))
     before = len(s.as_messages())
     s.compress()
     msgs = s.as_messages()
@@ -106,7 +106,7 @@ def test_hierarchical_refold_bounded():
         s.append(_big(i, 600))
         s.compress()
     # after many rounds the frozen note must sit at/under its re-fold budget
-    assert len(s._frozen_text) <= s.frozen_refold_budget + 100, len(s._frozen_text)
+    assert estimate_tokens(s._frozen_text) <= s.frozen_refold_budget + 100, estimate_tokens(s._frozen_text)
     # and total compressed context stays bounded
     total = sum(s._msg_chars(m) for m in s.as_messages())
     assert total <= s.max_chars * 1.6, total
@@ -142,7 +142,7 @@ def test_tool_result_cap_applied_in_compress():
     s = SessionMemory(max_chars=8000, keep_tail_min=2, tool_result_cap=1200)
     s.append({"role": "system", "content": "intent"})
     for i in range(30):
-        s.append(_big(i, 300))  # push well over budget so compression actually runs
+        s.append(_big(i, 1100))  # push well over budget so compression actually runs (token caliber)
     long_tool = "\n".join(f"result line {i}" for i in range(100))  # ~1400 chars
     s.append({"role": "tool", "content": long_tool})
     for j in range(5):
@@ -162,7 +162,7 @@ def test_tool_result_cap_folded_path():
     long_tool = "\n".join(f"result line {i}" for i in range(100))
     s.append({"role": "tool", "content": long_tool})  # oldest -> folded
     for i in range(20):
-        s.append(_big(i, 200))
+        s.append(_big(i, 600))  # push well over budget (token caliber) so folding fires
     s.compress()
     all_text = "\n".join(str(m.get("content")) for m in s.as_messages())
     # The cap drops the MIDDLE of the folded tool result (never carried into the summary),
@@ -172,7 +172,8 @@ def test_tool_result_cap_folded_path():
     assert "result line 0" in all_text    # head kept
     assert "result line 50" not in all_text  # middle dropped
     # the whole compressed context must be far smaller than the raw 100-line dump
-    assert len(all_text) < 4000
+    # (unified to the token caliber -- same bound, same intent: product fits the budget)
+    assert estimate_tokens(all_text) < 4000
 
 
 def test_tool_result_cap_keeps_freshest_full():

@@ -59,8 +59,12 @@ IN = getattr(sys.stdin, "buffer", None)
 OUT = getattr(sys.stdout, "buffer", None)
 
 
-def smart_decode(data) -> str:
+def smart_decode(data, encoding=None) -> str:
     """Decode a subprocess's captured output: UTF-8 first, then the Chinese ANSI codec.
+
+    Pass `encoding` explicitly (e.g. "utf-8-sig" for a BOM'd file, or a known codec for a
+    mixed-codec file) to force that codec first; on failure it still falls through to the
+    default UTF-8 -> GBK sniffer, so existing callers are unaffected.
 
     Tools that shell out capture *bytes* and land here. Modern tools (python, node,
     git) emit UTF-8; cmd.exe built-ins emit the OEM codec (GBK on zh-CN). UTF-8 is
@@ -71,6 +75,11 @@ def smart_decode(data) -> str:
         return data
     if not data:
         return ""
+    if encoding:
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, LookupError) as e:
+            forced_err = e          # forced codec failed -- remember why, then sniffer below
     for enc in ("utf-8", "gbk"):
         try:
             return data.decode(enc)

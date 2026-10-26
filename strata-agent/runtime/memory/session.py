@@ -63,6 +63,42 @@ STRATEGIES = {
     "truncate": summarize_truncate,
 }
 
+# ---- token estimation (pure stdlib; no tiktoken) ----
+# Plan B: the session budget is now counted in TOKENS, not raw characters, so a Chinese
+# conversation no longer triggers compression earlier than an English one just because CJK
+# glyphs are "worth" more to the model. Heuristic, deterministic, no third-party dep:
+#   - CJK / kana / Hangul / CJK punctuation  -> ~1 token per character
+#   - Latin / digits / punctuation / spaces  -> ~4 characters per token
+# It only decides WHEN compression fires / WHERE the frozen note is sliced -- never what
+# content survives. Language-fairness, not a billing meter.
+_CJK_RE = re.compile(r"[\u3000-\u303F\u3040-\u30FF\u3400-\u4DBF"
+                     r"\u4E00-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF"
+                     r"\uFF00-\uFFEF]")
+
+
+def estimate_tokens(s: str) -> int:
+    """Estimate model tokens for a string: CJK ~1 token/char, Latin ~4 chars/token."""
+    if not s:
+        return 0
+    cjk = len(_CJK_RE.findall(s))
+    other = len(s) - cjk
+    return cjk + (other + 3) // 4
+
+
+def truncate_to_tokens(s: str, budget: int) -> str:
+    """Slice `s` down to ~budget tokens (same weighting as estimate_tokens)."""
+    if estimate_tokens(s) <= budget:
+        return s
+    out = []
+    cost = 0.0
+    for ch in s:
+        c = 1.0 if _CJK_RE.match(ch) else 0.25
+        if cost + c > budget:
+            break
+        out.append(ch)
+        cost += c
+    return "".join(out) + chr(8230)
+
 
 class SessionMemory:
     def __init__(self, max_chars: int = 8000, keep_tail_min: int = 6,
@@ -278,14 +314,14 @@ class SessionMemory:
 
         # Hierarchical re-fold: collapse the frozen note (progressively tighter) when it
         # has grown past its cap, then append the new summary, then slim + hard-cap it.
-        if self._frozen_text and len(self._frozen_text) > int(self.max_chars * self.frozen_cap_ratio):
+        if self._frozen_text and estimate_tokens(self._frozen_text) > int(self.max_chars * self.frozen_cap_ratio):
             self._frozen_text = self._slim_text(summarize(self._frozen_text))
-            if len(self._frozen_text) > self.frozen_refold_budget:
+            if estimate_tokens(self._frozen_text) > self.frozen_refold_budget:
                 self._frozen_text = self._slim_text(summarize(self._frozen_text))
         self._frozen_text = (self._frozen_text + "\n" + new_summary) if self._frozen_text else new_summary
         self._frozen_text = self._slim_text(self._frozen_text)
-        if len(self._frozen_text) > self.frozen_refold_budget:
-            self._frozen_text = self._frozen_text[:self.frozen_refold_budget]
+        if estimate_tokens(self._frozen_text) > self.frozen_refold_budget:
+            self._frozen_text = truncate_to_tokens(self._frozen_text, self.frozen_refold_budget)
 
         frozen_note = {"role": "assistant", "content": "[accumulated summary]\n" + self._frozen_text,
                        self._frozen_flag: True}
@@ -322,12 +358,14 @@ class SessionMemory:
         counted as 0, so the budget was missed by orders of magnitude and
         compression never fired — the context grew until the API rejected it.
         """
-        n = len(_text(m.get("content")))
+        # Plan B: cost meter now returns TOKENS (not raw chars) via estimate_tokens so the
+        # budget is language-fair. The per-call overhead (32) is already ~token-scale.
+        n = estimate_tokens(_text(m.get("content")))
         for tc in (m.get("tool_calls") or []):
             if not isinstance(tc, dict):
                 continue
             fn = tc.get("function") or {}
-            n += len(str(fn.get("name") or "")) + len(str(fn.get("arguments") or ""))
+            n += estimate_tokens(str(fn.get("name") or "")) + estimate_tokens(str(fn.get("arguments") or ""))
             n += 32  # per-call overhead: id/type/role scaffolding sent to the model
         return n
 

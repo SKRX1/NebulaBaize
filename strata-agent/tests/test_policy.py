@@ -106,7 +106,7 @@ def main() -> int:
     ex = FakeExecutor()
     sess = SessionMemory(max_chars=120)  # small budget so folding fires
     # seed enough history that there is a "middle" to fold (head + tail6 + mid)
-    seed = [{"role": "user", "content": "x" * 40} for _ in range(10)]
+    seed = [{"role": "user", "content": "x" * 60} for _ in range(10)]
     events = []
     loop = AgentLoop(client=None, executor=ex, max_rounds=1, session=sess,
                      confirm=lambda tool, reason: True,
