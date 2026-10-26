@@ -120,3 +120,4 @@ README 追加前必须 `git ls-files --eol` 核对 index 行尾，写入用与 i
 CRLF 文件的锚点替换脚本必须按文件真实换行符动态转换锚点块再匹配（读 rb 判断 crlf，匹配串 .replace 成对应换行），写回用 wb 保持原换行
 shell_server.py 长输出截断路径：送 smart_decode 前须 trim 末尾不完整多字节序列（对齐完整 UTF-8 字符边界），防 GBK 兜底抢跑致整段乱码
 判别式/守卫类兜底：放宽判据时差分锁必须同时锁正例（新形状）与负例（原误判边界），防口径污染
+品牌区/胶囊这类「CSS 与 DOM 分两个文件」的视觉改动，落地时必须同轮把 index.html 的 DOM 一起改，不能只改 CSS 那一半
