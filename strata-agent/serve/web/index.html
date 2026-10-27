@@ -400,7 +400,41 @@
     </div>
   </section>
 
-  <!-- ============================ Memory (knowledge / rules / notes) ============================ -->
+  <!-- ============================ Streaming debug drawer (Step1-G) ============================ -->
+<section class="view view--debug view--scroll" id="view-debug" role="tabpanel" aria-labelledby="tab-btn-debug" hidden>
+  <div class="about">
+    <div class="db-subtabs mem-subtabs" role="tablist" aria-label="Debug sections" data-i18n-attr="aria-label:debug.subtabs.aria">
+      <button class="db-subtab" role="tab" data-db="live" aria-selected="true" data-i18n="debug.tab.live">实时异常流</button>
+      <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="false" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
+      <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="live">
+      <div class="req-head"><span class="card-title" data-i18n="debug.title">调试</span></div>
+      <p class="muted small" data-i18n="debug.desc">流式任务的实时调试：客户端异常、断点位置、传输状态，以及一键诊断与证据复制。</p>
+      <div class="drawer-actions">
+        <button class="st-btn st-btn--secondary" id="debug-copy" type="button" data-i18n="debug.copy">复制证据</button>
+        <button class="st-btn st-btn--primary" id="debug-diagnose" type="button" data-i18n="debug.diagnose">一键诊断</button>
+      </div>
+      <div class="debug-list" id="debug-list"></div>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="bugbox">
+      <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
+      <div class="debug-list" id="bugbox-list"></div>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="gateway">
+      <div class="req-head"><span class="card-title" data-i18n="debug.gw.title">网关侧</span></div>
+      <p class="muted small debug-gw-desc" data-i18n="debug.gw.desc">网关侧（服务端）：本轮请求的逐块时间线与断点标注，可一键复制为 cURL 原样重放，定位「流到哪一步崩了」。</p>
+      <div class="drawer-actions">
+        <button class="st-btn st-btn--secondary" id="debug-curl" type="button" data-i18n="debug.gw.copycurl">复制为 cURL 重放</button>
+      </div>
+      <div class="debug-list" id="debug-gw-body"></div>
+    </div>
+  </div>
+</section>
+<!-- ============================ Memory (knowledge / rules / notes) ============================ -->
   <section class="view view--memory view--scroll" id="view-memory" role="tabpanel" aria-labelledby="tab-btn-memory" hidden>
     <div class="about">
       <div class="mem-subtabs" role="tablist" aria-label="Memory sections">         <button class="mem-subtab" role="tab" data-mem="kb" aria-selected="true" data-i18n="mem.kb.title">Knowledge base</button>         <button class="mem-subtab" role="tab" data-mem="rules" aria-selected="false" data-i18n="mem.rules.title">Workspace rules</button>         <button class="mem-subtab" role="tab" data-mem="notes" aria-selected="false" data-i18n="mem.notes.title">Experience notes</button>         <button class="mem-subtab" role="tab" data-mem="auto" aria-selected="false" data-i18n="mem.auto.title">自主沉淀</button>         <button class="mem-subtab" role="tab" data-mem="global" aria-selected="false" data-i18n="mem.global.title">Global memory</button>       </div>
@@ -750,40 +784,6 @@
   </div>
 </aside>
 
-<!-- ============================ Streaming debug drawer (Step1-G) ============================ -->
-<section class="view view--debug view--scroll" id="view-debug" role="tabpanel" aria-labelledby="tab-btn-debug" hidden>
-  <div class="about">
-    <div class="db-subtabs mem-subtabs" role="tablist" aria-label="Debug sections" data-i18n-attr="aria-label:debug.subtabs.aria">
-      <button class="db-subtab" role="tab" data-db="live" aria-selected="true" data-i18n="debug.tab.live">实时异常流</button>
-      <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="false" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
-      <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
-    </div>
-
-    <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="live">
-      <div class="req-head"><span class="card-title" data-i18n="debug.title">调试</span></div>
-      <p class="muted small" data-i18n="debug.desc">流式任务的实时调试：客户端异常、断点位置、传输状态，以及一键诊断与证据复制。</p>
-      <div class="drawer-actions">
-        <button class="st-btn st-btn--secondary" id="debug-copy" type="button" data-i18n="debug.copy">复制证据</button>
-        <button class="st-btn st-btn--primary" id="debug-diagnose" type="button" data-i18n="debug.diagnose">一键诊断</button>
-      </div>
-      <div class="debug-list" id="debug-list"></div>
-    </div>
-
-    <div class="st-card db-tabpanel mem-tabpanel" data-db="bugbox">
-      <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
-      <div class="debug-list" id="bugbox-list"></div>
-    </div>
-
-    <div class="st-card db-tabpanel mem-tabpanel" data-db="gateway">
-      <div class="req-head"><span class="card-title" data-i18n="debug.gw.title">网关侧</span></div>
-      <p class="muted small debug-gw-desc" data-i18n="debug.gw.desc">网关侧（服务端）：本轮请求的逐块时间线与断点标注，可一键复制为 cURL 原样重放，定位「流到哪一步崩了」。</p>
-      <div class="drawer-actions">
-        <button class="st-btn st-btn--secondary" id="debug-curl" type="button" data-i18n="debug.gw.copycurl">复制为 cURL 重放</button>
-      </div>
-      <div class="debug-list" id="debug-gw-body"></div>
-    </div>
-  </div>
-</section>
 <div class="scrim" id="scrim" hidden></div>
 <div class="st-toasts" id="toasts" aria-live="polite"></div>
 
