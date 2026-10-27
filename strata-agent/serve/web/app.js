@@ -6921,7 +6921,14 @@ $("input").addEventListener("input", () => {
   if ($("input").value.startsWith("/")) openSlashMenu(); else closeSlashMenu();
   syncStepsSendLabel();                    // a selected chip + typed text sends both: say so on the button
 });
-function autosize(el) { const t = el || $("input"); t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`; }
+function autosize(el) {
+  // called both as a helper (arg = an element) AND as a DOM event handler (arg = an Event).
+  // A bare Event is truthy but has no .style, so the old `el || $("input")` fell through to
+  // Event.style === undefined and threw. Pick a real element defensively, then guard.
+  const t = (el && el.style) ? el : (el && el.target && el.target.style) ? el.target : $("input");
+  if (!t || !t.style) return;
+  t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`;
+}
 $("input").addEventListener("input", autosize);
 
 // ------------------------------------------------------------------ P0-1: Regenerate & Edit
