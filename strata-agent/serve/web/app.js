@@ -179,13 +179,13 @@ setTheme(document.documentElement.dataset.theme || "dark", false);
 let tab = "chat";
 let inspectorOpen = store.get("inspector.open", true);   // declared early: applyInspector() runs before this line's original spot
 function showTab(name) {
-  tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark"].includes(name) ? name : "chat";
+  tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug"].includes(name) ? name : "chat";
   // the left sidebar (task list) is chat-only: on the other tabs the view takes
   // the full width. The class is added for non-chat (never removed by default),
   // so a JS-less first paint still shows the sidebar — fail visible, not hidden.
 document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark");
   for (const b of document.querySelectorAll(".st-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
-  for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark"]) $(`view-${v}`).hidden = v !== tab;
+  for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug"]) $(`view-${v}`).hidden = v !== tab;
   if (tab === "images") $("img-prompt").focus();
   if (location.hash.slice(1) !== tab) history.replaceState(null, "", tab === "chat" ? location.pathname : `#${tab}`);
   if (tab === "chat") $("input").focus();
@@ -193,6 +193,7 @@ document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark");
   if (tab === "tools" && typeof loadAdmin === "function") loadAdmin();
   if (tab === "about") { loadConfig(); loadRuntimeConfig(); loadInterruptLog(); }
   if (tab === "memory") { renderMemory(); applyMemSubTab(); }
+  if (tab === "debug") { renderDebug(); renderGatewayDebug(); renderBugBox(); applyDebugSubTab(); }
   if (tab === "spark") renderSpark();
   if (lastMetrics) render(lastMetrics);
   applyInspector();
@@ -2800,6 +2801,9 @@ function markTruncatedIfCut(m, sawDone, stopId) {
 // localStorage mirror keeps working offline / in parasitic mode where the route does not exist.
 const ILOG_KEY = "interruptLog";       // localStorage mirror key (strata.interruptLog)
 const ILOG_MIRROR_MAX = 200;           // mirror is a safety net, not an archive: keep it small
+const BUGBOX_KEY = 'bugBox';            // localStorage key: bug collection box (off-turn exceptions)
+const BUGBOX_MAX = 500;                 // bug box is larger: dev bugs accumulate across a session
+const _bugBox = { _lastTs: 0, _lastMsg: null };   // de-dupe state for the off-turn collector
 // Called from the streaming loop as each kind of activity arrives. The phase is what the user
 // was LOOKING AT when the turn died, which is exactly what they report ("it stopped while
 // thinking" / "it stopped inside that shell command").
@@ -6343,7 +6347,7 @@ const _dbg = {
   _lastTs: 0,
 };
 function _recordClientError(phase, err) {
-  if (!_dbg.turn) return;                       // only capture during a live turn
+  if (!_dbg.turn) { _recordBugCapture(phase, err); return; }  // off-turn: straight to the bug collection box
   const now = Date.now();
   const msg = err && err.message != null ? err.message : String(err);
   // de-dupe: the same throw can surface as both `error` and `unhandledrejection`
@@ -6361,6 +6365,113 @@ function _recordClientError(phase, err) {
   _dbg._lastTs = now;
   (_dbg.turn._clientErrors = _dbg.turn._clientErrors || []).push(rec);
 }
+// Off-turn exception collector: fires when an error arrives while NO stream is active.
+// This is what makes 'a bug found during workspace development gets recorded' work -- the
+// old guard dropped every off-turn exception. De-dupes, then feeds the SAME dual sink as
+// the interruption log: localStorage mirror (strata.bugBox) + gateway JSONL (api/interrupt-log).
+function _recordBugCapture(phase, err) {
+  const now = Date.now();
+  const msg = err && err.message != null ? err.message : String(err);
+  if (_bugBox._lastTs && now - _bugBox._lastTs < 60 && _bugBox._lastMsg === msg) return;
+  _bugBox._lastTs = now; _bugBox._lastMsg = msg;
+  const rec = {
+    ts: now,
+    kind: 'bug:' + phase,                          // bug:window.onerror | bug:unhandledrejection
+    origin: 'ui',                                  // ui = off-turn; stream errors stay on the message
+    sourceTab: (typeof tab !== 'undefined' ? tab : null),
+    session: (typeof activeId !== 'undefined' ? activeId : null),
+    msg,
+    stack: err && err.stack ? err.stack : '',
+  };
+  try {
+    const box = store.get(BUGBOX_KEY, []);
+    store.set(BUGBOX_KEY, (Array.isArray(box) ? box : []).concat([rec]).slice(-BUGBOX_MAX));
+  } catch (e) { /* localStorage full: the gateway JSONL stays the authoritative sink */ }
+  postQuiet('api/interrupt-log', { entry: rec });
+}
+// ── Bug collection box (memory layer read) ────────────────────────────────────
+// Persists via the SAME dual sink _recordBugCapture writes (localStorage mirror strata.bugBox
+// + gateway JSONL). UI reads the localStorage mirror (offline-capable leg); the file is the archive.
+function bugBoxEntries() {
+  const box = store.get(BUGBOX_KEY, []);
+  return Array.isArray(box) ? box : [];
+}
+function bugBoxFindByTs(ts) {
+  return bugBoxEntries().find((e) => String(e.ts) === String(ts)) || null;
+}
+function bugBoxSave(box) {
+  store.set(BUGBOX_KEY, (Array.isArray(box) ? box : []).slice(-BUGBOX_MAX));
+}
+function bugCardDiagnose(e) {
+  // Reflection-layer verdict reuses diagnoseStream front-end-error semantics: an off-turn
+  // exception is a front-end code issue; phrased with the captured source tab.
+  const head = t('debug.diag.client', { n: '-', bytes: '-', msg: e.msg || '', phase: e.kind || 'ui' });
+  return head + " [" + t("debug.flag.source") + ": " + (e.sourceTab || "?") + "]";
+}
+function renderBugBox() {
+  const box = $("bugbox-list"); if (!box) return;
+  const entries = bugBoxEntries().slice().reverse();   // newest first
+  if (!entries.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
+  box.innerHTML = entries.map((e) => {
+    const when = new Date(e.ts).toLocaleTimeString();
+    const tsAttr = esc(String(e.ts));
+    const vTxt = e.verdict ? '<div class="debug-bug__verdict">' + esc(t("debug.verdict")) + ': ' + esc(e.verdict) + '</div>' : '';
+    return '<div class="debug-item debug-item--bug">'
+      + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>'
+      + '<span>' + esc(e.kind || "") + '</span><span class="muted small">' + esc(e.sourceTab || "?") + ' · ' + esc(when) + '</span></div>'
+      + '<div class="debug-err"><div class="debug-err__msg">' + esc(e.msg || "") + '</div>'
+      + '<pre class="debug-err__stack">' + esc(e.stack || "") + '</pre></div>'
+      + vTxt
+      + '<div class="debug-bug__acts">'
+        + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="copy" data-bugts="' + tsAttr + '">' + esc(t("debug.copy")) + '</button>'
+        + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="diagnose" data-bugts="' + tsAttr + '">' + esc(t("debug.diagnose")) + '</button>'
+        + '<button type="button" class="st-btn st-btn--primary st-btn--sm" data-bugact="push" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.push")) + '</button>'
+        + '<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-bugact="dismiss" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.dismiss")) + '</button>'
+      + '</div></div>';
+  }).join("");
+}
+
+async function copyBugEvidence(ts) {
+  const e = bugBoxFindByTs(ts); if (!e) return;
+  const ev = ["=== BUG ===", "time: " + new Date(e.ts).toISOString(),
+    "tab: " + (e.sourceTab || "?"), "kind: " + (e.kind || ""),
+    "msg: " + (e.msg || ""), "stack:\n" + (e.stack || ""),
+    e.verdict ? ("diagnosis: " + e.verdict) : ""].join("\n");
+  await copyText(ev);   // reuse the app-wide clipboard helper
+}
+function diagnoseBugCard(ts) {
+  const box = bugBoxEntries(); const e = box.find((x) => String(x.ts) === String(ts)); if (!e) return;
+  e.verdict = bugCardDiagnose(e);            // persist the verdict ON the record -> survives reload
+  bugBoxSave(box);
+  postQuiet("api/interrupt-log", { entry: e });   // keep the gateway JSONL leg in sync
+  renderBugBox();
+}
+function dismissBug(ts) {
+  const box = bugBoxEntries().filter((x) => String(x.ts) !== String(ts));
+  bugBoxSave(box);   // drop from the box; the gateway file stays an append-only audit log
+  renderBugBox();
+}
+// Layer 4 PUSH-FIX: reuses the continueTask mechanism (fill input + send). When a stream is busy
+// the button queues (idle-only), so it never interrupts a live task.
+function pushBugFix(ts) {
+  const e = bugBoxFindByTs(ts); if (!e) return;
+  if (busy) { toast("warn", t("debug.bugbox.push"), t("debug.bugbox.busy"), 4000); return; }
+  const when = new Date(e.ts).toLocaleString();
+  const prompt = [
+    t("debug.bugbox.pushprompt"),
+    "- " + t("debug.bugbox.pf.tab") + ": " + (e.sourceTab || "?"),
+    "- " + t("debug.bugbox.pf.time") + ": " + when,
+    "- " + t("debug.bugbox.pf.kind") + ": " + (e.kind || ""),
+    "- " + t("debug.bugbox.pf.msg") + ": " + (e.msg || ""),
+    "- " + t("debug.bugbox.pf.stack") + ":",
+    (e.stack || "(no stack)"),
+    e.verdict ? ("- " + t("debug.bugbox.pf.diag") + ": " + e.verdict) : ""
+  ].filter(Boolean).join("\n");
+  $("input").value = prompt;
+  send();
+}
+
+
 window.addEventListener("error", (ev) => _recordClientError("window.onerror", ev.error || ev));
 window.addEventListener("unhandledrejection", (ev) => _recordClientError("unhandledrejection", ev.reason));
 // Public, testable hook for the debug drawer + regression tests.
@@ -6470,7 +6581,7 @@ async function streamAssistant() {
     renderInspector();
     if (el) tickToolTimers(el, m);    // live "timeout-wait" countdown on running tool cards
     if (streamingFollow && busy.sessionId === activeId) scrollDown();
-    if ($("debug-drawer") && $("debug-drawer").dataset.open === "true") { renderDebug(); renderGatewayDebug(); }   // Step1-G + Step4-D: live capture view
+    if (tab === "debug") { renderDebug(); renderGatewayDebug(); renderBugBox(); }   // live capture view: the debug page (tab) is showing
   }, 500);
   try {
     const r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body),
@@ -7329,12 +7440,10 @@ $("input").addEventListener("paste", (e) => handlePasteImage(e, $("input"), {cur
 const DEBUG_REMOTE_ENABLED = false;   // flip true once /api/diagnose ships
 
 function openDebug(open) {
-  const el = $("debug-drawer"); if (!el) return;
-  el.dataset.open = String(open);
-  el.setAttribute("aria-hidden", String(!open));
-  const scrim = $("scrim");
-  scrim.hidden = !open;
-  if (open) { scrim.onclick = () => openDebug(false); renderDebug(); renderGatewayDebug(); }
+  // 2026-10-27: the debug drawer became a full page tab (memory-page paradigm).
+  // open/close routes through showTab; kept as an API so tests and hash deep-links work.
+  if (open) { renderDebug(); renderGatewayDebug(); renderBugBox(); applyDebugSubTab(); showTab("debug"); }
+  else if (tab === "debug") showTab("chat");
 }
 
 function debugFlagTexts(m) {
@@ -7796,12 +7905,39 @@ $("drawer-close").onclick = () => openDrawer(false);
 $("scrim").onclick = () => openDrawer(false);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("drawer").dataset.open === "true") openDrawer(false); });
 // Step1-G: debug drawer controls
-$("debug-btn").onclick = () => openDebug($("debug-drawer").dataset.open !== "true");
-$("debug-close").onclick = () => openDebug(false);
 $("debug-copy").onclick = () => copyDebugEvidence();
 $("debug-diagnose").onclick = () => diagnoseStream();
 $("debug-curl").onclick = () => copyRequestCurl();
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("debug-drawer").dataset.open === "true") openDebug(false); });
+
+// debug sub-tabs: independent state, same visual paradigm as the memory page
+let debugSubTab = "live";
+function applyDebugSubTab(){
+  const cur = debugSubTab || "live";
+  for (const b of document.querySelectorAll(".db-subtab")) b.setAttribute("aria-selected", String(b.dataset.db === cur));
+  for (const c of document.querySelectorAll(".db-tabpanel")) c.classList.toggle("is-active", c.dataset.db === cur);
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest(".db-subtab");
+  if (!b) return;
+  debugSubTab = b.dataset.db; applyDebugSubTab();
+});
+// Layer 4 action wiring: event delegation on the debug drawer for every [data-bugact] control.
+// Bound once on the container so it survives renderBugBox re-renders.
+const _bugDrawerEl = $("view-debug");
+if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
+  _bugDrawerEl._bugWired = true;
+  _bugDrawerEl.addEventListener("click", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest("[data-bugact]") : null;
+    if (!btn) return;
+    const ts = btn.dataset.bugts; if (ts == null) return;
+    const act = btn.dataset.bugact;
+    if (act === "copy") copyBugEvidence(ts);
+    else if (act === "diagnose") diagnoseBugCard(ts);
+    else if (act === "push") pushBugFix(ts);
+    else if (act === "dismiss") dismissBug(ts);
+  });
+}
+
 
 // ------------------------------------------------------------------ start
 setBusy(false);
@@ -8118,3 +8254,4 @@ applyMemSubTab();  // ensure a panel is visible from first paint
 // B1 two-state preview for the recommended-only sub-checkbox: highlights which tier is active.
 // ON = recommended only (checkbox checked); OFF = recommended + normal (checkbox unchecked).
 // Text lives on the two data-i18n spans (filled by applyI18n); this only flips data-state.
+

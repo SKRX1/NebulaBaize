@@ -74,14 +74,16 @@
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chat"/></svg><span data-i18n="tab.chat">Chat</span></button>
     <button class="st-tab" role="tab" id="tab-btn-images" aria-controls="view-images" aria-selected="false" data-tab="images" hidden>
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-image"/></svg><span data-i18n="tab.images">Images</span></button>
-    <button class="st-tab" role="tab" id="tab-btn-monitor" aria-controls="view-monitor" aria-selected="false" data-tab="monitor">
-      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-activity"/></svg><span data-i18n="tab.monitor">Monitor</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-spark" aria-controls="view-spark" aria-selected="false" data-tab="spark">
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-bolt"/></svg><span data-i18n="tab.spark">Sparks</span><span class="tab-badge" id="spark-tab-badge" hidden></span></button>
+    <button class="st-tab" role="tab" id="tab-btn-debug" aria-controls="view-debug" aria-selected="false" title="流式调试面板" data-tab="debug" data-i18n-attr="title:debug.title">
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-tool"/></svg><span data-i18n="debug.title">Debug</span></button>
     <button class="st-tab" role="tab" id="tab-btn-tools" aria-controls="view-tools" aria-selected="false" data-tab="tools">
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-layers"/></svg><span data-i18n="tab.tools">Tools</span></button>
     <button class="st-tab" role="tab" id="tab-btn-memory" aria-controls="view-memory" aria-selected="false" data-tab="memory">
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-bookmark"/></svg><span data-i18n="tab.memory">Memory</span></button>
-    <button class="st-tab" role="tab" id="tab-btn-spark" aria-controls="view-spark" aria-selected="false" data-tab="spark">
-      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-bolt"/></svg><span data-i18n="tab.spark">Sparks</span><span class="tab-badge" id="spark-tab-badge" hidden></span></button>
+    <button class="st-tab" role="tab" id="tab-btn-monitor" aria-controls="view-monitor" aria-selected="false" data-tab="monitor">
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-activity"/></svg><span data-i18n="tab.monitor">Monitor</span></button>
     <button class="st-tab" role="tab" id="tab-btn-about" aria-controls="view-about" aria-selected="false" data-tab="about">
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-info"/></svg><span data-i18n="tab.about">About</span></button>
   </nav>
@@ -116,8 +118,6 @@
   <button class="st-btn st-btn--icon" id="inspector-toggle" title="任务面板（上下文 / 进度 / 文件 / 测试）" aria-label="任务面板"
           data-i18n-attr="title:hdr.inspector,aria-label:hdr.inspector">
     <svg class="st-icon"><use href="web/sprite.svg#i-panel"/></svg></button>
-  <button class="st-btn st-btn--lang" id="debug-btn" title="流式调试面板" aria-label="流式调试面板"
-          data-i18n="debug.title" data-i18n-attr="title:debug.title,aria-label:debug.title">调试</button>
 </header>
 
 <main>
@@ -751,25 +751,39 @@
 </aside>
 
 <!-- ============================ Streaming debug drawer (Step1-G) ============================ -->
-<aside class="st-drawer" id="debug-drawer" data-open="false" aria-label="流式调试面板" aria-hidden="true" data-i18n-attr="aria-label:debug.title">
-  <div class="st-drawer__head"><span class="card-title" data-i18n="debug.title">调试</span>
-    <button class="st-btn st-btn--icon" id="debug-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
-      <svg class="st-icon"><use href="web/sprite.svg#i-chevron"/></svg></button></div>
-  <div class="st-drawer__body">
-    <p class="muted small" data-i18n="debug.desc">流式任务的实时调试：客户端异常、断点位置、传输状态，以及一键诊断与证据复制。</p>
-    <div class="drawer-actions">
-      <button class="st-btn st-btn--secondary" id="debug-copy" type="button" data-i18n="debug.copy">复制证据</button>
-      <button class="st-btn st-btn--primary" id="debug-diagnose" type="button" data-i18n="debug.diagnose">一键诊断</button>
+<section class="view view--debug view--scroll" id="view-debug" role="tabpanel" aria-labelledby="tab-btn-debug" hidden>
+  <div class="about">
+    <div class="db-subtabs mem-subtabs" role="tablist" aria-label="Debug sections" data-i18n-attr="aria-label:debug.subtabs.aria">
+      <button class="db-subtab" role="tab" data-db="live" aria-selected="true" data-i18n="debug.tab.live">实时异常流</button>
+      <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="false" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
+      <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
     </div>
-    <div class="debug-list" id="debug-list"></div>
-    <hr class="debug-sep" />
-    <p class="muted small debug-gw-desc" data-i18n="debug.gw.desc">网关侧（服务端）：本轮请求的逐块时间线与断点标注，可一键复制为 cURL 原样重放，定位「流到哪一步崩了」。</p>
-    <div class="drawer-actions">
-      <button class="st-btn st-btn--secondary" id="debug-curl" type="button" data-i18n="debug.gw.copycurl">复制为 cURL 重放</button>
+
+    <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="live">
+      <div class="req-head"><span class="card-title" data-i18n="debug.title">调试</span></div>
+      <p class="muted small" data-i18n="debug.desc">流式任务的实时调试：客户端异常、断点位置、传输状态，以及一键诊断与证据复制。</p>
+      <div class="drawer-actions">
+        <button class="st-btn st-btn--secondary" id="debug-copy" type="button" data-i18n="debug.copy">复制证据</button>
+        <button class="st-btn st-btn--primary" id="debug-diagnose" type="button" data-i18n="debug.diagnose">一键诊断</button>
+      </div>
+      <div class="debug-list" id="debug-list"></div>
     </div>
-    <div class="debug-list" id="debug-gw-body"></div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="bugbox">
+      <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
+      <div class="debug-list" id="bugbox-list"></div>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="gateway">
+      <div class="req-head"><span class="card-title" data-i18n="debug.gw.title">网关侧</span></div>
+      <p class="muted small debug-gw-desc" data-i18n="debug.gw.desc">网关侧（服务端）：本轮请求的逐块时间线与断点标注，可一键复制为 cURL 原样重放，定位「流到哪一步崩了」。</p>
+      <div class="drawer-actions">
+        <button class="st-btn st-btn--secondary" id="debug-curl" type="button" data-i18n="debug.gw.copycurl">复制为 cURL 重放</button>
+      </div>
+      <div class="debug-list" id="debug-gw-body"></div>
+    </div>
   </div>
-</aside>
+</section>
 <div class="scrim" id="scrim" hidden></div>
 <div class="st-toasts" id="toasts" aria-live="polite"></div>
 

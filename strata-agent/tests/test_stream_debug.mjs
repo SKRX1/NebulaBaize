@@ -176,16 +176,16 @@ console.log("\n=== F-D: chunk/byte counters increment through streamAssistant ==
 // ============================================================ G: debug drawer + diagnosis (Step1-G)
 console.log("\n=== G: debug drawer + one-click diagnosis ===");
 {
-  // The debug entry button + drawer exist in the booted DOM.
-  check("debug button exists in DOM", !!doc.getElementById("debug-btn"));
-  check("debug drawer exists in DOM", !!doc.getElementById("debug-drawer"));
+  // The debug tab button + full page view exist in the booted DOM (2026-10-27 migration).
+  check("debug tab button exists in DOM", !!doc.getElementById("tab-btn-debug"));
+  check("debug page view exists in DOM", !!doc.getElementById("view-debug"));
   check("debug list container exists", !!doc.getElementById("debug-list"));
 
-  // openDebug toggles the drawer's open state.
+  // openDebug routes through showTab: true shows the debug page, false routes back to chat.
   api.openDebug(true);
-  check("openDebug(true) opens the drawer", doc.getElementById("debug-drawer").dataset.open === "true");
+  check("openDebug(true) shows the debug page", doc.getElementById("view-debug").hidden === false);
   api.openDebug(false);
-  check("openDebug(false) closes the drawer", doc.getElementById("debug-drawer").dataset.open === "false");
+  check("openDebug(false) routes back to chat", doc.getElementById("view-debug").hidden === true);
 
   // A finished assistant turn carrying a captured client error renders into the list.
   const turn = {
@@ -220,7 +220,8 @@ console.log("\n=== Step4-D: gateway-side debug drawer + cURL replay ===");
   // D-A: the gateway debug section is wired into the same debug drawer.
   check("gateway replay button (#debug-curl) exists", !!doc.getElementById("debug-curl"));
   check("gateway record container (#debug-gw-body) exists", !!doc.getElementById("debug-gw-body"));
-  check("gateway/section divider (.debug-sep) present", !!doc.querySelector(".debug-sep"));
+  check("sub-tab bar + three panels wired on the page", doc.querySelectorAll(".db-subtabs").length === 1 && doc.querySelectorAll(".db-tabpanel").length === 3);
+  check("bug box container (#bugbox-list) wired on the page", !!doc.getElementById("bugbox-list"));
 
   // D-B: fetchLatestRequest reads the most-recent record from the /api/requests monitor.
   const gwRec = {
