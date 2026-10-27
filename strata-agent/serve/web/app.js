@@ -5167,12 +5167,14 @@ async function renderNotesCard() {
     const path = dir + "/" + f;
     return '<div class="mem-kb-item"><div class="kb-source"><span class="kb-source__name" title="' + esc(f) + '">' + esc(f) +
       '</span><button class="st-btn st-btn--ghost st-btn--sm" data-note-view="' + esc(path) + '">' + t("mem.kb.view") +
+      '</button><button class="st-btn st-btn--ghost st-btn--sm" data-note-edit="' + esc(path) + '">' + t("drawer.archive.edit") +
       '</button><button class="st-btn st-btn--ghost st-btn--sm" data-note-del="' + esc(path) + '">' + t("side.delete") + '</button></div>' +
       '<pre class="mem-src-body" hidden></pre></div>';
   }).join("");
 }
 $("mem-notes-list").addEventListener("click", async (e) => {
   const view = e.target.closest("[data-note-view]"); const del = e.target.closest("[data-note-del]");
+  const edit = e.target.closest("[data-note-edit]"); const save = e.target.closest("[data-note-save]"); const cancel = e.target.closest("[data-note-cancel]");
   if (view) {
     const item = view.closest(".mem-kb-item"); if (!item) return;
     const pre = item.querySelector(".mem-src-body"); if (!pre) return;
@@ -5180,6 +5182,27 @@ $("mem-notes-list").addEventListener("click", async (e) => {
     pre.textContent = t("mem.kb.loading"); pre.hidden = false;
     const res = await fsRead(view.dataset.noteView);
     pre.textContent = res || t("mem.kb.nohit"); pre.dataset.loaded = "1";
+  } else if (edit) {
+    const item = edit.closest(".mem-kb-item"); if (!item) return;
+    const pre = item.querySelector(".mem-src-body"); if (!pre) return;
+    const res = await fsRead(edit.dataset.noteEdit);
+    pre.hidden = false;
+    pre.innerHTML = '<textarea class="st-input" rows="10" style="width:100%">' + esc(res || '') + '</textarea>' +
+      '<div class="st-btnrow" style="margin-top:6px">' +
+      '<button class="st-btn st-btn--secondary st-btn--sm" data-note-save="' + esc(edit.dataset.noteEdit) + '">' + t("drawer.archive.save") + '</button>' +
+      '<button class="st-btn st-btn--ghost st-btn--sm" data-note-cancel>' + t("drawer.archive.cancel") + '</button></div>';
+    pre.dataset.loaded = "1";
+    return;
+  } else if (save) {
+    const item = save.closest(".mem-kb-item"); const ta = item && item.querySelector("textarea");
+    await fsWrite(save.dataset.noteSave, ta ? ta.value : "");
+    const nm = save.dataset.noteSave.split(/[\\/]/).pop().replace(/\.md$/i, "");
+    await mcpTxt("memory", "forget", {source: nm});
+    await mcpTxt("memory", "ingest", {path: save.dataset.noteSave});
+    toast("ok", t("mem.notes.deleted.title"), t("mem.kb.import.ok"));
+    renderNotesCard();
+    return;
+  } else if (cancel) { renderNotesCard(); return;
   } else if (del) {
     const path = del.dataset.noteDel;
     if (!confirm(t("mem.notes.del.confirm"))) return;
@@ -5193,9 +5216,30 @@ $("mem-notes-list").addEventListener("click", async (e) => {
 
 async function renderGlobalCard() {
   const pre = $("mem-global-body"); if (!pre) return;
-  pre.textContent = t("mem.global.loading");
   const txt = await fsRead(PROJECT_MEMORY);
+  if (pre.dataset.editing){
+    pre.textContent = "";
+    const ta = document.createElement("textarea"); ta.className = "st-input"; ta.rows = 14; ta.style.width = "100%"; ta.value = txt || "";
+    pre.appendChild(ta);
+    const row = document.createElement("div"); row.className = "st-btnrow"; row.style.marginTop = "6px";
+    row.innerHTML = '<button class="st-btn st-btn--primary st-btn--sm" id="mem-global-save">' + t("drawer.archive.save") + '</button>' +
+      '<button class="st-btn st-btn--ghost st-btn--sm" id="mem-global-cancel">' + t("drawer.archive.cancel") + '</button>';
+    pre.appendChild(row);
+    const sb = row.querySelector("#mem-global-save"), cb = row.querySelector("#mem-global-cancel");
+    if (sb) sb.onclick = async () => { await fsWrite(PROJECT_MEMORY, ta.value); toast("ok", t("mem.global.title"), t("mem.rules.saved.title")); renderGlobalCard(); };
+    if (cb) cb.onclick = () => { delete pre.dataset.editing; renderGlobalCard(); };
+    return;
+  }
+  pre.dataset.loaded = "1";
   pre.textContent = txt || t("mem.global.none");
+}
+// global memory edit button is injected into the card header by the delegated handler below.
+if (!window.__memGlobalEditWired){
+  window.__memGlobalEditWired = 1;
+  document.addEventListener("click", (e) => {
+    const gb = e.target.closest && e.target.closest("[data-global-edit]"); if (!gb) return;
+    const pre = $("mem-global-body"); if (pre){ pre.dataset.editing = "1"; renderGlobalCard(); }
+  });
 }
 
 // their results (as the model read them), then the rest - so the next question can build on what the tools found.
@@ -8289,18 +8333,34 @@ refreshIdleTimeout();
 // ------------------------------------------------------------------ memory sub-tabs
 // knowledge / rules / notes / global: show one panel at a time (delegated click;
 // the panel DOM is filled by renderMemory() and only its visibility toggles here).
-var memSubTab = "kb";
+// Memory page is now a vertical stack: all category cards visible at once, each collapsible
+// to just its title row (the sub-tabs scroll to / expand the target card). Collapse state is
+// persisted in localStorage (key strata.memCollapse) so it survives reloads.
+var memCollapsed = {};
+try { memCollapsed = JSON.parse(localStorage.getItem("strata.memCollapse") || "{}") || {}; } catch (e) { memCollapsed = {}; }
 function applyMemSubTab(){
-  const cur = memSubTab || "kb";
-  for (const b of document.querySelectorAll(".mem-subtab")) b.setAttribute("aria-selected", String(b.dataset.mem === cur));
-  for (const c of document.querySelectorAll(".mem-tabpanel")) c.classList.toggle("is-active", c.dataset.mem === cur);
+  for (const c of document.querySelectorAll(".mem-tabpanel")){
+    c.classList.add("is-active");
+    c.classList.toggle("is-collapsed", !!memCollapsed[c.dataset.mem]);
+  }
+  for (const b of document.querySelectorAll(".mem-subtab")) b.setAttribute("aria-selected", "false");
 }
+// delegated click: a card title row toggles collapse; a sub-tab scrolls to + expands its card.
 document.addEventListener("click", (e) => {
+  const head = e.target.closest && e.target.closest(".mem-tabpanel>.req-head");
+  if (head){
+    const card = head.closest(".mem-tabpanel"); const key = card.dataset.mem;
+    memCollapsed[key] = !memCollapsed[key];
+    try { localStorage.setItem("strata.memCollapse", JSON.stringify(memCollapsed)); } catch (e2) {}
+    card.classList.toggle("is-collapsed", !!memCollapsed[key]);
+    return;
+  }
   const b = e.target.closest && e.target.closest(".mem-subtab");
   if (!b) return;
-  memSubTab = b.dataset.mem; applyMemSubTab();
+  const card = document.querySelector('.mem-tabpanel[data-mem="' + b.dataset.mem + '"]');
+  if (card){ if (memCollapsed[b.dataset.mem]){ memCollapsed[b.dataset.mem] = false; try { localStorage.setItem("strata.memCollapse", JSON.stringify(memCollapsed)); } catch (e2) {} } card.classList.remove("is-collapsed"); card.scrollIntoView({behavior:"smooth", block:"start"}); }
 });
-applyMemSubTab();  // ensure a panel is visible from first paint
+applyMemSubTab();  // first paint: every card shows, restored to its saved collapse state
 // B1 two-state preview for the recommended-only sub-checkbox: highlights which tier is active.
 // ON = recommended only (checkbox checked); OFF = recommended + normal (checkbox unchecked).
 // Text lives on the two data-i18n spans (filled by applyI18n); this only flips data-state.

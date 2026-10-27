@@ -369,7 +369,7 @@ main { flex: 1; min-height: 0; display: flex; }
 /* ---- Memory management view ---- */
 .mem-kb-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .mem-kb-bar .st-input { flex: 1; min-width: 150px; }
-.mem-src-body { white-space: pre-wrap; word-break: break-word; background: var(--st-bg-2, #f6f8fa);
+.mem-src-body { white-space: pre-wrap; word-break: break-word; background: var(--st-surface-2, #f6f8fa); color: var(--st-ink);
   border: 0.5px solid var(--st-border-3, #e3e6ea); border-radius: var(--st-r-md); padding: 10px;
   font-size: 12px; line-height: 1.6; max-height: 260px; overflow: auto; margin: 6px 0 0; }
 .mem-src-body[hidden] { display: none; }
@@ -1204,7 +1204,11 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .mem-subtab,.db-subtab{border:0;background:transparent;color:var(--st-ink-muted,#555);font:inherit;padding:8px 12px;border-radius:var(--st-r-md,8px);cursor:pointer}
 .mem-subtab:hover,.db-subtab:hover{background:var(--st-bg-2,#eee);color:var(--st-ink,#111)}
 .mem-subtab[aria-selected="true"],.db-subtab[aria-selected="true"]{background:var(--st-accent,#0a84ff);color:#fff}
-.mem-tabpanel{display:none}
+.mem-tabpanel{display:flex;flex-direction:column;gap:var(--st-s-3)}
+.mem-tabpanel.is-collapsed>:not(.req-head){display:none}
+.mem-tabpanel>.req-head{cursor:pointer}
+.mem-tabpanel>.req-head .card-title::before{content:'\25BC';display:inline-block;margin-right:6px;font-size:10px;color:var(--st-ink-muted,#888);transition:transform .15s}
+.mem-tabpanel.is-collapsed>.req-head .card-title::before{transform:rotate(-90deg)}
 
 /* -------------------------------------------- Sparks (灵感便签) */
 .spark-strip{display:flex;flex-direction:column;gap:6px;max-width:none;margin:0 auto var(--st-s-3);padding:8px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:var(--st-r-lg);box-shadow:var(--st-sh-bar)}
