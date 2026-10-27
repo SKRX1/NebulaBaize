@@ -4813,6 +4813,7 @@ async function renderKbCard() {
     return '<div class="mem-kb-item"><div class="kb-source"><span class="kb-source__name" title="' + esc(name) + '">' + esc(name) +
       '</span><span class="muted small">' + esc(n) + ' ' + t("mem.kb.chunks") + '</span>' +
       '<button class="st-btn st-btn--ghost st-btn--sm" data-kb-view="' + esc(name) + '">' + t("mem.kb.view") + '</button>' +
+      '<button class="st-btn st-btn--ghost st-btn--sm" data-kb-edit="' + esc(name) + '">' + t("drawer.archive.edit") + '</button>' +
       '<button class="st-btn st-btn--ghost st-btn--sm" data-kb-del="' + esc(name) + '">' + t("side.delete") + '</button></div>' +
       '<pre class="mem-src-body" hidden></pre></div>';
   }).join("");
@@ -4820,6 +4821,30 @@ async function renderKbCard() {
 $("mem-kb-list").addEventListener("click", async (e) => {
   const view = e.target.closest("[data-kb-view]");
   const del = e.target.closest("[data-kb-del]");
+  const edit = e.target.closest("[data-kb-edit]"); const save = e.target.closest("[data-kb-save]"); const cancel = e.target.closest("[data-kb-cancel]");
+  if (edit) {
+    const item = edit.closest(".mem-kb-item"); if (!item) return;
+    const pre = item.querySelector(".mem-src-body"); if (!pre) return;
+    const res = await mcpTxt("memory", "read_source", {source: edit.dataset.kbEdit});
+    pre.hidden = false;
+    const body = (res && !res.startsWith("no chunks")) ? res.replace(/^\[chunk \d+\]\n/gm, "") : "";
+    pre.innerHTML = '<textarea class="st-input" rows="10" style="width:100%">' + esc(body) + '</textarea>' +
+      '<div class="st-btnrow" style="margin-top:6px">' +
+      '<button class="st-btn st-btn--secondary st-btn--sm" data-kb-save="' + esc(edit.dataset.kbEdit) + '">' + t("drawer.archive.save") + '</button>' +
+      '<button class="st-btn st-btn--ghost st-btn--sm" data-kb-cancel>' + t("drawer.archive.cancel") + '</button></div>';
+    pre.dataset.loaded = "1"; return;
+  } else if (save) {
+    const src = save.dataset.kbSave; const item = save.closest(".mem-kb-item"); const ta = item && item.querySelector("textarea");
+    if (!ta) return; const ws = activeSession() && activeSession().workspace; if (!ws) return;
+    const base = ws.replace(/\/$/, ""); const tmp = base + "/.strata-memory/edit-" + src.replace(/[\\/]/g, "_") + ".md";
+    await fsWrite(tmp, ta.value);
+    await mcpTxt("memory", "forget", {source: src});
+    const r = await mcpTxt("memory", "ingest", {path: tmp, source: src});
+    toast("ok", t("mem.kb.title"), t("mem.kb.deleted", {n: src}) + " = " + (r || ""));
+    renderKbCard(); return;
+  } else if (cancel) {
+    renderKbCard(); return;
+  } else
   if (view) {
     const item = view.closest(".mem-kb-item"); if (!item) return;
     const pre = item.querySelector(".mem-src-body"); if (!pre) return;
