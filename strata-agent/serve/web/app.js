@@ -2803,6 +2803,8 @@ const ILOG_KEY = "interruptLog";       // localStorage mirror key (strata.interr
 const ILOG_MIRROR_MAX = 200;           // mirror is a safety net, not an archive: keep it small
 const BUGBOX_KEY = 'bugBox';            // localStorage key: bug collection box (off-turn exceptions)
 const BUGBOX_MAX = 500;                 // bug box is larger: dev bugs accumulate across a session
+let BUGBOX_SHOW_LIMIT = 50;           // perf (aligns KB_SHOW_LIMIT): rows shown before load-more
+const bugBoxExpanded = new Set();     // ts of rows the user expanded; everything else is collapsed (default)
 const _bugBox = { _lastTs: 0, _lastMsg: null };   // de-dupe state for the off-turn collector
 // Called from the streaming loop as each kind of activity arrives. The phase is what the user
 // was LOOKING AT when the turn died, which is exactly what they report ("it stopped while
@@ -6496,14 +6498,18 @@ function renderBugBox() {
   const box = $("bugbox-list"); if (!box) return;
   const entries = bugBoxEntries().slice().reverse();   // newest first
   if (!entries.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
-  box.innerHTML = entries.map((e) => {
+  // perf (approved 2026-10-27): show only the first BUGBOX_SHOW_LIMIT rows + a load-more button,
+  // so opening the box with hundreds of bugs does not stamp the whole list in one paint.
+  const shown = entries.length > BUGBOX_SHOW_LIMIT ? entries.slice(0, BUGBOX_SHOW_LIMIT) : entries;
+  box.innerHTML = shown.map((e) => {
+    const collapsed = bugBoxExpanded.has(String(e.ts)) ? "" : " is-collapsed";
     const when = new Date(e.ts).toLocaleTimeString();
     const tsAttr = esc(String(e.ts));
     const vTxt = e.verdict ? '<div class="debug-bug__verdict">' + esc(t("debug.verdict")) + ': ' + esc(e.verdict) + '</div>' : '';
     const statusBadge = (e.status && e.status !== "open")
       ? '<span class="badge badge--ws">' + esc(t("debug.bugbox.status." + e.status) || e.status) + '</span>'
       : '';
-    return '<div class="debug-item debug-item--bug">'
+    return '<div class="debug-item debug-item--bug' + collapsed + '" data-bugtoggle="' + tsAttr + '">'
       + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>' + statusBadge
       + '<span>' + esc(e.kind || "") + '</span><span class="muted small">' + esc(e.sourceTab || "?") + ' · ' + esc(when) + '</span></div>'
       + '<div class="debug-err"><div class="debug-err__msg">' + esc(e.msg || "") + '</div>'
@@ -6516,6 +6522,14 @@ function renderBugBox() {
         + '<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-bugact="dismiss" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.dismiss")) + '</button>'
       + '</div></div>';
   }).join("");
+  if (entries.length > shown.length) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "st-btn st-btn--ghost st-btn--sm bugbox-loadmore";
+    more.setAttribute("data-bugmore", "1");
+    more.textContent = t("debug.bugbox.more", { n: entries.length - shown.length });
+    box.appendChild(more);
+  }
 }
 
 async function copyBugEvidence(ts) {
@@ -8062,6 +8076,10 @@ const _bugDrawerEl = $("view-debug");
 if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
   _bugDrawerEl._bugWired = true;
   _bugDrawerEl.addEventListener("click", (e) => {
+    const more0 = e.target.closest && e.target.closest("[data-bugmore]");
+    if (more0) { BUGBOX_SHOW_LIMIT += 50; renderBugBox(); return; }   // perf: load-more (mirrors KB_SHOW_LIMIT)
+    const row0 = e.target.closest && e.target.closest("[data-bugtoggle]");
+    if (row0) { const key = row0.getAttribute("data-bugtoggle"); if (bugBoxExpanded.has(key)) bugBoxExpanded.delete(key); else bugBoxExpanded.add(key); renderBugBox(); return; }   // default-collapsed rows expand on click
     const btn = e.target && e.target.closest ? e.target.closest("[data-bugact]") : null;
     if (!btn) return;
     const ts = btn.dataset.bugts; if (ts == null) return;

@@ -60,6 +60,7 @@ let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += `
 ;window.__api = Object.assign(window.__api || {}, {
   _dbg, streamAssistant, t,
+  renderBugBox, bugBoxSave, bugBoxFindByTs, bugBoxExpanded, getBugShowLimit: () => BUGBOX_SHOW_LIMIT,
   openDebug, renderDebug, diagnoseStream, buildDebugEvidence,
   fetchLatestRequest, buildRequestCurl, renderGatewayDebug, copyRequestCurl,
   fetchAllRequests, computeWaterfall, reconcileRender, normalizeForReconcile,
@@ -236,6 +237,31 @@ console.log("\n=== Step4-D: gateway-side debug drawer + cURL replay ===");
     check("D-A. click a sub-tab highlights it (aria-selected follows, only the clicked one)", target.getAttribute("aria-selected") === "true" && subtabs.filter((b) => b.getAttribute("aria-selected") === "true").length === 1);
     check("D-A. anchor nav keeps every panel shown (is-active stays on all three)", panels.every((p) => p.classList.contains("is-active")));
     check("D-A. click scrolls/locates the matching panel (anchor nav)", win.__scrolled.includes("bugbox"), JSON.stringify(win.__scrolled));
+  }
+
+  // D-B: bug-box long-list perf (aligns the memory page, approved 2026-10-27): default-collapse
+  //   every row to its head line, cap the first paint at BUGBOX_SHOW_LIMIT + a load-more button,
+  //   and grow the page on load-more. Differential: drop default-collapse / the slice cap / the
+  //   load-more wiring and the matching check goes RED.
+  {
+    const seed = [];
+    for (let i = 0; i < 60; i++) seed.push({ ts: 1700000000000 + i, kind: "k", sourceTab: "chat", msg: "m", stack: "s", status: "open" });
+    api.bugBoxSave(seed);
+    api.renderBugBox();
+    const list = doc.getElementById("bugbox-list");
+    const rows = () => [...list.querySelectorAll(".debug-item--bug")];
+    check("D-B. first paint is capped at BUGBOX_SHOW_LIMIT (50) rows", rows().length === 50, "got " + rows().length);
+    check("D-B. every default row is collapsed (head-line only)", rows().every((r) => r.classList.contains("is-collapsed")));
+    check("D-B. a load-more button is present when rows exceed the cap", !!list.querySelector("[data-bugmore]"));
+    // grow the page: load-more must append the rest
+    list.querySelector("[data-bugmore]").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+    check("D-B. load-more grows the first page to all 60", rows().length === 60, "got " + rows().length);
+    // expand one collapsed row by clicking it; it must drop is-collapsed, the rest stay collapsed
+    const clickedKey = rows()[0].getAttribute("data-bugtoggle");
+    rows()[0].dispatchEvent(new win.MouseEvent("click", { bubbles: true }));   // innerHTML rebuilds every row; re-query below
+    const expandedRow = rows().find((r) => r.getAttribute("data-bugtoggle") === clickedKey);
+    check("D-B. clicking a collapsed row expands it (is-collapsed dropped)", !!expandedRow && !expandedRow.classList.contains("is-collapsed"));
+    check("D-B. the other rows stay collapsed", rows().filter((r) => r !== expandedRow).every((r) => r.classList.contains("is-collapsed")));
   }
   check("bug box container (#bugbox-list) wired on the page", !!doc.getElementById("bugbox-list"));
 

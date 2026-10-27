@@ -533,6 +533,10 @@ main { flex: 1; min-height: 0; display: flex; }
 /* ---------------------------------------------------------------- streaming debug drawer (Step1-G) */
 .debug-list { display: flex; flex-direction: column; gap: 12px; }
 .debug-item--bug { border-left: 3px solid var(--st-red, #b91c1c); }
+.debug-item--bug[data-bugtoggle] { cursor: pointer; }
+.debug-item--bug.is-collapsed > :not(.debug-item__head) { display: none; }
+.debug-item--bug.is-collapsed .debug-item__head { margin-bottom: 0; }
+#bugbox-list .debug-item--bug { content-visibility: auto; contain-intrinsic-size: auto 32px; }   // perf: off-screen rows skip layout/paint (aligns memory page #mem-kb-list)
 .debug-bug__verdict { margin-top: 6px; padding: 6px 8px; border-radius: var(--st-r-md);
   background: color-mix(in srgb, var(--st-amber, #b7791f) 12%, transparent); font-size: 12px; color: var(--st-ink); }
 .debug-bug__acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
