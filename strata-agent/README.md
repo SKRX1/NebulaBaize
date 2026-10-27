@@ -15,13 +15,13 @@
 
 | 门禁 | 守护内容 | 上次实跑绿（人工观测锚）|
 |---|---|---|
-| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) |
-| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) |
-| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) |
-| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) |
-| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) |
-| `tools/_single_source_gate.py` | 退役后 serve/web 为唯一前端源：权威源须不含4个寄生脚本 + 归档区可一键还原（替换退役的镜像对账锁，差分双探针坐实能抓红）| v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) [本轮实测回填(2026-10-25续): gate已纳入git跟踪(ls-files非空,commit 1a0345d) + 全套含post-green实跑ALL GREEN、锚链真checkout -d复验绿 + 归档区4件全部字节级MD5零损失可还原(对账见下)；此doc commit不进锚，锚停真跑绿commit 1a0345d]
-| `tests/test_card_guard_no_autodrive.mjs` | 决策卡轮次整轮不自动跑（等用户拍板）+ 卡轮次照旧出全档条 + 红/蓝永不跑 | v-baseline-2026-10-27-h (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD 1321303 on master; tag v-baseline-2026-10-27-h deref verified = this real-green commit) |
+| `tools/_seg_scroll_baseline.py` | 五象限分段滚动基线 | v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) |
+| `tools/_semantic_summarizer_gate.py` | 语义摘要存活率 ≥ 关键词存活率（DESIGN.md §1 锁）| v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) |
+| `tools/_archive_gate.py` | 归档写/读零损失 + 白名单 N=3 + default-on（DESIGN.md §1 锁）| v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) |
+| `tests/test_code_hygiene.py` + `tests/_hygiene_baseline.json` | 桩/吞异常/TODO 计数不得高于基线（ratchet 防漂移）| v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) |
+| `tests/test_output_ceiling.py` + (默认 `maxCeiling`/`OUTPUT_CEILING=32768`) | 单轮输出预算天花板须可被前端顶开 + 旧存档回落 + 窗口夹紧仍生效（DESIGN.md §2 锁）| v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) |
+| `tools/_single_source_gate.py` | 退役后 serve/web 为唯一前端源：权威源须不含4个寄生脚本 + 归档区可一键还原（替换退役的镜像对账锁，差分双探针坐实能抓红）| v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) [本轮实测回填(2026-10-25续): gate已纳入git跟踪(ls-files非空,commit 1a0345d) + 全套含post-green实跑ALL GREEN、锚链真checkout -d复验绿 + 归档区4件全部字节级MD5零损失可还原(对账见下)；此doc commit不进锚，锚停真跑绿commit 1a0345d]
+| `tests/test_card_guard_no_autodrive.mjs` | 决策卡轮次整轮不自动跑（等用户拍板）+ 卡轮次照旧出全档条 + 红/蓝永不跑 | v-baseline-2026-10-27-i (2026-10-27, real-run ALL GREEN incl. post-green hook, tree clean, HEAD c4fe6ae on master; tag v-baseline-2026-10-27-i deref verified = this real-green commit) |
 
 ### 实测边界（诚实记录，避免后续误判）
 
@@ -204,3 +204,5 @@ python runtime\gateway.py --daemon
 
 - `brand_golden_hi.png`：品牌区暗色高分辨率留档（走运行服务 8099，CSS 已加载）——标题「星云」金黄渐变、无 Strata 字样；副行「作者 : 时空象容」整段火红 `#ff4326`、「AI : …」整段绿、冒号与各自名字同色；顶部 idle 胶囊为金黄无脸星云，与左上角品牌区同源。
 - `brand_golden_hi_light.png`：品牌区浅色主题（`data-theme="light"`）留档——亮色覆盖下三者分色不串：金黄（深一档 `#b8860b`）、深红 `#d42a10`、绿。（2026-10-26 冒号归词差分对账：副行现「作者:」「AI:」冒号并入各自标签词 span、词内零间隙，浅色沙箱像素复验冒号紧贴各自名字、分色无溢出；commit 95e93f4 落 master。）
+
+- **本轮登记（2026-10-27 续，记忆页知识库列表打开卡死优化：A content-visibility 轻量档 + B 默认最近 50 条+加载更多，feat 级，进锚链）**：单 commit `c4fe6ae`。根因（读码+实测坐实）：打开记忆页时 renderMemory() 一次性将全部 600+ 源铺满 innerHTML、无虚拟化/分页，Edge 主线程一次性 layout/paint 卡死。药方两层：A 给 `#mem-kb-list .mem-kb-item` 加 content-visibility:auto + contain-intrinsic-size:auto 32px（ID 限定不动共享行，离屏行跳过渲染）；B renderKbCard 默认只渲染最近 50 条 + 「显示更早的 {n} 条」加载更多（KB_SHOW_LIMIT 模块变量 + 委托分支，点一次 +50）。新增 i18n 键 mem.kb.more 中英成对（键数对账 1027×2 绿）；零后端改动。全套含 post-green 实跑 ALL GREEN、树净，tag v-baseline-2026-10-27-i 钉本 commit c4fe6ae；像素/交互层归用户真实浏览器 8099 验收。
