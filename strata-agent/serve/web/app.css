@@ -1265,6 +1265,7 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .mem-tabpanel.is-active,.db-tabpanel.is-active{display:flex}
 /* memory page: full-page scroll is the ONLY scroll axis; these lists extend naturally (no inner scroll) */
 #view-memory #mem-kb-list,#view-memory #mem-rules-draft,#view-memory #mem-notes-list,#view-memory #mem-auto-list{overflow-y:visible;max-height:none}
+#view-memory #mem-kb-list .mem-kb-item{content-visibility:auto;contain-intrinsic-size:auto 32px}
 /* sidebar live badge: the task currently streaming (2026-10-21). Green like the
    recommended tier; gentle pulse, NOT the hard steps(2) blink. */
 .st-session__live {

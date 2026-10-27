@@ -126,3 +126,4 @@ brand-sub 内要让冒号紧贴其标签词，须把冒号并入词所在的 spa
 shell_server.py 长输出截断路径：送 smart_decode 前须 trim 末尾不完整多字节序列（对齐完整 UTF-8 字符边界），防 GBK 兜底抢跑致整段乱码
 模型宣布「已完成」的同一轮：plan 栏要么整栏不发，要么把已完成项勾成 [x] 只留真正 pending 项；严禁「正文说完成 + plan 全 [ ] + 完成徽标不亮」的自相矛盾显示
 RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git add→立刻写回工作树完整7行→commit 只落 index），中文从已有字节复制、按文件真实行尾（index LF/工作树 CRLF）落笔，git apply 严格匹配易失败时优先用此法
+长列表"打开即卡"先分清是渲染层（DOM 一次铺太多）还是存储层（localStorage 配额），二者独立、药方不同

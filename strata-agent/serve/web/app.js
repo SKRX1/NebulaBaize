@@ -4799,6 +4799,7 @@ if ($("mem-kb-foldall")) $("mem-kb-foldall").onclick = () => memExpandAll("mem-k
 if ($("mem-notes-expandall")) $("mem-notes-expandall").onclick = () => memExpandAll("mem-notes-list", true);
 if ($("mem-notes-foldall")) $("mem-notes-foldall").onclick = () => memExpandAll("mem-notes-list", false);
 
+let KB_SHOW_LIMIT = 50; // perf (A+B, 2026-10-27): recent sources shown before load-more
 async function renderKbCard() {
   const list = $("mem-kb-list");
   if (!list) return;
@@ -4807,7 +4808,10 @@ async function renderKbCard() {
   const rows = srcs ? srcs.split("\n").map((l) => l.trim()).filter(Boolean) : [];
   const sum = $("mem-kb-sum"); if (sum) sum.textContent = rows.length ? t("mem.kb.count", {n: rows.length}) : "";
   if (!rows.length) { list.innerHTML = '<div class="kb-source muted">' + t("mem.kb.empty") + '</div>'; return; }
-  list.innerHTML = rows.map((r) => {
+  // perf (A+B, approved 2026-10-27): default to the most recent KB_SHOW_LIMIT rows + load-more,
+  // so opening the page with hundreds of sources does not stamp the whole list in one paint.
+  const showRows = rows.length > KB_SHOW_LIMIT ? rows.slice(rows.length - KB_SHOW_LIMIT) : rows;
+  list.innerHTML = showRows.map((r) => {
     const m = r.match(/^(.*?):\s*(\d+)\s*chunks$/);
     const name = m ? m[1] : r, n = m ? m[2] : "";
     return '<div class="mem-kb-item"><div class="kb-source"><span class="kb-source__name" title="' + esc(name) + '">' + esc(name) +
@@ -4817,8 +4821,18 @@ async function renderKbCard() {
       '<button class="st-btn st-btn--ghost st-btn--sm" data-kb-del="' + esc(name) + '">' + t("side.delete") + '</button></div>' +
       '<pre class="mem-src-body" hidden></pre></div>';
   }).join("");
+  if (rows.length > showRows.length) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "st-btn st-btn--ghost st-btn--sm kb-loadmore";
+    more.setAttribute("data-kb-more", "1");
+    more.textContent = t("mem.kb.more", {n: rows.length - showRows.length});
+    list.appendChild(more);
+  }
 }
 $("mem-kb-list").addEventListener("click", async (e) => {
+  const more = e.target.closest("[data-kb-more]");
+  if (more) { KB_SHOW_LIMIT += 50; renderKbCard(); return; }
   const view = e.target.closest("[data-kb-view]");
   const del = e.target.closest("[data-kb-del]");
   const edit = e.target.closest("[data-kb-edit]"); const save = e.target.closest("[data-kb-save]"); const cancel = e.target.closest("[data-kb-cancel]");
