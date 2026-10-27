@@ -58,6 +58,7 @@ SUITES = [
     "tests/test_zombie_running_finalize.mjs",   # 2026-10-27: a card left running after the turn ends must drop out of the tick scan (finalize drives 1->0); locks the zombie-card permanent-tick/accumulating-seconds bug
     "tests/test_cut_path_finalize.mjs",   # 2026-10-27: an external stream cut routed through catch must REACH finalize (no body early-return) so the zombie is finalized and the tick stops; static-locks entry->finalize has only the tick-callback return
     "tests/test_autosteps.mjs",
+    "tests/test_autofix_loop.mjs",   # 2026-10-27: self-evolving fix loop — capture stamps open, push marks fixing, idle driver takes OLDEST open (anti self-feed), verified leaves the box (audit stays JSONL); differential double-probe proven
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_compose_steps.mjs",   # 2026-10-24: click a suggestion = a decision, not a question (exec prefix + hold confirm branch)
     "tests/test_thinking.mjs",

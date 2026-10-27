@@ -5229,7 +5229,7 @@ function setBusy(on) {
   $("send-btn").disabled = on;
   $("composer-hint").textContent = on ? "" : "Shift+Enter: new line";
   // When the AI goes idle, flush any sparks the user queued while it was busy.
-  if (!on) setTimeout(drainSparkQueue, 0);
+  if (!on) { setTimeout(drainSparkQueue, 0); setTimeout(autofixTick, 0); }
 }
 
 // ------------------------------------------------------------------ Sparks (灵感便签)
@@ -6377,6 +6377,7 @@ function _recordBugCapture(phase, err) {
   const rec = {
     ts: now,
     kind: 'bug:' + phase,                          // bug:window.onerror | bug:unhandledrejection
+    status: 'open',                                // open->fixing->verified (audit lives in the JSONL append-only sink)
     origin: 'ui',                                  // ui = off-turn; stream errors stay on the message
     sourceTab: (typeof tab !== 'undefined' ? tab : null),
     session: (typeof activeId !== 'undefined' ? activeId : null),
@@ -6416,8 +6417,11 @@ function renderBugBox() {
     const when = new Date(e.ts).toLocaleTimeString();
     const tsAttr = esc(String(e.ts));
     const vTxt = e.verdict ? '<div class="debug-bug__verdict">' + esc(t("debug.verdict")) + ': ' + esc(e.verdict) + '</div>' : '';
+    const statusBadge = (e.status && e.status !== "open")
+      ? '<span class="badge badge--ws">' + esc(t("debug.bugbox.status." + e.status) || e.status) + '</span>'
+      : '';
     return '<div class="debug-item debug-item--bug">'
-      + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>'
+      + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>' + statusBadge
       + '<span>' + esc(e.kind || "") + '</span><span class="muted small">' + esc(e.sourceTab || "?") + ' · ' + esc(when) + '</span></div>'
       + '<div class="debug-err"><div class="debug-err__msg">' + esc(e.msg || "") + '</div>'
       + '<pre class="debug-err__stack">' + esc(e.stack || "") + '</pre></div>'
@@ -6451,6 +6455,39 @@ function dismissBug(ts) {
   bugBoxSave(box);   // drop from the box; the gateway file stays an append-only audit log
   renderBugBox();
 }
+
+// -- self-evolving fix loop: state transitions the UI + agent drive --------------------
+function setBugStatus(ts, status) {
+  const box = bugBoxEntries();
+  const e = box.find((x) => String(x.ts) === String(ts));
+  if (!e) return false;
+  e.status = status;
+  bugBoxSave(box);
+  postQuiet("api/interrupt-log", { entry: e });   // keep the gateway JSONL leg in sync
+  renderBugBox();
+  return true;
+}
+// verified = repro + gate both green (asserted from outside). A VERIFIED bug leaves the box;
+// its audit stays in the append-only JSONL. open/fixing rows remain visible until verified.
+function markBugVerified(ts) {
+  const box = bugBoxEntries();
+  const e = box.find((x) => String(x.ts) === String(ts));
+  if (!e) return false;
+  e.status = "verified";
+  postQuiet("api/interrupt-log", { entry: e });   // audit: append the verified state before removal
+  bugBoxSave(box.filter((x) => String(x.ts) !== String(ts)));   // verified -> leave the box
+  renderBugBox();
+  return true;
+}
+// idle driver: opt-in, at most ONE fix per idle, take the OLDEST open bug, mark fixing at once
+// (so it can't be re-picked / feed back into itself).
+function autofixTick() {
+  if (!settings.autofix) return;
+  if (busy) return;                                 // another task already owns the idle slot
+  const open = bugBoxEntries().filter((x) => x.status === "open").sort((a, b) => a.ts - b.ts);
+  if (!open.length) return;
+  pushBugFix(String(open[0].ts));
+}
 // Layer 4 PUSH-FIX: reuses the continueTask mechanism (fill input + send). When a stream is busy
 // the button queues (idle-only), so it never interrupts a live task.
 function pushBugFix(ts) {
@@ -6467,6 +6504,7 @@ function pushBugFix(ts) {
     (e.stack || "(no stack)"),
     e.verdict ? ("- " + t("debug.bugbox.pf.diag") + ": " + e.verdict) : ""
   ].filter(Boolean).join("\n");
+  setBugStatus(e.ts, "fixing");   // push = fix task in flight: mark fixing so the idle loop won't re-pick it
   $("input").value = prompt;
   send();
 }
@@ -6480,6 +6518,8 @@ window.__strataDebug = {
   errorsFor(m) { return (m && m._clientErrors) ? m._clientErrors.slice() : []; },
   last() { return _dbg.lastError; },
   reset() { _dbg.errors = []; _dbg.lastError = null; _dbg._lastTs = 0; },
+  setBugStatus(ts, status) { return setBugStatus(ts, status); },
+  markBugVerified(ts) { return markBugVerified(ts); },
 };
 
 async function streamAssistant() {
@@ -7768,6 +7808,7 @@ function loadDrawer(s = settings) {
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
   if ($("s-autosteps-rec")) $("s-autosteps-rec").setAttribute("aria-checked", String(s.autostepsRec !== false));
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
+  $("s-autofix").setAttribute("aria-checked", String(!!s.autofix));
   $("s-compactpct").value = s.compactPct || 0;
   $("s-compactpct-row").hidden = !s.autocompact;
   $("s-speeddrop").value = s.speedDropPct || 50;
@@ -7849,6 +7890,7 @@ $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", S
 $("s-autosteps").onclick = () => $("s-autosteps").setAttribute("aria-checked", String($("s-autosteps").getAttribute("aria-checked") !== "true"));
 $("s-autosteps-rec").onclick = () => { const on = $("s-autosteps-rec").getAttribute("aria-checked") !== "true"; $("s-autosteps-rec").setAttribute("aria-checked", String(on)); const pv = $("s-autosteps-rec").closest(".toggle-row").querySelector(".st-check__preview"); if (pv) pv.setAttribute("data-state", on ? "on" : "off"); };
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
+$("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", String($("s-autofix").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
 $("s-reset").onclick = () => loadDrawer(DEFAULTS);
@@ -7883,6 +7925,7 @@ $("s-apply").onclick = async () => {
               autosteps: $("s-autosteps").getAttribute("aria-checked") === "true",
               autostepsRec: $("s-autosteps-rec") ? $("s-autosteps-rec").getAttribute("aria-checked") === "true" : true,
               autoresume: $("s-autoresume").getAttribute("aria-checked") === "true",
+              autofix: $("s-autofix").getAttribute("aria-checked") === "true",
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
