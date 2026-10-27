@@ -8047,12 +8047,14 @@ let debugSubTab = "live";
 function applyDebugSubTab(){
   const cur = debugSubTab || "live";
   for (const b of document.querySelectorAll(".db-subtab")) b.setAttribute("aria-selected", String(b.dataset.db === cur));
-  for (const c of document.querySelectorAll(".db-tabpanel")) c.classList.toggle("is-active", c.dataset.db === cur);
+  for (const c of document.querySelectorAll(".db-tabpanel")) c.classList.add("is-active");   // anchor nav: all panels stay shown; the sub-tab is the highlight, not a hide-switch
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest && e.target.closest(".db-subtab");
   if (!b) return;
   debugSubTab = b.dataset.db; applyDebugSubTab();
+  const card = document.querySelector('.db-tabpanel[data-db="' + b.dataset.db + '"]');
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });   // anchor nav: scroll to the section
 });
 // Layer 4 action wiring: event delegation on the debug drawer for every [data-bugact] control.
 // Bound once on the container so it survives renderBugBox re-renders.

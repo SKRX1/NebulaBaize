@@ -221,6 +221,22 @@ console.log("\n=== Step4-D: gateway-side debug drawer + cURL replay ===");
   check("gateway replay button (#debug-curl) exists", !!doc.getElementById("debug-curl"));
   check("gateway record container (#debug-gw-body) exists", !!doc.getElementById("debug-gw-body"));
   check("sub-tab bar + three panels wired on the page", doc.querySelectorAll(".db-subtabs").length === 1 && doc.querySelectorAll(".db-tabpanel").length === 3);
+  // D-A: anchor-nav behaviour (the click-to-locate contract). Every assertion here is differential:
+  //   - highlight follows the click (aria-selected moves to exactly the clicked sub-tab);
+  //   - anchor nav keeps EVERY panel shown (no hide-switch), so is-active stays on all three;
+  //   - clicking scrolls/locates the matching panel (scrollIntoView fired for that data-db only).
+  // Remove either A1 (add is-active) or A2 (scrollIntoView) and the matching check goes RED.
+  {
+    const subtabs = [...doc.querySelectorAll(".db-subtab")];
+    const panels = [...doc.querySelectorAll(".db-tabpanel")];
+    win.__scrolled = [];
+    panels.forEach((p) => { p.scrollIntoView = () => { win.__scrolled.push(p.dataset.db); }; });
+    const target = subtabs.find((b) => b.dataset.db === "bugbox");
+    target.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+    check("D-A. click a sub-tab highlights it (aria-selected follows, only the clicked one)", target.getAttribute("aria-selected") === "true" && subtabs.filter((b) => b.getAttribute("aria-selected") === "true").length === 1);
+    check("D-A. anchor nav keeps every panel shown (is-active stays on all three)", panels.every((p) => p.classList.contains("is-active")));
+    check("D-A. click scrolls/locates the matching panel (anchor nav)", win.__scrolled.includes("bugbox"), JSON.stringify(win.__scrolled));
+  }
   check("bug box container (#bugbox-list) wired on the page", !!doc.getElementById("bugbox-list"));
 
   // D-B: fetchLatestRequest reads the most-recent record from the /api/requests monitor.
