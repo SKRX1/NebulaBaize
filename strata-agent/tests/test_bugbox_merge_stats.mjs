@@ -190,6 +190,26 @@ check("C2. control: distinct signatures stay THREE rows", box().length === 3, "s
   check("F2. control: a row-head click toggles but does NOT send", win.__send.length === 0, "sendCalls=" + win.__send.length);
   check("F2. control: the row-head click left status open", (box()[0] || {}).status === "open", "status=" + (box()[0]||{}).status);
 }
+
+// F3. dismiss (the 忽略 button): a real click must DELETE that entry from the box, and ONLY that
+//     entry. This locks the deletion path the user asked to verify; the control row proves it does
+//     not over-delete. jsdom needs no confirm stub here: dismissBug deletes directly.
+{
+  setBox([
+    { ts: 80, kind: "bug:x", status: "open", sig: "DEL", msg: "delete-me", stack: "" },
+    { ts: 81, kind: "bug:x", status: "open", sig: "KEEP", msg: "keep-me", stack: "" },
+  ]);
+  api.renderBugBox();
+  const btns = [...doc.querySelectorAll('#bugbox-list [data-bugact="dismiss"]')];
+  check("F3. dismiss buttons exist after render (one per row)", btns.length === 2, "found=" + btns.length);
+  const delBtn = btns.find((b) => b.getAttribute("data-bugts") === "80");
+  check("F3. the target row's dismiss button is found", !!delBtn, "found=" + !!delBtn);
+  if (delBtn) delBtn.click();
+  const after = box();
+  check("F3. a real click on the dismiss button DELETES that entry", after.length === 1, "stored=" + after.length);
+  check("F3. control: only the clicked entry was deleted (the KEEP row survived)",
+        after.length === 1 && String(after[0].ts) === "81", JSON.stringify(after.map((e) => e.ts)));
+}
 console.log("");
 if (FAILURES.length) {
   console.log("MERGE STATS: " + FAILURES.length + " FAILED");
