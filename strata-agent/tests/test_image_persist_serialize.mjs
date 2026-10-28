@@ -115,7 +115,7 @@ check("E1. app.js msgEl renders from im.ref || im.url (static lock)",
 
 // --- Test F: saveChat serialization lock (static) -- the new conditional ---
 check("F1. app.js saveChat has the ref-or-url conditional (static lock)",
-  /i\.ref\s*\?\s*\{.*ref:.*\}\s*:\s*\{.*url:/.test(fs.readFileSync(path.join(WEB, "app.js"), "utf8")));
+  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("i.ref ? {ref: i.ref} : (i.url ? {url: i.url} : {})"));   // 2026-10-28: substring lock -- strict-mode regex literals forbid brace escapes
 
 console.log("\nIMAGE PERSIST SERIALIZE: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);

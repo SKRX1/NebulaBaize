@@ -104,7 +104,8 @@ const main = async () => {
 
   const previewItems = modal.querySelectorAll("#edit-preview .edit-preview__item:not(.edit-preview__ph)");
   check("downstream preview lists the 1 affected message", previewItems.length === 1, `got ${previewItems.length}`);
-  check("default strategy is soft delete", modal.dataset.strategy === "soft", String(modal.dataset.strategy));
+  // 2026-10-28 user decision: the default is HARD delete (zhen-shan-chu, leftmost card; template order hard|soft|branch)
+  check("default strategy is hard delete", modal.dataset.strategy === "hard", String(modal.dataset.strategy));
 
   ta.value = "Second question EDITED";
   modal.querySelector("#edit-send").click();
