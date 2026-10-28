@@ -2004,7 +2004,7 @@ syncPermSelect();
 
 function saveChat() {
   const s = activeSession();
-  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => ({name: i.name, pid: i.pid, ref: i.ref})),
+  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => (i.ref ? {name: i.name, pid: i.pid, ref: i.ref} : {name: i.name, pid: i.pid, url: i.url})),
                                       files: (m.files || []).map((f) => ({name: f.name}))}));
   if (s) { s.messages = data; s.updatedAt = Date.now(); }   // drives the sidebar's "3分钟前"
   store.set("chat", data);   // backward-compatible fallback

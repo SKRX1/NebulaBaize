@@ -96,6 +96,7 @@ SUITES = [
     "tests/test_workspace_fs.py",
     "tests/test_fs_server.py",
     "tests/test_image_persist_logic.py",   # 2026-10-28: server-side image persistence (Plan A) byte round-trip data/uploads + reject non-base64/bad-mime (logic gate; live server.py not importable here)
+    "tests/test_image_persist_serialize.mjs",   # 2026-10-28: real saveChat keeps base64 url when ref is empty (root cause of image loss on reload); differential A1(->ref)/B1(->url) + mixedSegments ref||url
     # These three guard "which directory do relative paths resolve against". They existed
     # but were never registered, so the 2026-10-20 wrong-base bug shipped green.
     "tests/test_fs_workspace_base.py",
