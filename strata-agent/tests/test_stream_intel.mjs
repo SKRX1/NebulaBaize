@@ -816,7 +816,7 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   doc.body.appendChild(chipHost);
   const chipMsg = {role: "assistant", text: "a", steps, selSteps: [0]};
   api.setMessages([{role: "user", text: "q"}, chipMsg]);
-  doc.getElementById("input").value = "顺手改字体";
+  doc.getElementById("input").textContent = "顺手改字体";
   api.renderNextSteps(chipHost, chipMsg);
   const sendBtn = chipHost.querySelector("[data-steps-send]");
   check("the send button advertises the custom text", !!sendBtn && /Send selected \(1\) \+ custom/.test(sendBtn.textContent),
@@ -836,7 +836,7 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   api.setSettings({recall: false, mcp: false});
   api.setBusy(null);
   api.setMessages([{role: "user", text: "做页面"}, {role: "assistant", text: "ok", steps, selSteps: [0]}]);
-  doc.getElementById("input").value = "顺带把字体调大";
+  doc.getElementById("input").textContent = "顺带把字体调大";
   await api.send();
   const sent = bodies.length ? bodies[0].messages : [];
   const lastUser = [...sent].reverse().find((x) => x.role === "user");
@@ -859,18 +859,18 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   api.setAttachments([{kind: "image", name: "pasted.png", url: "data:image/png;base64,AAA"}]);
   api.renderAttachments();
   const box = doc.getElementById("attachments");
-  const thumb = box.querySelector(".att-thumb");
-  check("an image attachment renders a thumbnail", !!thumb && !!thumb.querySelector("img"));
-  check("the thumbnail is not the old icon chip", !box.querySelector(".att-thumb .chip"));
-  check("the thumbnail has a remove button", !!box.querySelector(".att-thumb__x"));
+  const thumb = box.querySelector(".chip--img");
+  check("an image attachment renders a management chip (image rides inline, strip is the chip)", !!thumb && thumb.classList.contains("chip--img"));
+  check("the image chip is the chip--img management chip (image is inline, not a separate img thumb)", !!box.querySelector(".chip--img"));
+  check("the image chip has a remove button", !!box.querySelector(".chip--img .st-btn--icon"));
   // double-click the thumbnail opens the viewer
   thumb.dispatchEvent(new win.MouseEvent("dblclick", {bubbles: true}));
-  check("double-clicking the composer thumbnail opens the viewer", !doc.getElementById("img-modal").hidden &&
+  check("double-clicking the composer image chip opens the viewer", !doc.getElementById("img-modal").hidden &&
         doc.getElementById("img-modal-img").src === "data:image/png;base64,AAA");
   api.closeImageView();
   // removing the thumbnail via the × button empties the box
-  box.querySelector(".att-thumb__x").dispatchEvent(new win.MouseEvent("click", {bubbles: true}));
-  check("removing the thumbnail clears attachments", !box.querySelector(".att-thumb"));
+  box.querySelector(".chip--img .st-btn--icon").dispatchEvent(new win.MouseEvent("click", {bubbles: true}));
+  check("removing the image chip clears attachments", !box.querySelector(".chip--img"));
 
   // a text-file attachment still uses the icon chip
   api.setAttachments([{kind: "file", name: "note.txt", text: "hi"}]);
