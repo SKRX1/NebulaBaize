@@ -5343,7 +5343,8 @@ function normalizeTags(v) {
 // --- Rich-text safety (M3 rich editor) ----------------------------------------
 // Allow-list sanitizer for user-authored spark notes. Strips every element not in
 // the list (scripts/styles/imgs/handlers) and every attribute except a safe href.
-const SPARK_HTML_ALLOW = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "DIV", "UL", "OL", "LI", "SPAN", "A"]);
+const SPARK_HTML_ALLOW = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "DIV", "UL", "OL", "LI", "SPAN", "A", "IMG"]);   // 2026-10-28: IMG added so pasted/persisted spark images survive sanitizeHtml
+const SPARK_IMG_SRC = /^(https?:\/\/|data:image\/|\/data\/uploads\/|\/)/i;   // src scheme allow-list: reject javascript:, blob: (dead after reload), and protocol-relative//offsite
 function sanitizeHtml(html) {
   const root = document.createElement("div");
   root.innerHTML = html || "";
@@ -5358,6 +5359,9 @@ function sanitizeHtml(html) {
       for (const a of Array.from(child.attributes)) {
         if (child.tagName === "A" && a.name === "href") {
           if (!/^(https?:|mailto:)/i.test((a.value || "").trim())) child.removeAttribute("href");
+        } else if (child.tagName === "IMG" && a.name === "src") {
+          // image src must match the scheme allow-list; strip otherwise (XSS + dead blob URLs)
+          if (!SPARK_IMG_SRC.test((a.value || "").trim())) child.removeAttribute("src");
         } else {
           child.removeAttribute(a.name);
         }
@@ -5602,6 +5606,7 @@ function editSpark(id) {
     <div class="st-input st-textarea spark-edit-ta rich" contenteditable="true"></div>`;
   const ed = rich.querySelector(".spark-edit-ta");
   ed.innerHTML = s.html || s.text || "";
+  ed.addEventListener("paste", (e) => pasteImageToRich(e, ed));
   body.insertBefore(rich, txtEl.nextSibling);
   const tagInput = document.createElement("input");
   tagInput.className = "st-input spark-edit-tags";
@@ -5733,6 +5738,47 @@ function reorderSpark(dragId, dropId) {
   renderSpark();
 }
 
+// contenteditable paste: image bytes -> upload to server -> insert <img> at caret; offline
+// or upload failure falls back to inline base64 data URL so the image still survives sanitizeHtml
+// (the sanitizer now allows data:image/* per the scheme whitelist). Plain text paste untouched.
+async function pasteImageToRich(e, editable) {
+  if (!health.images) return;
+  const cd = e.clipboardData || window.clipboardData;
+  if (!cd) return;
+  let files = [...(cd.files || [])].filter((f) => f && f.type && f.type.startsWith("image/"));
+  if (!files.length && typeof cd.items === "object") {
+    files = [...cd.items]
+      .filter((it) => it && it.kind === "file" && it.type && it.type.startsWith("image/"))
+      .map((it) => (typeof it.getAsFile === "function" ? it.getAsFile() : null))
+      .filter(Boolean);
+  }
+  if (!files.length) return;
+  e.preventDefault();
+  for (const f of files) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = String(reader.result);
+      let src = dataUrl;
+      if (health.images) {
+        try {
+          const j = await (await fetch("api/images/upload", {method: "POST", headers: headers(true),
+            body: JSON.stringify({dataUrl, name: f.name || "pasted"})})).json();
+          if (j && j.ref) src = j.ref;
+        } catch (e) { /* offline fallback: keep base64 data URL */ }
+      }
+      // Insert at the current caret inside the contenteditable. Prefer the native
+      // command so undo history works; jsdom has no command so we fall back to appendChild.
+      if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
+        document.execCommand("insertHTML", false, `<img src="${src}">`);
+      } else {
+        const img = document.createElement("img"); img.src = src;
+        editable.appendChild(img);
+      }
+    };
+    reader.readAsDataURL(f);
+  }
+}
+
 function bindSparks() {
   const addBtn = $("spark-add-btn");
   if (addBtn) addBtn.onclick = () => {
@@ -5746,6 +5792,8 @@ function bindSparks() {
       updateSparkBadge(); toast("success", t("spark.saved.toast"));
     }
   };
+  const addInput = $("spark-add-input");
+  if (addInput) addInput.addEventListener("paste", (e) => pasteImageToRich(e, addInput));
   const toggle = $("spark-toggle");
   const strip = $("spark-strip");
   if (toggle && strip) toggle.onclick = () => {
