@@ -7244,6 +7244,7 @@ $("composer").onsubmit = (e) => { e.preventDefault(); send(); };
 $("stop-btn").onclick = () => abortStream();
 $("autodrive-stop").onclick = () => stopAutoDrive();
 $("input").addEventListener("keydown", (e) => {
+  onThumbBackspace(e, $("input")); if (e.defaultPrevented) return;
   // P1-2: slash command navigation
   const menu = $("slash-menu");
   if (menu && menu.classList.contains("open")) {
@@ -7384,6 +7385,7 @@ function ensureEditUI() {
   const _ea = m.querySelector("#edit-area");
   _ea.addEventListener("input", () => autosize(_ea));
   _ea.addEventListener("paste", (e) => pasteImageToRich(e, _ea));
+  _ea.addEventListener("keydown", (e) => onThumbBackspace(e, _ea));
   m.querySelector("#edit-x").onclick = closeEditModal;
   m.querySelector("#edit-cancel").onclick = closeEditModal;
   m.addEventListener("click", (e) => { if (e.target === m) closeEditModal(); });
@@ -7614,6 +7616,7 @@ function makeInlineThumb(entry, target) {
   span.className = "ce-thumb";
   span.setAttribute("contenteditable", "false");   // atomic: the browser must not drop the caret inside, so typed text stays OUTSIDE the chip
   span.setAttribute("data-pid", String(pid));
+  span.setAttribute("tabindex", "0");   // focusable so Backspace can target it (primary path)
   span.title = name;
   const img = document.createElement("img");
   img.className = "inline-ce-img";
@@ -7636,19 +7639,59 @@ function bindInlineThumbDelete() {
     const btn = e.target.closest(".ce-thumb__x");
     if (!btn) return;
     e.preventDefault(); e.stopPropagation();
-    const pid = +(btn.getAttribute("data-delpid"));
-    const box = e.currentTarget;
-    const isModal = box.id === "edit-area";
-    const list = isModal ? editAttachments : attachments;
-    const idx = list.findIndex((a) => a.pid === pid);
-    const node = box.querySelector(`[data-pid="${pid}"]`);
-    if (idx >= 0) list.splice(idx, 1);
-    if (node) node.remove();
-    if (isModal) renderEditAttachments(); else renderAttachments();
-    autosize(box);
+    removeThumb(+(btn.getAttribute("data-delpid")), e.currentTarget);
   };
   const inp = $("input"); if (inp && !inp._thumbBound) { inp.addEventListener("click", onClick); inp._thumbBound = true; }
   const ea = $("edit-area"); if (ea && !ea._thumbBound) { ea.addEventListener("click", onClick); ea._thumbBound = true; }
+}
+// Shared removal: the ARRAY is the source of truth for sending, so every delete path (hover
+// button click, Backspace on a focused/adjacent chip) MUST splice the array AND drop the DOM node
+// through this one helper — never let the browser delete only the DOM (an orphan image would
+// be appended at the end of the message on send). box is the composer #input or the modal #edit-area.
+function removeThumb(pid, box) {
+  const isModal = box.id === "edit-area";
+  const list = isModal ? editAttachments : attachments;
+  const idx = list.findIndex((a) => a.pid === pid);
+  const node = box.querySelector(`[data-pid="${pid}"]`);
+  if (idx >= 0) list.splice(idx, 1);
+  if (node) node.remove();
+  if (isModal) renderEditAttachments(); else renderAttachments();
+  autosize(box);
+}
+// Backspace handler shared by the composer and the edit modal. When the caret sits on / just
+// before an inline chip, or a chip has focus, Backspace removes that chip (array + DOM together)
+// instead of deleting a text character. Anything else is a normal text edit we leave to the browser.
+function onThumbBackspace(e, box) {
+  if (e.key !== "Backspace") return;
+  const pid = chipForBackspace(box);
+  if (pid === null || pid === undefined) return;
+  e.preventDefault();
+  removeThumb(+pid, box);
+}
+// Which chip a Backspace should delete: a chip the selection covers, OR the chip sitting
+// immediately BEFORE a collapsed caret (the unit Backspace would remove), OR a chip that has
+// keyboard focus. Returns the pid, or null when Backspace should stay a normal text edit.
+function chipForBackspace(box) {
+  const active = document.activeElement;
+  if (active && active.closest && active.closest("[data-pid]") && box.contains(active.closest("[data-pid]")))
+    return active.closest("[data-pid]").getAttribute("data-pid");
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!r.collapsed) {
+    const chips = box.querySelectorAll("[data-pid]");
+    for (const n of chips) { if (r.intersectsNode && r.intersectsNode(n)) return n.getAttribute("data-pid"); }
+    return null;
+  }
+  const c = r.startContainer, off = r.startOffset;
+  const own = c.nodeType === 1 ? c : c.parentNode;
+  if (own && own.closest && own.closest("[data-pid]") && box.contains(own.closest("[data-pid]")))
+    return own.closest("[data-pid]").getAttribute("data-pid");
+  if ((c.nodeType === 3 && off === 0) || (c.nodeType === 1 && off === 0)) {
+    const prev = c.previousSibling;
+    if (prev && prev.getAttribute && prev.getAttribute("data-pid")) return prev.getAttribute("data-pid");
+  }
+  return null;
 }
 
 // Insert a [img:N] reference at the caret in the composer, so the user can see WHERE the image sits.

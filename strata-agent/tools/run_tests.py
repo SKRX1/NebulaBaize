@@ -101,6 +101,7 @@ SUITES = [
     "tests/test_spark_image_sanitize.mjs",   # 2026-10-28: real sanitizeHtml lets pasted spark IMAGES survive (IMG+scheme allow-list) + XSS net intact (javascript:/blob:/onerror stripped) + contenteditable paste bound; differential pair
     "tests/test_spark_image_dblclick_persist.mjs",   # 2026-10-28: post-reload ref-only image survives in the edit modal (filter+src+dblclick url||a.ref) + spark add-box/list dblclick->openImageView; static locks + real-function differential incl. text-only no-op negative
     "tests/test_ce_text_extract.mjs",   # 2026-10-29: composer/edit-area contenteditable migration helpers (ceText/ceSetText/isCE/insertPlaceholder/removePlaceholder) boot as real functions + jsdom fallbacks produce correct results; differential positive(contenteditable)/negative(real textarea keeps .value)
+    "tests/test_backspace_delete_chip.mjs",   # 2026-10-29: Backspace on a focused/adjacent/selection-covered inline chip removes it AND splices the array (source-of-truth differential, core invariant locked)
     # These three guard "which directory do relative paths resolve against". They existed
     # but were never registered, so the 2026-10-20 wrong-base bug shipped green.
     "tests/test_fs_workspace_base.py",
