@@ -7442,7 +7442,7 @@ function editResend(i, newText, strategy, images) {
   const _beforeImgs = messages[i].images;   // what the edited message had before this edit
   undoStack = {at: i + 1, removed, editedFrom: originalText, editedTo: newText, editedFromImages: _beforeImgs};
   messages.length = i + 1;                          // truncate in place
-  messages[i] = {...messages[i], text: newText, images: (images && images.length) ? images : messages[i].images};
+  messages[i] = {...messages[i], text: newText, images: Array.isArray(images) ? images : messages[i].images};   // an empty modal list is a REAL intent (every image was deleted), not "no change"
   saveChat();
   renderChat();
   if (strategy === "soft" || strategy === "hard") showUndoToast(removed.length);
