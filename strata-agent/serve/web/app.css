@@ -37,24 +37,24 @@ main { flex: 1; min-height: 0; display: flex; }
 .brand-name {
   font: 800 18px/1 "Outfit", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
   letter-spacing: -.01em;
-  background: linear-gradient(115deg, var(--st-yellow) 0%, var(--st-warn) 100%);
+  background: linear-gradient(115deg, var(--st-info-text) 0%, var(--st-info) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .brand-sub {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
   margin-top: 3px; font: 500 11px/1.2 var(--st-font); color: var(--st-ink-muted);
 }
-.brand-author { color: #ff4326; font-weight: 700; }
-.brand-ai     { color: var(--st-accent-text); font-weight: 600; }
+.brand-author { color: var(--st-yellow); font-weight: 700; }
+.brand-ai     { color: #a855f7; font-weight: 600; }
 .brand-sep { color: var(--st-line); }
 .brand-tag { color: var(--st-yellow); font-weight: 600; }
 /* animated mark: golden nebula -- a glowing core, a spinning swirl, breathing halo, orbiting dust */
 .brand-mark { width: 34px; height: 34px; flex: none; display: block;
-  filter: drop-shadow(0 0 6px rgba(245,201,21,.28)); }
-#brandCoreA  { stop-color: #ffe9a8; }
-#brandCoreB  { stop-color: var(--st-warn); }
-#brandSwirlA { stop-color: var(--st-yellow); }
-#brandSwirlB { stop-color: var(--st-warn); opacity: .55; }
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--st-info) 32%, transparent)); }
+#brandCoreA  { stop-color: #cfe8ff; }
+#brandCoreB  { stop-color: var(--st-info-text); }
+#brandSwirlA { stop-color: var(--st-info); }
+#brandSwirlB { stop-color: var(--st-info); opacity: .55; }
 .brand-halo { fill: url(#brandCore); opacity: .30; transform-box: fill-box; transform-origin: center;
   animation: brand-breathe 4s var(--st-ease) infinite; }
 .brand-core { fill: url(#brandCore); }
@@ -62,9 +62,9 @@ main { flex: 1; min-height: 0; display: flex; }
 .brand-arm--2 { opacity: .38; }
 .brand-swirl { transform-box: fill-box; transform-origin: center; animation: brand-spin 9s linear infinite; }
 .brand-dust  { transform-box: fill-box; transform-origin: center; animation: brand-spin 6s linear infinite reverse; }
-.brand-spark { fill: var(--st-yellow); }
-.brand-spark--2 { fill: var(--st-warn); }
-.brand-spark--3 { fill: #ffe9a8; }
+.brand-spark { fill: #cfe8ff; }
+.brand-spark--2 { fill: var(--st-info); }
+.brand-spark--3 { fill: var(--st-info-text); }
 @keyframes brand-spin {
   to { transform: rotate(360deg); }
 }
@@ -79,8 +79,8 @@ main { flex: 1; min-height: 0; display: flex; }
 @media (prefers-reduced-motion: reduce) {
   .brand-swirl, .brand-dust, .brand-halo { animation: none; }
 }
-[data-theme="light"] .brand-author { color: #d42a10; }
-[data-theme="light"] .brand-ai     { color: var(--st-accent-hover); }
+[data-theme="light"] .brand-author { color: var(--st-yellow-text); }
+[data-theme="light"] .brand-ai     { color: #7c3aed; }
 [data-theme="light"] .brand-tag { color: var(--st-yellow-text); }
 [data-theme="light"] .next-steps__group--avoid .next-steps__title { color: #d42a10; }
 [data-theme="light"] .next-steps__group--avoid .next-steps__sub { color: color-mix(in srgb, #d42a10 60%, var(--st-ink-muted)); }
@@ -89,7 +89,7 @@ main { flex: 1; min-height: 0; display: flex; }
 [data-theme="light"] .next-step--avoid.next-step--on { background: #d42a10; color: #fff; border-color: #d42a10; }
 [data-theme="light"] .next-step__badge--avoid { background: #d42a10; color: #fff; }
 [data-theme="light"] .next-step--avoid.next-step--on .next-step__badge--avoid { background: #fff; color: #d42a10; }
-[data-theme="light"] .brand-name { background: linear-gradient(115deg, #b8860b 0%, var(--st-warn) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-theme="light"] .brand-name { background: linear-gradient(115deg, var(--st-info-text) 0%, var(--st-info) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 
 /* ── 星云 working mark（顶部状态胶囊 + 流式光标共用一套视觉语言）────────────────────────
@@ -105,7 +105,7 @@ main { flex: 1; min-height: 0; display: flex; }
    全部纯 CSS（胶囊用内联 SVG，光标用多层 radial-gradient），不新增 DOM 节点。
    门禁骨架：5 星尘(2 亮)+1 核心+1 环仍在 .neb-orbit 内。 */
 .nebula { width: 22px; height: 22px; flex: none; display: block; overflow: visible;
-  --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); --neb-spin: 6s; }
+  --neb-core: var(--st-info); --neb-dot: var(--st-info); --neb-spin: 6s; }
 .nebula .neb-ring { fill: none; stroke: var(--neb-core); stroke-width: .8; opacity: .18; }
 .nebula .neb-p    { fill: var(--neb-dot); opacity: .35; }
 /* one speck reads brighter than the rest: a real nebula is never evenly lit */
@@ -120,12 +120,12 @@ main { flex: 1; min-height: 0; display: flex; }
 .nebula .p-search, .nebula .p-sweat, .nebula .p-spark { display: none; }
 
 /* ── 各状态配色 + 转速（沿用旧契约：idle 绝不能有 animation）────────────── */
-.nebula[data-state="generating"] { --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); --neb-spin: 3.4s; }
+.nebula[data-state="generating"] { --neb-core: var(--st-info); --neb-dot: var(--st-info); --neb-spin: 3.4s; }
 .nebula[data-state="reading"]    { --neb-core: var(--st-info);   --neb-dot: var(--st-info);   --neb-spin: 4.4s; }
 .nebula[data-state="queued"]     { --neb-core: var(--st-warn);   --neb-dot: var(--st-warn);   --neb-spin: 7s; }
-.nebula[data-state="tool"]       { --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); --neb-spin: 6.4s; }
+.nebula[data-state="tool"]       { --neb-core: var(--st-info); --neb-dot: var(--st-info); --neb-spin: 6.4s; }
 .nebula[data-state="error"]      { --neb-core: var(--st-danger, #ef4444); --neb-dot: var(--st-danger, #ef4444); --neb-spin: 5s; }
-.nebula[data-state="done"]       { --neb-core: var(--st-yellow); --neb-dot: var(--st-yellow); }
+.nebula[data-state="done"]       { --neb-core: var(--st-info); --neb-dot: var(--st-info); }
 
 /* 四个工作状态都要转（CSS 契约）+ idle 静止不转 */
 .nebula[data-state="generating"] .neb-orbit,
@@ -140,7 +140,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .nebula[data-state="reading"] .neb-core,
 .nebula[data-state="queued"] .neb-core,
 .nebula[data-state="tool"] .neb-core { opacity: .9; animation: neb-breathe 2.2s var(--st-ease) infinite; }
-.nebula[data-state="generating"] .neb-core { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-yellow) 65%, transparent)); }
+.nebula[data-state="generating"] .neb-core { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-info) 60%, transparent)); }
 .nebula[data-state="reading"] .neb-core    { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-info) 60%, transparent)); }
 .nebula[data-state="queued"] .neb-core     { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--st-warn) 60%, transparent)); }
 
@@ -153,10 +153,10 @@ main { flex: 1; min-height: 0; display: flex; }
 .nebula[data-state="error"] .neb-prop,
 .nebula[data-state="error"] .p-sweat { display: block; }
 /* done：回合收尾的庆祝 —— 核心弹一下 + 星光炸开 + 金光 */
-.nebula[data-state="done"] .neb-core { opacity: 1; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--st-yellow) 70%, transparent)); animation: neb-bounce .5s var(--st-ease); }
+.nebula[data-state="done"] .neb-core { opacity: 1; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--st-info) 65%, transparent)); animation: neb-bounce .5s var(--st-ease); }
 .nebula[data-state="done"] .neb-prop,
 .nebula[data-state="done"] .p-spark { display: block; }
-.nebula[data-state="done"] .neb-prop * { fill: var(--st-yellow); stroke: var(--st-yellow); }
+.nebula[data-state="done"] .neb-prop * { fill: var(--st-info); stroke: var(--st-info); }
 
 /* 任务形态：只亮起当前任务的小道具 */
 .nebula[data-task="search"] .neb-prop { display: block; }
@@ -283,15 +283,15 @@ main { flex: 1; min-height: 0; display: flex; }
   content: ""; display: inline-block; width: 17px; height: 17px; margin-left: 6px; vertical-align: -3px;
   border-radius: 50%;
  background:
-   radial-gradient(circle 1.5px at 50% 11%,  color-mix(in srgb, #ffe9a8 90%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.2px at 85% 60%,  color-mix(in srgb, var(--st-warn) 80%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.7px at 24% 78%,  color-mix(in srgb, #ffe9a8 70%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.1px at 73% 27%,  color-mix(in srgb, var(--st-yellow) 85%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.3px at 15% 41%,  color-mix(in srgb, var(--st-warn) 70%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 3.1px at 50% 50%, #ffe9a8 0 35%, color-mix(in srgb, var(--st-warn) 88%, transparent) 90%, transparent 100%),
-   radial-gradient(ellipse 7.5px 2.3px at 50% 50%, color-mix(in srgb, var(--st-yellow) 48%, transparent) 0 55%, transparent 72%),
-   radial-gradient(ellipse 2.3px 7.5px at 50% 50%, color-mix(in srgb, var(--st-warn) 44%, transparent) 0 55%, transparent 72%);
- filter: drop-shadow(0 0 3.5px color-mix(in srgb, var(--st-yellow) 55%, transparent));
+   radial-gradient(circle 1.5px at 50% 11%,  color-mix(in srgb, #cfe8ff 90%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.2px at 85% 60%,  color-mix(in srgb, var(--st-info-text) 80%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.7px at 24% 78%,  color-mix(in srgb, #cfe8ff 70%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.1px at 73% 27%,  color-mix(in srgb, var(--st-info) 85%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 1.3px at 15% 41%,  color-mix(in srgb, var(--st-info-text) 70%, transparent) 99%, transparent 100%),
+   radial-gradient(circle 3.1px at 50% 50%, #cfe8ff 0 35%, color-mix(in srgb, var(--st-info) 88%, transparent) 90%, transparent 100%),
+   radial-gradient(ellipse 7.5px 2.3px at 50% 50%, color-mix(in srgb, var(--st-info) 48%, transparent) 0 55%, transparent 72%),
+   radial-gradient(ellipse 2.3px 7.5px at 50% 50%, color-mix(in srgb, var(--st-info-text) 44%, transparent) 0 55%, transparent 72%);
+ filter: drop-shadow(0 0 3.5px color-mix(in srgb, var(--st-info) 55%, transparent));
   animation: neb-caret 4.6s linear infinite;
 }
 /* the paragraph rule above already put it on the last line - don't paint a second one below */
