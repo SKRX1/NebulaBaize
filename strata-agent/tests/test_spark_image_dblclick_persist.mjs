@@ -1,3 +1,16 @@
+/* Gate: after reload (a persisted image keeps only a server ref, NO base64 url AND NO kind
+ * field -- that is exactly what the OLD saveChat wrote to storage) the chat EDIT MODAL must still
+ * show the thumbnail and its double-click must open the viewer.
+ *
+ * 2026-10-28 lesson locked here: the previous gate stub fed objects WITH kind:"image", so it went
+ * green while real reload data (kind-less rows) was silently skipped by the renderEditAttachments
+ * guard. This stub now mirrors the real persisted shape (no kind) -- the differential that was missing.
+ *
+ * Also locked: the modal's default strategy is hard (first card, DOM template hard|soft|branch
+ * and the runtime init now agree), and confirmEdit's fallback is hard.
+ *
+ * Run standalone: node tests/test_spark_image_dblclick_persist.mjs
+ */
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -18,10 +31,11 @@ const check = (label, cond) => {
 
 const srcText = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 
+// --- static source locks ------------------------------------------------------------------------
 check("openEditModal filter accepts url || ref",
   /editAttachments = \(msg\.images \|\| \[\]\)\.filter\(\(a\) => a && \(a\.url \|\| a\.ref\)\)/.test(srcText));
-check("renderEditAttachments guard accepts url || ref",
-  /if \(a\.kind === "image" && \(a\.url \|\| a\.ref\)\)/.test(srcText));
+check("renderEditAttachments guard no longer requires kind (accepts any url/ref entry)",
+  /editAttachments\.forEach\(\(a, i\) => \{\r?\n\s*(?:\/\/[^\n]*\r?\n\s*)*if \(a\.url \|\| a\.ref\) \{/.test(srcText));
 check("renderEditAttachments img src falls back to ref",
   /im\.src = a\.url \|\| a\.ref/.test(srcText));
 check("renderEditAttachments dblclick openImageView falls back to ref",
@@ -30,6 +44,10 @@ check("spark add-box gained a dblclick -> openImageView delegation",
   /addInput\.addEventListener\("dblclick"[\s\S]{0,160}openImageView/.test(srcText));
 check("spark list gained a dblclick -> openImageView delegation",
   /list\.addEventListener\("dblclick"[\s\S]{0,160}openImageView/.test(srcText));
+check("openEditModal runtime default strategy = hard (agrees with DOM template order hard|soft|branch)",
+  /m\.dataset\.strategy = "hard";\r?\n\s*m\.querySelectorAll\("\.edit-strategy__opt"\)\.forEach\(o => o\.setAttribute\("aria-checked", o\.dataset\.v === "hard" \? "true" : "false"\)\)/.test(srcText));
+check("confirmEdit fallback strategy = hard",
+  /const strategy = m\.dataset\.strategy \|\| "hard";/.test(srcText));
 
 const dom = new JSDOM(fs.readFileSync(path.join(WEB, "index.html"), "utf8"), { url: "http://127.0.0.1/", runScripts: "outside-only" });
 const win = dom.window;
@@ -43,47 +61,65 @@ let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += `
 ;window.__probe = (function () {
   var out = {};
-  // ---- edit modal: a REF-ONLY image (post-reload state) must still render a thumbnail ----
+  var imgm = document.getElementById("img-modal"), mimg = document.getElementById("img-modal-img");
+  var em = function () { return document.getElementById("edit-modal"); };   // the EDIT MODAL (not the image viewer)
+  // ---- FAITHFUL old-storage shape: kind-less ref-only row (what pre-2026-10-28 saveChat wrote) ----
   messages.length = 0;
-  // kind:"image" mirrors what addFiles writes for a real pasted/dropped picture
-  messages.push({ role: "user", text: "hello", images: [{ kind: "image", name: "pic.png", pid: 1, ref: "/data/uploads/pic.png" }], files: [], time: Date.now() });
+  messages.push({ role: "user", text: "hello", images: [{ name: "pic.png", pid: 1, ref: "/data/uploads/pic.png" }], files: [], time: Date.now() });
   openEditModal(0);
   var box = document.getElementById("edit-attachments");
   var t = box && box.querySelector(".att-thumb img");
   out.modalThumbSurvives = !!(t && /\\/data\\/uploads\\/pic\\.png/.test(t.getAttribute("src") || ""));
   if (t) t.dispatchEvent(new window.Event("dblclick", { bubbles: true }));
-  var modal = document.getElementById("img-modal"), mimg = document.getElementById("img-modal-img");
-  out.modalDblclickOpensRef = !!(modal && modal.hidden === false && /\\/data\\/uploads\\/pic\\.png/.test(mimg.getAttribute("src") || ""));
+  out.modalDblclickOpensRef = !!(imgm && imgm.hidden === false && /\\/data\\/uploads\\/pic\\.png/.test(mimg.getAttribute("src") || ""));
+
+  // ---- default strategy on open = hard, and the checked card is the FIRST one (hard leftmost) ----
+  var checked = em().querySelectorAll('.edit-strategy__opt[aria-checked="true"]');
+  out.defaultHard = !!(checked.length === 1 && checked[0].getAttribute("data-v") === "hard");
+  var cards = em().querySelectorAll(".edit-strategy__opt");
+  out.cardOrder = Array.prototype.map.call(cards, function (c) { return c.getAttribute("data-v"); }).join(",");
+  closeEditModal();
+
+  // ---- openEditModal hands confirmEdit a hard default AND keeps the kind-less image in the list ----
+  messages.length = 0;
+  messages.push({ role: "user", text: "before edit", images: [{ name: "pic.png", pid: 1, ref: "/data/uploads/pic.png" }], files: [], time: Date.now() });
+  messages.push({ role: "assistant", text: "the answer", images: [], files: [], time: Date.now() });
+  openEditModal(0);
+  out.confirmDefaultHard = (em().dataset.strategy === "hard");
+  out.confirmCarriesImage = !!(editAttachments.length === 1 && /\\/data\\/uploads\\/pic\\.png/.test(editAttachments[0].ref || editAttachments[0].url || ""));
   closeEditModal();
 
   // ---- spark list (stored note) dblclick delegation opens the viewer ----
-  if (modal) modal.hidden = true;
+  if (imgm) imgm.hidden = true;
   var list = document.getElementById("spark-list");
   list.innerHTML = '<div class="kb-item spark-item"><div class="spark-item__body"><pre class="spark-item__text"><img src="/data/uploads/note.png"></pre></div></div>';
   var noteImg = list.querySelector("img");
   if (noteImg) noteImg.dispatchEvent(new window.Event("dblclick", { bubbles: true }));
-  out.sparkListDblclickOpens = !!(modal && modal.hidden === false && /\\/data\\/uploads\\/note\\.png/.test(mimg.getAttribute("src") || ""));
+  out.sparkListDblclickOpens = !!(imgm && imgm.hidden === false && /\\/data\\/uploads\\/note\\.png/.test(mimg.getAttribute("src") || ""));
 
   // ---- spark add-box dblclick delegation opens the viewer ----
-  if (modal) modal.hidden = true;
+  if (imgm) imgm.hidden = true;
   var add = document.getElementById("spark-add-input");
   add.innerHTML = '<img src="/data/uploads/pasted.png">';
   var addImg = add.querySelector("img");
   if (addImg) addImg.dispatchEvent(new window.Event("dblclick", { bubbles: true }));
-  out.sparkAddDblclickOpens = !!(modal && modal.hidden === false && /\\/data\\/uploads\\/pasted\\.png/.test(mimg.getAttribute("src") || ""));
+  out.sparkAddDblclickOpens = !!(imgm && imgm.hidden === false && /\\/data\\/uploads\\/pasted\\.png/.test(mimg.getAttribute("src") || ""));
 
   // ---- negative differential: a text-only spark note must NOT trip the viewer ----
-  if (modal) modal.hidden = true;
+  if (imgm) imgm.hidden = true;
   list.innerHTML = '<div class="kb-item spark-item"><div class="spark-item__body"><pre class="spark-item__text">plain text only</pre></div></div>';
   list.dispatchEvent(new window.Event("dblclick", { bubbles: true }));
-  out.noImageDblclickIsNoop = !!(modal && modal.hidden === true);
+  out.noImageDblclickIsNoop = !!(imgm && imgm.hidden === true);
   return out;
 })();`;
 win.eval(appCode);
 const r = win.__probe;
 
-check("edit modal shows a ref-only thumbnail (post-reload persistence)", r.modalThumbSurvives === true);
+check("edit modal shows a KIND-LESS ref-only thumbnail (faithful old-storage differential)", r.modalThumbSurvives === true);
 check("edit modal thumbnail dblclick opens viewer at the ref (functional)", r.modalDblclickOpensRef === true);
+check("default strategy on open = hard (checked card data-v=hard)", r.defaultHard === true);
+check("strategy cards order = hard,soft,branch (hard leftmost, soft middle)", r.cardOrder === "hard,soft,branch");
+check("confirm path sees strategy=hard and carries the kind-less image", r.confirmDefaultHard === true && r.confirmCarriesImage === true);
 check("spark stored-note image dblclick opens viewer (functional)", r.sparkListDblclickOpens === true);
 check("spark add-box pasted image dblclick opens viewer (functional)", r.sparkAddDblclickOpens === true);
 check("text-only note dblclick is a no-op (negative differential)", r.noImageDblclickIsNoop === true);

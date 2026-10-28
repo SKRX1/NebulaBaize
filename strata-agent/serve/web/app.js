@@ -2004,7 +2004,7 @@ syncPermSelect();
 
 function saveChat() {
   const s = activeSession();
-  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => (i.ref ? {name: i.name, pid: i.pid, ref: i.ref} : {name: i.name, pid: i.pid, url: i.url})),
+  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => Object.assign({name: i.name, pid: i.pid}, i.kind ? {kind: i.kind} : {}, i.ref ? {ref: i.ref} : (i.url ? {url: i.url} : {}))),
                                       files: (m.files || []).map((f) => ({name: f.name}))}));
   if (s) { s.messages = data; s.updatedAt = Date.now(); }   // drives the sidebar's "3分钟前"
   store.set("chat", data);   // backward-compatible fallback
@@ -7267,8 +7267,8 @@ function ensureEditUI() {
         '<div style="font-size:13px;font-weight:600;margin-top:12px" data-i18n="ctx.edit.strategy">发送后如何处理此后的内容</div>' +
         '<div class="edit-willapply" id="edit-willapply"></div>' +
         '<div class="edit-strategy" id="edit-strategy" role="radiogroup">' +
-          '<div class="edit-strategy__opt" role="radio" data-v="soft" aria-checked="true" tabindex="0"><div class="t" data-i18n="ctx.edit.soft">软删除</div><div class="h" data-i18n="ctx.edit.soft.hint">删除但保留在撤销栈，5 秒内可恢复</div></div>' +
-          '<div class="edit-strategy__opt" role="radio" data-v="hard" aria-checked="false" tabindex="0"><div class="t" data-i18n="ctx.edit.hard">真删除</div><div class="h" data-i18n="ctx.edit.hard.hint">直接永久删除，无撤销</div></div>' +
+          '<div class="edit-strategy__opt" role="radio" data-v="hard" aria-checked="true" tabindex="0"><div class="t" data-i18n="ctx.edit.hard">真删除</div><div class="h" data-i18n="ctx.edit.hard.hint">直接永久删除，无撤销</div></div>' +
+          '<div class="edit-strategy__opt" role="radio" data-v="soft" aria-checked="false" tabindex="0"><div class="t" data-i18n="ctx.edit.soft">软删除</div><div class="h" data-i18n="ctx.edit.soft.hint">删除但保留在撤销栈，5 秒内可恢复</div></div>' +
           '<div class="edit-strategy__opt" role="radio" data-v="branch" aria-checked="false" tabindex="0"><div class="t" data-i18n="ctx.edit.branch">分支保留</div><div class="h" data-i18n="ctx.edit.branch.hint">旧历史另存为分支，可在上方切换器切回</div></div>' +
         '</div>' +
       '</div>' +
@@ -7312,8 +7312,8 @@ function openEditModal(i) {
   const prev = m.querySelector("#edit-preview");
   prev.innerHTML = '<div class="edit-preview__ph">' + esc(t("ctx.edit.preview", {n})) + "</div>" +
     (n > 0 ? after.map(x => '<div class="edit-preview__item">' + esc(((x.role === "user" ? "▸ " : "◆ ") + (x.text || "")).slice(0, 90)) + "</div>").join("") : '<div class="edit-preview__item">（无）</div>');
-  m.dataset.strategy = "soft";
-  m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === "soft" ? "true" : "false"));
+  m.dataset.strategy = "hard";
+  m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === "hard" ? "true" : "false"));
   editAttachments = (msg.images || []).filter((a) => a && (a.url || a.ref)).map((a) => ({...a}));
   renderEditAttachments();
   const _ea2 = m.querySelector("#edit-area"); autosize(_ea2);
@@ -7326,7 +7326,7 @@ function confirmEdit() {
   const i = editingIndex;
   if (i < 0) return;
   const m = $("edit-modal");
-  const strategy = m.dataset.strategy || "soft";
+  const strategy = m.dataset.strategy || "hard";
   const newText = m.querySelector("#edit-area").value.trim();
   const imgs = editAttachments.slice();   // capture BEFORE closeEditModal clears the modal list
   closeEditModal();
@@ -7641,7 +7641,8 @@ function renderEditAttachments() {
   box.hidden = !editAttachments.length;
   box.innerHTML = "";
   editAttachments.forEach((a, i) => {
-    if (a.kind === "image" && (a.url || a.ref)) {
+    // modal list is image-only; old saved rows carry no `kind` -- accept any url/ref entry
+    if (a.url || a.ref) {
       const thumb = document.createElement("div"); thumb.className = "att-thumb";
       const im = document.createElement("img"); im.src = a.url || a.ref; im.alt = a.name || "image"; thumb.appendChild(im);
       const x = document.createElement("button"); x.type = "button"; x.className = "att-thumb__x"; x.textContent = "×";
