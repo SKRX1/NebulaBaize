@@ -5766,22 +5766,17 @@ async function pasteImageToRich(e, editable) {
           if (j && j.ref) src = j.ref;
         } catch (e) { /* offline fallback: keep base64 data URL */ }
       }
-      // Insert at the current caret inside the contenteditable. Prefer the native
-      // command so undo history works; jsdom has no command so we fall back to appendChild.
+      // Insert ONE inline thumbnail at the caret, carrying its stable pid so ceText() can rebuild
+      // the [img:N] anchor from data-pid. Prefer the native command so undo history works; jsdom has
+      // no command so we fall back to appendChild. No separate visible text anchor is appended — the
+      // single visual representation is the thumbnail; storage/ordering is restored by ceText.
       const _nm = f.name || "pasted";
-      if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
-        document.execCommand("insertHTML", false, `<img src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}">`);
-      } else {
-        const img = document.createElement("img"); img.src = src; img.alt = _nm; img.title = _nm;
-        editable.appendChild(img);
-      }
-      // Collect image data + text placeholder for send/message layer
       const pid = attachNextPid();
-      const tag = ` [img:${pid}] `;
       if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
-        document.execCommand("insertHTML", false, esc(tag));
+        document.execCommand("insertHTML", false,
+          `<span class="ce-thumb" data-pid="${pid}" title="${esc(_nm)}"><img class="inline-ce-img" src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span>`);
       } else {
-        editable.appendChild(document.createTextNode(tag));
+        editable.appendChild(makeInlineThumb({ pid, url: src, name: _nm }, editable));
       }
       const entry = {kind: "image", url: dataUrl, ref: src !== dataUrl ? src : undefined, name: f.name || "pasted", pid};
       if (isComposer) {
@@ -6415,8 +6410,31 @@ document.addEventListener("strata:langchange", () => {
 });
 
 // ── contenteditable text helpers ────────────────────────────
+// Rebuild the text stream from the DOM, restoring [img:N] anchors from inline <img data-pid>
+// nodes and keeping <br> as newlines (same newline semantics as innerText). Only used when the
+// composer/modal body actually carries inline image nodes; otherwise ceText keeps innerText.
+function ceTextFromDom(el) {
+  let out = "";
+  const walk = (node) => {
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) { out += n.textContent; continue; }          // TEXT_NODE
+      if (n.tagName === "BR") { out += "\n"; continue; }
+      if (n.getAttribute && n.getAttribute("data-pid")) { out += " [img:" + n.getAttribute("data-pid") + "] "; continue; }   // atomic anchor: emit + do NOT descend (the hover button text must not pollute)
+      const block = /^(DIV|P|LI|BLOCKQUOTE|PRE|H[1-6])$/.test(n.tagName);
+      walk(n);
+      if (block) out += "\n";
+    }
+  };
+  walk(el);
+  return out;
+}
 function ceText(el) {
   if (!el) return "";
+  // A body that carries inline image nodes is rebuilt from the DOM so the [img:N] anchors that
+  // mixedSegments/serialize depend on are restored, even though the visible DOM is now a real <img>.
+  if (el.querySelector && el.querySelector("[data-pid]")) {
+    return ceTextFromDom(el).replace(/\u200B/g, "").trim();
+  }
   // innerText is the browser-authoritative read (keeps <br> as newlines); jsdom does not
   // implement it, so fall back to textContent and let the gates exercise this for real.
   return (el.innerText || el.textContent || "").replace(/\u200B/g, "").trim();
@@ -6424,6 +6442,31 @@ function ceText(el) {
 function ceSetText(el, txt) {
   if (!el) return;
   el.textContent = txt;
+  autosize(el);
+}
+// Render a text+images message into a contenteditable body the way the composer will look after a
+// paste: text runs as text nodes, each image as an inline thumbnail that carries its data-pid anchor.
+// mixedSegments drives the order; with no anchors it degrades to text + thumbs appended at the end,
+// so an image loaded from storage (ref-only, no inline text anchor) is never silently dropped.
+function ceSetRich(el, text, images) {
+  if (!el) return;
+  el.innerHTML = "";
+  const list = (images || []).filter((a) => a && (a.url || a.ref));
+  let segs = mixedSegments({ text: text || "", images: list });
+  if (!segs && !list.length) { el.textContent = text || ""; autosize(el); return; }
+  if (!segs) {
+    // no inline anchors in the stored text: emit the whole text then every image, so nothing is lost.
+    segs = [{ type: "text", text: text || "" }];
+    for (const a of list) segs.push({ type: "image", url: a.ref || a.url, name: a.name, entry: a });
+  }
+  for (const s of segs) {
+    if (s.type === "image") {
+      const entry = list.find((a) => (a.ref || a.url) === s.url) || { url: s.url, name: s.name };
+      el.appendChild(makeInlineThumb(entry, el));
+    } else if (s.text) {
+      el.appendChild(document.createTextNode(s.text));
+    }
+  }
   autosize(el);
 }
 
@@ -7345,9 +7388,10 @@ function openEditModal(i) {
   const msg = messages[i];
   if (!msg || msg.role !== "user") return;
   ensureEditUI();
+  bindInlineThumbDelete();   // inline thumbnails in the modal body need their delete delegation wired once
   editingIndex = i;
   const m = $("edit-modal");
-  ceSetText(m.querySelector("#edit-area"), msg.text);
+  ceSetRich(m.querySelector("#edit-area"), msg.text, msg.images);
   const after = messages.slice(i + 1);
   const n = after.length;
   const prev = m.querySelector("#edit-preview");
@@ -7549,12 +7593,74 @@ function isTextFile(f) {
 // 'text bubble + top gallery' behaviour (so existing tests that pass images without placeholders pass).
 let attachPidSeq = 0;                                // stable per-attachment number (deleting the middle never renumbers the rest)
 function attachNextPid() { return ++attachPidSeq; }
+// One visual shape for a pasted/attached image: a small thumbnail that lives IN the text flow,
+// name on hover, a hover-revealed delete button. data-pid is the stable anchor; ceText() rebuilds
+// [img:N] from it so mixedSegments/serialize see it (single visual representation, no separate chip).
+function makeInlineThumb(entry, target) {
+  const pid = entry.pid;
+  const src = entry.ref || entry.url || "";
+  const name = entry.name || "image";
+  const span = document.createElement("span");
+  span.className = "ce-thumb";
+  span.setAttribute("data-pid", String(pid));
+  span.title = name;
+  const img = document.createElement("img");
+  img.className = "inline-ce-img";
+  img.src = src;
+  img.alt = name;
+  img.title = name;
+  span.appendChild(img);
+  const x = document.createElement("button");
+  x.type = "button"; x.className = "ce-thumb__x"; x.setAttribute("aria-label", t("attach.remove"));
+  x.innerHTML = icon("trash");
+  x.setAttribute("data-delpid", String(pid));
+  span.appendChild(x);
+  span.addEventListener("dblclick", (e) => { if (e.target.closest(".ce-thumb__x")) return; e.stopPropagation(); openImageView(src, name); });
+  return span;
+}
+// Delegation: a delete button on any inline thumbnail (composer or edit modal). The button lives in
+// the DOM but the ARRAY is the source of truth for sending, so removal must drop the array entry too.
+function bindInlineThumbDelete() {
+  const onClick = (e) => {
+    const btn = e.target.closest(".ce-thumb__x");
+    if (!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    const pid = +(btn.getAttribute("data-delpid"));
+    const box = e.currentTarget;
+    const isModal = box.id === "edit-area";
+    const list = isModal ? editAttachments : attachments;
+    const idx = list.findIndex((a) => a.pid === pid);
+    const node = box.querySelector(`[data-pid="${pid}"]`);
+    if (idx >= 0) list.splice(idx, 1);
+    if (node) node.remove();
+    if (isModal) renderEditAttachments(); else renderAttachments();
+    autosize(box);
+  };
+  const inp = $("input"); if (inp && !inp._thumbBound) { inp.addEventListener("click", onClick); inp._thumbBound = true; }
+  const ea = $("edit-area"); if (ea && !ea._thumbBound) { ea.addEventListener("click", onClick); ea._thumbBound = true; }
+}
+
 // Insert a [img:N] reference at the caret in the composer, so the user can see WHERE the image sits.
-function insertPlaceholder(pid, target) {
+function insertPlaceholder(pid, target, entry) {
   const inp = target || $("input");
   if (!inp) return;
   const tag = ` [img:${pid}] `;
-  if (isCE(inp)) {
+  const src = entry && (entry.ref || entry.url);
+  if (isCE(inp) && src) {
+    // visual path: a real inline thumbnail node carries the image; ceText() rebuilds the
+    // [img:N] anchor from data-pid so mixedSegments/serialize still see it (no ordering loss).
+    const node = makeInlineThumb(entry, inp);
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      const range = sel.getRangeAt(0);
+      range.insertNode(node);
+      range.setStartAfter(node); range.collapse(true);
+      sel.removeAllRanges(); sel.addRange(range);
+    } else {
+      inp.appendChild(node);
+    }
+  } else if (isCE(inp)) {
+    // fallback: no url to show -> text anchor (kept for callers that pass only a pid)
     const sel = window.getSelection();
     if (sel && sel.rangeCount) {
       const range = sel.getRangeAt(0);
@@ -7577,6 +7683,11 @@ function insertPlaceholder(pid, target) {
 function removePlaceholder(pid, target) {
   const inp = target || $("input");
   if (!inp) return;
+  // an inline thumbnail node for this pid? remove it directly (no text anchor to strip).
+  if (isCE(inp) && inp.querySelector) {
+    const node = inp.querySelector(`[data-pid="${pid}"]`);
+    if (node) { node.remove(); autosize(target); return; }
+  }
   const re2 = new RegExp(`\\s*\\[img:${pid}\\]\\s*`, "g");
   if (isCE(inp)) {
     const NF = (window.NodeFilter && window.NodeFilter.SHOW_TEXT) || 4; // jsdom: doc.NodeFilter can be null
@@ -7626,7 +7737,7 @@ function addFiles(files, opts = {}, target) {
           const a = {kind: "image", name: f.name || "pasted image", url: r.result, pid: attachNextPid()};
           const _list = opts.list || attachments; const _render = opts.render || renderAttachments;
           _list.push(a); _render();
-          if (opts.cursor) insertPlaceholder(a.pid, target);   // drop the [img:N] reference at the caret
+          insertPlaceholder(a.pid, target, a);   // always inline in the composer (single visual = the thumbnail; file chip strip is for files only)
           // Plan A persistence: write the bytes to the server (data/uploads/) so the image survives a
           // reload; the message then keeps a light ref. The in-memory url keeps the preview instant.
           try {
@@ -7667,27 +7778,14 @@ function userText(m) {
 function renderAttachments(list) {
   const box = $("attachments");
   const _l = list || attachments;
-  box.hidden = !_l.length;
+  // images ride inline in the composer body (single visual = the thumbnail); only file attachments
+  // get a management chip, so the box is visible only when a file is present.
+  const _files = _l.filter((a) => a.kind === "file");
+  box.hidden = !_files.length;
   box.innerHTML = "";
-  _l.forEach((a, i) => {
-    if (a.kind === "image" && (a.url || a.ref)) {
-      // Images are now inline; strip shows a management chip
-      const c = document.createElement("span");
-      c.className = "chip chip--img";
-      c.title = a.name || "image";
-      const th = document.createElement("img");
-      th.className = "chip-thumb"; th.src = a.url || a.ref; th.alt = a.name || "image"; th.title = a.name || "image";
-      th.addEventListener("dblclick", (e) => { e.stopPropagation(); openImageView(a.url || a.ref, a.name); });
-      c.appendChild(th);
-      const x = document.createElement("button");
-      x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
-      x.innerHTML = icon("trash");
-      x.onclick = (e) => { e.stopPropagation(); if (a.pid) removePlaceholder(a.pid); attachments.splice(i, 1); renderAttachments(); };
-      c.appendChild(x);
-      if (a.url || a.ref) c.addEventListener("dblclick", () => openImageView(a.url || a.ref, a.name));
-      box.appendChild(c);
-      return;
-    }
+  _files.forEach((a0) => {
+    const i = _l.indexOf(a0);
+    const a = a0;
     const c = document.createElement("span");
     c.className = "chip chip--t";
     c.innerHTML = icon(a.kind === "file" ? "attach" : "image", "st-icon st-icon--sm");
@@ -7703,26 +7801,10 @@ function renderAttachments(list) {
 function renderEditAttachments() {
   const box = document.getElementById("edit-attachments");
   if (!box) return;
-  box.hidden = !editAttachments.length;
+  // the modal body (#edit-area) now carries the inline thumbnails; the chip box has no file-only
+  // role here, so it stays hidden. Images are managed on the inline thumbnail (hover reveal).
+  box.hidden = true;
   box.innerHTML = "";
-  editAttachments.forEach((a, i) => {
-    // modal list is image-only; old saved rows carry no `kind` -- accept any url/ref entry
-    if (a.url || a.ref) {
-      const c = document.createElement("span"); c.className = "chip chip--img";
-      c.title = a.name || "image";
-      const th = document.createElement("img");
-      th.className = "chip-thumb"; th.src = a.url || a.ref; th.alt = a.name || "image"; th.title = a.name || "image";
-      th.addEventListener("dblclick", (e) => { e.stopPropagation(); openImageView(a.url || a.ref, a.name); });
-      c.appendChild(th);
-      const x = document.createElement("button"); x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
-      x.innerHTML = icon("trash");
-      x.onclick = () => { if (a.pid) removePlaceholder(a.pid, document.getElementById("edit-area")); editAttachments.splice(i, 1); renderEditAttachments(); };
-      c.appendChild(x);
-      if (a.url || a.ref) c.addEventListener("dblclick", () => openImageView(a.url || a.ref, a.name));
-      box.appendChild(c);
-      return;
-    }
-  });
 }
 $("attach-btn").onclick = () => $("file").click();
 // drop files on the chat or the message box
@@ -8671,6 +8753,7 @@ document.addEventListener("strata:langchange", () => {
 renderKbdHints();
 bindGlobalKeys();
 bindKbdHints();
+bindInlineThumbDelete();   // composer #input is static in index.html -> wire its inline-thumbnail delete now (the modal side is wired from openEditModal once #edit-area exists)
 bindSparks();
 applyConfigFallback();
 // first paint of the static markup into the saved language

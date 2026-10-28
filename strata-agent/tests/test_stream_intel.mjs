@@ -80,7 +80,7 @@ appCode += `
   renderNextSteps, composeStepsMessage, sendSelectedSteps, send, syncStepsSendLabel,
   paintBubble, patchTool, toolHtml, answerSpec, livePlan, applyPlan, extractPlan,
   renderInspector, render, syncCtxFromSession,
-  openImageView, closeImageView, renderAttachments, msgEl,
+  openImageView, closeImageView, renderAttachments, msgEl, insertPlaceholder, attachNextPid, ceText,
   getAttachments: () => attachments, setAttachments: (v) => { attachments = v; },
   getCompactCount: () => compactCount, getLastPromptTokens: () => lastPromptTokens,
   getLastCacheTokens: () => lastCacheTokens,
@@ -855,23 +855,29 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   api.closeImageView();
   check("closeImageView hides the modal", !!doc.getElementById("img-modal").hidden);
 
-  // composer renders a real thumbnail (not just an icon chip) for an image attachment
-  api.setAttachments([{kind: "image", name: "pasted.png", url: "data:image/png;base64,AAA"}]);
-  api.renderAttachments();
+  // the composer's SINGLE visual for an image is an inline thumbnail (span.ce-thumb[data-pid]) in the
+  // body — the chip strip is for file attachments only. The data-pid anchor is what ceText() rebuilds
+  // [img:N] from (so mixedSegments/serialize still see ordering); the hover button is the delete entry.
   const box = doc.getElementById("attachments");
-  const thumb = box.querySelector(".chip--img");
-  check("an image attachment renders a management chip (image rides inline, strip is the chip)", !!thumb && thumb.classList.contains("chip--img"));
-  check("the image chip is the chip--img management chip (image is inline, not a separate img thumb)", !!box.querySelector(".chip--img"));
-  check("the image chip has a remove button", !!box.querySelector(".chip--img .st-btn--icon"));
-  check("image chip is icon-only (no visible filename text) and the filename lives on the hover title", !thumb.textContent.trim() && thumb.getAttribute("title") === "pasted.png");
+  const inp = doc.getElementById("input");
+  inp.textContent = "";
+  const _pid = api.attachNextPid();
+  api.setAttachments([{kind: "image", name: "pasted.png", url: "data:image/png;base64,AAA", pid: _pid}]);
+  api.insertPlaceholder(_pid, inp, {kind: "image", name: "pasted.png", url: "data:image/png;base64,AAA", pid: _pid});
+  const thumb = inp.querySelector(`span.ce-thumb[data-pid="${_pid}"]`);
+  check("an image renders as an inline thumbnail (span.ce-thumb) in the composer body, not a chip", !!thumb);
+  check("the inline thumbnail carries its data-pid anchor (the single visual representation)", !!thumb && thumb.getAttribute("data-pid") === String(_pid));
+  check("the inline thumbnail has a hover-revealed delete button", !!inp.querySelector(".ce-thumb__x"));
+  check("the filename lives on the hover title (thumbnail is the single visual, no visible filename text)", thumb.getAttribute("title") === "pasted.png");
+  check("ceText() rebuilds the [img:N] anchor from the inline data-pid (storage/ordering contract intact)", api.ceText(inp).includes(`[img:${_pid}]`));
   // double-click the thumbnail opens the viewer
   thumb.dispatchEvent(new win.MouseEvent("dblclick", {bubbles: true}));
-  check("double-clicking the composer image chip opens the viewer", !doc.getElementById("img-modal").hidden &&
+  check("double-clicking the composer inline thumbnail opens the viewer", !doc.getElementById("img-modal").hidden &&
         doc.getElementById("img-modal-img").src === "data:image/png;base64,AAA");
   api.closeImageView();
-  // removing the thumbnail via the × button empties the box
-  box.querySelector(".chip--img .st-btn--icon").dispatchEvent(new win.MouseEvent("click", {bubbles: true}));
-  check("removing the image chip clears attachments", !box.querySelector(".chip--img"));
+  // the inline thumbnail's delete button removes it (delegation wired at boot; array is the source of truth)
+  inp.querySelector(".ce-thumb__x").dispatchEvent(new win.MouseEvent("click", {bubbles: true}));
+  check("the inline thumbnail delete button removes it from the composer body", !inp.querySelector("span.ce-thumb"));
 
   // a text-file attachment still uses the icon chip
   api.setAttachments([{kind: "file", name: "note.txt", text: "hi"}]);

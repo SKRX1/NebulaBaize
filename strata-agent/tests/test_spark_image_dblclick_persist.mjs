@@ -34,12 +34,12 @@ const srcText = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 // --- static source locks ------------------------------------------------------------------------
 check("openEditModal filter accepts url || ref",
   /editAttachments = \(msg\.images \|\| \[\]\)\.filter\(\(a\) => a && \(a\.url \|\| a\.ref\)\)/.test(srcText));
-check("renderEditAttachments guard no longer requires kind (accepts any url/ref entry)",
-  /editAttachments\.forEach\(\(a, i\) => \{\r?\n\s*(?:\/\/[^\n]*\r?\n\s*)*if \(a\.url \|\| a\.ref\) \{/.test(srcText));
-check("renderEditAttachments chip gains a dblclick -> openImageView delegation (ref fallback)",
-  /c\.addEventListener\("dblclick", \(\) => openImageView\(a\.url \|\| a\.ref, a\.name\)\)/.test(srcText));
-check("renderEditAttachments dblclick openImageView falls back to ref",
-  /openImageView\(a\.url \|\| a\.ref, a\.name\)/.test(srcText));
+check("the modal inline renderer accepts a KIND-LESS url/ref entry (no kind required)",
+  /function ceSetRich\([\s\S]{0,200}?\.filter\(\(a\) => a && \(a\.url \|\| a\.ref\)\)/.test(srcText));
+check("the inline thumbnail gains a dblclick -> openImageView (ref fallback)",
+  /addEventListener\("dblclick", \(e\) => \{[^}]*openImageView\(src,/.test(srcText));
+check("the inline thumbnail resolves its src with a ref fallback (entry.ref || entry.url)",
+  /function makeInlineThumb\([\s\S]{0,200}?entry\.ref \|\| entry\.url/.test(srcText));
 check("spark add-box gained a dblclick -> openImageView delegation",
   /addInput\.addEventListener\("dblclick"[\s\S]{0,160}openImageView/.test(srcText));
 check("spark list gained a dblclick -> openImageView delegation",
@@ -67,9 +67,9 @@ appCode += `
   messages.length = 0;
   messages.push({ role: "user", text: "hello", images: [{ name: "pic.png", pid: 1, ref: "/data/uploads/pic.png" }], files: [], time: Date.now() });
   openEditModal(0);
-  var box = document.getElementById("edit-attachments");
-  var t = box && box.querySelector(".chip--img");
-  out.modalThumbSurvives = !!(t && t.classList.contains("chip--img"));
+  var area = document.getElementById("edit-area");
+  var t = area && area.querySelector("span.ce-thumb[data-pid]");
+  out.modalThumbSurvives = !!(t && t.getAttribute("data-pid"));
   if (t) t.dispatchEvent(new window.Event("dblclick", { bubbles: true }));
   out.modalDblclickOpensRef = !!(imgm && imgm.hidden === false && /\\/data\\/uploads\\/pic\\.png/.test(mimg.getAttribute("src") || ""));
 

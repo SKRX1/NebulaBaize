@@ -1330,3 +1330,17 @@ body.side-collapsed .st-ctx-menu { display: none; }
 /* real-thumbnail chip (filename on hover title): img looks like the spark note inline thumb */
 .chip-thumb { width:44px; height:44px; object-fit:cover; border-radius:var(--st-r-md); cursor:pointer; border:1px solid var(--st-line); background:var(--st-surface); display:block; }
 .chip-thumb:hover { outline:2px solid var(--st-accent); outline-offset:1px; }
+
+/* inline thumbnail in the composer / edit-modal contenteditable body (visual; the [img:N]
+   anchor lives in data-pid, restored by ceText for storage/ordering). hover reveals the name. */
+.inline-ce-img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--st-r-md);
+  vertical-align: middle; cursor: pointer; border: 1px solid var(--st-line); background: var(--st-surface); }
+.inline-ce-img:hover { outline: 2px solid var(--st-accent); outline-offset: 1px; }
+
+/* shared inline thumbnail in the composer / edit-modal body: a small image that rides IN the text
+   flow with a hover-revealed delete button; data-pid is the stable anchor ceText() rebuilds from. */
+.ce-thumb { position: relative; display: inline-block; vertical-align: middle; margin: 0 2px; }
+.ce-thumb__x { position: absolute; top: 1px; right: 1px; width: 18px; height: 18px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.62); color: #fff; display: none; place-items: center; cursor: pointer; padding: 0; }
+.ce-thumb__x .st-icon { width: 12px; height: 12px; }
+.ce-thumb:hover .ce-thumb__x { display: grid; }
