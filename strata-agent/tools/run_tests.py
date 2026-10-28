@@ -95,6 +95,7 @@ SUITES = [
     "tests/test_workspace_picker.mjs",
     "tests/test_workspace_fs.py",
     "tests/test_fs_server.py",
+    "tests/test_image_persist_logic.py",   # 2026-10-28: server-side image persistence (Plan A) byte round-trip data/uploads + reject non-base64/bad-mime (logic gate; live server.py not importable here)
     # These three guard "which directory do relative paths resolve against". They existed
     # but were never registered, so the 2026-10-20 wrong-base bug shipped green.
     "tests/test_fs_workspace_base.py",

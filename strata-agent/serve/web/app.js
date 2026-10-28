@@ -2004,7 +2004,7 @@ syncPermSelect();
 
 function saveChat() {
   const s = activeSession();
-  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => ({name: i.name})),
+  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => ({name: i.name, pid: i.pid, ref: i.ref})),
                                       files: (m.files || []).map((f) => ({name: f.name}))}));
   if (s) { s.messages = data; s.updatedAt = Date.now(); }   // drives the sidebar's "3分钟前"
   store.set("chat", data);   // backward-compatible fallback
@@ -2036,7 +2036,7 @@ function msgEl(m, i) {
       const wrap = document.createElement("div");
       wrap.className = "msg-images";
       for (const im of m.images) {
-        if (im.url) { const img = document.createElement("img"); img.src = im.url; img.alt = im.name || "image"; img.className = "msg-img"; img.title = t("img.view"); wrap.appendChild(img); }
+        if (im.ref || im.url) { const img = document.createElement("img"); img.src = im.ref || im.url; img.alt = im.name || "image"; img.className = "msg-img"; img.title = t("img.view"); wrap.appendChild(img); }
         else { const c = document.createElement("span"); c.className = "chip"; c.innerHTML = icon("image", "st-icon st-icon--sm"); c.append(im.name || "image"); wrap.appendChild(c); }
       }
       el.appendChild(wrap);
@@ -7407,7 +7407,7 @@ $("img-modal").addEventListener("click", (e) => { if (e.target.id === "img-modal
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("img-modal").hidden) closeImageView(); });
 // double-click any picture inside a chat message to open the viewer
 $("chat").addEventListener("dblclick", (e) => {
-  const img = e.target.closest("img.msg-img");
+  const img = e.target.closest("img.msg-img, img.inline-msg-img");
   if (img) openImageView(img.src, img.alt);
 });
 function onApproval(x) {
@@ -7479,7 +7479,7 @@ function removePlaceholder(pid, target) {
 // matched by their stable pid. Any image no placeholder references is appended at the END so nothing
 // is ever lost. null = no placeholders (caller keeps the old gallery layout).
 function mixedSegments(m) {
-  const imgs = (m.images || []).filter((a) => a && a.url);
+  const imgs = (m.images || []).filter((a) => a && (a.url || a.ref));
   const byPid = {};
   for (const a of imgs) byPid[a.pid] = a;
   const text = m.text || "";
@@ -7491,12 +7491,12 @@ function mixedSegments(m) {
     hit = true;
     if (mm.index > last) segs.push({type: "text", text: text.slice(last, mm.index)});
     const a = byPid[mm[1]];
-    if (a && !used[a.pid]) { segs.push({type: "image", url: a.url, name: a.name}); used[a.pid] = 1; }
+    if (a && !used[a.pid]) { segs.push({type: "image", url: a.ref || a.url, name: a.name}); used[a.pid] = 1; }
     last = mm.index + mm[0].length;
   }
   if (!hit) return null;
   if (last < text.length) segs.push({type: "text", text: text.slice(last)});
-  for (const a of imgs) if (!used[a.pid]) segs.push({type: "image", url: a.url, name: a.name});
+  for (const a of imgs) if (!used[a.pid]) segs.push({type: "image", url: a.ref || a.url, name: a.name});
   return segs;
 }
 function addFiles(files, opts = {}, target) {
@@ -7505,12 +7505,19 @@ function addFiles(files, opts = {}, target) {
       if (!health.images) { toast("warn", t("toast.imgoff.title"), t("toast.imgoff.msg")); continue; }
       if (f.size > 20e6) { toast("warn", t("toast.imgtoolarge.title"), t("toast.imgtoolarge.msg", {name: f.name})); continue; }
       const r = new FileReader();
-      r.onload = () => {
-        const a = {kind: "image", name: f.name || "pasted image", url: r.result, pid: attachNextPid()};
-        const _list = opts.list || attachments; const _render = opts.render || renderAttachments;
-        _list.push(a); _render();
-        if (opts.cursor) insertPlaceholder(a.pid, target);   // drop the [img:N] reference at the caret
-      };
+        r.onload = async () => {
+          const a = {kind: "image", name: f.name || "pasted image", url: r.result, pid: attachNextPid()};
+          const _list = opts.list || attachments; const _render = opts.render || renderAttachments;
+          _list.push(a); _render();
+          if (opts.cursor) insertPlaceholder(a.pid, target);   // drop the [img:N] reference at the caret
+          // Plan A persistence: write the bytes to the server (data/uploads/) so the image survives a
+          // reload; the message then keeps a light ref. The in-memory url keeps the preview instant.
+          try {
+            const j = await (await fetch("api/images/upload", {method: "POST", headers: headers(true),
+              body: JSON.stringify({dataUrl: r.result, name: a.name})})).json();
+            if (j && j.ref) { a.ref = j.ref; _render(); }   // best-effort: offline keeps the url only
+          } catch (e) { /* persistence is best-effort; the in-memory url still renders this session */ }
+        };
       r.readAsDataURL(f);
       continue;
     }
@@ -8407,6 +8414,8 @@ $("chat").addEventListener("contextmenu", (e) => {
   const m = messages[i];
   if (!m) return;
   const items = [];
+  const selTxt = (window.getSelection && window.getSelection().toString() || "").trim();
+  if (selTxt) items.push({label: t("ctx.copy.selection"), icon: "copy", run: () => copyText(selTxt)});   // selection first: it is what the user highlighted
   const toolEl = e.target.closest(".tool-call");
   if (toolEl) {
     const k = +toolEl.dataset.tool;

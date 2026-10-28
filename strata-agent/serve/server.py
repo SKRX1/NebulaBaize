@@ -5409,6 +5409,29 @@ def make_handler(svc: Service):
                 self.end_headers()
                 self.wfile.write(body)
                 return
+            if path.startswith("/data/uploads/"):
+                # uploaded chat images, persisted under data/ so they survive a reload: the
+                # browser keeps only a light reference and the bytes live on disk here.
+                name = path[len("/data/uploads/"):]
+                if "/" in name or "\\" in name or not name:
+                    self._json(404, {"error": {"message": "not found"}})
+                    return
+                ext = os.path.splitext(name)[1].lower()
+                mt = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                      ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp"}.get(ext)
+                uproot = (ROOT / "data" / "uploads").resolve()
+                f = (uproot / name).resolve()
+                if not mt or not str(f).startswith(str(uproot)) or not f.is_file():
+                    self._json(404, {"error": {"message": "not found"}})
+                    return
+                body = f.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", mt)
+                self.send_header("Cache-Control", "max-age=86400")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if path == "/metrics/prometheus":
                 if self._authorized():
                     body = svc.prometheus().encode()
@@ -5601,6 +5624,11 @@ def make_handler(svc: Service):
                 req = json.loads(self._body() or b"{}")
                 if not isinstance(req, dict):
                     raise ValueError("send a JSON object")
+                if path == "/api/images/upload":          # the web app: persist a pasted image under data/
+                    if not self._own_page("an image can be uploaded"):
+                        return
+                    self._images_upload(req)
+                    return
                 if path == "/workspace/create":             # the web app's sidebar: create a workspace folder
                     if not self._own_page("a workspace folder can be created"):
                         return
@@ -5952,6 +5980,45 @@ def make_handler(svc: Service):
                 self._json(500, {"error": {"type": "server_error", "message": f"the folder could not be created: {e}"}})
                 return
             self._json(200, {"path": str(target)})
+        def _images_upload(self, req: dict):
+            """POST /api/images/upload: persist one pasted/uploaded chat image under
+            data/uploads/ (Plan A: server-side disk, browser keeps only a light reference).
+            Body {dataUrl: "data:<mime>;base64,<...>", name}: decode, write, return the
+            served reference. Only standard web image types are accepted, and the data URL
+            must be self-contained base64 (no fetch of remote URLs here)."""
+            data_url = req.get("dataUrl") or ""
+            if not data_url.startswith("data:") or ";base64," not in data_url:
+                self._json(400, {"error": {"type": "invalid_request_error",
+                                       "message": "send a base64 data URL (data:<mime>;base64,<...>)"}})
+                return
+            head, _, payload = data_url.partition(",")
+            mime = head[len("data:"):].split(";")[0].lower() if head.startswith("data:") else ""
+            ext = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif",
+                   "image/webp": ".webp", "image/bmp": ".bmp"}.get(mime)
+            if not ext:
+                self._json(400, {"error": {"type": "invalid_request_error",
+                                       "message": "unsupported image mime: " + (mime or "(none)")}})
+                return
+            try:
+                data = base64.b64decode(payload)
+            except Exception as e:
+                self._json(400, {"error": {"type": "invalid_request_error",
+                                       "message": "not valid base64: " + str(e)}})
+                return
+            if len(data) > 20_000_000:                 # matches the front-end 20 MB ceiling
+                self._json(413, {"error": {"type": "invalid_request_error",
+                                        "message": "image too large (max 20 MB)"}})
+                return
+            updir = ROOT / "data" / "uploads"
+            try:
+                updir.mkdir(parents=True, exist_ok=True)
+                fname = "img-" + uuid.uuid4().hex[:16] + ext
+                (updir / fname).write_bytes(data)
+            except OSError as e:
+                self._json(500, {"error": {"type": "server_error",
+                                       "message": "the image could not be saved: " + str(e)}})
+                return
+            self._json(200, {"ref": "/data/uploads/" + fname, "name": req.get("name") or fname})
         def _workspace_open(self, req: dict):
             """POST /workspace/open: reveal a folder in the OS file manager (the sidebar's
             "打开文件夹"). The path is passed to the OS as a single argv element — never through a
