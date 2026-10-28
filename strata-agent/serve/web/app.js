@@ -5794,6 +5794,8 @@ function bindSparks() {
   };
   const addInput = $("spark-add-input");
   if (addInput) addInput.addEventListener("paste", (e) => pasteImageToRich(e, addInput));
+  // double-click an inline image in the add box to open the viewer (mirrors the chat-bubble handler)
+  if (addInput) addInput.addEventListener("dblclick", (e) => { const im = e.target.closest && e.target.closest("img"); if (im && im.getAttribute("src")) openImageView(im.getAttribute("src"), im.alt); });
   const toggle = $("spark-toggle");
   const strip = $("spark-strip");
   if (toggle && strip) toggle.onclick = () => {
@@ -5838,6 +5840,8 @@ function bindSparks() {
 
   const list = $("spark-list");
   if (list) {
+    // double-click an image inside a spark note to open the viewer (notes render their html via innerHTML)
+    list.addEventListener("dblclick", (e) => { const im = e.target.closest && e.target.closest("img"); if (im && im.getAttribute("src")) openImageView(im.getAttribute("src"), im.alt); });
     list.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-id]");
       if (!btn) return;
@@ -7310,7 +7314,7 @@ function openEditModal(i) {
     (n > 0 ? after.map(x => '<div class="edit-preview__item">' + esc(((x.role === "user" ? "▸ " : "◆ ") + (x.text || "")).slice(0, 90)) + "</div>").join("") : '<div class="edit-preview__item">（无）</div>');
   m.dataset.strategy = "soft";
   m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === "soft" ? "true" : "false"));
-  editAttachments = (msg.images || []).filter((a) => a && a.url).map((a) => ({...a}));
+  editAttachments = (msg.images || []).filter((a) => a && (a.url || a.ref)).map((a) => ({...a}));
   renderEditAttachments();
   const _ea2 = m.querySelector("#edit-area"); autosize(_ea2);
   m.hidden = false;
@@ -7637,12 +7641,12 @@ function renderEditAttachments() {
   box.hidden = !editAttachments.length;
   box.innerHTML = "";
   editAttachments.forEach((a, i) => {
-    if (a.kind === "image" && a.url) {
+    if (a.kind === "image" && (a.url || a.ref)) {
       const thumb = document.createElement("div"); thumb.className = "att-thumb";
-      const im = document.createElement("img"); im.src = a.url; im.alt = a.name || "image"; thumb.appendChild(im);
+      const im = document.createElement("img"); im.src = a.url || a.ref; im.alt = a.name || "image"; thumb.appendChild(im);
       const x = document.createElement("button"); x.type = "button"; x.className = "att-thumb__x"; x.textContent = "×";
       x.onclick = () => { if (a.pid) removePlaceholder(a.pid, document.getElementById("edit-area")); editAttachments.splice(i, 1); renderEditAttachments(); };
-      thumb.appendChild(x); thumb.addEventListener("dblclick", () => openImageView(a.url, a.name)); box.appendChild(thumb);
+      thumb.appendChild(x); thumb.addEventListener("dblclick", () => openImageView(a.url || a.ref, a.name)); box.appendChild(thumb);
       return;
     }
   });
