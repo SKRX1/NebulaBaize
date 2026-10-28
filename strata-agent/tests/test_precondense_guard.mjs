@@ -91,6 +91,9 @@ async function makeScope(seedMessages, opts = {}) {
     const computeTailBudgetChars = () => 1e9;
     const saveChat = () => { calls.saved++; };
     const renderChat = () => {};
+    const ceText = (el) => (el && (el.textContent || el.value)) || "";
+    const ceSetText = (el, txt) => { if (el) el.textContent = txt; };
+    const autosize = () => {};
     const send = () => { calls.finalSend++; };
     const llmSummarize = async () => { calls.summarise.push(1); return "summary " + calls.summarise.length; };
     const compactReqBudgetChars = ${GRABS.compactReqBudgetChars};

@@ -36,8 +36,8 @@ check("openEditModal filter accepts url || ref",
   /editAttachments = \(msg\.images \|\| \[\]\)\.filter\(\(a\) => a && \(a\.url \|\| a\.ref\)\)/.test(srcText));
 check("renderEditAttachments guard no longer requires kind (accepts any url/ref entry)",
   /editAttachments\.forEach\(\(a, i\) => \{\r?\n\s*(?:\/\/[^\n]*\r?\n\s*)*if \(a\.url \|\| a\.ref\) \{/.test(srcText));
-check("renderEditAttachments img src falls back to ref",
-  /im\.src = a\.url \|\| a\.ref/.test(srcText));
+check("renderEditAttachments chip gains a dblclick -> openImageView delegation (ref fallback)",
+  /c\.addEventListener\("dblclick", \(\) => openImageView\(a\.url \|\| a\.ref, a\.name\)\)/.test(srcText));
 check("renderEditAttachments dblclick openImageView falls back to ref",
   /openImageView\(a\.url \|\| a\.ref, a\.name\)/.test(srcText));
 check("spark add-box gained a dblclick -> openImageView delegation",
@@ -68,8 +68,8 @@ appCode += `
   messages.push({ role: "user", text: "hello", images: [{ name: "pic.png", pid: 1, ref: "/data/uploads/pic.png" }], files: [], time: Date.now() });
   openEditModal(0);
   var box = document.getElementById("edit-attachments");
-  var t = box && box.querySelector(".att-thumb img");
-  out.modalThumbSurvives = !!(t && /\\/data\\/uploads\\/pic\\.png/.test(t.getAttribute("src") || ""));
+  var t = box && box.querySelector(".chip--img");
+  out.modalThumbSurvives = !!(t && t.classList.contains("chip--img"));
   if (t) t.dispatchEvent(new window.Event("dblclick", { bubbles: true }));
   out.modalDblclickOpensRef = !!(imgm && imgm.hidden === false && /\\/data\\/uploads\\/pic\\.png/.test(mimg.getAttribute("src") || ""));
 
@@ -115,7 +115,7 @@ appCode += `
 win.eval(appCode);
 const r = win.__probe;
 
-check("edit modal shows a KIND-LESS ref-only thumbnail (faithful old-storage differential)", r.modalThumbSurvives === true);
+check("edit modal shows a KIND-LESS ref-only image chip (faithful old-storage differential)", r.modalThumbSurvives === true);
 check("edit modal thumbnail dblclick opens viewer at the ref (functional)", r.modalDblclickOpensRef === true);
 check("default strategy on open = hard (checked card data-v=hard)", r.defaultHard === true);
 check("strategy cards order = hard,soft,branch (hard leftmost, soft middle)", r.cardOrder === "hard,soft,branch");

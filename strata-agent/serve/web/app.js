@@ -2495,7 +2495,7 @@ function syncStepsSendLabel() {
   const b = document.querySelector("[data-steps-send]");
   if (!b) return;
   const n = +b.dataset.n || 0;
-  const typed = !!$("input").value.trim();
+  const typed = !!ceText($("input"));
   const txt = typed ? t("nextsteps.send.custom", {n}) : t("nextsteps.send.n", {n});
   if (b.textContent !== txt) b.textContent = txt;
 }
@@ -2503,13 +2503,12 @@ function syncStepsSendLabel() {
 // in the composer as an extra instruction instead of overwriting it.
 function sendSelectedSteps(mm, human = true) {
   if (busy || !mm || !mm.selSteps || !mm.selSteps.length) return;
-  const text = composeStepsMessage(mm.steps, [...mm.selSteps].sort((a, b) => a - b), $("input").value);
+  const text = composeStepsMessage(mm.steps, [...mm.selSteps].sort((a, b) => a - b), ceText($("input")));
   if (!text.trim()) return;
   mm.selSteps = [];
   const host = $("chat").querySelector(`.st-msg[data-i="${messages.indexOf(mm)}"]`);
   if (host) renderNextSteps(host, mm);
-  $("input").value = text;
-  autosize();
+  ceSetText($("input"), text);
   send(human);
 }
 function renderNextSteps(el, m) {
@@ -2720,8 +2719,7 @@ async function handleProposalAction(host, mm, p, act, oi) {
     const label = opt ? opt.label : "";
     const verdict = (opt && opt.verdict) ? `（${opt.verdict}）` : "";
     const next = p.next ? `\n下一步：${p.next}` : "";
-    $("input").value = `采纳建议：「${p.title}」选 ${label}${verdict}。${next}`;
-    autosize(); $("input").focus();
+    ceSetText($("input"), `采纳建议：「${p.title}」选 ${label}${verdict}。${next}`); $("input").focus();
     return;
   }
   if (act === "save") {
@@ -2774,7 +2772,7 @@ function continueTask(btn) {
     compactConversation(true);
     return;
   }
-  $("input").value = "继续完成刚才被工具轮数上限截断的任务：接着把剩下的工作做完（不要重复已经做的部分）。";
+  ceSetText($("input"), "继续完成刚才被工具轮数上限截断的任务：接着把剩下的工作做完（不要重复已经做的部分）。");
   send();
 }
 
@@ -2931,7 +2929,7 @@ function maybeAutoResume(m) {
     return false;
   }
   autoResumeChain++;
-  $("input").value = t("chat.resume.cmd");
+  ceSetText($("input"), t("chat.resume.cmd"));
   toast("ok", t("chat.resume.auto"), t("resume.chain", {n: autoResumeChain, max: AUTO_RESUME_MAX}), 6000);
   resumeBadge = t("chat.resume.meta");
   pendingResume = {timer: setTimeout(() => { pendingResume = null; send(false); }, 3000)};
@@ -3415,7 +3413,7 @@ async function precondenseAndCompact(auto) {
   }
   // Now the normal single-shot compact runs on a transcript that fits; its finish hook builds the
   // final summary structure and resumes the interrupted task exactly as before.
-  $("input").value = t("insp.compact.prompt");
+  ceSetText($("input"), t("insp.compact.prompt"));
   send();
 }
 
@@ -3436,7 +3434,7 @@ function compactConversation(auto = false) {
     if (auto && autoDriveDepth > 0) { pendingCompact = false; resumeSnapshot = null; return; }   // chain-active guard: chunking a RUNNING task is the interruption; defer to the chain tail (exhausted/idle fires normally)
     if (!resumeSnapshot) resumeSnapshot = taskResumeSnapshot() || {leftItems: null}; precondenseAndCompact(auto); return;
   }
-  $("input").value = t("insp.compact.prompt");
+  ceSetText($("input"), t("insp.compact.prompt"));
   send();
 }
 // F4: automatically summarise a long chat when its context reaches the model limit, so quality doesn't
@@ -5643,8 +5641,7 @@ async function sendUserMessage(text, sparkId) {
   text = (text || "").trim();
   if (!text) return false;
   messages.push({ role: "user", text, images: [], files: [], time: Date.now() });
-  $("input").value = "";
-  autosize();
+  ceSetText($("input"), "");
   await streamAssistant();
   if (sparkId) await markSparkExecuted(sparkId);
   return true;
@@ -5742,6 +5739,7 @@ function reorderSpark(dragId, dropId) {
 // or upload failure falls back to inline base64 data URL so the image still survives sanitizeHtml
 // (the sanitizer now allows data:image/* per the scheme whitelist). Plain text paste untouched.
 async function pasteImageToRich(e, editable) {
+  const isComposer = (editable === $("input"));
   if (!health.images) return;
   const cd = e.clipboardData || window.clipboardData;
   if (!cd) return;
@@ -5774,12 +5772,36 @@ async function pasteImageToRich(e, editable) {
         const img = document.createElement("img"); img.src = src;
         editable.appendChild(img);
       }
+      // Collect image data + text placeholder for send/message layer
+      const pid = attachNextPid();
+      const tag = ` [img:${pid}] `;
+      if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
+        document.execCommand("insertHTML", false, esc(tag));
+      } else {
+        editable.appendChild(document.createTextNode(tag));
+      }
+      const entry = {kind: "image", url: dataUrl, ref: src !== dataUrl ? src : undefined, name: f.name || "pasted", pid};
+      if (isComposer) {
+        attachments.push(entry);
+        renderAttachments();
+      } else {
+        editAttachments.push(entry);
+        renderEditAttachments();
+      }
+      autosize(editable);
     };
     reader.readAsDataURL(f);
   }
 }
 
 function bindSparks() {
+  // dblclick on inline thumbnails in contenteditable inputs -> lightbox
+  document.addEventListener("dblclick", (e) => {
+    const img = e.target;
+    if (img.tagName === "IMG" && img.closest(".ce-input")) {
+      openImageView(img.src, img.alt || "image");
+    }
+  });
   const addBtn = $("spark-add-btn");
   if (addBtn) addBtn.onclick = () => {
     const ed = $("spark-add-input");
@@ -6389,11 +6411,28 @@ document.addEventListener("strata:langchange", () => {
   if (!$("model-modal").hidden) renderModelList();
 });
 
+// ── contenteditable text helpers ────────────────────────────
+function ceText(el) {
+  if (!el) return "";
+  // innerText is the browser-authoritative read (keeps <br> as newlines); jsdom does not
+  // implement it, so fall back to textContent and let the gates exercise this for real.
+  return (el.innerText || el.textContent || "").replace(/\u200B/g, "").trim();
+}
+function ceSetText(el, txt) {
+  if (!el) return;
+  el.textContent = txt;
+  autosize(el);
+}
+
+function isCE(el) {
+  return !!(el && (el.isContentEditable || el.getAttribute("contenteditable") === "true"));
+}
+
 async function send(human = true) {
   if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }   // the composer guard now speaks up, like the other 6 guards
   if (chunkedCompacting) return;   // chunked pre-compaction owns the transcript while it folds (kept silent: the auto path must not spam)
   if (human) { autoDriveDepth = 0; autoDriveAbort = false; showAutoDrivePill(false); autoResumeChain = 0; }  // a human turn starts a fresh chain
-  let text = $("input").value.trim();
+  let text = ceText($("input"));
   // A chip selection on the newest answer plus whatever was typed in the composer go out TOGETHER as one
   // message (Enter included): "按建议做，另外再顺手把字体调大" in a single turn.
   if (!pendingCompact) {
@@ -6415,8 +6454,7 @@ async function send(human = true) {
                  files: attachments.filter((a) => a.kind === "file"), time: Date.now()});
   attachments = [];
   renderAttachments();
-  $("input").value = "";
-  autosize();
+  ceSetText($("input"), "");
   await streamAssistant();
 }
 
@@ -6730,7 +6768,7 @@ function pushBugFix(ts) {
     e.verdict ? ("- " + t("debug.bugbox.pf.diag") + ": " + e.verdict) : ""
   ].filter(Boolean).join("\n");
   setBugStatus(e.ts, "fixing");   // push = fix task in flight: mark fixing so the idle loop won't re-pick it
-  $("input").value = prompt;
+  ceSetText($("input"), prompt);
   send();
 }
 
@@ -7125,7 +7163,7 @@ async function streamAssistant() {
           `${origLen} → ${messages.length} ${t("insp.compact.msgs")}`, auto ? 8000 : undefined);
     if (resumeSnapshot) {                             // auto-resume: the compact turn interrupted an unfinished task (auto or manual, approved 2026-10)
       const snap = resumeSnapshot; resumeSnapshot = null;   // one-shot: never resume twice
-      $("input").value = t("chat.resume.cmd");
+      ceSetText($("input"), t("chat.resume.cmd"));
       toast("ok", t("chat.resume.auto"),
             snap.leftItems ? t("chat.resume.left", {n: snap.leftItems}) : undefined, 6000);
       resumeBadge = t("chat.resume.meta");            // badge consumed by the stream the deferred send() starts
@@ -7178,12 +7216,12 @@ function openSlashMenu() {
   const first = menu.querySelector(".slash-menu__item");
   if (first) first.classList.add("sel");
   menu.querySelectorAll(".slash-menu__item").forEach((el) => {
-    el.onclick = () => { $("input").value = el.dataset.cmd + " "; $("input").focus(); $("input").dispatchEvent(new Event("input")); closeSlashMenu(); };
+    el.onclick = () => { ceSetText($("input"), el.dataset.cmd + " "); $("input").focus(); $("input").dispatchEvent(new Event("input")); closeSlashMenu(); };
   });
 }
 function closeSlashMenu() { $("slash-menu").classList.remove("open"); }
 $("input").addEventListener("input", () => {
-  if ($("input").value.startsWith("/")) openSlashMenu(); else closeSlashMenu();
+  if (ceText($("input")).startsWith("/")) openSlashMenu(); else closeSlashMenu();
   syncStepsSendLabel();                    // a selected chip + typed text sends both: say so on the button
 });
 function autosize(el) {
@@ -7261,7 +7299,7 @@ function ensureEditUI() {
       '<div class="st-modal__head"><span class="card-title" data-i18n="ctx.edit.title">编辑这条任务对话</span>' +
         '<button class="st-btn st-btn--icon" id="edit-x" aria-label="Close"><svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chevron"/></svg></button></div>' +
       '<div class="st-modal__body" style="padding:14px 16px">' +
-        '<textarea id="edit-area" class="st-textarea" style="min-height:160px;width:100%;resize:vertical"></textarea>' +
+        '<div id="edit-area" class="st-textarea ce-input" contenteditable="true" role="textbox" aria-multiline="true"></div>' +
         '<div class="attachments" id="edit-attachments" hidden></div>' +
         '<div class="edit-preview" id="edit-preview"></div>' +
         '<div style="font-size:13px;font-weight:600;margin-top:12px" data-i18n="ctx.edit.strategy">发送后如何处理此后的内容</div>' +
@@ -7289,7 +7327,7 @@ function ensureEditUI() {
   // (target=#edit-area, list=editAttachments) so the modal can hold its own images.
   const _ea = m.querySelector("#edit-area");
   _ea.addEventListener("input", () => autosize(_ea));
-  _ea.addEventListener("paste", (e) => handlePasteImage(e, _ea, {cursor: true, list: editAttachments, render: renderEditAttachments}));
+  _ea.addEventListener("paste", (e) => pasteImageToRich(e, _ea));
   m.querySelector("#edit-x").onclick = closeEditModal;
   m.querySelector("#edit-cancel").onclick = closeEditModal;
   m.addEventListener("click", (e) => { if (e.target === m) closeEditModal(); });
@@ -7306,7 +7344,7 @@ function openEditModal(i) {
   ensureEditUI();
   editingIndex = i;
   const m = $("edit-modal");
-  m.querySelector("#edit-area").value = msg.text;
+  ceSetText(m.querySelector("#edit-area"), msg.text);
   const after = messages.slice(i + 1);
   const n = after.length;
   const prev = m.querySelector("#edit-preview");
@@ -7327,7 +7365,7 @@ function confirmEdit() {
   if (i < 0) return;
   const m = $("edit-modal");
   const strategy = m.dataset.strategy || "hard";
-  const newText = m.querySelector("#edit-area").value.trim();
+  const newText = ceText(m.querySelector("#edit-area"));
   const imgs = editAttachments.slice();   // capture BEFORE closeEditModal clears the modal list
   closeEditModal();
   if (!newText) { toast("warn", t("ctx.edit.empty")); return; }
@@ -7513,18 +7551,42 @@ function insertPlaceholder(pid, target) {
   const inp = target || $("input");
   if (!inp) return;
   const tag = ` [img:${pid}] `;
-  const s = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
-  const e = inp.selectionEnd != null ? inp.selectionEnd : s;
-  inp.value = inp.value.slice(0, s) + tag + inp.value.slice(e);
-  const caret = s + tag.length;
-  try { inp.setSelectionRange(caret, caret); } catch (err) { /* jsdom */ }
+  if (isCE(inp)) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      const range = sel.getRangeAt(0);
+      const node = document.createTextNode(tag);
+      range.insertNode(node);
+      range.setStartAfter(node); range.collapse(true);
+      sel.removeAllRanges(); sel.addRange(range);
+    } else {
+      inp.appendChild(document.createTextNode(tag));
+    }
+  } else {
+    const s = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+    const e = inp.selectionEnd != null ? inp.selectionEnd : s;
+    inp.value = inp.value.slice(0, s) + tag + inp.value.slice(e);
+    try { inp.setSelectionRange(s + tag.length, s + tag.length); } catch (err) { /* jsdom */ }
+  }
   autosize(target);
 }
 // Remove a removed attachment's [img:N] placeholder from the composer (kept in sync with the gallery).
 function removePlaceholder(pid, target) {
   const inp = target || $("input");
   if (!inp) return;
-  inp.value = inp.value.replace(new RegExp(`\\s*\\[img:${pid}\\]\\s*`, "g"), " ").replace(/ {2,}/g, " ").trim();
+  const re2 = new RegExp(`\\s*\\[img:${pid}\\]\\s*`, "g");
+  if (isCE(inp)) {
+    const NF = (window.NodeFilter && window.NodeFilter.SHOW_TEXT) || 4; // jsdom: doc.NodeFilter can be null
+    const walker = document.createTreeWalker(inp, NF);
+    while (walker.nextNode()) {
+      const tn = walker.currentNode;
+      if (re2.test(tn.textContent)) {
+        tn.textContent = tn.textContent.replace(re2, " ").replace(/ {2,}/g, " ");
+      }
+    }
+  } else {
+    inp.value = inp.value.replace(re2, " ").replace(/ {2,}/g, " ").trim();
+  }
   autosize(target);
 }
 // Split a message into alternating text/image segments driven by [img:N] placeholders. images are
@@ -7605,22 +7667,19 @@ function renderAttachments(list) {
   box.hidden = !_l.length;
   box.innerHTML = "";
   _l.forEach((a, i) => {
-    if (a.kind === "image" && a.url) {
-      // a real thumbnail of the pasted/dropped picture, double-click to enlarge
-      const thumb = document.createElement("div");
-      thumb.className = "att-thumb";
-      thumb.title = t("img.view");
-      const im = document.createElement("img");
-      im.src = a.url; im.alt = a.name || "image";
-      thumb.appendChild(im);
+    if (a.kind === "image" && (a.url || a.ref)) {
+      // Images are now inline; strip shows a management chip
+      const c = document.createElement("span");
+      c.className = "chip chip--img";
+      c.innerHTML = icon("image", "st-icon st-icon--sm");
+      c.append(a.name || "image");
       const x = document.createElement("button");
-      x.type = "button"; x.className = "att-thumb__x"; x.setAttribute("aria-label", t("attach.remove"));
-      x.textContent = "×";
+      x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
+      x.innerHTML = icon("trash");
       x.onclick = (e) => { e.stopPropagation(); if (a.pid) removePlaceholder(a.pid); attachments.splice(i, 1); renderAttachments(); };
-      thumb.appendChild(x);
-      if (a.pid) thumb.title = `${t("img.view")} · [img:${a.pid}]`;
-      thumb.addEventListener("dblclick", () => openImageView(a.url, a.name));
-      box.appendChild(thumb);
+      c.appendChild(x);
+      if (a.url || a.ref) c.addEventListener("dblclick", () => openImageView(a.url || a.ref, a.name));
+      box.appendChild(c);
       return;
     }
     const c = document.createElement("span");
@@ -7643,11 +7702,15 @@ function renderEditAttachments() {
   editAttachments.forEach((a, i) => {
     // modal list is image-only; old saved rows carry no `kind` -- accept any url/ref entry
     if (a.url || a.ref) {
-      const thumb = document.createElement("div"); thumb.className = "att-thumb";
-      const im = document.createElement("img"); im.src = a.url || a.ref; im.alt = a.name || "image"; thumb.appendChild(im);
-      const x = document.createElement("button"); x.type = "button"; x.className = "att-thumb__x"; x.textContent = "×";
+      const c = document.createElement("span"); c.className = "chip chip--img";
+      c.innerHTML = icon("image", "st-icon st-icon--sm");
+      c.append(a.name || "image");
+      const x = document.createElement("button"); x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
+      x.innerHTML = icon("trash");
       x.onclick = () => { if (a.pid) removePlaceholder(a.pid, document.getElementById("edit-area")); editAttachments.splice(i, 1); renderEditAttachments(); };
-      thumb.appendChild(x); thumb.addEventListener("dblclick", () => openImageView(a.url || a.ref, a.name)); box.appendChild(thumb);
+      c.appendChild(x);
+      if (a.url || a.ref) c.addEventListener("dblclick", () => openImageView(a.url || a.ref, a.name));
+      box.appendChild(c);
       return;
     }
   });
@@ -7707,7 +7770,7 @@ function handlePasteImage(e, textarea, opts) {
   }
   if (files.length) { e.preventDefault(); addFiles(files, opts, textarea); }
 }
-$("input").addEventListener("paste", (e) => handlePasteImage(e, $("input"), {cursor: true}));
+$("input").addEventListener("paste", (e) => pasteImageToRich(e, $("input")));
 
 // ─────────────────────────────────────────────────────────────────────
 // Step1-G · Debug drawer + one-click diagnosis
@@ -8315,7 +8378,7 @@ setBusy(false);
 renderChat();
 const startQuestion = new URLSearchParams(location.search).get("q");   // /?q=... starts a chat (a shortcut)
 if (startQuestion) history.replaceState(null, "", location.pathname + location.hash);
-loadHealth().then(loadMcp).then(() => { if (startQuestion) { $("input").value = startQuestion; send(); } });
+loadHealth().then(loadMcp).then(() => { if (startQuestion) { ceSetText($("input"), startQuestion); send(); } });
 showTab(location.hash.slice(1) || "chat");
 poll();
 
@@ -8505,7 +8568,7 @@ const SHORTCUTS = [
   {combo: "Shift+Enter", i18n: "kbd.newline"},
   {combo: "/", i18n: "kbd.commands"},
   {combo: "Ctrl+K", i18n: "kbd.newchat", run: () => { if (!busy) $("new-btn").click(); }},
-  {combo: "Ctrl+L", i18n: "kbd.clear", run: () => { $("input").value = ""; autosize(); $("input").focus(); }},
+  {combo: "Ctrl+L", i18n: "kbd.clear", run: () => { ceSetText($("input"), ""); $("input").focus(); }},
   {combo: "Esc", i18n: "kbd.close"},
   {combo: "Drop", i18n: "kbd.drop"},
 ];
@@ -8541,7 +8604,7 @@ function bindGlobalKeys() {
   document.addEventListener("keydown", (e) => {
     const meta = e.ctrlKey || e.metaKey;
     if (meta && (e.key === "k" || e.key === "K")) { e.preventDefault(); if (!busy) $("new-btn").click(); return; }
-    if (meta && (e.key === "l" || e.key === "L")) { e.preventDefault(); $("input").value = ""; autosize(); $("input").focus(); return; }
+    if (meta && (e.key === "l" || e.key === "L")) { e.preventDefault(); ceSetText($("input"), ""); $("input").focus(); return; }
   });
 }
 

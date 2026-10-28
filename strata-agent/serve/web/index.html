@@ -211,8 +211,9 @@
       <form class="st-composer" id="composer">
         <div class="slash-menu" id="slash-menu"></div>
         <div class="attachments" id="attachments" hidden></div>
-        <textarea id="input" rows="2" placeholder="Ask anything…" aria-label="Message"
-                  data-i18n-attr="placeholder:chat.placeholder,aria-label:chat.msg.label"></textarea>
+        <div id="input" class="ce-input" contenteditable="true" role="textbox" aria-multiline="true"
+             data-i18n-attr="aria-label:chat.msg.label,data-placeholder:chat.placeholder"
+             data-placeholder="Ask anything…"></div>
         <div class="st-composer__bar">
           <button type="button" class="st-btn st-btn--icon" id="attach-btn" title="Attach a text file (or drop it here)" aria-label="Attach a file"
                   data-i18n-attr="title:chat.attach,aria-label:chat.attach">

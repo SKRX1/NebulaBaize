@@ -60,7 +60,7 @@ async function runCompactTurn() {
       messages.push({role:'user', text:'你好'});
       busy = null;
       pendingCompact = true;
-      document.querySelector('#input').value = '请把以上对话压缩成摘要';`);
+      document.querySelector('#input').textContent = '请把以上对话压缩成摘要';`);
   ev("send()");
   await sleep(250);             // let streamAssistant reach its fetch
 }
@@ -78,7 +78,7 @@ async function runCompactTurn() {
       messages.push({role:'user', text:'你好'});
       busy = null;
       pendingCompact = false;
-      document.querySelector('#input').value = '再问一个问题';`);
+      document.querySelector('#input').textContent = '再问一个问题';`);
   ev("send()");
   await sleep(250);
   check("normal turn does NOT set strata_compact",

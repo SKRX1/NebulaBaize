@@ -1303,3 +1303,25 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .st-legend__dot--avoid  { background: #ff4326; }
 #spark-list, #spark-memory-list { max-height: 420px; }
 .spark-wrap{max-width:var(--st-chat-w)}
+
+/* ── contenteditable input (composer + edit modal) ──────────── */
+.ce-input {
+  width: 100%; min-height: 38px; padding: 8px 10px;
+  font: 400 var(--st-fs-sm)/1.5 var(--st-font); color: var(--st-text);
+  background: var(--st-surface); border: 1px solid var(--st-border);
+  border-radius: var(--st-r); outline: none; position: relative;
+  overflow-wrap: break-word; white-space: pre-wrap; cursor: text;
+}
+.ce-input:focus { border-color: var(--st-accent); }
+.ce-input:empty::before {
+  content: attr(data-placeholder);
+  color: var(--st-muted); pointer-events: none;
+}
+.ce-input img {
+  display: inline-block; width: 48px; height: 48px; object-fit: cover;
+  border-radius: 6px; border: 1px solid var(--st-border); vertical-align: middle;
+  cursor: pointer; margin: 2px 4px;
+}
+.ce-input img:hover { border-color: var(--st-accent); }
+.st-composer .ce-input { max-height: 40vh; overflow-y: auto; }
+.chip--img { gap: 4px; }

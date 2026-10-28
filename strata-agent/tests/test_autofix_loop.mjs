@@ -49,7 +49,7 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 const injected = appCode + `
-;send = async (human = true) => { window.__send.push(document.getElementById("input").value); };
+;send = async (human = true) => { window.__send.push(ceText(document.getElementById("input"))); };
 postQuiet = (url, body) => { window.__pq.push({ url, body }); };
 window.__send = [];
 window.__pq = [];

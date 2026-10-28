@@ -58,7 +58,7 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += `
 ;window.__api = { attachNextPid, insertPlaceholder, removePlaceholder, mixedSegments,
-  getInput:()=>document.getElementById("input").value };`;
+  getInput:()=>ceText(document.getElementById("input")) };`;
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(appCode);
 const api = win.__api;
@@ -83,14 +83,14 @@ check("mixedSegments returns null with no placeholder (old layout preserved)",
 
 check("insertPlaceholder writes a [img:N] tag into the composer", (() => {
   const inp = doc.getElementById("input");
-  inp.value = "";
+  inp.textContent = "";
   api.insertPlaceholder(42);
-  return inp.value.includes("[img:42]");
+  return inp.textContent.includes("[img:42]");
 })());
 
 check("removePlaceholder clears that tag again", (() => {
   api.removePlaceholder(42);
-  return !doc.getElementById("input").value.includes("[img:42]");
+  return !doc.getElementById("input").textContent.includes("[img:42]");
 })());
 
 console.log("\nREGRESSION: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));

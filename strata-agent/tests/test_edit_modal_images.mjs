@@ -98,7 +98,7 @@ const main = async () => {
   const modal = doc.querySelector("#edit-modal");
   check("edit modal opened", !!modal && !modal.hidden);
   const ta = modal && modal.querySelector("#edit-area");
-  check("modal textarea prefilled", !!ta && ta.value === "With image?", ta ? JSON.stringify(ta.value) : "no textarea");
+  check("modal edit area prefilled", !!ta && ta.textContent === "With image?", ta ? JSON.stringify(ta.textContent) : "no edit area");
 
   console.log("\n=== D1: the modal owns an INDEPENDENT attachment list (scope parametrization) ===");
   check("composer global attachments starts empty", v("attachments").length === 0);
@@ -106,7 +106,7 @@ const main = async () => {
   v("editAttachments").push({ kind: "image", name: "pasted.png", url: "data:image/png;base64,iVBORw0KGgo=", pid });
   P().renderEditAttachments();
   P().insertPlaceholder(pid, ta);   // drop the [img:N] reference at the caret, in the MODAL box
-  check("placeholder tag landed in the modal textarea", ta.value.includes(`[img:${pid}]`), JSON.stringify(ta.value));
+  check("placeholder tag landed in the modal edit area", ta.textContent.includes(`[img:${pid}]`), JSON.stringify(ta.textContent));
   check("modal-scoped list holds the image", v("editAttachments").length === 1);
   check("composer global list still untouched (no cross-contamination)", v("attachments").length === 0, `len=${v("attachments").length}`);
 

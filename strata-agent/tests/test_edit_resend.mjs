@@ -99,7 +99,7 @@ const main = async () => {
   const modal = doc.querySelector("#edit-modal");
   check("edit modal opened", !!modal && !modal.hidden);
   const ta = modal && modal.querySelector("#edit-area");
-  check("modal has a textarea prefilled with the current text", !!ta && ta.value === "Second question", ta ? JSON.stringify(ta.value) : "no textarea");
+  check("modal is prefilled with the current text", !!ta && ta.textContent === "Second question", ta ? JSON.stringify(ta.textContent) : "no edit area");
   if (!modal || !ta) { console.log("\nFAILED (no modal, cannot continue)"); win.close(); process.exit(1); }
 
   const previewItems = modal.querySelectorAll("#edit-preview .edit-preview__item:not(.edit-preview__ph)");
@@ -107,7 +107,7 @@ const main = async () => {
   // 2026-10-28 user decision: the default is HARD delete (zhen-shan-chu, leftmost card; template order hard|soft|branch)
   check("default strategy is hard delete", modal.dataset.strategy === "hard", String(modal.dataset.strategy));
 
-  ta.value = "Second question EDITED";
+  ta.textContent = "Second question EDITED";
   modal.querySelector("#edit-send").click();
 
   await sleep(20);
@@ -147,7 +147,7 @@ const main = async () => {
   branchOpt.click();
   check("branch strategy selected", modal2.dataset.strategy === "branch", String(modal2.dataset.strategy));
 
-  modal2.querySelector("#edit-area").value = "Second question BRANCHED";
+  modal2.querySelector("#edit-area").textContent = "Second question BRANCHED";
   modal2.querySelector("#edit-send").click();
   await sleep(120);
 
@@ -196,7 +196,7 @@ const main = async () => {
   const modal3 = doc.querySelector("#edit-modal");
   check("edit modal reopened for phase 3", !!modal3 && !modal3.hidden);
   if (!modal3) { console.log("\nFAILED (no modal, cannot continue)"); win.close(); process.exit(1); }
-  const textNow = modal3.querySelector("#edit-area").value;
+  const textNow = modal3.querySelector("#edit-area").textContent;
   check("textarea prefilled with the current (unedited) text", textNow === "Second question BRANCHED", JSON.stringify(textNow));
   modal3.querySelector("#edit-send").click();          // unchanged text, straight resend
   await sleep(120);
@@ -215,7 +215,7 @@ const main = async () => {
     if (editBtn4) editBtn4.click();
     await sleep(10);
     const m4 = doc.querySelector("#edit-modal");
-    m4.querySelector("#edit-area").value = "   ";
+    m4.querySelector("#edit-area").textContent = "   ";
     m4.querySelector("#edit-send").click();
     await sleep(20);
     check("empty body is still rejected (no extra completion)",
