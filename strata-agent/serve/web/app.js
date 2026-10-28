@@ -7673,9 +7673,12 @@ function renderAttachments(list) {
     if (a.kind === "image" && (a.url || a.ref)) {
       // Images are now inline; strip shows a management chip
       const c = document.createElement("span");
-      c.className = "chip chip--img chip--t";
-      c.innerHTML = icon("image", "st-icon st-icon--sm");
+      c.className = "chip chip--img";
       c.title = a.name || "image";
+      const th = document.createElement("img");
+      th.className = "chip-thumb"; th.src = a.url || a.ref; th.alt = a.name || "image"; th.title = a.name || "image";
+      th.addEventListener("dblclick", (e) => { e.stopPropagation(); openImageView(a.url || a.ref, a.name); });
+      c.appendChild(th);
       const x = document.createElement("button");
       x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
       x.innerHTML = icon("trash");
@@ -7705,9 +7708,12 @@ function renderEditAttachments() {
   editAttachments.forEach((a, i) => {
     // modal list is image-only; old saved rows carry no `kind` -- accept any url/ref entry
     if (a.url || a.ref) {
-      const c = document.createElement("span"); c.className = "chip chip--img chip--t";
-      c.innerHTML = icon("image", "st-icon st-icon--sm");
+      const c = document.createElement("span"); c.className = "chip chip--img";
       c.title = a.name || "image";
+      const th = document.createElement("img");
+      th.className = "chip-thumb"; th.src = a.url || a.ref; th.alt = a.name || "image"; th.title = a.name || "image";
+      th.addEventListener("dblclick", (e) => { e.stopPropagation(); openImageView(a.url || a.ref, a.name); });
+      c.appendChild(th);
       const x = document.createElement("button"); x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
       x.innerHTML = icon("trash");
       x.onclick = () => { if (a.pid) removePlaceholder(a.pid, document.getElementById("edit-area")); editAttachments.splice(i, 1); renderEditAttachments(); };

@@ -1324,6 +1324,9 @@ body.side-collapsed .st-ctx-menu { display: none; }
 }
 .ce-input img:hover { border-color: var(--st-accent); }
 .st-composer .ce-input { max-height: 40vh; overflow-y: auto; }
-.chip--img { gap: 4px; }
+.chip--img { gap: 4px; height:auto; min-height:30px; padding:4px 6px 4px 8px; align-items:center; }
 /* icon-only chip (filename moved to hover title): symmetric padding, icon sits centered */
 .chip--t { padding: 0 8px; gap: 4px; }
+/* real-thumbnail chip (filename on hover title): img looks like the spark note inline thumb */
+.chip-thumb { width:44px; height:44px; object-fit:cover; border-radius:var(--st-r-md); cursor:pointer; border:1px solid var(--st-line); background:var(--st-surface); display:block; }
+.chip-thumb:hover { outline:2px solid var(--st-accent); outline-offset:1px; }
