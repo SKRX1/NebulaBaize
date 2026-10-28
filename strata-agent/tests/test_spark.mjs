@@ -241,7 +241,7 @@ const main = async () => {
   const order1 = storedSparks().map((s) => s.id);
   check("drag reorder swaps first two in storage", order1[0] === order0[1] && order1[1] === order0[0], JSON.stringify(order1));
 
-  // M3-D: rich text is sanitized (scripts/images/handlers stripped), formatting kept,
+  // M3-D: rich text is sanitized (scripts/handlers stripped, images kept-but-src-allow-listed), formatting kept,
   // rendered as HTML in the list, and sent to chat as plain text.
   console.log("=== Sparks rich-text (sanitize + render) ===");
   resetSparkState();
@@ -252,7 +252,7 @@ const main = async () => {
   check("rich: <b> preserved in stored html", /<b>bold idea<\/b>/.test(richStored.html || ""));
   check("rich: <i> preserved in stored html", /<i>italic<\/i>/.test(richStored.html || ""));
   check("rich: <script> stripped", !/<script/i.test(richStored.html || ""));
-  check("rich: <img> stripped", !/<img/i.test(richStored.html || ""));
+  check("rich: <img> KEPT (IMG allow-listed); its unsafe src x stripped", /<img\b/i.test(richStored.html || "") && !/src\s*=/i.test(richStored.html || ""));
   check("rich: onerror handler stripped", !/onerror/i.test(richStored.html || ""));
   const richItemText = $("#spark-list .spark-item__text");
   check("rich: rendered as HTML (has <b>)", /<b>bold idea<\/b>/.test(richItemText.innerHTML));
