@@ -128,3 +128,4 @@ shell_server.py 长输出截断路径：送 smart_decode 前须 trim 末尾不�
 RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git add→立刻写回工作树完整7行→commit 只落 index），中文从已有字节复制、按文件真实行尾（index LF/工作树 CRLF）落笔，git apply 严格匹配易失败时优先用此法
 长列表"打开即卡"先分清是渲染层（DOM 一次铺太多）还是存储层（localStorage 配额），二者独立、药方不同
 三处前端权威源行尾不一：app.js/i18n.js 磁盘=CRLF、index.html=LF，改文件须按各文件原行尾写回（用 splitlines 读、按目标行尾 join），勿混用致行尾污染
+前端空态语义铁律：函数用三元 `arr.length ? arr : 旧值` 写回时，"空列表/空集合"会被误判成"无改动"而 fallback 保留旧值；凡 DOM/读回/数组三方已一致为"删空"的，空态就是真实意图（真删除），判据须用 Array.isArray(arr)（或显式 undefined 守卫）而非 .length，防"删光了等于没改"复发
