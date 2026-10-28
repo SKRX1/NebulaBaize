@@ -6457,10 +6457,24 @@ function _recordClientError(phase, err) {
 function _recordBugCapture(phase, err) {
   const now = Date.now();
   const msg = err && err.message != null ? err.message : String(err);
-  if (_bugBox._lastTs && now - _bugBox._lastTs < 60 && _bugBox._lastMsg === msg) return;
+  const sig = msg;                                  // signature = error first-line (function/type encoded in it)
+  if (_bugBox._lastTs && now - _bugBox._lastTs < 60 && _bugBox._lastMsg === msg) return;  // sub-60ms burst: drop silently
+  try {
+    const _box = Array.isArray(store.get(BUGBOX_KEY, [])) ? store.get(BUGBOX_KEY, []) : [];
+    const _hit = _box.find((e) => (e.sig != null ? e.sig : e.msg) === sig);   // same signature already in the box?
+    if (_hit) {
+      _hit.sig = sig; _hit.count = (_hit.count || 1) + 1; _hit.lastSeen = now;
+      store.set(BUGBOX_KEY, _box.slice(-BUGBOX_MAX));
+      postQuiet("api/interrupt-log", { entry: Object.assign({}, _hit, { merged: true }) });
+      _bugBox._lastTs = now; _bugBox._lastMsg = msg;
+      return;                                                                       // merged into the existing row, not a new one
+    }
+  } catch (e) { /* localStorage read failed: fall through and record fresh */ }
   _bugBox._lastTs = now; _bugBox._lastMsg = msg;
   const rec = {
     ts: now,
+    sig: sig,          // signature for same-root-cause merge
+    count: 1,          // number of merged occurrences
     kind: 'bug:' + phase,                          // bug:window.onerror | bug:unhandledrejection
     status: 'open',                                // open->fixing->verified (audit lives in the JSONL append-only sink)
     origin: 'ui',                                  // ui = off-turn; stream errors stay on the message
@@ -6494,42 +6508,86 @@ function bugCardDiagnose(e) {
   const head = t('debug.diag.client', { n: '-', bytes: '-', msg: e.msg || '', phase: e.kind || 'ui' });
   return head + " [" + t("debug.flag.source") + ": " + (e.sourceTab || "?") + "]";
 }
+function bugBoxSigKey(e) {          // signature = same key the capture uses for merge
+  return (e && e.sig != null) ? e.sig : (e && e.msg != null ? e.msg : '');
+}
+function bugBoxStats(all) {         // counts over the FULL box (status field already on every record)
+  const s = { total: all.length, open: 0, fixing: 0, verified: 0 };
+  for (const e of all) {
+    const st = (!e.status || e.status === 'open') ? 'open' : e.status;   // pre-status legacy rows count as open
+    if (st in s) s[st] += 1;
+  }
+  return s;
+}
+function bugBoxGroups(entriesDesc) { // fold same-signature rows into one representative + count
+  const order = []; const bySig = new Map();
+  for (const e of entriesDesc) {
+    const sig = bugBoxSigKey(e);
+    let g = bySig.get(sig);
+    if (!g) { g = { rep: e, count: 1, tsList: [e.ts] }; bySig.set(sig, g); order.push(g); }
+    else {
+      g.count += 1; g.tsList.push(e.ts);
+      if (e.ts > g.rep.ts) g.rep = e;            // representative = newest occurrence
+    }
+  }
+  return order;
+}
 function renderBugBox() {
   const box = $("bugbox-list"); if (!box) return;
-  const entries = bugBoxEntries().slice().reverse();   // newest first
-  if (!entries.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
-  // perf (approved 2026-10-27): show only the first BUGBOX_SHOW_LIMIT rows + a load-more button,
-  // so opening the box with hundreds of bugs does not stamp the whole list in one paint.
-  const shown = entries.length > BUGBOX_SHOW_LIMIT ? entries.slice(0, BUGBOX_SHOW_LIMIT) : entries;
-  box.innerHTML = shown.map((e) => {
+  const all = bugBoxEntries();
+  if (!all.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
+  // stats hero (counts over the whole box, not the truncated view)
+  const st = bugBoxStats(all);
+  const stat = (label, n, color) => '<span class="muted small">' + esc(label) + ' <b style="color:' + color + ';font-weight:700">' + n + '</b></span>';
+  const statsBar = '<div class="bugbox-stats" style="display:flex;gap:16px;flex-wrap:wrap;margin:0 0 10px;padding:10px 12px;border:1px solid var(--st-border);border-radius:8px">'
+    + stat(t("debug.bugbox.stats.total"), st.total, "var(--st-text)")
+    + stat(t("debug.bugbox.stats.open"), st.open, "var(--st-accent-text)")
+    + stat(t("debug.bugbox.stats.fixing"), st.fixing, "var(--st-warn)")
+    + stat(t("debug.bugbox.stats.verified"), st.verified, "var(--st-accent-text)") + '</div>';
+  // perf: group by signature, show the first BUGBOX_SHOW_LIMIT groups + load-more
+  const groups = bugBoxGroups(all.slice().reverse());   // newest signature first
+  if (!groups.length) { box.innerHTML = statsBar + '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
+  const shown = groups.length > BUGBOX_SHOW_LIMIT ? groups.slice(0, BUGBOX_SHOW_LIMIT) : groups;
+  box.innerHTML = statsBar + shown.map((g) => {
+    const e = g.rep;
     const collapsed = bugBoxExpanded.has(String(e.ts)) ? "" : " is-collapsed";
     const when = new Date(e.ts).toLocaleTimeString();
     const tsAttr = esc(String(e.ts));
     const vTxt = e.verdict ? '<div class="debug-bug__verdict">' + esc(t("debug.verdict")) + ': ' + esc(e.verdict) + '</div>' : '';
     const statusBadge = (e.status && e.status !== "open")
-      ? '<span class="badge badge--ws">' + esc(t("debug.bugbox.status." + e.status) || e.status) + '</span>'
+      ? '<span class="badge badge--ws badge--status">' + esc(t("debug.bugbox.status." + e.status) || e.status) + '</span>'
       : '';
+    const dupBadge = g.count > 1 ? '<span class="badge" style="color:var(--st-warn);border-color:var(--st-warn)">\u00d7' + g.count + '</span>' : '';
     return '<div class="debug-item debug-item--bug' + collapsed + '" data-bugtoggle="' + tsAttr + '">'
-      + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>' + statusBadge
-      + '<span>' + esc(e.kind || "") + '</span><span class="muted small">' + esc(e.sourceTab || "?") + ' · ' + esc(when) + '</span></div>'
+      + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>' + statusBadge + dupBadge
+      + '<span>' + esc(e.kind || "") + '</span><span class="muted small">' + esc(e.sourceTab || "?") + ' \u00b7 ' + esc(when) + '</span></div>'
       + '<div class="debug-err"><div class="debug-err__msg">' + esc(e.msg || "") + '</div>'
       + '<pre class="debug-err__stack">' + esc(e.stack || "") + '</pre></div>'
       + vTxt
       + '<div class="debug-bug__acts">'
         + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="copy" data-bugts="' + tsAttr + '">' + esc(t("debug.copy")) + '</button>'
-        + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="diagnose" data-bugts="' + tsAttr + '">' + esc(t("debug.diagnose")) + '</button>'
+        + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="diagnose" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.pf.diag")) + '</button>'
         + '<button type="button" class="st-btn st-btn--primary st-btn--sm" data-bugact="push" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.push")) + '</button>'
         + '<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-bugact="dismiss" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.dismiss")) + '</button>'
       + '</div></div>';
   }).join("");
-  if (entries.length > shown.length) {
+  if (groups.length > shown.length) {
     const more = document.createElement("button");
     more.type = "button";
     more.className = "st-btn st-btn--ghost st-btn--sm bugbox-loadmore";
     more.setAttribute("data-bugmore", "1");
-    more.textContent = t("debug.bugbox.more", { n: entries.length - shown.length });
+    more.textContent = t("debug.bugbox.more", { n: groups.length - shown.length });
     box.appendChild(more);
   }
+}
+function bugBoxExpandAll(expand) {   // batch toggle for the bug-box (aligns memExpandAll); in-memory only, like the per-row toggle
+  if (expand) {
+    const list = $("bugbox-list");
+    if (list) list.querySelectorAll("[data-bugtoggle]").forEach((row) => bugBoxExpanded.add(row.getAttribute("data-bugtoggle")));
+  } else {
+    bugBoxExpanded.clear();
+  }
+  renderBugBox();
 }
 
 async function copyBugEvidence(ts) {
@@ -6581,7 +6639,7 @@ function markBugVerified(ts) {
 function autofixTick() {
   if (!settings.autofix) return;
   if (busy) return;                                 // another task already owns the idle slot
-  const open = bugBoxEntries().filter((x) => x.status === "open").sort((a, b) => a.ts - b.ts);
+  const open = bugBoxEntries().filter((x) => !x.status || x.status === "open").sort((a, b) => a.ts - b.ts);
   if (!open.length) return;
   pushBugFix(String(open[0].ts));
 }
@@ -8071,6 +8129,66 @@ document.addEventListener("click", (e) => {
   if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });   // anchor nav: scroll to the section
 });
 // Layer 4 action wiring: event delegation on the debug drawer for every [data-bugact] control.
+if ($("bugbox-expandall")) $("bugbox-expandall").onclick = () => bugBoxExpandAll(true);
+if ($("bugbox-foldall")) $("bugbox-foldall").onclick = () => bugBoxExpandAll(false);
+
+// One-shot physical merge of same-signature rows already sitting in the box (the capture-time
+// signature merge only protects FUTURE triggers; the existing pile predates it). Writes the
+// localStorage mirror only -- the gateway JSONL stays the append-only archive, untouched.
+function _bugboxMergeDups() {
+  const all = bugBoxEntries();
+  const bySig = new Map(); const keep = [];
+  for (const e of all) {
+    const sig = bugBoxSigKey(e);
+    let g = bySig.get(sig);
+    if (!g) { g = Object.assign({}, e); g.count = (e.count || 1); bySig.set(sig, g); keep.push(g); }
+    else { g.count = (g.count || 1) + (e.count || 1); if (e.ts > g.ts) g.ts = e.ts; }   // rep row shows the newest ts
+  }
+  const saved = all.length - keep.length;   // rows physically folded away
+  if (saved <= 0) { toast("info", t("debug.bugbox.mergedup"), t("debug.bugbox.noopen")); return; }
+  bugBoxSave(keep);
+  renderBugBox();
+  toast("success", t("debug.bugbox.mergedup"), t("debug.bugbox.mergedup.done", { n: saved }));
+}
+if ($("bugbox-mergedup")) $("bugbox-mergedup").onclick = _bugboxMergeDups;
+
+// Manual entry points for the bug-box autofix. The edge-triggered loop (autofixTick on
+// setBusy(false)) is unchanged -- it still drives "fix the next one when a turn ends idle".
+// These buttons add a deterministic "do it now" trigger so the user does not have to wait on
+// an edge or a reload. They reuse existing helpers (bugBoxEntries / pushBugFix / setBugStatus),
+// so no new fix logic is introduced.
+let _autofixPollTimer = null;
+function _autofixFixOneNow(){
+  const open = bugBoxEntries().filter((x) => !x.status || x.status === "open").sort((a, b) => a.ts - b.ts);
+  if (!open.length){ toast("info", t("debug.bugbox.fixone"), t("debug.bugbox.noopen")); return; }
+  pushBugFix(String(open[0].ts));   // pushBugFix guards busy, marks fixing, and sends
+}
+function _autofixPollTick(){
+  if (busy) return;                                  // idle-slot discipline: never interrupt a live task
+  const open = bugBoxEntries().filter((x) => !x.status || x.status === "open").sort((a, b) => a.ts - b.ts);
+  if (!open.length){ _autofixStopPoll(); return; }    // box drained -> auto-stop
+  pushBugFix(String(open[0].ts));
+}
+function _autofixSetStopVisible(on){
+  const s = $("bugbox-stopall"); const f = $("bugbox-fixall");
+  if (s) s.style.display = on ? "" : "none";
+  if (f) f.style.display = on ? "none" : "";
+}
+function _autofixStartPoll(){
+  if (_autofixPollTimer) return;
+  toast("success", t("debug.bugbox.fixall"), t("debug.bugbox.fixallstarted"));
+  _autofixSetStopVisible(true);
+  _autofixPollTimer = setInterval(_autofixPollTick, 1500);
+  _autofixPollTick();
+}
+function _autofixStopPoll(){
+  if (_autofixPollTimer){ clearInterval(_autofixPollTimer); _autofixPollTimer = null; }
+  _autofixSetStopVisible(false);
+}
+if ($("bugbox-fixone")) $("bugbox-fixone").onclick = () => _autofixFixOneNow();
+if ($("bugbox-fixall")) $("bugbox-fixall").onclick = () => _autofixStartPoll();
+if ($("bugbox-stopall")) $("bugbox-stopall").onclick = () => _autofixStopPoll();
+
 // Bound once on the container so it survives renderBugBox re-renders.
 const _bugDrawerEl = $("view-debug");
 if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
@@ -8424,3 +8542,8 @@ applyMemSubTab();  // first paint: every card shows, restored to its saved colla
 // ON = recommended only (checkbox checked); OFF = recommended + normal (checkbox unchecked).
 // Text lives on the two data-i18n spans (filled by applyI18n); this only flips data-state.
 
+// Cold-start sweep: an idle-only loop driven purely by the busy->idle edge never fires on a
+// fresh load (busy starts null, so no edge is ever crossed). Re-run the autofix check once at
+// boot; it carries its own guards (autofix on + idle + at least one open), so it stays a no-op
+// when those aren't met -- this only closes the "ready but never crossed an edge" dead zone.
+setTimeout(autofixTick, 0);

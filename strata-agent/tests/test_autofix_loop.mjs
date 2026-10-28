@@ -157,11 +157,11 @@ console.log("SELF-EVOLVING FIX LOOP:");
   setBox([{ ts: 7000, kind: "bug:x", status: "fixing", msg: "m", stack: "" }]);
   const host = doc.getElementById("bugbox-list");
   api.renderBugBox();
-  check("6. fixing badge rendered (en label)", host && host.innerHTML.includes("Fixing"), host ? host.innerHTML.slice(0, 120) : "no host");
+  check("6. fixing badge rendered (status element)", host && host.innerHTML.includes("badge--status"), host ? host.innerHTML.slice(0, 120) : "no host");
   // open row shows NO status badge (noise-free) -> differential that the badge is status-driven
   setBox([{ ts: 8000, kind: "bug:x", status: "open", msg: "m", stack: "" }]);
   api.renderBugBox();
-  check("6. open row has NO status badge", host && !host.innerHTML.includes("Fixing") && !host.innerHTML.includes("Verified"), host ? host.innerHTML.slice(0, 120) : "no host");
+  check("6. open row has NO status badge", host && !host.innerHTML.includes("badge--status"), host ? host.innerHTML.slice(0, 120) : "no host");
 }
 
 console.log("");
