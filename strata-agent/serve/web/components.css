@@ -25,7 +25,7 @@ a{color:var(--st-accent-text);text-decoration:none} a:hover{text-decoration:unde
 .st-tab{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--st-ink-muted);font:500 var(--st-fs-md)/1 var(--st-font);cursor:pointer}
 .st-tab:hover{color:var(--st-ink)}
 .st-tab[aria-selected="true"]{background:var(--st-surface);color:var(--st-ink);font-weight:700;box-shadow:var(--st-sh-card)}
-.tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--st-accent);color:var(--st-on-accent,#fff);font:700 11px/1 var(--st-font);box-shadow:var(--st-sh-card)}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--st-accent);color:#0a140f;font:700 11px/1 var(--st-font);box-shadow:var(--st-sh-card)}
 
 /* card + metric */
 .st-card{background:var(--st-surface);border:1px solid var(--st-line);border-radius:var(--st-r-lg);box-shadow:var(--st-sh-card);padding:var(--st-s-5)}
