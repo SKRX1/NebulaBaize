@@ -5778,6 +5778,16 @@ async function pasteImageToRich(e, editable) {
       } else {
         editable.appendChild(makeInlineThumb({ pid, url: src, name: _nm }, editable));
       }
+      // Move the caret to AFTER the inserted chip (mirrors insertPlaceholder): the chip is atomic
+      // (contenteditable=false), so typing must land OUTSIDE it, not inside the hover button.
+      if (isCE(editable)) {
+        const chipNode = editable.querySelector('[data-pid="' + pid + '"]');
+        const sel = window.getSelection();
+        if (chipNode && sel && sel.removeAllRanges) {
+          const range = document.createRange(); range.setStartAfter(chipNode); range.collapse(true);
+          sel.removeAllRanges(); sel.addRange(range);
+        }
+      }
       const entry = {kind: "image", url: dataUrl, ref: src !== dataUrl ? src : undefined, name: f.name || "pasted", pid};
       if (isComposer) {
         attachments.push(entry);
@@ -6419,7 +6429,7 @@ function ceTextFromDom(el) {
     for (const n of node.childNodes) {
       if (n.nodeType === 3) { out += n.textContent; continue; }          // TEXT_NODE
       if (n.tagName === "BR") { out += "\n"; continue; }
-      if (n.getAttribute && n.getAttribute("data-pid")) { out += " [img:" + n.getAttribute("data-pid") + "] "; continue; }   // atomic anchor: emit + do NOT descend (the hover button text must not pollute)
+      if (n.getAttribute && n.getAttribute("data-pid")) { out += " [img:" + n.getAttribute("data-pid") + "] "; for (const c of n.childNodes) { if (c.nodeType === 3) { out += c.textContent; continue; } if (c.tagName === "BUTTON" || c.tagName === "IMG") continue; walk(c); } continue; }   // atomic anchor: emit it, then KEEP any user text that landed inside the chip (a real-browser caret can drop inside an atomic chip); skip the hover button/icon so they do not pollute
       const block = /^(DIV|P|LI|BLOCKQUOTE|PRE|H[1-6])$/.test(n.tagName);
       walk(n);
       if (block) out += "\n";
@@ -7602,6 +7612,7 @@ function makeInlineThumb(entry, target) {
   const name = entry.name || "image";
   const span = document.createElement("span");
   span.className = "ce-thumb";
+  span.setAttribute("contenteditable", "false");   // atomic: the browser must not drop the caret inside, so typed text stays OUTSIDE the chip
   span.setAttribute("data-pid", String(pid));
   span.title = name;
   const img = document.createElement("img");

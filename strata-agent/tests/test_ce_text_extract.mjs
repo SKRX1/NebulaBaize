@@ -84,5 +84,46 @@ doc.body.appendChild(ta);
 check("N1 isCE(a real textarea) is false", api.isCE(ta) === false);
 check("N2 a textarea still reads/writes through .value", ta.value === "typed via value");
 
+// ---- differential arm: text that landed INSIDE an atomic data-pid chip must survive
+//      ceText(). This is the reported bug: after a paste the real-browser caret can drop
+//      inside the atomic chip, so ceTextFromDom must descend into the chip and collect its
+//      text nodes, while SKIPPING the hover BUTTON so its icon label never pollutes.
+//      We build the real post-paste DOM directly (a data-pid span), not via
+//      insertPlaceholder (which in jsdom has no selection and only appends a text anchor).
+check("P6 text node INSIDE a data-pid chip is preserved (the reported bug; fails on pre-fix code)", (() => {
+  api.ceSetText(inp, "");
+  const span = doc.createElement("span");
+  span.className = "ce-thumb";
+  span.setAttribute("data-pid", "77");
+  span.appendChild(doc.createTextNode("user typed inside"));   // caret dropped inside the atomic chip
+  inp.appendChild(span);
+  const txt = api.ceText(inp);
+  return txt.includes("[img:77]") && txt.includes("user typed inside");
+})());
+
+check("P7 leading text + chip + trailing text all survive interleaved", (() => {
+  api.ceSetText(inp, "lead ");
+  const span = doc.createElement("span");
+  span.className = "ce-thumb";
+  span.setAttribute("data-pid", "78");
+  inp.appendChild(span);
+  inp.appendChild(doc.createTextNode(" trail"));
+  const txt = api.ceText(inp);
+  return txt.includes("lead") && txt.includes("[img:78]") && txt.includes("trail");
+})());
+
+check("N3 BUTTON label inside a data-pid chip does NOT pollute ceText (negative control)", (() => {
+  api.ceSetText(inp, "");
+  const span = doc.createElement("span");
+  span.className = "ce-thumb";
+  span.setAttribute("data-pid", "79");
+  const btn = doc.createElement("button");
+  btn.appendChild(doc.createTextNode("BUTTON_LABEL_XYZ"));
+  span.appendChild(btn);
+  inp.appendChild(span);
+  const txt = api.ceText(inp);
+  return !txt.includes("BUTTON_LABEL_XYZ") && txt.includes("[img:79]");
+})());
+
 console.log("\nCE-TEXT-EXTRACT: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);
