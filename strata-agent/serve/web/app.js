@@ -5360,6 +5360,8 @@ function sanitizeHtml(html) {
         } else if (child.tagName === "IMG" && a.name === "src") {
           // image src must match the scheme allow-list; strip otherwise (XSS + dead blob URLs)
           if (!SPARK_IMG_SRC.test((a.value || "").trim())) child.removeAttribute("src");
+        } else if (child.tagName === "IMG" && (a.name === "alt" || a.name === "title")) {
+          // the filename lives on the image as alt/title -> hover; safe plain text, keep it
         } else {
           child.removeAttribute(a.name);
         }
@@ -5766,10 +5768,11 @@ async function pasteImageToRich(e, editable) {
       }
       // Insert at the current caret inside the contenteditable. Prefer the native
       // command so undo history works; jsdom has no command so we fall back to appendChild.
+      const _nm = f.name || "pasted";
       if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
-        document.execCommand("insertHTML", false, `<img src="${src}">`);
+        document.execCommand("insertHTML", false, `<img src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}">`);
       } else {
-        const img = document.createElement("img"); img.src = src;
+        const img = document.createElement("img"); img.src = src; img.alt = _nm; img.title = _nm;
         editable.appendChild(img);
       }
       // Collect image data + text placeholder for send/message layer
@@ -7670,9 +7673,9 @@ function renderAttachments(list) {
     if (a.kind === "image" && (a.url || a.ref)) {
       // Images are now inline; strip shows a management chip
       const c = document.createElement("span");
-      c.className = "chip chip--img";
+      c.className = "chip chip--img chip--t";
       c.innerHTML = icon("image", "st-icon st-icon--sm");
-      c.append(a.name || "image");
+      c.title = a.name || "image";
       const x = document.createElement("button");
       x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
       x.innerHTML = icon("trash");
@@ -7683,9 +7686,9 @@ function renderAttachments(list) {
       return;
     }
     const c = document.createElement("span");
-    c.className = "chip";
+    c.className = "chip chip--t";
     c.innerHTML = icon(a.kind === "file" ? "attach" : "image", "st-icon st-icon--sm");
-    c.append(a.name);
+    c.title = a.name || "file";
     const x = document.createElement("button");
     x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
     x.innerHTML = icon("trash");
@@ -7702,9 +7705,9 @@ function renderEditAttachments() {
   editAttachments.forEach((a, i) => {
     // modal list is image-only; old saved rows carry no `kind` -- accept any url/ref entry
     if (a.url || a.ref) {
-      const c = document.createElement("span"); c.className = "chip chip--img";
+      const c = document.createElement("span"); c.className = "chip chip--img chip--t";
       c.innerHTML = icon("image", "st-icon st-icon--sm");
-      c.append(a.name || "image");
+      c.title = a.name || "image";
       const x = document.createElement("button"); x.type = "button"; x.className = "st-btn st-btn--icon"; x.setAttribute("aria-label", t("attach.remove"));
       x.innerHTML = icon("trash");
       x.onclick = () => { if (a.pid) removePlaceholder(a.pid, document.getElementById("edit-area")); editAttachments.splice(i, 1); renderEditAttachments(); };

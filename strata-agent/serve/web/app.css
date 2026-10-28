@@ -1325,3 +1325,5 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .ce-input img:hover { border-color: var(--st-accent); }
 .st-composer .ce-input { max-height: 40vh; overflow-y: auto; }
 .chip--img { gap: 4px; }
+/* icon-only chip (filename moved to hover title): symmetric padding, icon sits centered */
+.chip--t { padding: 0 8px; gap: 4px; }

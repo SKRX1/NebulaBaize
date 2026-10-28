@@ -863,6 +863,7 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   check("an image attachment renders a management chip (image rides inline, strip is the chip)", !!thumb && thumb.classList.contains("chip--img"));
   check("the image chip is the chip--img management chip (image is inline, not a separate img thumb)", !!box.querySelector(".chip--img"));
   check("the image chip has a remove button", !!box.querySelector(".chip--img .st-btn--icon"));
+  check("image chip is icon-only (no visible filename text) and the filename lives on the hover title", !thumb.textContent.trim() && thumb.getAttribute("title") === "pasted.png");
   // double-click the thumbnail opens the viewer
   thumb.dispatchEvent(new win.MouseEvent("dblclick", {bubbles: true}));
   check("double-clicking the composer image chip opens the viewer", !doc.getElementById("img-modal").hidden &&
@@ -876,6 +877,10 @@ console.log("\n=== H4: live task panel, badge reuse (no strobe), chips + custom 
   api.setAttachments([{kind: "file", name: "note.txt", text: "hi"}]);
   api.renderAttachments();
   check("a file attachment still renders a chip", !!doc.getElementById("attachments").querySelector(".chip"));
+  {
+    const fc = doc.getElementById("attachments").querySelector(".chip");
+    check("file chip is icon-only (no visible filename text) and the filename lives on the hover title", !fc.textContent.trim() && fc.getAttribute("title") === "note.txt");
+  }
 
   // a sent user message's image gets the msg-img class and is double-clickable from #chat
   const el = api.msgEl({role: "user", text: "x", time: Date.now(),
