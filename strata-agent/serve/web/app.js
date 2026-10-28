@@ -6535,20 +6535,38 @@ function bugBoxGroups(entriesDesc) { // fold same-signature rows into one repres
 function renderBugBox() {
   const box = $("bugbox-list"); if (!box) return;
   const all = bugBoxEntries();
+  // stats hero — always rendered into #bugbox-hero (counts over the FULL box, not filtered)
+  const hero = $("bugbox-hero");
+  if (hero) {
+    if (!all.length) { hero.innerHTML = ''; }
+    else {
+      const st = bugBoxStats(all);
+      const stat = (label, n, color) => '<span class="muted small">' + esc(label) + ' <b style="color:' + color + ';font-weight:700">' + n + '</b></span>';
+      hero.innerHTML = '<div class="bugbox-stats" style="display:flex;gap:16px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--st-border);border-radius:8px">'
+        + stat(t("debug.bugbox.stats.total"), st.total, "var(--st-text)")
+        + stat(t("debug.bugbox.stats.open"), st.open, "var(--st-accent-text)")
+        + stat(t("debug.bugbox.stats.fixing"), st.fixing, "var(--st-warn)")
+        + stat(t("debug.bugbox.stats.verified"), st.verified, "var(--st-accent-text)") + '</div>';
+    }
+  }
   if (!all.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
-  // stats hero (counts over the whole box, not the truncated view)
-  const st = bugBoxStats(all);
-  const stat = (label, n, color) => '<span class="muted small">' + esc(label) + ' <b style="color:' + color + ';font-weight:700">' + n + '</b></span>';
-  const statsBar = '<div class="bugbox-stats" style="display:flex;gap:16px;flex-wrap:wrap;margin:0 0 10px;padding:10px 12px;border:1px solid var(--st-border);border-radius:8px">'
-    + stat(t("debug.bugbox.stats.total"), st.total, "var(--st-text)")
-    + stat(t("debug.bugbox.stats.open"), st.open, "var(--st-accent-text)")
-    + stat(t("debug.bugbox.stats.fixing"), st.fixing, "var(--st-warn)")
-    + stat(t("debug.bugbox.stats.verified"), st.verified, "var(--st-accent-text)") + '</div>';
-  // perf: group by signature, show the first BUGBOX_SHOW_LIMIT groups + load-more
-  const groups = bugBoxGroups(all.slice().reverse());   // newest signature first
-  if (!groups.length) { box.innerHTML = statsBar + '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
+  // search/filter
+  const q = ($("bugbox-search") ? $("bugbox-search").value : "").trim().toLowerCase();
+  const ft = $("bugbox-filter") ? $("bugbox-filter").value : "";
+  let filtered = all;
+  if (q || ft) {
+    filtered = all.filter((e) => {
+      if (ft) { const st = (!e.status || e.status === 'open') ? 'open' : e.status; if (st !== ft) return false; }
+      if (q) { const msg = (e.msg || '').toLowerCase(); if (!msg.includes(q)) return false; }
+      return true;
+    });
+  }
+  if (!filtered.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
+  // group by signature
+  const groups = bugBoxGroups(filtered.slice().reverse());
+  if (!groups.length) { box.innerHTML = '<p class="muted small">' + esc(t("debug.bugbox.empty")) + '</p>'; return; }
   const shown = groups.length > BUGBOX_SHOW_LIMIT ? groups.slice(0, BUGBOX_SHOW_LIMIT) : groups;
-  box.innerHTML = statsBar + shown.map((g) => {
+  box.innerHTML = shown.map((g) => {
     const e = g.rep;
     const collapsed = bugBoxExpanded.has(String(e.ts)) ? "" : " is-collapsed";
     const when = new Date(e.ts).toLocaleTimeString();
@@ -8115,7 +8133,7 @@ $("debug-diagnose").onclick = () => diagnoseStream();
 $("debug-curl").onclick = () => copyRequestCurl();
 
 // debug sub-tabs: independent state, same visual paradigm as the memory page
-let debugSubTab = "live";
+let debugSubTab = "bugbox";
 function applyDebugSubTab(){
   const cur = debugSubTab || "live";
   for (const b of document.querySelectorAll(".db-subtab")) b.setAttribute("aria-selected", String(b.dataset.db === cur));
@@ -8151,6 +8169,8 @@ function _bugboxMergeDups() {
   toast("success", t("debug.bugbox.mergedup"), t("debug.bugbox.mergedup.done", { n: saved }));
 }
 if ($("bugbox-mergedup")) $("bugbox-mergedup").onclick = _bugboxMergeDups;
+if ($("bugbox-search")) $("bugbox-search").addEventListener("input", () => renderBugBox());
+if ($("bugbox-filter")) $("bugbox-filter").addEventListener("change", () => renderBugBox());
 
 // Manual entry points for the bug-box autofix. The edge-triggered loop (autofixTick on
 // setBusy(false)) is unchanged -- it still drives "fix the next one when a turn ends idle".

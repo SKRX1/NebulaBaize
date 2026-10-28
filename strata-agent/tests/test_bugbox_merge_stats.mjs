@@ -86,7 +86,7 @@ setBox([
   { ts: 13, kind: "bug:x", status: "verified", sig: "d", msg: "d", stack: "" },
 ]);
 api.renderBugBox();
-const h1 = doc.getElementById("bugbox-list").innerHTML;
+const h1 = doc.getElementById("bugbox-hero").innerHTML;
 check("B1. total = 4",  /Total\s*<b[^>]*>4<\/b>/.test(h1), "no match");
 check("B1. open = 2",   /Open\s*<b[^>]*>2<\/b>/.test(h1), "no match");
 check("B1. fixing = 1", /Fixing\s*<b[^>]*>1<\/b>/.test(h1), "no match");
@@ -94,7 +94,7 @@ check("B1. verified = 1", /Verified\s*<b[^>]*>1<\/b>/.test(h1), "no match");
 // control: a single open row -> 1/1/0/0 (proves the counters are status-driven, not hardcoded)
 setBox([{ ts: 20, kind: "bug:x", status: "open", sig: "z", msg: "z", stack: "" }]);
 api.renderBugBox();
-const h2 = doc.getElementById("bugbox-list").innerHTML;
+const h2 = doc.getElementById("bugbox-hero").innerHTML;
 check("B2. control: total = 1",  /Total\s*<b[^>]*>1<\/b>/.test(h2), "no match");
 check("B2. control: open = 1",   /Open\s*<b[^>]*>1<\/b>/.test(h2), "no match");
 check("B2. control: fixing = 0", /Fixing\s*<b[^>]*>0<\/b>/.test(h2), "no match");
@@ -117,6 +117,33 @@ setBox([
 ]);
 api._bugboxMergeDups();
 check("C2. control: distinct signatures stay THREE rows", box().length === 3, "stored=" + box().length);
+
+
+// D. search/filter: text search + status filter narrow the displayed list
+{
+  setBox([
+    { ts: 50, kind: "bug:x", status: "open",     sig: "A", msg: "alpha-unique", stack: "" },
+    { ts: 51, kind: "bug:x", status: "fixing",   sig: "B", msg: "beta-unique",  stack: "" },
+    { ts: 52, kind: "bug:x", status: "verified", sig: "C", msg: "gamma-unique", stack: "" },
+  ]);
+  const searchEl = doc.getElementById("bugbox-search");
+  const filterEl = doc.getElementById("bugbox-filter");
+  // D1: text search narrows to 1 row
+  if (searchEl) searchEl.value = "beta";
+  if (filterEl) filterEl.value = "";
+  api.renderBugBox();
+  check("D1. text search narrows to 1 row", rows() === 1, "rows=" + rows());
+  // D2: status filter narrows to 1 fixing row
+  if (searchEl) searchEl.value = "";
+  if (filterEl) filterEl.value = "fixing";
+  api.renderBugBox();
+  check("D2. status filter narrows to 1 fixing row", rows() === 1, "rows=" + rows());
+  // D3 control: no filter -> all 3 groups
+  if (searchEl) searchEl.value = "";
+  if (filterEl) filterEl.value = "";
+  api.renderBugBox();
+  check("D3. control: no filter shows all 3 groups", rows() === 3, "rows=" + rows());
+}
 
 console.log("");
 if (FAILURES.length) {

@@ -1205,6 +1205,8 @@ body.side-collapsed .st-ctx-menu { display: none; }
 
 /* memory sub-tabs: one panel visible at a time; bar sticks to top of the scrolling view */
 .mem-subtabs,.db-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--st-s-4,16px);position:sticky;top:0;z-index:1;background:var(--st-bg,#fff);padding:8px 0}
+.bugbox-hero{position:sticky;top:calc(var(--st-s-4,16px) + 40px);z-index:0;padding:0 0 8px}
+.bugbox-hero:empty{display:none}
 .mem-subtab,.db-subtab{border:0;background:transparent;color:var(--st-ink-muted,#555);font:inherit;padding:8px 12px;border-radius:var(--st-r-md,8px);cursor:pointer}
 .mem-subtab:hover,.db-subtab:hover{background:var(--st-bg-2,#eee);color:var(--st-ink,#111)}
 .mem-subtab[aria-selected="true"],.db-subtab[aria-selected="true"]{background:var(--st-accent,#0a84ff);color:#fff}

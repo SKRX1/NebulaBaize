@@ -404,12 +404,21 @@
 <section class="view view--debug view--scroll" id="view-debug" role="tabpanel" aria-labelledby="tab-btn-debug" hidden>
   <div class="about">
     <div class="db-subtabs mem-subtabs" role="tablist" aria-label="Debug sections" data-i18n-attr="aria-label:debug.subtabs.aria">
-      <button class="db-subtab" role="tab" data-db="live" aria-selected="true" data-i18n="debug.tab.live">实时异常流</button>
-      <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="false" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
+      <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="true" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
+      <button class="db-subtab" role="tab" data-db="live" aria-selected="false" data-i18n="debug.tab.live">实时异常流</button>
       <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
     </div>
 
-    <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="live">
+    <div class="bugbox-hero" id="bugbox-hero"></div>
+
+    <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="bugbox">
+      <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
+      <div class="mem-kb-bar" id="bugbox-search-bar"><input class="st-input" id="bugbox-search" type="text" data-i18n-attr="placeholder:debug.bugbox.search.ph"><select class="st-input" id="bugbox-filter"><option value="" data-i18n="debug.bugbox.filter.all">All statuses</option><option value="open" data-i18n="debug.bugbox.stats.open">Open</option><option value="fixing" data-i18n="debug.bugbox.status.fixing">Fixing</option><option value="verified" data-i18n="debug.bugbox.status.verified">Verified</option></select></div>
+      <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-foldall" data-i18n="chat.fold.all">Collapse all</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixone" data-i18n="debug.bugbox.fixone">Fix one now</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixall" data-i18n="debug.bugbox.fixall">Fix all (poll)</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-stopall" data-i18n="debug.bugbox.stopall" style="display:none">Stop polling</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-mergedup" data-i18n="debug.bugbox.mergedup">Merge duplicates</button></div>
+      <div class="debug-list" id="bugbox-list"></div>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="live">
       <div class="req-head"><span class="card-title" data-i18n="debug.title">调试</span></div>
       <p class="muted small" data-i18n="debug.desc">流式任务的实时调试：客户端异常、断点位置、传输状态，以及一键诊断与证据复制。</p>
       <div class="drawer-actions">
@@ -417,12 +426,6 @@
         <button class="st-btn st-btn--primary" id="debug-diagnose" type="button" data-i18n="debug.diagnose">一键诊断</button>
       </div>
       <div class="debug-list" id="debug-list"></div>
-    </div>
-
-    <div class="st-card db-tabpanel mem-tabpanel" data-db="bugbox">
-      <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
-      <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-foldall" data-i18n="chat.fold.all">Collapse all</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixone" data-i18n="debug.bugbox.fixone">Fix one now</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixall" data-i18n="debug.bugbox.fixall">Fix all (poll)</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-stopall" data-i18n="debug.bugbox.stopall" style="display:none">Stop polling</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-mergedup" data-i18n="debug.bugbox.mergedup">Merge duplicates</button></div>
-      <div class="debug-list" id="bugbox-list"></div>
     </div>
 
     <div class="st-card db-tabpanel mem-tabpanel" data-db="gateway">
