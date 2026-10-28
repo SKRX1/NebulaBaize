@@ -8168,7 +8168,20 @@ function _bugboxMergeDups() {
   renderBugBox();
   toast("success", t("debug.bugbox.mergedup"), t("debug.bugbox.mergedup.done", { n: saved }));
 }
+
+function _bugboxClearAll() {
+  const all = bugBoxEntries();
+  if (!all.length) { toast("info", t("debug.bugbox.clearall"), t("debug.bugbox.empty")); return; }
+  if (typeof window.confirm === "function") {
+    try { if (!window.confirm(t("debug.bugbox.clearall.confirm", {n: all.length}))) return; } catch (e) { /* jsdom: ignore */ }
+  }
+  const backup = all.slice();
+  bugBoxSave([]);
+  renderBugBox();
+  toast("info", t("debug.bugbox.clearall"), t("debug.bugbox.clearall.done", {n: backup.length}), 5000, {label: t("toast.undo"), run: () => { bugBoxSave(backup); renderBugBox(); }});
+}
 if ($("bugbox-mergedup")) $("bugbox-mergedup").onclick = _bugboxMergeDups;
+if ($("bugbox-clearall")) $("bugbox-clearall").onclick = _bugboxClearAll;
 if ($("bugbox-search")) $("bugbox-search").addEventListener("input", () => renderBugBox());
 if ($("bugbox-filter")) $("bugbox-filter").addEventListener("change", () => renderBugBox());
 

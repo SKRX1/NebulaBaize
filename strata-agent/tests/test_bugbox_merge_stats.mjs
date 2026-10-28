@@ -41,10 +41,11 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 const injected = appCode + `
+;toast = (kind, title, text, ms, action) => { window.__lastToastAction = action; };   // capture the undo action (E block)
 ;send = async () => { window.__send.push(1); };
 postQuiet = () => {};
 window.__send = [];
-window.__api = { renderBugBox, bugBoxSigKey, _bugboxMergeDups, t };
+window.__api = { renderBugBox, bugBoxSigKey, _bugboxMergeDups, _bugboxClearAll, t };
 `;
 win.eval(injected);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
@@ -143,6 +144,26 @@ check("C2. control: distinct signatures stay THREE rows", box().length === 3, "s
   if (filterEl) filterEl.value = "";
   api.renderBugBox();
   check("D3. control: no filter shows all 3 groups", rows() === 3, "rows=" + rows());
+}
+
+
+// E. Clear all: bulk-empties the box, toast undo restores it (control proves the clear really clears)
+{
+  setBox([
+    { ts: 60, kind: "bug:x", status: "open", sig: "S1", msg: "one", stack: "" },
+    { ts: 61, kind: "bug:x", status: "fixing", sig: "S2", msg: "two", stack: "" },
+    { ts: 62, kind: "bug:x", status: "verified", sig: "S3", msg: "three", stack: "" },
+  ]);
+  win.confirm = () => true;            // stub native confirm (jsdom native returns undefined)
+  win.__lastToastAction = null;
+  api._bugboxClearAll();
+  check("E1. clear all empties the box (3 -> 0)", box().length === 0, "stored=" + box().length);
+  if (win.__lastToastAction && win.__lastToastAction.run) win.__lastToastAction.run();   // user clicks Undo in the toast
+  check("E1. undo restores all 3 entries", box().length === 3, "stored=" + box().length);
+  // E2 control: declined confirm must NOT clear
+  win.confirm = () => false;
+  api._bugboxClearAll();
+  check("E2. control: declined confirm keeps all 3 entries", box().length === 3, "stored=" + box().length);
 }
 
 console.log("");
