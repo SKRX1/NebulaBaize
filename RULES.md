@@ -127,3 +127,4 @@ shell_server.py 长输出截断路径：送 smart_decode 前须 trim 末尾不�
 模型宣布「已完成」的同一轮：plan 栏要么整栏不发，要么把已完成项勾成 [x] 只留真正 pending 项；严禁「正文说完成 + plan 全 [ ] + 完成徽标不亮」的自相矛盾显示
 RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git add→立刻写回工作树完整7行→commit 只落 index），中文从已有字节复制、按文件真实行尾（index LF/工作树 CRLF）落笔，git apply 严格匹配易失败时优先用此法
 长列表"打开即卡"先分清是渲染层（DOM 一次铺太多）还是存储层（localStorage 配额），二者独立、药方不同
+三处前端权威源行尾不一：app.js/i18n.js 磁盘=CRLF、index.html=LF，改文件须按各文件原行尾写回（用 splitlines 读、按目标行尾 join），勿混用致行尾污染
