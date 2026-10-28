@@ -245,7 +245,7 @@ console.log("\n=== Step4-D: gateway-side debug drawer + cURL replay ===");
   //   load-more wiring and the matching check goes RED.
   {
     const seed = [];
-    for (let i = 0; i < 60; i++) seed.push({ ts: 1700000000000 + i, kind: "k", sourceTab: "chat", msg: "m", stack: "s", status: "open" });
+    for (let i = 0; i < 60; i++) seed.push({ ts: 1700000000000 + i, kind: "k", sourceTab: "chat", msg: "m" + i, stack: "s", status: "open" });   // unique msg = unique signature, so signature-merge keeps 60 separate groups (this test measures pagination, not dedupe)
     api.bugBoxSave(seed);
     api.renderBugBox();
     const list = doc.getElementById("bugbox-list");

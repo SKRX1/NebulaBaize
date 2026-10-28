@@ -166,6 +166,30 @@ check("C2. control: distinct signatures stay THREE rows", box().length === 3, "s
   check("E2. control: declined confirm keeps all 3 entries", box().length === 3, "stored=" + box().length);
 }
 
+
+// F. delegation dispatch: a real click on an in-row BUTTON must run its action, not just toggle the row.
+//    This is the regression guard for the delegation-order bug (toggle branch used to match the row
+//    container first and return, swallowing every copy/diagnose/push/dismiss click).
+{
+  win.confirm = () => true;
+  setBox([{ ts: 70, kind: "bug:x", status: "open", sig: "F1", msg: "click-me", stack: "" }]);
+  win.__send.length = 0;                 // reset the send spy
+  api.renderBugBox();
+  const pushBtn = doc.querySelector('[data-bugact="push"]');
+  check("F1. the push button exists after render", !!pushBtn, "found=" + !!pushBtn);
+  if (pushBtn) pushBtn.click();
+  check("F1. a real click on the push button fires send()", win.__send.length === 1, "sendCalls=" + win.__send.length);
+  check("F1. the push button marks the bug fixing", (box()[0] || {}).status === "fixing", "status=" + (box()[0]||{}).status);
+  // F2 control: a real click on the ROW HEAD (not a button) toggles but must NOT send
+  setBox([{ ts: 71, kind: "bug:x", status: "open", sig: "F2", msg: "row-head", stack: "" }]);
+  win.__send.length = 0;
+  api.renderBugBox();
+  const rowHead = doc.querySelector('#bugbox-list [data-bugtoggle] .debug-item__head');
+  check("F2. the row head exists after render", !!rowHead, "found=" + !!rowHead);
+  if (rowHead) rowHead.click();
+  check("F2. control: a row-head click toggles but does NOT send", win.__send.length === 0, "sendCalls=" + win.__send.length);
+  check("F2. control: the row-head click left status open", (box()[0] || {}).status === "open", "status=" + (box()[0]||{}).status);
+}
 console.log("");
 if (FAILURES.length) {
   console.log("MERGE STATS: " + FAILURES.length + " FAILED");
@@ -173,4 +197,6 @@ if (FAILURES.length) {
 } else {
   console.log("MERGE STATS: ALL PASSED");
 }
+
+
 process.exit(FAILURES.length ? 1 : 0);

@@ -8229,16 +8229,23 @@ if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
   _bugDrawerEl.addEventListener("click", (e) => {
     const more0 = e.target.closest && e.target.closest("[data-bugmore]");
     if (more0) { BUGBOX_SHOW_LIMIT += 50; renderBugBox(); return; }   // perf: load-more (mirrors KB_SHOW_LIMIT)
+    // ACTION BUTTONS live INSIDE the toggleable row, so match them FIRST. A click on a button must run
+    // its action (copy / diagnose / push / dismiss) — not merely toggle the row. The old order matched
+    // the row container first and returned, silently swallowing every in-row button click.
+    const btn = e.target && e.target.closest ? e.target.closest("[data-bugact]") : null;
+    if (btn) {
+      const ts = btn.dataset.bugts;
+      if (ts != null) {
+        const act = btn.dataset.bugact;
+        if (act === "copy") copyBugEvidence(ts);
+        else if (act === "diagnose") diagnoseBugCard(ts);
+        else if (act === "push") pushBugFix(ts);
+        else if (act === "dismiss") dismissBug(ts);
+      }
+      return;   // a button click never toggles the row
+    }
     const row0 = e.target.closest && e.target.closest("[data-bugtoggle]");
     if (row0) { const key = row0.getAttribute("data-bugtoggle"); if (bugBoxExpanded.has(key)) bugBoxExpanded.delete(key); else bugBoxExpanded.add(key); renderBugBox(); return; }   // default-collapsed rows expand on click
-    const btn = e.target && e.target.closest ? e.target.closest("[data-bugact]") : null;
-    if (!btn) return;
-    const ts = btn.dataset.bugts; if (ts == null) return;
-    const act = btn.dataset.bugact;
-    if (act === "copy") copyBugEvidence(ts);
-    else if (act === "diagnose") diagnoseBugCard(ts);
-    else if (act === "push") pushBugFix(ts);
-    else if (act === "dismiss") dismissBug(ts);
   });
 }
 
