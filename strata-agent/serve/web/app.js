@@ -8862,6 +8862,7 @@ function applyMemSubTab(){
 document.addEventListener("click", (e) => {
   const head = e.target.closest && e.target.closest(".mem-tabpanel>.req-head");
   if (head){
+    if (e.target.closest && e.target.closest("button,input,label,select,a")) return;   // interactive controls operate themselves, never fold the card
     const card = head.closest(".mem-tabpanel"); const key = card.dataset.mem;
     memCollapsed[key] = !memCollapsed[key];
     try { localStorage.setItem("strata.memCollapse", JSON.stringify(memCollapsed)); } catch (e2) {}
