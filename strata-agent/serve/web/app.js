@@ -7389,7 +7389,7 @@ function ensureEditUI() {
   _ea.addEventListener("keydown", (e) => onThumbBackspace(e, _ea));
   m.querySelector("#edit-x").onclick = closeEditModal;
   m.querySelector("#edit-cancel").onclick = closeEditModal;
-  m.addEventListener("click", (e) => { if (e.target === m) closeEditModal(); });
+  makeDraggableCard(m);
   m.querySelector("#edit-send").onclick = confirmEdit;
   document.addEventListener("keydown", (e) => { if (!m.hidden && e.key === "Escape") closeEditModal(); });
 }
@@ -7418,6 +7418,17 @@ function openEditModal(i) {
   const _ea2 = m.querySelector("#edit-area"); autosize(_ea2);
   m.querySelector("#edit-area").focus();
 }
+function makeDraggableCard(m){
+  const card = m.querySelector(".st-modal__card") || m.firstElementChild;
+  const head = m.querySelector(".st-modal__head");
+  if (!card || !head) return;
+  head.classList.add("st-modal__head--draggable");
+  let ox=0, oy=0, sx=0, sy=0, dragging=false;
+  head.addEventListener("mousedown", (e)=>{ if(e.target.closest("button")) return; dragging=true; sx=e.clientX; sy=e.clientY; card.style.transform=""; e.preventDefault(); });
+  document.addEventListener("mousemove", (e)=>{ if(!dragging) return; card.style.transform="translate("+(e.clientX-sx+ox)+"px,"+(e.clientY-sy+oy)+"px)"; });
+  document.addEventListener("mouseup", (e)=>{ if(!dragging) return; dragging=false; ox=ox+(e.clientX-sx); oy=oy+(e.clientY-sy); sx=e.clientX; sy=e.clientY; });
+}
+
 function closeEditModal() { const m = $("edit-modal"); if (m) m.hidden = true; editingIndex = -1; editAttachments = []; }
 
 function confirmEdit() {
