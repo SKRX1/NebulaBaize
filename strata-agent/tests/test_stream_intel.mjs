@@ -547,6 +547,10 @@ console.log("\n=== Memory view: KB / rules / notes / global ===");
   const memCalls = [];
   win.fetch = async (url, o) => {
     const u = String(url);
+    if (u.endsWith("api/recycle")) {
+      const b = o && o.body ? JSON.parse(o.body) : {}; memCalls.push({server: "recycle", tool: "trash", args: b});
+      return { ok: true, status: 200, json: async () => ({ trashed: ((b.paths || []).filter(Boolean)) }) };
+    }
     if (!u.endsWith("mcp/call")) {
       if (u.endsWith("health")) return { ok: true, status: 200, json: async () => ({ model: "m", max_context: 32768 }) };
       if (u.includes("metrics")) return { ok: true, status: 200, json: async () => ({ engine: { max_context: 32768 } } ) };
@@ -620,9 +624,9 @@ console.log("\n=== Memory view: KB / rules / notes / global ===");
   memCalls.length = 0;
   if (noteDel) noteDel.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
   await sleep(10);
-  const fsDel = memCalls.find((c) => c.server === "filesystem" && c.tool === "delete" && /auto-2026-10-17-x\.md$/.test(c.args.path));
+  const fsDel = memCalls.find((c) => c.server === "recycle" && c.tool === "trash" && (c.args.paths || []).some((x) => /auto-2026-10-17-x\.md$/.test(x)));
   const noteForget = memCalls.find((c) => c.server === "memory" && c.tool === "forget" && c.args.source === "auto-2026-10-17-x");
-  check("note delete removes the file via filesystem.delete", !!fsDel);
+  check("note delete sends the file to the real Recycle Bin via api/recycle (POST trash)", !!fsDel);
   check("note delete also forgets the derived KB source", !!noteForget);
 
   // M6: global MEMORY.md is shown read-only

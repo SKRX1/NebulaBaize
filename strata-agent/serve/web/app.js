@@ -193,7 +193,7 @@ document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark");
   if (tab === "tools" && typeof loadAdmin === "function") loadAdmin();
   if (tab === "about") { loadConfig(); loadRuntimeConfig(); loadInterruptLog(); }
   if (tab === "memory") { renderMemory(); applyMemSubTab(); }
-  if (tab === "debug") { renderDebug(); renderGatewayDebug(); renderBugBox(); applyDebugSubTab(); }
+  if (tab === "debug") { renderDebug(); renderGatewayDebug(); renderBugBox(); renderRecycle(); applyDebugSubTab(); }
   if (tab === "spark") renderSpark();
   if (lastMetrics) render(lastMetrics);
   applyInspector();
@@ -4762,11 +4762,13 @@ $("archive-mgr-list").addEventListener("click", async (e) => {
     const name = path.split(/[\\/]/).pop();
     if (!confirm(t("drawer.archive.del.confirm", { name }))) return;
     const txt = await fsRead(path);
-    const trashDir = path.replace(/[\\\/][^\\\/]+$/, "").replace(/\.strata-archive$/, "") + "/.strata-archive/.trash";
-    try { await fsWrite(trashDir + "/" + name, txt || ""); }   // copy to trash first (anti-accident)
-    catch (e2) { /* .trash dir may not exist; delete still proceeds */ }
-    await mcpTxt("filesystem", "delete", { path });
-    toast("success", t("drawer.archive.del.done"), "", 2500);
+    // real Windows Recycle Bin via the same /api/recycle path (COM, never a physical delete).
+    const s0 = activeSession();
+    const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
+    const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths: [path]})});
+    const j = await r.json();
+    if (j && j.error) { toast("error", t("recycle.err"), esc(j.error.message || ""), 4000); }
+    else { toast("success", (j && j.trashed && j.trashed.length) ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"), "", 2500); }
     renderArchiveManager();
   }
   // save / cancel live inside the row's textarea block (delegated here)
@@ -5245,7 +5247,10 @@ $("mem-notes-list").addEventListener("click", async (e) => {
   } else if (del) {
     const path = del.dataset.noteDel;
     if (!confirm(t("mem.notes.del.confirm"))) return;
-    await mcpTxt("filesystem", "delete", {path});
+    const s0 = activeSession(); const ws0 = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
+    const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws0, paths: [path]})});
+    const j = await r.json();
+    if (!(j && j.trashed && j.trashed.length)) { toast("error", t("recycle.err"), esc((j && j.error && j.error.message) || ""), 4000); return; }
     const src = path.split(/[\\/]/).pop().replace(/\.md$/i, "");
     await mcpTxt("memory", "forget", {source: src});
     toast("ok", t("mem.notes.deleted.title"), "");
@@ -7950,7 +7955,7 @@ const DEBUG_REMOTE_ENABLED = false;   // flip true once /api/diagnose ships
 function openDebug(open) {
   // 2026-10-27: the debug drawer became a full page tab (memory-page paradigm).
   // open/close routes through showTab; kept as an API so tests and hash deep-links work.
-  if (open) { renderDebug(); renderGatewayDebug(); renderBugBox(); applyDebugSubTab(); showTab("debug"); }
+  if (open) { renderDebug(); renderGatewayDebug(); renderBugBox(); renderRecycle(); applyDebugSubTab(); showTab("debug"); }
   else if (tab === "debug") showTab("chat");
 }
 
@@ -8904,3 +8909,84 @@ function attachChipObserver(box) {
   mo.observe(box, { childList: true, subtree: true });
   box._chipObsBound = true;
 }
+
+// ============================ garbage recycle (debug page card) ============================
+// Sends to the REAL Windows Recycle Bin via the backend (/api/recycle, Shell.Application COM).
+// Never a physical delete: scan candidates, send checked to the bin, restore to origin, audit.
+async function renderRecycle() {
+  const box = $("recycle-list"); if (!box) return;
+  const s = activeSession();
+  const ws = (s && s.workspace) ? s.workspace.replace(/\/$/, "") : "";
+  if (!ws) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.no_ws")) + '</div>'; return; }
+  box.dataset.ws = ws;
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws})});
+  const j = await r.json();
+  if (j.error) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.err")) + '</div>'; return; }
+  const cands = j.candidates || [];
+  if (!cands.length) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.empty")) + '</div>'; }
+  else {
+    box.innerHTML = '<div class="mem-kb-bar"><label class="spark-toolbar__check"><input type="checkbox" id="recycle-selall"><span>' + esc(t("recycle.sel.all")) + '</span></label><span class="spacer"></span><span class="muted small" id="recycle-selcount"></span></div>'
+      + cands.map((c) => {
+        const wb = c.whitelisted;
+        return '<div class="mem-kb-item"><label class="kb-source" style="display:flex;align-items:center;gap:6px">'
+          + '<input type="checkbox" class="recycle-ck" data-path="' + esc(c.path) + '"' + (wb ? " disabled" : "") + '>'
+          + '<span class="kb-source__name" title="' + esc(c.path) + '">' + esc(c.name) + '</span>'
+          + '<span class="muted small">' + esc(c.source) + ' - ' + (c.size/1024).toFixed(1) + ' KB' + (wb ? ' - ' + esc(t("recycle.whitelisted")) : '') + '</span></label></div>';
+      }).join("");
+  }
+  renderRecycleBin(ws);
+  renderRecycleAudit(ws);
+  updateRecycleSel();
+}
+async function renderRecycleBin(ws) {
+  const box = $("recycle-bin"); if (!box) return;
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws})});
+  const j = await r.json();
+  const inbin = (j && j.in_bin) || [];
+  box.hidden = false;
+  const head = '<div class="req-head"><span class="card-title">' + esc(t("recycle.bin.title")) + '</span></div>';
+  if (!inbin.length) { box.innerHTML = head + '<div class="muted small">' + esc(t("recycle.bin.empty")) + '</div>'; return; }
+  box.innerHTML = head + inbin.map((p) => {
+    const name = p.split(/[\\/]/).pop();
+    return '<div class="mem-kb-item"><div class="kb-source" style="display:flex;align-items:center;gap:6px"><span class="kb-source__name" title="' + esc(p) + '">' + esc(name) + '</span>'
+      + '<button class="st-btn st-btn--ghost st-btn--sm" data-recycle-restore="' + esc(name) + '">' + esc(t("recycle.restore")) + '</button></div></div>';
+  }).join("");
+}
+async function renderRecycleAudit(ws) {
+  const box = $("recycle-audit"); if (!box) return;
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "audit", workspace: ws})});
+  const j = await r.json();
+  const rows = (j && j.audit) || [];
+  box.hidden = false;
+  const head = '<div class="req-head"><span class="card-title">' + esc(t("recycle.audit.title")) + '</span></div>';
+  if (!rows.length) { box.innerHTML = head + '<div class="muted small">' + esc(t("recycle.audit.empty")) + '</div>'; return; }
+  box.innerHTML = head + '<table class="st-table"><tbody>' + rows.slice().reverse().map((e) => {
+    const d = new Date((e.ts||0)*1000);
+    return '<tr><td>' + esc(e.action) + '</td><td>' + esc(e.name||"") + '</td><td class="num">' + esc(d.toLocaleString()) + '</td></tr>';
+  }).join("") + '</tbody></table>';
+}
+function recycleChecked() { return Array.from(document.querySelectorAll(".recycle-ck:checked")).map((c) => c.dataset.path); }
+function updateRecycleSel() { const el = $("recycle-selcount"); if (el) el.textContent = recycleChecked().length + " " + t("recycle.selected"); }
+if ($("recycle-scan")) $("recycle-scan").onclick = () => renderRecycle();
+if ($("recycle-audit-refresh")) $("recycle-audit-refresh").onclick = () => { const ws = ($("recycle-list")||{}).dataset && $("recycle-list").dataset.ws; if (ws) renderRecycleAudit(ws); };
+if ($("recycle-list")) $("recycle-list").addEventListener("change", (e) => {
+  if (e.target.id === "recycle-selall") { document.querySelectorAll(".recycle-ck:not(:disabled)").forEach((c) => { c.checked = e.target.checked; }); }
+  updateRecycleSel();
+});
+if ($("recycle-trash-sel")) $("recycle-trash-sel").onclick = async () => {
+  const paths = recycleChecked(); if (!paths.length) return;
+  if (!confirm(t("recycle.confirm").replace("{n}", String(paths.length)))) return;
+  const ws = $("recycle-list").dataset.ws;
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
+  const j = await r.json();
+  if (typeof toast === "function") toast(j && j.trashed ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"));
+  renderRecycle();
+};
+if ($("recycle-bin")) $("recycle-bin").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-recycle-restore]"); if (!b) return;
+  const ws = $("recycle-list").dataset.ws;
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "restore", workspace: ws, paths: [b.dataset.recycleRestore]})});
+  const j = await r.json();
+  if (typeof toast === "function") toast(j && j.restored && j.restored.length ? t("recycle.restored") : t("recycle.restorefail"));
+  renderRecycle();
+});
