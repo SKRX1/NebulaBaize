@@ -107,3 +107,11 @@ patches/
 
 # draft rule file (official is RULES.md; draft is a transient working copy)
 RULES.draft.md
+
+# one-shot landing/scout tooling from recycle-paging round (transient, kept on disk)
+strata-agent/tools/_land_*.py
+strata-agent/tools/_scout_*.py
+strata-agent/tools/_verifyast_scan.py
+
+# recycle-bin runtime data dir (com/shell runtime store, not source)
+.strata-recycle/
