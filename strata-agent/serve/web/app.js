@@ -5774,7 +5774,7 @@ async function pasteImageToRich(e, editable) {
       const pid = attachNextPid();
       if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
         document.execCommand("insertHTML", false,
-          `<span class="ce-thumb" data-pid="${pid}" title="${esc(_nm)}"><span class="ce-thumb__box"><img class="inline-ce-img" src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span></span>`);
+          `<span class="ce-thumb" contenteditable="false" data-pid="${pid}" title="${esc(_nm)}"><span class="ce-thumb__box"><img class="inline-ce-img" src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span></span>`);
       } else {
         editable.appendChild(makeInlineThumb({ pid, url: src, name: _nm }, editable));
       }
