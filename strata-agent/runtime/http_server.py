@@ -49,7 +49,8 @@ JUDGE_WRITE_LOCK = threading.Lock()
 _RECYCLE_JOBS = {}                # job_id -> {total,done,failed,cancelled,lock,event,finished}
 _RECYCLE_JOBS_LOCK = threading.Lock()
 _RECYCLE_LEDGER_LOCK = threading.Lock()   # serialises concurrent appends to one ledger.jsonl
-_RECYCLE_TRASH_WORKERS = 12       # concurrent PowerShell/COM processes per job (raised 8->12 ~ machine cores; measured spawn cost plateaus 8->12)
+_RECYCLE_TRASH_BATCH = 10         # paths per PowerShell process (one spawn handles a whole batch; measured sweet spot on this machine)
+_RECYCLE_TRASH_WORKERS = 4        # concurrent batch processes per job (bench: batch10 x 4 = fastest tier, 6 is noise-level gain; fewer procs than the old 12)
 _RECYCLE_TRASH_SYNC_MAX = 3       # paths <= this stay on the synchronous path (no job overhead)
 import traceback
 import urllib.error
@@ -2882,6 +2883,36 @@ class GatewayHandler(BaseHTTPRequestHandler):
                   % (folder.replace("'", "''"), name.replace("'", "''")))
         return self._recycle_powershell(script) == "OK"
 
+    def _recycle_batch_script(self, paths):
+        """One PowerShell that sends a WHOLE batch via a single COM session.
+        Emits one result line per path: 'OK:<path>' or 'NOITEM:<path>'."""
+        arr = "$paths=@(" + ",".join("'%s'" % p.replace("'", "''") for p in paths) + ");"
+        body = ("$sh=New-Object -ComObject Shell.Application;"
+                "foreach($p in $paths){"
+                "$d=Split-Path $p -Parent;$n=Split-Path $p -Leaf;"
+                "$it=$sh.Namespace($d).ParseName($n);"
+                "if($it){$it.InvokeVerb('delete');'OK:' + $p}else{'NOITEM:' + $p}}")
+        return arr + body
+
+    @staticmethod
+    def _recycle_parse_batch(out, batch):
+        """Map PowerShell output lines back to paths. Returns (ok_paths, not_found)."""
+        by_suffix = {str(Path(p)).lower(): str(p) for p in batch}
+        wanted = {p.lower() for p in batch}
+        ok, seen = set(), set()
+        for line in (out or "").splitlines():
+            line = line.strip()
+            if line.startswith("OK:"):
+                key = line[3:].strip().lower()
+                if key in wanted:
+                    ok.add(by_suffix[key]); seen.add(key)
+            elif line.startswith("NOITEM:"):
+                key = line[7:].strip().lower()
+                if key in wanted:
+                    seen.add(key)
+        missing = [by_suffix[k] for k in (wanted - seen)]  # e.g. whitelist-skipped in the pool path
+        return sorted(ok), sorted(missing)
+
     def _recycle_ledger_append(self, ledger, raw):
         f = Path(raw)
         rec = {"action": "trash", "path": str(f), "name": f.name, "size": None,
@@ -2890,29 +2921,30 @@ class GatewayHandler(BaseHTTPRequestHandler):
             io.open(ledger, "a", encoding="utf-8").write(json.dumps(rec, ensure_ascii=False) + chr(10))
 
     def _recycle_trash_run(self, job, ledger, paths):
-        """Worker pool. Stop only cancels files NOT yet started; a send already issued is
-        instant and irreversible (the bin can undo it later, this job cannot)."""
-        def worker(raw):
+        """Batch pool: one PowerShell handles _RECYCLE_TRASH_BATCH paths, so the process
+        cold-start cost (the old bottleneck) is amortised. Stop only cancels batches NOT
+        yet started; a batch already running delivers all of it (the bin can undo later,
+        this job cannot)."""
+        batches = [paths[i:i + _RECYCLE_TRASH_BATCH] for i in range(0, len(paths), _RECYCLE_TRASH_BATCH)]
+        def worker(batch):
             if job["event"].is_set():
                 with job["lock"]:
-                    job["cancelled"] += 1
+                    job["cancelled"] += len(batch)
                 return
             try:
-                ok = self._recycle_trash_one(raw)
+                out = self._recycle_powershell(self._recycle_batch_script(batch))
             except Exception:
-                ok = False
                 with job["lock"]:
-                    job["failed"] += 1
+                    job["failed"] += len(batch)
                 return
+            ok_paths, not_found = self._recycle_parse_batch(out, batch)
             with job["lock"]:
-                if ok:
-                    job["done"] += 1
-                else:
-                    job["skipped"] += 1
-            if ok:
-                self._recycle_ledger_append(ledger, raw)
+                job["done"] += len(ok_paths)
+                job["skipped"] += len(not_found)
+            for p in ok_paths:
+                self._recycle_ledger_append(ledger, p)
         with futures.ThreadPoolExecutor(max_workers=_RECYCLE_TRASH_WORKERS) as pool:
-            list(pool.map(worker, paths))
+            list(pool.map(worker, batches))
         with job["lock"]:
             job["finished"] = True
 

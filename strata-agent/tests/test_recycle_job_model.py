@@ -33,13 +33,28 @@ def make_handler():
     return H.GatewayHandler.__new__(H.GatewayHandler)
 
 
+def batch_paths(script):
+    """Paths embedded by _recycle_batch_script as '$paths @('a','b',...)'."""
+    import re
+    m = re.search(r"\$paths=@\((.*?)\);", script)
+    return [p.strip().strip("'") for p in m.group(1).split(",")] if m else []
+
+
+def ps_reply(self, script, delay=0.0):
+    if delay:
+        time.sleep(delay)
+    paths = batch_paths(script)
+    if paths:                          # batched path: one result line per path
+        return "\n".join("OK:" + p for p in paths)
+    return "OK"                        # single-file path (sync small batch)
+
+
 def fake_ps_ok(self, script):
-    return "OK"
+    return ps_reply(self, script)
 
 
 def fake_ps_slow(self, script):
-    time.sleep(0.05)         # each simulated COM send takes real time
-    return "OK"
+    return ps_reply(self, script, delay=0.2)    # each simulated COM send takes real time
 
 
 def make_workspace_with_files(n):
@@ -116,14 +131,17 @@ def test_B_large_batch_is_a_job_and_completes():
 
 def test_C_cancel_only_cancels_not_yet_started():
     fresh_job_table()
-    # slow send so cancel fires while files are still queued
+    # slow send so cancel fires while BATCHES are still queued. Granularity is now the
+    # batch (one PowerShell per batch): batches already started deliver all of their
+    # files; only queued batches get cancelled. 120 files / batch 10 = 12 batches > 4 workers.
     H.GatewayHandler._recycle_powershell = fake_ps_slow
     h = make_handler()
-    ws, paths = make_workspace_with_files(40)   # enough for cancel to bite
+    n = 120
+    ws, paths = make_workspace_with_files(n)    # enough queued batches for cancel to bite
     try:
         code, obj = h._recycle_trash({"workspace": ws, "paths": paths})
         assert code == 200 and "job_id" in obj, obj
-        time.sleep(0.12)                        # let ~a few start
+        time.sleep(0.08)                        # let the first worker round start
         code2, c = h._recycle_cancel({"job_id": obj["job_id"]})
         assert code2 == 200 and c.get("cancelled") is True, c
         deadline = time.time() + 8
@@ -134,9 +152,11 @@ def test_C_cancel_only_cancels_not_yet_started():
                 break
             time.sleep(0.05)
         assert prog.get("finished") is True, prog
-        # the STOP-SEMANTIC contract: in-flight still count as done, not-yet-started -> cancelled
-        assert prog["done"] + prog["cancelled"] == 40, prog
-        assert prog["cancelled"] > 0, ("cancel must cancel at least the not-yet-started", prog)
+        # the STOP-SEMANTIC contract (batch granularity): started batches deliver,
+        # queued batches cancel, and the two together cover every file.
+        assert prog["done"] + prog["cancelled"] == n, prog
+        assert prog["done"] > 0, ("started batches must still deliver", prog)
+        assert prog["cancelled"] > 0, ("queued batches must cancel", prog)
         assert prog["failed"] == 0, prog
         print("C cancel-midflight: done=%d cancelled=%d (total=%d)"
               % (prog["done"], prog["cancelled"], prog["total"]))
