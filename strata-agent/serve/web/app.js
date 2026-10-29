@@ -2801,10 +2801,14 @@ function markTruncatedIfCut(m, sawDone, stopId) {
 // localStorage mirror keeps working offline / in parasitic mode where the route does not exist.
 const ILOG_KEY = "interruptLog";       // localStorage mirror key (strata.interruptLog)
 const ILOG_MIRROR_MAX = 200;           // mirror is a safety net, not an archive: keep it small
+// Persistence helpers for expand/collapse state (survives hard refresh + restart):
+// localStorage-backed Sets, one per list. JSON array in storage, Set in memory.
+function expandSetLoad(key){ let s = new Set(); try { const a = JSON.parse(localStorage.getItem(key) || "[]"); if (Array.isArray(a)) s = new Set(a); } catch (e) {} return s; }
+function expandSetSave(key, set){ try { localStorage.setItem(key, JSON.stringify([...set])); } catch (e) {} }
 const BUGBOX_KEY = 'bugBox';            // localStorage key: bug collection box (off-turn exceptions)
 const BUGBOX_MAX = 500;                 // bug box is larger: dev bugs accumulate across a session
 let BUGBOX_SHOW_LIMIT = 50;           // perf (aligns KB_SHOW_LIMIT): rows shown before load-more
-const bugBoxExpanded = new Set();     // ts of rows the user expanded; everything else is collapsed (default)
+const bugBoxExpanded = expandSetLoad('strata.bugBoxExpanded');   // persisted (2026-10-30): survives refresh/restart
 const _bugBox = { _lastTs: 0, _lastMsg: null };   // de-dupe state for the off-turn collector
 // Called from the streaming loop as each kind of activity arrives. The phase is what the user
 // was LOOKING AT when the turn died, which is exactly what they report ("it stopped while
@@ -4785,6 +4789,31 @@ $("archive-mgr-list").addEventListener("click", async (e) => {
   if (cancel) { renderArchiveManager(); }
 });
 async function renderMemory() { renderKbCard(); renderRulesCard(); renderNotesCard(); renderAutoMemoryCard(); renderGlobalCard(); }
+// Item-level expand persistence (2026-10-30): which kb/note rows the user left open.
+const memExpanded = { kb: expandSetLoad("strata.memExpand.kb"), notes: expandSetLoad("strata.memExpand.notes") };
+// After a render, re-open the rows the user had left open. Loaded bodies show directly;
+// not-yet-loaded ones go through the row's own view button (the existing lazy path).
+function restoreMemExpand(listId, set){
+  const list = $(listId); if (!list || !set.size) return;
+  list.querySelectorAll(".mem-kb-item").forEach((item) => {
+    const b = item.querySelector("[data-kb-view],[data-note-view]"); if (!b) return;
+    const k = b.dataset.kbView || b.dataset.noteView;
+    if (!set.has(k)) return;
+    const pre = item.querySelector(".mem-src-body");
+    if (pre && pre.dataset.loaded) { pre.hidden = false; } else { b.click(); }
+  });
+}
+function memExpandAllPersisted(listId, expand){
+  const set = (listId === "mem-kb-list") ? memExpanded.kb : memExpanded.notes;
+  const list = $(listId);
+  if (expand) {
+    if (list) list.querySelectorAll(".mem-kb-item").forEach((item) => { const b = item.querySelector("[data-kb-view],[data-note-view]"); if (b) set.add(b.dataset.kbView || b.dataset.noteView); });
+  } else {
+    set.clear();
+  }
+  expandSetSave("strata.memExpand." + (listId === "mem-kb-list" ? "kb" : "notes"), set);
+  memExpandAll(listId, expand);
+}
 // A+C landing (approved 2026-10-26): one-click expand/collapse-all over the memory inline
 // lists. Default-folded + per-item lazy load already exist; this adds the batch action,
 // reusing the existing lazy-load path via the row button click.
@@ -4798,10 +4827,10 @@ function memExpandAll(listId, expand) {
     } else { pre.hidden = true; }
   });
 }
-if ($("mem-kb-expandall")) $("mem-kb-expandall").onclick = () => memExpandAll("mem-kb-list", true);
-if ($("mem-kb-foldall")) $("mem-kb-foldall").onclick = () => memExpandAll("mem-kb-list", false);
-if ($("mem-notes-expandall")) $("mem-notes-expandall").onclick = () => memExpandAll("mem-notes-list", true);
-if ($("mem-notes-foldall")) $("mem-notes-foldall").onclick = () => memExpandAll("mem-notes-list", false);
+if ($("mem-kb-expandall")) $("mem-kb-expandall").onclick = () => memExpandAllPersisted("mem-kb-list", true);
+if ($("mem-kb-foldall")) $("mem-kb-foldall").onclick = () => memExpandAllPersisted("mem-kb-list", false);
+if ($("mem-notes-expandall")) $("mem-notes-expandall").onclick = () => memExpandAllPersisted("mem-notes-list", true);
+if ($("mem-notes-foldall")) $("mem-notes-foldall").onclick = () => memExpandAllPersisted("mem-notes-list", false);
 
 let KB_SHOW_LIMIT = 50; // perf (A+B, 2026-10-27): recent sources shown before load-more
 async function renderKbCard() {
@@ -4825,6 +4854,7 @@ async function renderKbCard() {
       '<button class="st-btn st-btn--ghost st-btn--sm" data-kb-del="' + esc(name) + '">' + t("side.delete") + '</button></div>' +
       '<pre class="mem-src-body" hidden></pre></div>';
   }).join("");
+  restoreMemExpand("mem-kb-list", memExpanded.kb);
   if (rows.length > showRows.length) {
     const more = document.createElement("button");
     more.type = "button";
@@ -4866,8 +4896,10 @@ $("mem-kb-list").addEventListener("click", async (e) => {
   if (view) {
     const item = view.closest(".mem-kb-item"); if (!item) return;
     const pre = item.querySelector(".mem-src-body"); if (!pre) return;
-    if (pre.dataset.loaded) { pre.hidden = !pre.hidden; return; }
+    const k = view.dataset.kbView;
+    if (pre.dataset.loaded) { pre.hidden = !pre.hidden; if (pre.hidden) memExpanded.kb.delete(k); else memExpanded.kb.add(k); expandSetSave("strata.memExpand.kb", memExpanded.kb); return; }
     pre.textContent = t("mem.kb.loading"); pre.hidden = false;
+    memExpanded.kb.add(k); expandSetSave("strata.memExpand.kb", memExpanded.kb);
     const res = await mcpTxt("memory", "read_source", {source: view.dataset.kbView});
     pre.textContent = res || t("mem.kb.nohit"); pre.dataset.loaded = "1";
   } else if (del) {
@@ -5214,6 +5246,7 @@ async function renderNotesCard() {
       '</button><button class="st-btn st-btn--ghost st-btn--sm" data-note-del="' + esc(path) + '">' + t("side.delete") + '</button></div>' +
       '<pre class="mem-src-body" hidden></pre></div>';
   }).join("");
+  restoreMemExpand("mem-notes-list", memExpanded.notes);
 }
 $("mem-notes-list").addEventListener("click", async (e) => {
   const view = e.target.closest("[data-note-view]"); const del = e.target.closest("[data-note-del]");
@@ -5221,8 +5254,10 @@ $("mem-notes-list").addEventListener("click", async (e) => {
   if (view) {
     const item = view.closest(".mem-kb-item"); if (!item) return;
     const pre = item.querySelector(".mem-src-body"); if (!pre) return;
-    if (pre.dataset.loaded) { pre.hidden = !pre.hidden; return; }
+    const k = view.dataset.noteView;
+    if (pre.dataset.loaded) { pre.hidden = !pre.hidden; if (pre.hidden) memExpanded.notes.delete(k); else memExpanded.notes.add(k); expandSetSave("strata.memExpand.notes", memExpanded.notes); return; }
     pre.textContent = t("mem.kb.loading"); pre.hidden = false;
+    memExpanded.notes.add(k); expandSetSave("strata.memExpand.notes", memExpanded.notes);
     const res = await fsRead(view.dataset.noteView);
     pre.textContent = res || t("mem.kb.nohit"); pre.dataset.loaded = "1";
   } else if (edit) {
@@ -6752,13 +6787,14 @@ function renderBugBox() {
     box.appendChild(more);
   }
 }
-function bugBoxExpandAll(expand) {   // batch toggle for the bug-box (aligns memExpandAll); in-memory only, like the per-row toggle
+function bugBoxExpandAll(expand) {   // batch toggle for the bug-box (aligns memExpandAll); persisted 2026-10-30
   if (expand) {
     const list = $("bugbox-list");
     if (list) list.querySelectorAll("[data-bugtoggle]").forEach((row) => bugBoxExpanded.add(row.getAttribute("data-bugtoggle")));
   } else {
     bugBoxExpanded.clear();
   }
+  expandSetSave('strata.bugBoxExpanded', bugBoxExpanded);
   renderBugBox();
 }
 
@@ -8540,7 +8576,7 @@ if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
       return;   // a button click never toggles the row
     }
     const row0 = e.target.closest && e.target.closest("[data-bugtoggle]");
-    if (row0) { const key = row0.getAttribute("data-bugtoggle"); if (bugBoxExpanded.has(key)) bugBoxExpanded.delete(key); else bugBoxExpanded.add(key); renderBugBox(); return; }   // default-collapsed rows expand on click
+    if (row0) { const key = row0.getAttribute("data-bugtoggle"); if (bugBoxExpanded.has(key)) bugBoxExpanded.delete(key); else bugBoxExpanded.add(key); expandSetSave('strata.bugBoxExpanded', bugBoxExpanded); renderBugBox(); return; }   // default-collapsed rows expand on click (persisted)
   });
 }
 
