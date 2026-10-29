@@ -180,10 +180,12 @@ let tab = "chat";
 let inspectorOpen = store.get("inspector.open", true);   // declared early: applyInspector() runs before this line's original spot
 function showTab(name) {
   tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug"].includes(name) ? name : "chat";
-  // the left sidebar (task list) is chat-only: on the other tabs the view takes
-  // the full width. The class is added for non-chat (never removed by default),
-  // so a JS-less first paint still shows the sidebar — fail visible, not hidden.
-document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark");
+  // the left sidebar (task list) shows on chat / spark / debug; every other tab lets
+  // the view take the full width. The class is added for the full-width tabs (never
+  // removed by default), so a JS-less first paint still shows the sidebar — fail
+  // visible, not hidden. `#rh-left` (the sidebar's resize handle) is bound to the same
+  // class in CSS:630 on purpose — a visible sidebar should ship with its resize handle.
+  document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark" && tab !== "debug");
   for (const b of document.querySelectorAll(".st-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
   for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug"]) $(`view-${v}`).hidden = v !== tab;
   if (tab === "images") $("img-prompt").focus();
