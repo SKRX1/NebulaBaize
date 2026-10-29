@@ -8968,7 +8968,7 @@ async function renderRecycle() {
       + cands.map((c) => {
         const wb = c.whitelisted;
         return '<div class="mem-kb-item"><label class="kb-source" style="display:flex;align-items:center;gap:6px">'
-          + '<input type="checkbox" class="recycle-ck" data-path="' + esc(c.path) + '"' + (wb ? " disabled" : "") + '>'
+          + '<input type="checkbox" class="recycle-ck" data-path="' + esc(c.path) + '" data-size="' + (c.size || 0) + '"' + (wb ? " disabled" : "") + '>'
           + '<span class="kb-source__name" title="' + esc(c.path) + '">' + esc(c.name) + '</span>'
           + '<span class="muted small">' + esc(c.source) + ' - ' + (c.size/1024).toFixed(1) + ' KB' + (wb ? ' - ' + esc(t("recycle.whitelisted")) : '') + '</span></label></div>';
       }).join("");
@@ -9024,7 +9024,25 @@ function recycleMore(which) {
   else { recycleAuditLimit += 30; paintRecycleAudit(); }
 }
 function recycleChecked() { return Array.from(document.querySelectorAll(".recycle-ck:checked")).map((c) => c.dataset.path); }
-function updateRecycleSel() { const el = $("recycle-selcount"); if (el) el.textContent = recycleChecked().length + " " + t("recycle.selected"); }
+function fmtBytesSel(n) { return n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+function updateRecycleSel() {
+  const boxes = document.querySelectorAll(".recycle-ck");
+  const checked = document.querySelectorAll(".recycle-ck:checked");
+  const el = $("recycle-selcount");
+  if (el) {
+    let bytes = 0;
+    checked.forEach((c) => { bytes += parseInt(c.dataset.size || "0", 10) || 0; });
+    el.textContent = checked.length + " " + t("recycle.selected")
+      + (checked.length ? " · " + fmtBytesSel(bytes) : "");
+  }
+  // three-state select-all (spark precedent updateSelAllState): denominator = actionable rows
+  const selall = $("recycle-selall");
+  if (selall) {
+    const total = document.querySelectorAll(".recycle-ck:not(:disabled)").length;
+    selall.checked = total > 0 && checked.length === total;
+    selall.indeterminate = checked.length > 0 && checked.length < total;
+  }
+}
 if ($("recycle-ws")) $("recycle-ws").onchange = () => { store.set("recycle.ws", $("recycle-ws").value); renderRecycle(); };
 if ($("recycle-retention")) $("recycle-retention").onchange = () => { store.set("recycle.retention", parseInt($("recycle-retention").value, 10) || 72); renderRecycle(); };
 if ($("recycle-chips")) $("recycle-chips").addEventListener("change", (e) => {
