@@ -9039,12 +9039,55 @@ if ($("recycle-list")) $("recycle-list").addEventListener("change", (e) => {
 if ($("recycle-audit")) $("recycle-audit").addEventListener("click", (e) => {
   const mb = e.target.closest("[data-recycle-more]"); if (mb) recycleMore(mb.dataset.recycleMore);
 });
+let recycleJobId = null, recyclePollTimer = null;
+function recycleProgressUi(show) {
+  const row = $("recycle-progress-row"); if (!row) return;
+  row.style.display = show ? "flex" : "none";
+  if (!show) { const b = $("recycle-progress-bar"); if (b) b.style.width = "0%"; const tx = $("recycle-progress-text"); if (tx) tx.textContent = ""; const st = $("recycle-stop"); if (st) { st.disabled = false; } recycleJobId = null; }
+}
+function recycleSetProgress(done, total) {
+  const b = $("recycle-progress-bar"); if (b) b.style.width = (total ? Math.round(done * 100 / total) : 0) + "%";
+  const tx = $("recycle-progress-text"); if (tx) tx.textContent = t("recycle.progress").replace("{done}", String(done)).replace("{total}", String(total));
+}
+function recycleStopPoll() { if (recyclePollTimer) { clearTimeout(recyclePollTimer); recyclePollTimer = null; } }
+async function recyclePollProgress() {
+  if (!recycleJobId) return;
+  let j;
+  try {
+    const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "progress", job_id: recycleJobId})});
+    j = await r.json();
+  } catch (e) { return; }
+  if (!j || j.error) { recycleProgressUi(false); return; }
+  recycleSetProgress((j.done || 0) + (j.skipped || 0) + (j.failed || 0) + (j.cancelled || 0), j.total || 0);
+  if (j.finished) {
+    recycleStopPoll();
+    const msg = t("recycle.done").replace("{n}", String(j.done || 0))
+      + ((j.failed || 0) ? t("recycle.failed").replace("{n}", String(j.failed)) : "")
+      + ((j.cancelled || 0) ? t("recycle.cancelled").replace("{n}", String(j.cancelled)) : "");
+    if (typeof toast === "function") toast(msg);
+    recycleProgressUi(false);
+    renderRecycle();
+    return;
+  }
+  recyclePollTimer = setTimeout(recyclePollProgress, 400);
+}
+if ($("recycle-stop")) $("recycle-stop").onclick = async () => {
+  if (!recycleJobId) return;
+  const st = $("recycle-stop"); if (st) { st.disabled = true; st.textContent = t("recycle.stopping"); }
+  try { await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "cancel", job_id: recycleJobId})}); } catch (e) {}
+};
 if ($("recycle-trash-sel")) $("recycle-trash-sel").onclick = async () => {
   const paths = recycleChecked(); if (!paths.length) return;
   if (!confirm(t("recycle.confirm").replace("{n}", String(paths.length)))) return;
   const ws = $("recycle-list").dataset.ws;
   const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
   const j = await r.json();
+  if (j && j.job_id) {           // large batch: background job -> show progress + stop, poll
+    recycleJobId = j.job_id; recycleProgressUi(true); recycleSetProgress(0, j.total || paths.length);
+    const st = $("recycle-stop"); if (st) { st.disabled = false; st.textContent = t("recycle.stop"); }
+    recyclePollTimer = setTimeout(recyclePollProgress, 400);
+    return;
+  }
   if (typeof toast === "function") toast(j && j.trashed ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"));
   renderRecycle();
 };

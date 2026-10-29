@@ -37,10 +37,20 @@ import sys
 import threading
 import time
 import uuid
+from concurrent import futures
 
 # Serializes the per-turn judge's append to judge_stream.jsonl so concurrent turns
 # (a long session fires the judge once per turn) never race on the same file handle.
 JUDGE_WRITE_LOCK = threading.Lock()
+
+# Garbage-recycle batch trash: large batches run as a background job so the caller can poll
+# progress and stop mid-flight. Each file still spawns its own PowerShell + COM apartment, so
+# a bounded worker pool is safe (no shared COM apartment). Small batches stay synchronous.
+_RECYCLE_JOBS = {}                # job_id -> {total,done,failed,cancelled,lock,event,finished}
+_RECYCLE_JOBS_LOCK = threading.Lock()
+_RECYCLE_LEDGER_LOCK = threading.Lock()   # serialises concurrent appends to one ledger.jsonl
+_RECYCLE_TRASH_WORKERS = 12       # concurrent PowerShell/COM processes per job (raised 8->12 ~ machine cores; measured spawn cost plateaus 8->12)
+_RECYCLE_TRASH_SYNC_MAX = 3       # paths <= this stay on the synchronous path (no job overhead)
 import traceback
 import urllib.error
 import urllib.request
@@ -2838,28 +2848,94 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if base is None or not isinstance(paths, list) or not paths:
             return 400, {"error": {"message": "paths required"}}
         ledger.parent.mkdir(parents=True, exist_ok=True)
-        done = []
-        for raw in paths:
-            f = Path(raw)
-            if not f.exists():
-                continue
-            if f.name in self.RECYCLE_WHITELIST:
-                continue
-            folder = str(f.parent); name = f.name
-            script = ("$sh=New-Object -ComObject Shell.Application;"
-                      "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
-                      % (folder.replace("'", "''"), name.replace("'", "''")))
-            try:
-                res = self._recycle_powershell(script)
-            except Exception as e:
-                return 500, {"error": {"message": "COM send failed: %s" % e}}
-            if res != "OK":
-                continue
-            rec = {"action": "trash", "path": str(f), "name": name, "size": None,
-                   "origin": folder, "ts": int(time.time())}
+        if len(paths) <= _RECYCLE_TRASH_SYNC_MAX:
+            # Small batches stay synchronous: a background job + thread pool costs more than
+            # it saves when there are only a handful of files.
+            done = []
+            for raw in paths:
+                try:
+                    ok = self._recycle_trash_one(raw)
+                except Exception as e:
+                    return 500, {"error": {"message": "COM send failed: %s" % e}}
+                if ok:
+                    self._recycle_ledger_append(ledger, raw)
+                    done.append(str(Path(raw)))
+            return 200, {"trashed": done, "skipped": len(paths) - len(done)}
+        # Large batch: background job so the caller can poll progress and stop mid-flight.
+        job_id = uuid.uuid4().hex
+        job = {"total": len(paths), "done": 0, "skipped": 0, "failed": 0, "cancelled": 0,
+               "lock": threading.Lock(), "event": threading.Event(), "finished": False}
+        with _RECYCLE_JOBS_LOCK:
+            _RECYCLE_JOBS[job_id] = job
+        threading.Thread(target=self._recycle_trash_run,
+                          args=(job, ledger, paths), name="recycle-trash", daemon=True).start()
+        return 200, {"job_id": job_id, "total": len(paths)}
+
+    def _recycle_trash_one(self, raw):
+        """Send ONE file to the Recycle Bin via its own PowerShell+COM. True = it moved."""
+        f = Path(raw)
+        if not f.exists() or f.name in self.RECYCLE_WHITELIST:
+            return False
+        folder = str(f.parent); name = f.name
+        script = ("$sh=New-Object -ComObject Shell.Application;"
+                  "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
+                  % (folder.replace("'", "''"), name.replace("'", "''")))
+        return self._recycle_powershell(script) == "OK"
+
+    def _recycle_ledger_append(self, ledger, raw):
+        f = Path(raw)
+        rec = {"action": "trash", "path": str(f), "name": f.name, "size": None,
+               "origin": str(f.parent), "ts": int(time.time())}
+        with _RECYCLE_LEDGER_LOCK:
             io.open(ledger, "a", encoding="utf-8").write(json.dumps(rec, ensure_ascii=False) + chr(10))
-            done.append(str(f))
-        return 200, {"trashed": done}
+
+    def _recycle_trash_run(self, job, ledger, paths):
+        """Worker pool. Stop only cancels files NOT yet started; a send already issued is
+        instant and irreversible (the bin can undo it later, this job cannot)."""
+        def worker(raw):
+            if job["event"].is_set():
+                with job["lock"]:
+                    job["cancelled"] += 1
+                return
+            try:
+                ok = self._recycle_trash_one(raw)
+            except Exception:
+                ok = False
+                with job["lock"]:
+                    job["failed"] += 1
+                return
+            with job["lock"]:
+                if ok:
+                    job["done"] += 1
+                else:
+                    job["skipped"] += 1
+            if ok:
+                self._recycle_ledger_append(ledger, raw)
+        with futures.ThreadPoolExecutor(max_workers=_RECYCLE_TRASH_WORKERS) as pool:
+            list(pool.map(worker, paths))
+        with job["lock"]:
+            job["finished"] = True
+
+    def _recycle_progress(self, req):
+        job_id = req.get("job_id")
+        with _RECYCLE_JOBS_LOCK:
+            job = _RECYCLE_JOBS.get(job_id)
+        if job is None:
+            return 404, {"error": {"message": "no such job"}}
+        with job["lock"]:
+            out = {"total": job["total"], "done": job["done"], "skipped": job["skipped"],
+                   "failed": job["failed"], "cancelled": job["cancelled"],
+                   "finished": job["finished"]}
+        return 200, out
+
+    def _recycle_cancel(self, req):
+        job_id = req.get("job_id")
+        with _RECYCLE_JOBS_LOCK:
+            job = _RECYCLE_JOBS.get(job_id)
+        if job is None:
+            return 404, {"error": {"message": "no such job"}}
+        job["event"].set()          # cancel files not yet picked up; already-sent ones stay
+        return 200, {"cancelled": True}
 
     def _recycle_restore(self, req):
         base, ledger = self._recycle_paths(req)
@@ -2920,6 +2996,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
             code, obj = self._recycle_scan(req)
         elif action == "trash":
             code, obj = self._recycle_trash(req)
+        elif action == "progress":
+            code, obj = self._recycle_progress(req)
+        elif action == "cancel":
+            code, obj = self._recycle_cancel(req)
         elif action == "restore":
             code, obj = self._recycle_restore(req)
         elif action == "audit":

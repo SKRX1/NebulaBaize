@@ -476,6 +476,11 @@
       <div class="mem-actions">
         <button class="st-btn st-btn--primary st-btn--sm" id="recycle-trash-sel" type="button" data-i18n="recycle.trash">把勾选项送入回收站</button>
         <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-audit-refresh" type="button" data-i18n="recycle.audit.refresh">刷新审计</button></div>
+      <div class="mem-actions" id="recycle-progress-row" style="display:none;align-items:center;gap:8px">
+        <div class="st-progress" style="flex:1"><div class="st-progress__bar" id="recycle-progress-bar" style="width:0%"></div></div>
+        <span class="muted small" id="recycle-progress-text"></span>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-stop" type="button" data-i18n="recycle.stop">停止</button>
+      </div>
       <div class="debug-list" id="recycle-list"></div>
       <div class="debug-list" id="recycle-bin" hidden></div>
       <div class="debug-list" id="recycle-audit" hidden></div>

@@ -62,6 +62,7 @@ SUITES = [
     "tests/test_autofix_loop.mjs",   # 2026-10-27: self-evolving fix loop — capture stamps open, push marks fixing, idle driver takes OLDEST open (anti self-feed), verified leaves the box (audit stays JSONL); differential double-probe proven
     "tests/test_bugbox_merge_stats.mjs",   # 2026-10-28: bug-box signature-merge display + 4-number stats bar + one-shot physical merge (differential double-probe, jsdom runs real renderBugBox)
     "tests/test_recycle_paging.mjs",   # 2026-10-29: recycle bin+audit default 30 rows / load-more +30 with ZERO refetch (data cached in module vars); differential pure-logic, pure-ASCII probes
+    "tests/test_recycle_job_model.py",   # 2026-10-30: recycle batch-trash job model (parallel pool, sync<=3 stays sync, cancel only cancels not-yet-started, ledger lock, 404 unknown job); pure-stdlib, deterministic
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_compose_steps.mjs",   # 2026-10-24: click a suggestion = a decision, not a question (exec prefix + hold confirm branch)
     "tests/test_thinking.mjs",
