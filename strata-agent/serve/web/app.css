@@ -1347,3 +1347,10 @@ body.side-collapsed .st-ctx-menu { display: none; }
   border: none; background: rgba(0,0,0,.62); color: #fff; display: none; place-items: center; cursor: pointer; padding: 0; }
 .ce-thumb__x .st-icon { width: 12px; height: 12px; }
 .ce-thumb:hover .ce-thumb__x { display: grid; }
+
+.st-modal__grip { flex: none; display: inline-flex; align-items: center; color: var(--st-ink-muted); }
+.st-modal__head .st-modal__grip .st-icon { transform: none; color: var(--st-ink-muted); transition: color var(--st-dur) var(--st-ease); }
+.st-modal__head--draggable:hover .st-modal__grip .st-icon { color: var(--st-accent); }
+.st-modal__card.is-dragging { box-shadow: 0 16px 44px color-mix(in srgb, var(--st-accent) 22%, rgba(0,0,0,.40)); }
+.st-modal__card.is-dragging .st-modal__head .st-icon { color: var(--st-accent); }
+.st-modal__card.is-dragging .st-modal__grip .st-icon { color: var(--st-accent); }
