@@ -55,6 +55,7 @@ SUITES = [
     "tests/test_auto_memory.mjs",
     "tests/test_mem_expand_all.mjs",   # 2026-10-26: A+C landing - memExpandAll real-fn differential (expand reveals loaded body / fold hides all)
     "tests/test_expand_persist.mjs",   # 2026-10-30: expand/collapse persistence (bug-box + memory item-level, static+runtime+differential)
+    "tests/test_expand_persist_e2e.mjs",   # 2026-10-30: REAL boot click->localStorage->refresh->restore round trip (the gap the static gate left open)
     "tests/test_proposal_card.mjs",
     "tests/test_tool_progress_label.mjs",   # 2026-10-27: tool-card title must be three-state (running/progress = neutral, ok===false = red, ok===true = result) -- locks the live-progress-shown-as-error bug from the screenshot
     "tests/test_zombie_running_finalize.mjs",   # 2026-10-27: a card left running after the turn ends must drop out of the tick scan (finalize drives 1->0); locks the zombie-card permanent-tick/accumulating-seconds bug
