@@ -1308,7 +1308,7 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .ce-input {
   width: 100%; min-height: 38px; padding: 8px 10px;
   font: 400 var(--st-fs-sm)/1.5 var(--st-font); color: var(--st-text);
-  background: var(--st-surface); border: 1px solid var(--st-border);
+  background: var(--st-surface); border: 1px solid var(--st-line);
   border-radius: var(--st-r); outline: none; position: relative;
   overflow-wrap: break-word; white-space: pre-wrap; cursor: text;
 }
