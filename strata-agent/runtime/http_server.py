@@ -2726,34 +2726,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
 # ─── Entry point ─────────────────────────────────────────────────────────────────
 
-def run_server(state: GatewayState, host: str = "127.0.0.1", port: int = 8099):
-    """Start the gateway HTTP server. Blocking."""
-    GatewayHandler.state = state
-    # Build the management registry here rather than in GatewayState: it needs an audit
-    # log, and this is the one place both the config paths and the log location are known.
-    if state.config_path:
-        try:
-            from registry import Registry
-            from audit import AuditLog
-            state.registry = Registry(
-                state.config_path,
-                state.skills_dir or os.path.join(ROOT, "skills"),
-                audit=AuditLog(os.path.join(ROOT, "data", "audit.jsonl")),
-            )
-        except Exception as e:
-            print(f"[gateway-http] management API disabled: {e}", file=sys.stderr)
-    server = ThreadingHTTPServer((host, port), GatewayHandler)
-    print(f"[gateway-http] standalone mode on http://{host}:{port}")
-    print(f"[gateway-http]   web root: {WEB_DIR}")
-    print(f"[gateway-http]   proxy → {state.upstream_url}")
-    if state.registry:
-        print(f"[gateway-http]   management API: /api/servers, /api/skills (localhost only)")
-    print(f"[gateway-http]   open in browser: http://{host}:{port}")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[gateway-http] shutting down")
-        server.shutdown()
 
     # ---- garbage-recycle (debug page card). Sends to the real Windows Recycle Bin via
     # Shell.Application COM (subprocess powershell; pywin32 not installed). Never a physical delete:
@@ -2915,3 +2887,31 @@ def run_server(state: GatewayState, host: str = "127.0.0.1", port: int = 8099):
         else:
             code, obj = 400, {"error": {"message": "unknown action"}}
         self._json(code, obj)
+def run_server(state: GatewayState, host: str = "127.0.0.1", port: int = 8099):
+    """Start the gateway HTTP server. Blocking."""
+    GatewayHandler.state = state
+    # Build the management registry here rather than in GatewayState: it needs an audit
+    # log, and this is the one place both the config paths and the log location are known.
+    if state.config_path:
+        try:
+            from registry import Registry
+            from audit import AuditLog
+            state.registry = Registry(
+                state.config_path,
+                state.skills_dir or os.path.join(ROOT, "skills"),
+                audit=AuditLog(os.path.join(ROOT, "data", "audit.jsonl")),
+            )
+        except Exception as e:
+            print(f"[gateway-http] management API disabled: {e}", file=sys.stderr)
+    server = ThreadingHTTPServer((host, port), GatewayHandler)
+    print(f"[gateway-http] standalone mode on http://{host}:{port}")
+    print(f"[gateway-http]   web root: {WEB_DIR}")
+    print(f"[gateway-http]   proxy → {state.upstream_url}")
+    if state.registry:
+        print(f"[gateway-http]   management API: /api/servers, /api/skills (localhost only)")
+    print(f"[gateway-http]   open in browser: http://{host}:{port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n[gateway-http] shutting down")
+        server.shutdown()
