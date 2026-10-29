@@ -7414,8 +7414,8 @@ function openEditModal(i) {
   m.querySelectorAll(".edit-strategy__opt").forEach(o => o.setAttribute("aria-checked", o.dataset.v === "hard" ? "true" : "false"));
   editAttachments = (msg.images || []).filter((a) => a && (a.url || a.ref)).map((a) => ({...a}));
   renderEditAttachments();
-  const _ea2 = m.querySelector("#edit-area"); autosize(_ea2);
   m.hidden = false;
+  const _ea2 = m.querySelector("#edit-area"); autosize(_ea2);
   m.querySelector("#edit-area").focus();
 }
 function closeEditModal() { const m = $("edit-modal"); if (m) m.hidden = true; editingIndex = -1; editAttachments = []; }
