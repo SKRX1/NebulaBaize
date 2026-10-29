@@ -1312,6 +1312,7 @@ body.side-collapsed .st-ctx-menu { display: none; }
   border-radius: var(--st-r); outline: none; position: relative;
   overflow-wrap: break-word; white-space: pre-wrap; cursor: text;
 }
+.ce-input:focus { border-color: var(--st-accent); }
 .ce-input:empty::before {
   content: attr(data-placeholder);
   color: var(--st-muted); pointer-events: none;
