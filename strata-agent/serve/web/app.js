@@ -5774,7 +5774,7 @@ async function pasteImageToRich(e, editable) {
       const pid = attachNextPid();
       if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
         document.execCommand("insertHTML", false,
-          `<span class="ce-thumb" data-pid="${pid}" title="${esc(_nm)}"><img class="inline-ce-img" src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span>`);
+          `<span class="ce-thumb" data-pid="${pid}" title="${esc(_nm)}"><span class="ce-thumb__box"><img class="inline-ce-img" src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span></span>`);
       } else {
         editable.appendChild(makeInlineThumb({ pid, url: src, name: _nm }, editable));
       }
@@ -7625,12 +7625,15 @@ function makeInlineThumb(entry, target) {
   img.src = src;
   img.alt = name;
   img.title = name;
-  span.appendChild(img);
+  const box = document.createElement("span");
+  box.className = "ce-thumb__box";
+  span.appendChild(box);
+  box.appendChild(img);
   const x = document.createElement("button");
   x.type = "button"; x.className = "ce-thumb__x"; x.setAttribute("aria-label", t("attach.remove"));
   x.innerHTML = icon("trash");
   x.setAttribute("data-delpid", String(pid));
-  span.appendChild(x);
+  box.appendChild(x);
   span.addEventListener("dblclick", (e) => { if (e.target.closest(".ce-thumb__x")) return; e.stopPropagation(); openImageView(src, name); });
   return span;
 }
@@ -7657,6 +7660,7 @@ function removeThumb(pid, box) {
   const list = isModal ? editAttachments : attachments;
   const idx = list.findIndex((a) => a.pid === pid);
   const node = box.querySelector(`[data-pid="${pid}"]`);
+  if (node && node.parentNode) { for (const c of Array.from(node.childNodes)) { if (c.nodeType === 3 && c.textContent.trim()) node.parentNode.insertBefore(c, node); } }   // rescue caret-dropped text so deleting the image keeps the text
   if (idx >= 0) list.splice(idx, 1);
   if (node) node.remove();
   if (isModal) renderEditAttachments(); else renderAttachments();

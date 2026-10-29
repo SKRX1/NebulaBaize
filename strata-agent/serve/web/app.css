@@ -1339,7 +1339,8 @@ body.side-collapsed .st-ctx-menu { display: none; }
 
 /* shared inline thumbnail in the composer / edit-modal body: a small image that rides IN the text
    flow with a hover-revealed delete button; data-pid is the stable anchor ceText() rebuilds from. */
-.ce-thumb { position: relative; display: inline-block; vertical-align: middle; margin: 0 0.1em; }
+.ce-thumb { position: static; display: inline-block; vertical-align: middle; margin: 0 0.1em; }
+.ce-thumb__box { position: relative; display: inline-block; vertical-align: middle; }
 .ce-thumb__x { position: absolute; top: 1px; right: 1px; width: 18px; height: 18px; border-radius: 50%;
   border: none; background: rgba(0,0,0,.62); color: #fff; display: none; place-items: center; cursor: pointer; padding: 0; }
 .ce-thumb__x .st-icon { width: 12px; height: 12px; }
