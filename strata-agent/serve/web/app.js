@@ -8914,13 +8914,46 @@ function attachChipObserver(box) {
 // ============================ garbage recycle (debug page card) ============================
 // Sends to the REAL Windows Recycle Bin via the backend (/api/recycle, Shell.Application COM).
 // Never a physical delete: scan candidates, send checked to the bin, restore to origin, audit.
+function populateRecycleControls() {
+  const sel = $("recycle-ws");
+  if (sel) {
+    const seen = [];
+    for (const s of sessions) { const w = s.workspace; if (w && !seen.some((x) => x.toLowerCase() === w.toLowerCase())) seen.push(w); }
+    const cur = (activeSession() || {}).workspace;
+    if (cur && !seen.some((x) => x.toLowerCase() === cur.toLowerCase())) seen.push(cur);
+    sel.innerHTML = '<option value="__this__">' + esc(t("recycle.scope.this")) + '</option>' + seen.map((w) => '<option value="' + esc(w) + '">' + esc(w) + '</option>').join("");
+    sel.value = store.get("recycle.ws", "__this__");
+    if (sel.selectedIndex < 0) sel.value = "__this__";
+  }
+  const rs = $("recycle-retention");
+  if (rs) { rs.value = String(store.get("recycle.retention", 72)); if (rs.selectedIndex < 0) rs.value = "72"; }
+  const savedCats = store.get("recycle.cats", null);
+  if (sel && Array.isArray(savedCats)) document.querySelectorAll(".recycle-cat").forEach((c) => { c.checked = savedCats.indexOf(c.dataset.cat) >= 0; });
+}
+function resolveRecycleWs(s) {
+  const sel = $("recycle-ws");
+  const v = sel ? sel.value : "__this__";
+  if (v && v !== "__this__") return v.replace(/\/$/, "");
+  return (s && s.workspace) ? s.workspace.replace(/\/$/, "") : "";
+}
+function recycleCheckedCats() {
+  const boxes = document.querySelectorAll(".recycle-cat");
+  if (!boxes.length) return null;
+  const on = Array.from(boxes).filter((c) => c.checked).map((c) => c.dataset.cat);
+  return on.length ? on : [];
+}
+function recycleRetentionH() {
+  const rs = $("recycle-retention");
+  return rs ? parseInt(rs.value, 10) || 72 : 72;
+}
 async function renderRecycle() {
   const box = $("recycle-list"); if (!box) return;
   const s = activeSession();
-  const ws = (s && s.workspace) ? s.workspace.replace(/\/$/, "") : "";
+  populateRecycleControls();
+  const ws = resolveRecycleWs(s);
   if (!ws) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.no_ws")) + '</div>'; return; }
   box.dataset.ws = ws;
-  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws})});
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws, categories: recycleCheckedCats(), retention_hours: recycleRetentionH()})});
   const j = await r.json();
   if (j.error) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.err")) + '</div>'; return; }
   const cands = j.candidates || [];
@@ -8968,6 +9001,13 @@ async function renderRecycleAudit(ws) {
 }
 function recycleChecked() { return Array.from(document.querySelectorAll(".recycle-ck:checked")).map((c) => c.dataset.path); }
 function updateRecycleSel() { const el = $("recycle-selcount"); if (el) el.textContent = recycleChecked().length + " " + t("recycle.selected"); }
+if ($("recycle-ws")) $("recycle-ws").onchange = () => { store.set("recycle.ws", $("recycle-ws").value); renderRecycle(); };
+if ($("recycle-retention")) $("recycle-retention").onchange = () => { store.set("recycle.retention", parseInt($("recycle-retention").value, 10) || 72); renderRecycle(); };
+if ($("recycle-chips")) $("recycle-chips").addEventListener("change", (e) => {
+  if (!e.target.classList.contains("recycle-cat")) return;
+  store.set("recycle.cats", Array.from(document.querySelectorAll(".recycle-cat")).filter((c) => c.checked).map((c) => c.dataset.cat));
+  renderRecycle();
+});
 if ($("recycle-scan")) $("recycle-scan").onclick = () => renderRecycle();
 if ($("recycle-audit-refresh")) $("recycle-audit-refresh").onclick = () => { const ws = ($("recycle-list")||{}).dataset && $("recycle-list").dataset.ws; if (ws) renderRecycleAudit(ws); };
 if ($("recycle-list")) $("recycle-list").addEventListener("change", (e) => {

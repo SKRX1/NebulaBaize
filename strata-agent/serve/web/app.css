@@ -1362,3 +1362,10 @@ body.side-collapsed .st-ctx-menu { display: none; }
   border-radius: var(--st-r-lg) var(--st-r-lg) 0 0;
 }
 #edit-modal .st-modal__actions { padding: 0 18px 18px; }
+
+/* garbage-recycle card controls: scope dropdown + category chips + retention */
+.recycle-controls { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.recycle-ctl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.recycle-ctl-row > label:first-child { min-width: 64px; color: var(--st-muted, #888); font-size: 12px; }
+.recycle-chips { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.recycle-chips .spark-toolbar__check { font-size: 12px; }

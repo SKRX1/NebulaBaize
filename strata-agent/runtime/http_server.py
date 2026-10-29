@@ -2735,6 +2735,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
                          "i18n.js", "server.py", "sprite.svg", "tokens.css", "components.css")
     RECYCLE_SCAN_DIRS = ("outputs", "logs", ".pytest_cache")          # whole-dir candidates
     RECYCLE_SCAN_ROOT_PAT = re.compile(r"^_.*[.](txt|png|log|md|json|html)$", re.I)  # top-level scratch
+    RECYCLE_SCRATCH_PAT = re.compile(r"^_[^/\\]+[.](py|txt|png|log|md|json|html)$", re.I)  # agent scratch scripts
+    RECYCLE_BACKUP_PAT = re.compile(r"[.]bak(-.*)?$", re.I)              # manual backups, anywhere
+    RECYCLE_GENERATED_PAT = re.compile(r"[.](png|html)$", re.I)          # outputs/ images+html (regenerable)
+    RECYCLE_CACHE_DIRS = (".pytest_cache", "__pycache__")               # whole-dir caches
+    RECYCLE_CATEGORY_DEFAULTS = ("scratch_scripts", "backups", "generated", "caches")  # B1: 4 default-on
+    RECYCLE_RETENTION_FLOOR_H = 1.0                                      # retention only gates tool_log; floor 1h
 
     def _recycle_paths(self, req):
         ws = (req.get("workspace") or "").strip()
@@ -2748,26 +2754,61 @@ class GatewayHandler(BaseHTTPRequestHandler):
         base, ledger = self._recycle_paths(req)
         if base is None or not base.is_dir():
             return 400, {"error": {"message": "workspace not found"}}
+        cats = req.get("categories")
+        cats = set(cats) if isinstance(cats, list) and cats else None
+        try:
+            retention_h = float(req.get("retention_hours", 72.0))
+        except (TypeError, ValueError):
+            retention_h = 72.0
+        retention_h = max(self.RECYCLE_RETENTION_FLOOR_H, retention_h)
+        cutoff = time.time() - retention_h * 3600.0
         out = []
-        def add(f, reason):
+        def add(f, category):
+            if cats is not None and category not in cats:
+                return
             name = f.name
             wl = name in self.RECYCLE_WHITELIST or ".strata-memory" in str(f)
             try:
                 st = f.stat()
             except Exception:
                 return
+            if category == "tool_log" and st.st_mtime > cutoff:
+                return
             out.append({"path": str(f), "name": name, "size": st.st_size,
                         "mtime": int(st.st_mtime), "type": ("dir" if f.is_dir() else "file"),
-                        "source": reason, "whitelisted": wl})
-        for d in self.RECYCLE_SCAN_DIRS:
-            p = base / d
+                        "category": category, "source": category, "whitelisted": wl})
+        for root in (base, base / "tools"):
+            if root.is_dir():
+                for f in sorted(root.iterdir()):
+                    if f.is_file() and self.RECYCLE_SCRATCH_PAT.match(f.name):
+                        add(f, "scratch_scripts")
+        for f in sorted(base.rglob("*")):
+            if f.is_file() and self.RECYCLE_BACKUP_PAT.match(f.name):
+                add(f, "backups")
+        op = base / "outputs"
+        if op.is_dir():
+            for f in sorted(op.rglob("*")):
+                if f.is_file() and self.RECYCLE_GENERATED_PAT.match(f.name):
+                    add(f, "generated")
+            for f in sorted(op.rglob("*")):
+                if f.is_file() and (f.name.startswith("_") or f.name.endswith(".log")) and not self.RECYCLE_GENERATED_PAT.match(f.name):
+                    add(f, "run_logs")
+        for dname in self.RECYCLE_CACHE_DIRS:
+            p = base / dname
             if p.is_dir():
                 for f in sorted(p.rglob("*")):
                     if f.is_file():
-                        add(f, d)
-        for f in sorted(base.iterdir()):
-            if f.is_file() and self.RECYCLE_SCAN_ROOT_PAT.match(f.name):
-                add(f, "scratch")
+                        add(f, "caches")
+        lg = base / "logs"
+        if lg.is_dir():
+            for f in sorted(lg.rglob("*")):
+                if f.is_file() and self.RECYCLE_BACKUP_PAT.match(f.name):
+                    add(f, "dir_logs")
+        tld = Path(os.path.join(ROOT, "data", "tool-log"))
+        if tld.is_dir():
+            for f in sorted(tld.iterdir()):
+                if f.is_file() and f.name.startswith("tl_") and f.name.endswith(".txt"):
+                    add(f, "tool_log")
         trashed = []
         if ledger.is_file():
             seen = set()
@@ -2783,8 +2824,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             for pth in sorted(seen):
                 if not Path(pth).exists():
                     trashed.append(pth)
-        return 200, {"candidates": out, "in_bin": trashed}
-
+        return 200, {"candidates": out, "in_bin": trashed, "retention_hours": retention_h}
     def _recycle_powershell(self, script):
         r = subprocess.run(["powershell", "-NoProfile", "-Command", script],
                            capture_output=True, text=True, timeout=60)

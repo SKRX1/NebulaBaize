@@ -442,6 +442,37 @@
       <div class="req-head"><span class="card-title" data-i18n="recycle.title">垃圾回收</span>
         <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-scan" type="button" data-i18n="recycle.scan">扫描候选</button></div>
       <p class="muted small" data-i18n="recycle.desc">删除一律送 Windows 系统回收站（绝不物理删），可随时还原、保留后惑机会；功能依赖文件永不进候选。</p>
+        <div class="recycle-controls">
+          <div class="recycle-ctl-row">
+            <label for="recycle-ws" data-i18n="recycle.scope">Scope</label>
+            <select id="recycle-ws" class="st-perm-select"><option value="__this__" data-i18n="recycle.scope.this">Follow current session</option></select>
+          </div>
+          <div class="recycle-ctl-row">
+            <label data-i18n="recycle.category">Categories</label>
+            <div class="recycle-chips" id="recycle-chips">
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="scratch_scripts" checked><span data-i18n="recycle.cat.scratch_scripts">Scratch scripts</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="backups" checked><span data-i18n="recycle.cat.backups">Backups</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="generated" checked><span data-i18n="recycle.cat.generated">Generated</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="caches" checked><span data-i18n="recycle.cat.caches">Caches</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="run_logs"><span data-i18n="recycle.cat.run_logs">Run logs</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="dir_logs"><span data-i18n="recycle.cat.dir_logs">logs backups</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="tool_log"><span data-i18n="recycle.cat.tool_log">Tool logs</span></label>
+            </div>
+          </div>
+          <div class="recycle-ctl-row">
+            <label for="recycle-retention" data-i18n="recycle.retention">Retention</label>
+            <select id="recycle-retention" class="st-perm-select">
+              <option value="1">1</option>
+              <option value="6">6</option>
+              <option value="24">24</option>
+              <option value="72" selected>72</option>
+              <option value="168">168</option>
+              <option value="720">720</option>
+            </select>
+            <span data-i18n="recycle.retention.h">hours ago</span>
+          </div>
+          <p class="muted small" data-i18n="recycle.retention.note">note</p>
+        </div>
       <div class="mem-actions">
         <button class="st-btn st-btn--primary st-btn--sm" id="recycle-trash-sel" type="button" data-i18n="recycle.trash">把勾选项送入回收站</button>
         <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-audit-refresh" type="button" data-i18n="recycle.audit.refresh">刷新审计</button></div>
