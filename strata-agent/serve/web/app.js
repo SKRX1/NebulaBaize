@@ -8914,6 +8914,9 @@ function attachChipObserver(box) {
 // ============================ garbage recycle (debug page card) ============================
 // Sends to the REAL Windows Recycle Bin via the backend (/api/recycle, Shell.Application COM).
 // Never a physical delete: scan candidates, send checked to the bin, restore to origin, audit.
+const RECYCLE_LIST_LIMIT = 30;   // perf: rows per card before load-more (mirrors KB_SHOW_LIMIT)
+let recycleBinData = [], recycleAuditData = [];
+let recycleBinLimit = RECYCLE_LIST_LIMIT, recycleAuditLimit = RECYCLE_LIST_LIMIT;
 function populateRecycleControls() {
   const sel = $("recycle-ws");
   if (sel) {
@@ -8973,31 +8976,50 @@ async function renderRecycle() {
   updateRecycleSel();
 }
 async function renderRecycleBin(ws) {
-  const box = $("recycle-bin"); if (!box) return;
+  if (!$("recycle-bin")) return;
   const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws})});
   const j = await r.json();
-  const inbin = (j && j.in_bin) || [];
+  recycleBinData = (j && j.in_bin) || [];
+  paintRecycleBin();
+}
+function paintRecycleBin() {
+  const box = $("recycle-bin"); if (!box) return;
   box.hidden = false;
   const head = '<div class="req-head"><span class="card-title">' + esc(t("recycle.bin.title")) + '</span></div>';
-  if (!inbin.length) { box.innerHTML = head + '<div class="muted small">' + esc(t("recycle.bin.empty")) + '</div>'; return; }
-  box.innerHTML = head + inbin.map((p) => {
+  if (!recycleBinData.length) { box.innerHTML = head + '<div class="muted small">' + esc(t("recycle.bin.empty")) + '</div>'; return; }
+  const shown = recycleBinData.slice(0, recycleBinLimit);
+  box.innerHTML = head + shown.map((p) => {
     const name = p.split(/[\\/]/).pop();
     return '<div class="mem-kb-item"><div class="kb-source" style="display:flex;align-items:center;gap:6px"><span class="kb-source__name" title="' + esc(p) + '">' + esc(name) + '</span>'
       + '<button class="st-btn st-btn--ghost st-btn--sm" data-recycle-restore="' + esc(name) + '">' + esc(t("recycle.restore")) + '</button></div></div>';
-  }).join("");
+  }).join("") + recycleMoreBtn("bin", shown.length, recycleBinData.length);
 }
 async function renderRecycleAudit(ws) {
-  const box = $("recycle-audit"); if (!box) return;
+  if (!$("recycle-audit")) return;
   const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "audit", workspace: ws})});
   const j = await r.json();
-  const rows = (j && j.audit) || [];
+  recycleAuditData = (j && j.audit) || [];
+  paintRecycleAudit();
+}
+function paintRecycleAudit() {
+  const box = $("recycle-audit"); if (!box) return;
   box.hidden = false;
   const head = '<div class="req-head"><span class="card-title">' + esc(t("recycle.audit.title")) + '</span></div>';
-  if (!rows.length) { box.innerHTML = head + '<div class="muted small">' + esc(t("recycle.audit.empty")) + '</div>'; return; }
-  box.innerHTML = head + '<table class="st-table"><tbody>' + rows.slice().reverse().map((e) => {
+  if (!recycleAuditData.length) { box.innerHTML = head + '<div class="muted small">' + esc(t("recycle.audit.empty")) + '</div>'; return; }
+  const rows = recycleAuditData.slice().reverse().slice(0, recycleAuditLimit);
+  box.innerHTML = head + '<table class="st-table"><tbody>' + rows.map((e) => {
     const d = new Date((e.ts||0)*1000);
     return '<tr><td>' + esc(e.action) + '</td><td>' + esc(e.name||"") + '</td><td class="num">' + esc(d.toLocaleString()) + '</td></tr>';
-  }).join("") + '</tbody></table>';
+  }).join("") + '</tbody></table>' + recycleMoreBtn("audit", rows.length, recycleAuditData.length);
+}
+function recycleMoreBtn(which, shown, total) {
+  if (shown >= total) return "";
+  return '<div style="margin-top:6px"><button class="st-btn st-btn--ghost st-btn--sm" data-recycle-more="' + which + '">'
+    + esc(t("debug.bugbox.more", {n: total - shown})) + '</button></div>';
+}
+function recycleMore(which) {
+  if (which === "bin") { recycleBinLimit += 30; paintRecycleBin(); }
+  else { recycleAuditLimit += 30; paintRecycleAudit(); }
 }
 function recycleChecked() { return Array.from(document.querySelectorAll(".recycle-ck:checked")).map((c) => c.dataset.path); }
 function updateRecycleSel() { const el = $("recycle-selcount"); if (el) el.textContent = recycleChecked().length + " " + t("recycle.selected"); }
@@ -9014,6 +9036,9 @@ if ($("recycle-list")) $("recycle-list").addEventListener("change", (e) => {
   if (e.target.id === "recycle-selall") { document.querySelectorAll(".recycle-ck:not(:disabled)").forEach((c) => { c.checked = e.target.checked; }); }
   updateRecycleSel();
 });
+if ($("recycle-audit")) $("recycle-audit").addEventListener("click", (e) => {
+  const mb = e.target.closest("[data-recycle-more]"); if (mb) recycleMore(mb.dataset.recycleMore);
+});
 if ($("recycle-trash-sel")) $("recycle-trash-sel").onclick = async () => {
   const paths = recycleChecked(); if (!paths.length) return;
   if (!confirm(t("recycle.confirm").replace("{n}", String(paths.length)))) return;
@@ -9024,6 +9049,7 @@ if ($("recycle-trash-sel")) $("recycle-trash-sel").onclick = async () => {
   renderRecycle();
 };
 if ($("recycle-bin")) $("recycle-bin").addEventListener("click", async (e) => {
+  const mb = e.target.closest("[data-recycle-more]"); if (mb) { recycleMore(mb.dataset.recycleMore); return; }
   const b = e.target.closest("[data-recycle-restore]"); if (!b) return;
   const ws = $("recycle-list").dataset.ws;
   const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "restore", workspace: ws, paths: [b.dataset.recycleRestore]})});

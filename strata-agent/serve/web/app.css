@@ -1369,3 +1369,4 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .recycle-ctl-row > label:first-child { min-width: 64px; color: var(--st-muted, #888); font-size: 12px; }
 .recycle-chips { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .recycle-chips .spark-toolbar__check { font-size: 12px; }
+#recycle-bin .mem-kb-item{content-visibility:auto;contain-intrinsic-size:auto 32px}
