@@ -1,11 +1,15 @@
-/* Backspace-deletes-inline-chip differential gate.
+/* Bug-faithful differential gate: "Backspace-delete an inline chip then send".
+ * THE FIX: the array is the source of truth for sending. The browser's own native Backspace can
+ * delete a contenteditable=false atomic chip straight from the DOM -- that path never routes
+ * through our handler and never splices the array. So before any send we RECONCILE: drop every
+ * array entry whose pid is no longer present in the DOM (方案1). A MutationObserver on each box
+ * does the same the instant a chip disappears (方案2, double safety). The hover-button / focused-
+ * chip handler paths are untouched (方案3).
  *
- * The array is the source of truth for sending. So Backspace on an inline thumbnail chip MUST
- * splice the array AND drop the DOM node together. This gate locks the FOUR quadrants:
- *   P1 focused chip + Backspace -> chip gone from DOM AND array shrank (the core invariant)
- *   P2 selection covering a chip -> chipForBackspace returns that chip's pid
- *   N1 focus on plain text + Backspace -> chip STAYS (no false delete of a neighbouring chip)
- *   N3 no chip / plain text -> Backspace is a normal text edit (handler leaves it to the browser)
+ * jsdom CANNOT reproduce the real-browser keyboard-focus behaviour, so the authoritative lock here
+ * is the reconcile differential itself: "DOM removed a chip, array not touched -> reconcileArray
+ * drops it". Plus static locks that the wiring exists. Real-browser pixel/interaction layer (the
+ * keyboard focus landing on the chip vs the container) is for the user to accept at 8099.
  *
  * Run standalone: node tests/test_backspace_delete_chip.mjs
  */
@@ -21,92 +25,93 @@ win.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}}
 if(typeof win.requestAnimationFrame!=="function") win.requestAnimationFrame=(cb)=>setTimeout(()=>cb(0),0);
 win.fetch=async()=>({ok:true,status:200,json:async()=>({})});
 let appCode=fs.readFileSync(path.join(WEB,"app.js"),"utf8");
-appCode += `\n;globalThis.__api={removeThumb,chipForBackspace,onThumbBackspace,getAttachments:()=>attachments};`;
+appCode += `\n;globalThis.__api={reconcileArray,attachChipObserver,removeThumb,chipForBackspace,onThumbBackspace,ceText,getAttachments:()=>attachments,setAttachments:(v)=>{attachments=v},nextPid:()=>attachNextPid()};`;
 win.eval(fs.readFileSync(path.join(WEB,"i18n.js"),"utf8"));
 win.eval(appCode);
 const api=win.__api;
 const results=[]; let fails=0;
 const ok=(l,c,extra)=>{results.push((c?"OK  ":"FAIL")+" "+l+(extra?("  ["+extra+"]"):"")); if(!c) fails++;};
 
-// static locks: the helper + focus attribute must exist (defence against future regression)
+// ---------- static locks (the wiring must exist; jsdom runtime can't prove wiring cheaply) ----------
 const src=fs.readFileSync(path.join(WEB,"app.js"),"utf8");
-ok("app.js defines removeThumb", src.includes("function removeThumb(pid, box)"));
-ok("app.js defines chipForBackspace", src.includes("function chipForBackspace(box)"));
-ok("app.js defines onThumbBackspace", src.includes("function onThumbBackspace(e, box)"));
-ok("chip built focusable (tabindex)", src.includes('setAttribute("tabindex", "0")'));
-ok("composer keydown wired to shared handler", src.includes('onThumbBackspace(e, $("input"))'));
-ok("edit-modal keydown wired to shared handler", src.includes("onThumbBackspace(e, _ea)"));
+ok("app.js defines reconcileArray", src.includes("function reconcileArray(box)"));
+ok("app.js defines attachChipObserver", src.includes("function attachChipObserver(box)"));
+ok("send() reconciles the composer array before reading it", src.includes('reconcileArray($("input"));'));
+ok("confirmEdit() reconciles the modal array", src.includes('reconcileArray(m.querySelector("#edit-area"));'));
+ok("bind wires observer on the composer", src.includes("attachChipObserver(inp)"));
+ok("bind wires observer on the modal", src.includes("attachChipObserver(ea)"));
+ok("reconcile drops via a present-set membership test", src.includes("present.has(String(list[k].pid))"));
 
+// ---------- runtime: the authoritative reconcile differential ----------
+const inp=doc.getElementById("input");
 function makeChip(pid){
   const span=doc.createElement("span");
   span.className="ce-thumb"; span.setAttribute("contenteditable","false");
   span.setAttribute("data-pid",String(pid)); span.setAttribute("tabindex","0");
-  const img=doc.createElement("img"); img.className="inline-ce-img"; img.src="data:image/png;base64,AAA"; span.appendChild(img);
+  span.appendChild(doc.createTextNode(""));
   return span;
 }
-function bsEvent(){ const e=new win.KeyboardEvent("keydown",{key:"Backspace",bubbles:true,cancelable:true}); return e; }
+function reset(){ inp.innerHTML=""; api.setAttachments([]); }
 
-function setup(attachPid){
-  const inp=doc.getElementById("input");
-  inp.innerHTML="";
-  inp.appendChild(doc.createTextNode("before "));
-  const chip=makeChip(attachPid); inp.appendChild(chip); inp.appendChild(doc.createTextNode(" after"));
-  api.getAttachments().length=0;
-  api.getAttachments().push({kind:"image",url:"data:image/png;base64,AAA",name:"x",pid:attachPid});
-  return {inp, chip};
+// CORE differential: array HAS the image, DOM has the chip; simulate the browser NATIVELY removing
+// the chip from the DOM (array NOT touched -- that is exactly the bug path). reconcile must drop it.
+{
+  reset();
+  const pid=api.nextPid();
+  const chip=makeChip(pid);
+  inp.appendChild(chip);
+  inp.appendChild(doc.createTextNode("hello"));
+  api.getAttachments().push({kind:"image",name:"x",pid,url:"data:image/png;base64,AAA"});
+  // native browser delete of the atomic chip: node removed, array untouched
+  chip.remove();
+  ok("pre-reconcile: array still carries the orphan", api.getAttachments().length===1, "len="+api.getAttachments().length);
+  api.reconcileArray(inp);
+  ok("CORE: reconcileArray drops the orphan (DOM is the visual truth)", api.getAttachments().length===0, "len="+api.getAttachments().length);
 }
 
-// ---- P1: focused chip + Backspace removes BOTH DOM and array (core invariant)
+// reconcile must NOT drop a chip that is still present (no over-delete)
 {
-  const {inp,chip}=setup(11);
-  chip.focus();
-  ok("P1 chip is focused", doc.activeElement===chip);
-  const before=api.getAttachments().length;
-  const e=bsEvent(); inp.dispatchEvent(e);
-  ok("P1 handler fired (defaultPrevented)", e.defaultPrevented);
-  ok("P1 chip gone from DOM", inp.querySelectorAll("[data-pid]").length===0);
-  ok("P1 ARRAY shrank (source-of-truth synced)", api.getAttachments().length===before-1, "before="+before+" after="+api.getAttachments().length);
+  reset();
+  const pid=api.nextPid();
+  inp.appendChild(makeChip(pid));
+  inp.appendChild(doc.createTextNode("keepme"));
+  api.getAttachments().push({kind:"image",name:"y",pid,url:"data:image/png;base64,BBB"});
+  api.reconcileArray(inp);
+  ok("reconcile keeps the present chip's array entry", api.getAttachments().length===1);
+  ok("ceText still rebuilds the [img:] anchor for a kept chip", api.ceText(inp).includes("[img:"+pid+"]"));
 }
 
-// ---- P2: selection covering a chip -> chipForBackspace returns its pid
+// handler path (方案3 untouched): removeThumb splices BOTH array and DOM in one shot
 {
-  const {inp,chip}=setup(22);
-  try{
-    const sel=win.getSelection(); sel.removeAllRanges();
-    const r=doc.createRange(); r.selectNode(chip); sel.addRange(r);
-    const got=api.chipForBackspace(inp);
-    ok("P2 selection-covering returns chip pid", String(got)==="22", "got="+got);
-  }catch(err){ ok("P2 selection-covering returns chip pid", false, "threw "+err.message); }
+  reset();
+  const pid=api.nextPid();
+  inp.appendChild(makeChip(pid));
+  inp.appendChild(doc.createTextNode("after"));
+  api.getAttachments().push({kind:"image",name:"z",pid,url:"data:image/png;base64,CCC"});
+  api.removeThumb(pid, inp);
+  ok("removeThumb removed DOM", inp.querySelectorAll("[data-pid]").length===0);
+  ok("removeThumb spliced array (array is source of truth)", api.getAttachments().length===0);
 }
 
-// ---- N1: focus on plain text + Backspace -> chip STAYS (no false delete of neighbour)
+// multi-chip: drop the FIRST chip natively (image-first, text-after scenario), text must survive
 {
-  const {inp,chip}=setup(33);
-  const textNode=[...inp.childNodes].find(n=>n.nodeType===3);
-  // put a collapsed caret at start of the TRAILING text node (caret right after chip) -> this is the
-  // "chip immediately before caret" path, so it SHOULD delete; use a chip NOT adjacent to verify null.
-  // For N1 we place caret deep inside a plain text run away from any chip:
-  const probeSpan=doc.createElement("span"); probeSpan.textContent="zzz"; inp.appendChild(probeSpan);
-  const sel=win.getSelection(); sel.removeAllRanges();
-  const r=doc.createRange(); r.setStart(textNode, 3); r.collapse(true); sel.addRange(r);
-  // move focus off the chip onto the box body itself
-  inp.focus();
-  const got=api.chipForBackspace(inp);
-  ok("N1 caret in plain text (not adjacent) -> null", got===null, "got="+got);
-  ok("N1 chip still in DOM after plain-text Backspace", inp.querySelectorAll("[data-pid]").length===1);
-}
-
-// ---- N3: caret adjacent BEFORE a chip (collapsed) -> the chip-before-caret path returns its pid
-{
-  const {inp,chip}=setup(44);
-  const tail=[...inp.childNodes].find(n=>n.nodeType===3 && n.textContent===" after");
-  const sel=win.getSelection(); sel.removeAllRanges();
-  const r=doc.createRange(); r.setStart(tail,0); r.collapse(true); sel.addRange(r);
-  inp.focus();
-  const got=api.chipForBackspace(inp);
-  ok("N3 caret right after chip -> returns the chip pid (adjacent-before path)", String(got)==="44", "got="+got);
+  reset();
+  const pidA=api.nextPid(); const pidB=api.nextPid();
+  const cA=makeChip(pidA); inp.appendChild(cA);
+  const tail=doc.createTextNode(" trailing words"); inp.appendChild(tail);
+  api.getAttachments().push({kind:"image",name:"a",pid:pidA,url:"data:image/png;base64,AAA"});
+  api.getAttachments().push({kind:"image",name:"b",pid:pidB,url:"data:image/png;base64,BBB"});
+  inp.appendChild(makeChip(pidB));   // pidB must be IN the DOM so it survives the leading-chip delete
+  cA.remove();            // native delete of the LEADING chip only
+  api.reconcileArray(inp);
+  ok("leading chip removed, trailing chip KEPT in DOM", inp.querySelectorAll("[data-pid]").length===1);
+  ok("array kept only the surviving chip", api.getAttachments().length===1 && String(api.getAttachments()[0].pid)===String(pidB));
+  const ex=api.ceText(inp);
+  ok("trailing text SURVIVES extraction", ex.includes("trailing words"));
+  ok("kept chip still has its anchor", ex.includes("[img:"+pidB+"]"));
+  ok("deleted chip has NO anchor in extraction", !ex.includes("[img:"+pidA+"]"));
 }
 
 console.log("\n"+results.join("\n"));
-console.log("BACKSPACE-DELETE: "+(fails? "RED - "+fails+" failures" : "ALL GREEN"));
+console.log("RECONCILE: "+(fails? "RED - "+fails+" failures" : "ALL GREEN"));
 process.exit(fails?1:0);

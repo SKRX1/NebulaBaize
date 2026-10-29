@@ -6489,6 +6489,7 @@ async function send(human = true) {
   if (chunkedCompacting) return;   // chunked pre-compaction owns the transcript while it folds (kept silent: the auto path must not spam)
   if (human) { autoDriveDepth = 0; autoDriveAbort = false; showAutoDrivePill(false); autoResumeChain = 0; }  // a human turn starts a fresh chain
   let text = ceText($("input"));
+  reconcileArray($("input"));   // 方案1: the array is the source of truth for sending -- drop any chip the DOM no longer shows (browser-native Backspace bypasses our handler)
   // A chip selection on the newest answer plus whatever was typed in the composer go out TOGETHER as one
   // message (Enter included): "按建议做，另外再顺手把字体调大" in a single turn.
   if (!pendingCompact) {
@@ -7425,6 +7426,7 @@ function confirmEdit() {
   const m = $("edit-modal");
   const strategy = m.dataset.strategy || "hard";
   const newText = ceText(m.querySelector("#edit-area"));
+  reconcileArray(m.querySelector("#edit-area"));   // 方案1: modal side, same source-of-truth rule as the composer
   const imgs = editAttachments.slice();   // capture BEFORE closeEditModal clears the modal list
   closeEditModal();
   if (!newText) { toast("warn", t("ctx.edit.empty")); return; }
@@ -7642,7 +7644,9 @@ function bindInlineThumbDelete() {
     removeThumb(+(btn.getAttribute("data-delpid")), e.currentTarget);
   };
   const inp = $("input"); if (inp && !inp._thumbBound) { inp.addEventListener("click", onClick); inp._thumbBound = true; }
+  if (inp) attachChipObserver(inp);
   const ea = $("edit-area"); if (ea && !ea._thumbBound) { ea.addEventListener("click", onClick); ea._thumbBound = true; }
+  if (ea) attachChipObserver(ea);
 }
 // Shared removal: the ARRAY is the source of truth for sending, so every delete path (hover
 // button click, Backspace on a focused/adjacent chip) MUST splice the array AND drop the DOM node
@@ -8858,3 +8862,29 @@ applyMemSubTab();  // first paint: every card shows, restored to its saved colla
 // boot; it carries its own guards (autofix on + idle + at least one open), so it stays a no-op
 // when those aren't met -- this only closes the "ready but never crossed an edge" dead zone.
 setTimeout(autofixTick, 0);
+
+// Source-of-truth reconciliation (方案1): the array is what gets SENT. Whatever dropped a chip
+// from the DOM -- hover button, Backspace on a focused chip, OR the browser's own native
+// Backspace delete of a contenteditable=false atomic chip (which never routes through our
+// handler and never splices the array) -- the array must end up matching the DOM. Drop every
+// array entry whose pid is no longer present in the box. Idempotent for our own paths.
+function reconcileArray(box) {
+  const isModal = box.id === "edit-area";
+  const list = isModal ? editAttachments : attachments;
+  const present = new Set([].slice.call(box.querySelectorAll("[data-pid]")).map((n) => n.getAttribute("data-pid")));
+  // A chip may also be represented only by an [img:N] text anchor (insertPlaceholder fallback when
+  // there is no url to thumbnail). That is still "present on screen", so it must NOT be dropped.
+  const txt = box.textContent || "";
+  let am;
+  const are = /\[img:(\d+)\]/g;
+  while ((am = are.exec(txt))) present.add(am[1]);
+  for (let k = list.length - 1; k >= 0; k--) { if (!present.has(String(list[k].pid))) list.splice(k, 1); }
+}
+// Double-safety net (方案2): when the browser removes an inline chip from the DOM on its own
+// (native Backspace on a contenteditable=false atomic node), splice the array to match.
+function attachChipObserver(box) {
+  if (!box || box._chipObsBound) return;
+  const mo = new MutationObserver(() => reconcileArray(box));
+  mo.observe(box, { childList: true, subtree: true });
+  box._chipObsBound = true;
+}
