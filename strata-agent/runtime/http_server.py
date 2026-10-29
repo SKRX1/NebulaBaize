@@ -23,6 +23,7 @@ API paths that get proxied (everything except static files):
 from __future__ import annotations
 
 import collections
+import io
 import json
 import mimetypes
 import os
@@ -31,6 +32,7 @@ import re
 import select
 import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -1202,6 +1204,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return True
         if path.rstrip("/") == "/api/runtime-config":
             self._api_runtime_config(method)
+            return True
+        if path.rstrip("/") == "/api/recycle":
+            self._api_recycle(method)
             return True
         if path.rstrip("/") == "/api/interrupt-log":
             self._api_interrupt_log(method)
@@ -2749,3 +2754,164 @@ def run_server(state: GatewayState, host: str = "127.0.0.1", port: int = 8099):
     except KeyboardInterrupt:
         print("\n[gateway-http] shutting down")
         server.shutdown()
+
+    # ---- garbage-recycle (debug page card). Sends to the real Windows Recycle Bin via
+    # Shell.Application COM (subprocess powershell; pywin32 not installed). Never a physical delete:
+    # trash -> InvokeVerb delete, restore -> match-by-name in the bin and CopyHere back to the
+    # recorded origin. An append-only JSONL audit ledger lives under <ws>/.strata-recycle/.
+    RECYCLE_WHITELIST = ("RULES.md", "DESIGN.md", "MEMORY.md", "app.js", "app.css", "index.html",
+                         "i18n.js", "server.py", "sprite.svg", "tokens.css", "components.css")
+    RECYCLE_SCAN_DIRS = ("outputs", "logs", ".pytest_cache")          # whole-dir candidates
+    RECYCLE_SCAN_ROOT_PAT = re.compile(r"^_.*[.](txt|png|log|md|json|html)$", re.I)  # top-level scratch
+
+    def _recycle_paths(self, req):
+        ws = (req.get("workspace") or "").strip()
+        if not ws:
+            return None, None
+        base = Path(ws)
+        ledger = base / ".strata-recycle" / "ledger.jsonl"
+        return base, ledger
+
+    def _recycle_scan(self, req):
+        base, ledger = self._recycle_paths(req)
+        if base is None or not base.is_dir():
+            return 400, {"error": {"message": "workspace not found"}}
+        out = []
+        def add(f, reason):
+            name = f.name
+            wl = name in self.RECYCLE_WHITELIST or ".strata-memory" in str(f)
+            try:
+                st = f.stat()
+            except Exception:
+                return
+            out.append({"path": str(f), "name": name, "size": st.st_size,
+                        "mtime": int(st.st_mtime), "type": ("dir" if f.is_dir() else "file"),
+                        "source": reason, "whitelisted": wl})
+        for d in self.RECYCLE_SCAN_DIRS:
+            p = base / d
+            if p.is_dir():
+                for f in sorted(p.rglob("*")):
+                    if f.is_file():
+                        add(f, d)
+        for f in sorted(base.iterdir()):
+            if f.is_file() and self.RECYCLE_SCAN_ROOT_PAT.match(f.name):
+                add(f, "scratch")
+        trashed = []
+        if ledger.is_file():
+            seen = set()
+            for line in io.open(ledger, "r", encoding="utf-8"):
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if rec.get("action") == "trash":
+                    seen.add(rec.get("path"))
+                if rec.get("action") == "restore":
+                    seen.discard(rec.get("path"))
+            for pth in sorted(seen):
+                if not Path(pth).exists():
+                    trashed.append(pth)
+        return 200, {"candidates": out, "in_bin": trashed}
+
+    def _recycle_powershell(self, script):
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", script],
+                           capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout or "").strip()[:400])
+        return (r.stdout or "").strip()
+
+    def _recycle_trash(self, req):
+        base, ledger = self._recycle_paths(req)
+        paths = req.get("paths") or []
+        if base is None or not isinstance(paths, list) or not paths:
+            return 400, {"error": {"message": "paths required"}}
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        done = []
+        for raw in paths:
+            f = Path(raw)
+            if not f.exists():
+                continue
+            if f.name in self.RECYCLE_WHITELIST:
+                continue
+            folder = str(f.parent); name = f.name
+            script = ("$sh=New-Object -ComObject Shell.Application;"
+                      "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
+                      % (folder.replace("'", "''"), name.replace("'", "''")))
+            try:
+                res = self._recycle_powershell(script)
+            except Exception as e:
+                return 500, {"error": {"message": "COM send failed: %s" % e}}
+            if res != "OK":
+                continue
+            rec = {"action": "trash", "path": str(f), "name": name, "size": None,
+                   "origin": folder, "ts": int(time.time())}
+            io.open(ledger, "a", encoding="utf-8").write(json.dumps(rec, ensure_ascii=False) + chr(10))
+            done.append(str(f))
+        return 200, {"trashed": done}
+
+    def _recycle_restore(self, req):
+        base, ledger = self._recycle_paths(req)
+        if base is None or not ledger.is_file():
+            return 400, {"error": {"message": "no ledger"}}
+        targets = req.get("paths") or []
+        pending = {}
+        for line in io.open(ledger, "r", encoding="utf-8"):
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            if rec.get("action") == "trash":
+                pending[rec.get("name")] = rec
+            elif rec.get("action") == "restore":
+                pending.pop(rec.get("name"), None)
+        restored = []
+        for name in targets:
+            rec = pending.get(name)
+            if not rec:
+                continue
+            origin = rec.get("origin")
+            if not origin or not Path(origin).is_dir():
+                continue
+            script = ("$sh=New-Object -ComObject Shell.Application;$bin=$sh.Namespace(10);"
+                      "$hit=$null;foreach($i in $bin.Items()){if($i.Name -eq '%s'){$hit=$i;break}}"
+                      "if($hit){$d=$sh.Namespace('%s');$d.CopyHere($hit.Path,16);'OK'}else{'NOITEM'}"
+                      % (name.replace("'", "''"), origin.replace("'", "''")))
+            try:
+                res = self._recycle_powershell(script)
+            except Exception as e:
+                return 500, {"error": {"message": "COM restore failed: %s" % e}}
+            if res != "OK":
+                continue
+            rec2 = {"action": "restore", "name": name, "path": rec.get("path"), "origin": origin, "ts": int(time.time())}
+            io.open(ledger, "a", encoding="utf-8").write(json.dumps(rec2, ensure_ascii=False) + chr(10))
+            restored.append(name)
+        return 200, {"restored": restored}
+
+    def _recycle_audit(self, req):
+        base, ledger = self._recycle_paths(req)
+        if base is None:
+            return 400, {"error": {"message": "workspace not found"}}
+        rows = []
+        if ledger.is_file():
+            for line in io.open(ledger, "r", encoding="utf-8"):
+                try:
+                    rows.append(json.loads(line))
+                except Exception:
+                    continue
+        return 200, {"audit": rows[-200:]}
+
+    def _api_recycle(self, method: str):
+        """POST /api/recycle - garbage-recycle card (debug page)."""
+        req = self._read_json()
+        action = req.get("action")
+        if action == "scan":
+            code, obj = self._recycle_scan(req)
+        elif action == "trash":
+            code, obj = self._recycle_trash(req)
+        elif action == "restore":
+            code, obj = self._recycle_restore(req)
+        elif action == "audit":
+            code, obj = self._recycle_audit(req)
+        else:
+            code, obj = 400, {"error": {"message": "unknown action"}}
+        self._json(code, obj)

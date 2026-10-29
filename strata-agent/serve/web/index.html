@@ -408,6 +408,7 @@
       <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="true" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
       <button class="db-subtab" role="tab" data-db="live" aria-selected="false" data-i18n="debug.tab.live">实时异常流</button>
       <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
+      <button class="db-subtab" role="tab" data-db="recycle" aria-selected="false" data-i18n="debug.tab.recycle">垃圾回收</button>
     </div>
 
     <div class="bugbox-hero" id="bugbox-hero"></div>
@@ -436,6 +437,17 @@
         <button class="st-btn st-btn--secondary" id="debug-curl" type="button" data-i18n="debug.gw.copycurl">复制为 cURL 重放</button>
       </div>
       <div class="debug-list" id="debug-gw-body"></div>
+    </div>
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="recycle">
+      <div class="req-head"><span class="card-title" data-i18n="recycle.title">垃圾回收</span>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-scan" type="button" data-i18n="recycle.scan">扫描候选</button></div>
+      <p class="muted small" data-i18n="recycle.desc">删除一律送 Windows 系统回收站（绝不物理删），可随时还原、保留后惑机会；功能依赖文件永不进候选。</p>
+      <div class="mem-actions">
+        <button class="st-btn st-btn--primary st-btn--sm" id="recycle-trash-sel" type="button" data-i18n="recycle.trash">把勾选项送入回收站</button>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-audit-refresh" type="button" data-i18n="recycle.audit.refresh">刷新审计</button></div>
+      <div class="debug-list" id="recycle-list"></div>
+      <div class="debug-list" id="recycle-bin" hidden></div>
+      <div class="debug-list" id="recycle-audit" hidden></div>
     </div>
   </div>
 </section>
