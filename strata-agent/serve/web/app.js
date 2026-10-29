@@ -7355,7 +7355,7 @@ function ensureEditUI() {
   m.innerHTML =
     '<div class="st-modal__card">' +
       '<div class="st-modal__head"><span class="card-title" data-i18n="ctx.edit.title">编辑这条任务对话</span>' +
-        '<button class="st-btn st-btn--icon" id="edit-x" aria-label="Close"><svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chevron"/></svg></button></div>' +
+        '<button class="st-btn st-btn--icon" id="edit-x" aria-label="Close"><svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-close"/></svg></button></div>' +
       '<div class="st-modal__body" style="padding:14px 16px">' +
         '<div id="edit-area" class="st-textarea ce-input" contenteditable="true" role="textbox" aria-multiline="true"></div>' +
         '<div class="attachments" id="edit-attachments" hidden></div>' +
