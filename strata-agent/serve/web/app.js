@@ -7425,7 +7425,7 @@ function makeDraggableCard(m){
   if (!card || !head) return;
   head.classList.add("st-modal__head--draggable");
   let ox=0, oy=0, sx=0, sy=0, dragging=false;
-  head.addEventListener("mousedown", (e)=>{ if(e.target.closest("button")) return; dragging=true; sx=e.clientX; sy=e.clientY; card.classList.add("is-dragging"); e.preventDefault(); });
+  head.addEventListener("mousedown", (e)=>{ if(e.target.closest("button")) return; dragging=true; sx=e.clientX; sy=e.clientY; card.style.transform="translate("+ox+"px,"+oy+"px)"; card.classList.add("is-dragging"); e.preventDefault(); });
   document.addEventListener("mousemove", (e)=>{ if(!dragging) return; card.style.transform="translate("+(e.clientX-sx+ox)+"px,"+(e.clientY-sy+oy)+"px)"; });
   document.addEventListener("mouseup", (e)=>{ if(!dragging) return; dragging=false; card.classList.remove("is-dragging"); ox=ox+(e.clientX-sx); oy=oy+(e.clientY-sy); sx=e.clientX; sy=e.clientY; });
 }
