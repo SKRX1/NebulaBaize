@@ -1354,3 +1354,11 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .st-modal__card.is-dragging { box-shadow: 0 16px 44px color-mix(in srgb, var(--st-accent) 22%, rgba(0,0,0,.40)); }
 .st-modal__card.is-dragging .st-modal__head .st-icon { color: var(--st-accent); }
 .st-modal__card.is-dragging .st-modal__grip .st-icon { color: var(--st-accent); }
+#edit-modal .st-modal__card { padding: 0; }
+#edit-modal .st-modal__head {
+  margin: 0; padding: 14px 18px; min-height: 22px;
+  background: var(--st-bg, #f9fafb);
+  border-bottom: 1px solid var(--st-line, #dee5ee);
+  border-radius: var(--st-r-lg) var(--st-r-lg) 0 0;
+}
+#edit-modal .st-modal__actions { padding: 0 18px 18px; }
