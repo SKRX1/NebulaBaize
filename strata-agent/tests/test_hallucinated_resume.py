@@ -78,6 +78,25 @@ def main() -> int:
     check("stray-closer action shape (markdown list + stray closer) -> True",
           hallucinated_tool_call(STRAY_CLOSER, KNOWN) is True)
 
+    # Fence-name + checklist fingerprint (B2, 2026-11): the reported shape is a bare
+    # markdown fence hallucinated as a tool call -- `<function=plan>` (or next-steps)
+    # followed by plain markdown checklist lines and NO `<parameter=...>` block at all.
+    # The original discriminator (unknown name + parameter block) cannot see it. The
+    # DIFFERENTIAL pair locks this new branch on both sides:
+    #   positive: known fence name + checklist body -> True (attempted action, resume)
+    #   negative: the SAME fence name quoted in prose with NO checklist line -> False
+    #             (a plain explanation, must not resume) -- the tone-pollution guard.
+    FENCE_CHECKLIST = "<function=plan>\n- [ ] read files\n- [x] edit code\n</function>\n"
+    check("known fence name + checklist body, no parameter block -> True",
+          hallucinated_tool_call(FENCE_CHECKLIST, KNOWN) is True)
+    FENCE_NO_CHECK = "the format is <function=plan> and you write it like this. done."
+    check("fence name quoted in prose, NO checklist line -> False",
+          hallucinated_tool_call(FENCE_NO_CHECK, KNOWN) is False)
+    # next-steps is the other known fence name; same fingerprint rule.
+    NS_CHECKLIST = "<function=next-steps>\n* rec A\n- opt B\n</function>\n"
+    check("next-steps fence + checklist body -> True",
+          hallucinated_tool_call(NS_CHECKLIST, KNOWN) is True)
+
     # ── 2) probe 1 end-to-end: the action shape RESUMES the turn ──────────────
     print("\n=== 2: probe 1 -- a hallucinated plan-action keeps the turn working ===")
     st = fresh_state()

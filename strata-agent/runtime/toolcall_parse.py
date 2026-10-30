@@ -35,6 +35,22 @@ _STRAY_CALL_TAG_RE = re.compile(r"</?(?:tool_call|tool_response|function|paramet
 _ANY_CALL_MARKUP = ("<function=", "<tool_call", "</function>", "</tool_call>",
                     "<parameter=", "</parameter>")
 
+# ---------------------------------------------------------------------------
+# Fence-name + checklist fingerprint (2026-11 report: bare plan/next-steps
+# fence hallucinated as a tool call)
+# A model can write the markdown plan/next-steps checklist ITSELF as a tool-call
+# shape: `<function=plan>` (or next-steps) followed by plain markdown checklist
+# lines, with NO `<parameter=...>` block at all. The original discriminator
+# (unknown name + a parameter block) cannot see this shape, so the round ended
+# mid-task. `plan`/`next-steps` are NOT real tools, so text_tool_calls already
+# drops them; this is the SECOND discriminator the diagnosis asked for: a KNOWN
+# markdown fence name whose body carries a checklist fingerprint is also an
+# action. The DIFFERENTIAL guard against tone-pollution: prose that merely QUOTES
+# `<function=plan>` with NO checklist line (a plain explanation) must NOT match
+# -- locked as a negative test.
+_MD_FENCE_NAMES = frozenset({"plan", "next-steps", "nextsteps"})
+_CHECKLIST_RE = re.compile(r"^[ \t]*(?:[-*][ \t]+\[[ xX]\]|[-*!?][ \t]+\S)", re.M)
+
 
 def _norm_tool(name: str) -> str:
     """Normalize a tool name for tolerant matching: lowercase and collapse any run of
@@ -192,6 +208,8 @@ def hallucinated_tool_call(text: str, known: set | None) -> bool:
             continue                     # tolerant-match maps it back = it WAS rescued
         if _prefix_tool_map(known).get(_norm_tool(name)):
             continue                     # bare-prefix rescue maps it back = it WAS rescued
+        if name.lower() in _MD_FENCE_NAMES and _CHECKLIST_RE.search(m.group(2)):
+            return True                  # fence name + checklist fingerprint = attempted action
         if _CALL_PARAM_RE.search(m.group(2)) or "</parameter>" in m.group(2):
             return True                  # unknown name + a parameter block = an attempted action
     return False
