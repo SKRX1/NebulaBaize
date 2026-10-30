@@ -51,9 +51,19 @@ def main():
     # 非白名单文件若脏，仍按原逻辑 abort（保护不被削弱）。
     # 后缀匹配：git status 从 WS 根显示，路径带 strata-agent/ 前缀，按后缀比对。
     RUNTIME_TRACKED_SUFFIX = ('config/mcp_servers.json',)
-    # stash 用相对 WS 根的路径（即带 strata-agent/ 前缀的实际显示路径）
-    RUNTIME_STASH_PATHS = []
-    dirty_paths = [ln[3:].strip() for ln in status.splitlines() if ln.strip()]
+    # 稳健解析脏路径：用 --porcelain -z（NUL 分隔），每条记录是「XY\x00path」两段，
+    # 彻底避免固定偏移 ln[3:] 在多列状态(如 staged 的「M 」)下多吃首字母的 bug。
+    rawz = git(['status', '--porcelain', '-z'])
+    toks = [t for t in rawz.split('\x00') if t]
+    dirty_paths = []
+    i = 0
+    while i < len(toks):
+        # 偶数下标是状态码(XY)，奇数下标是其后的路径；relocate 对(仅 rename)会多一段，跳过
+        if (i + 1) < len(toks) and len(toks[i]) <= 2 and toks[i][:1] in ' MADRCU!?' and toks[i][1:2] != '':
+            dirty_paths.append(toks[i + 1])
+            i += 2
+        else:
+            i += 1
     runtime_dirty = [p for p in dirty_paths if p.endswith(RUNTIME_TRACKED_SUFFIX)]
     real_dirty = [p for p in dirty_paths if not p.endswith(RUNTIME_TRACKED_SUFFIX)]
     if real_dirty:
