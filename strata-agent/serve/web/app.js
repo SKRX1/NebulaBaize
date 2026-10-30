@@ -315,7 +315,15 @@ async function poll() {
       throw new Error(`HTTP ${r.status}`);
     }
   } catch (e) {
-    if (++metricsFailures === 3) setPill("error", t("mon.pill.serverdown"));
+    // The health poll measures the DEFAULT upstream (the 8080 engine). When a CUSTOM model is
+    // selected, its own endpoint liveness — the same one the switcher dot uses — is what decides
+    // whether a message can actually reach it, so the top pill follows the selection instead of
+    // blaming a dead default upstream the message never goes through (2026-10-31).
+    const sel = currentModel();
+    if (sel && sel.kind === "custom" && modelOnline(sel) === true) {
+      metricsFailures = 0;
+      setPill("idle", t("mon.pill.endpoint"));
+    } else if (++metricsFailures === 3) setPill("error", t("mon.pill.serverdown"));
   }
   if (tab === "monitor" && ++mcpTick % 10 === 0) loadMcp();       // server states change rarely: every 10 s
   setTimeout(poll, 1000);
@@ -388,6 +396,7 @@ function render(m) {
   if (tab === "monitor") renderConvCache(m.conversation_cache);
   if (tab === "about") renderAbout(eng, hw, st);
   maxCtx = eng.max_context || maxCtx;          // R5: context window for the inspector fill bar
+  const _selW = currentModel(); const _declW = _selW ? (+( _selW.context_window || 0) || +( _selW.native_ctx || 0)) : 0; if (_declW > 0) maxCtx = _declW;
   // Live context occupancy: while a turn runs the engine reports the prompt length it is reading (and re-reads
   // an even bigger prompt after every tool round). Reading it here makes the fill bar climb during the task
   // instead of jumping once, at the end, when the turn's final `usage` chunk arrives.

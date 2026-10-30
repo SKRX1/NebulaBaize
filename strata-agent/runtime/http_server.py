@@ -1414,9 +1414,20 @@ class GatewayHandler(BaseHTTPRequestHandler):
         out = {}
         default_url = self.state.upstream_url
         for m in doc.get("models") or []:
-            if not isinstance(m, dict) or m.get("kind") != "local":
+            if not isinstance(m, dict):
                 continue
-            url = str(m.get("base_url") or "").strip() or default_url
+            # The liveness probe follows the selection: a custom entry is probed at its OWN
+            # base_url (via the same endpoint_alive), not the machine-wide default upstream —
+            # so the switcher/dot stays honest after a switch to a custom endpoint (2026-10-31).
+            kind = m.get("kind")
+            if kind == "local":
+                url = str(m.get("base_url") or "").strip() or default_url
+            elif kind == "custom":
+                url = str(m.get("base_url") or "").strip()
+                if not url:
+                    continue
+            else:
+                continue
             out[str(m.get("id") or "")] = {"url": url, "ok": endpoint_alive(url)}
         engine = endpoint_models(default_url)
         out["__engine__"] = {"url": default_url, "ok": endpoint_alive(default_url),
