@@ -213,3 +213,36 @@ def hallucinated_tool_call(text: str, known: set | None) -> bool:
         if _CALL_PARAM_RE.search(m.group(2)) or "</parameter>" in m.group(2):
             return True                  # unknown name + a parameter block = an attempted action
     return False
+
+
+# ---------------------------------------------------------------------------
+# Pure-thinking-only round guard (2026-11-01)
+# The model outputs only reasoning_content (thinking chain), then immediately
+# emits EOS (finish_reason=stop) with NO assistant text content and NO tool_calls.
+# The finalize guards for hallucinated_tool_call and looks_like_narration both
+# require final_answer is not None, so this shape falls through to a bare break.
+#
+# This discriminator: content is empty/whitespace, reasoning_content exists, no
+# tool_calls. It identifies the EXACT shape users report as "stopped mid-task
+# after thinking". Both chains (loop.py + http_server.py) use it symmetrically.
+# ---------------------------------------------------------------------------
+
+def is_thinking_only_round(content: str, reasoning: str, has_tool_calls: bool) -> bool:
+    """True when the round produced ONLY thinking, no answer text, no tool call.
+
+    Parameters
+    ----------
+    content : str
+        The assistant answer text (content field). Empty or whitespace-only triggers this.
+    reasoning : str
+        The thinking/reasoning content. Must be non-empty for this to fire.
+    has_tool_calls : bool
+        Whether the round produced any tool calls. Must be False.
+    """
+    if has_tool_calls:
+        return False
+    if not (reasoning or '').strip():
+        return False  # no reasoning means it is not a "thinking-only" round
+    if (content or '').strip():
+        return False  # content present means it answered (or narrated)
+    return True

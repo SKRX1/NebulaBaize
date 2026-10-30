@@ -2346,17 +2346,24 @@ class GatewayHandler(BaseHTTPRequestHandler):
                             "reasoning_effort": effort, "empty_streak": empty_rounds,
                         })
                         if empty_rounds >= 2:
-                            # Two in a row: resuming would just burn another round the same way,
-                            # so this one is NOT offered as 继续 -- it asks for a setting change.
+                            # Two empty rounds in a row within this request: another nudge
+                            # would burn a round the same way, so STOP and ask for a setting
+                            # change rather than invite a blind retry.
                             notice("empty_round", resumable=False, rounds=rnd,
                                    finish=acc.get("finish"), streak=empty_rounds,
                                    text="连续两轮模型只产出思考，没有正文也没有工具调用，已停止以免空转。"
                                         "建议把温度降到 0.6、思考强度改为「中」后，再点「继续」重试。")
                         else:
-                            notice("empty_round", rounds=rnd, finish=acc.get("finish"),
-                                   reasoning_chars=len(acc["reasoning"] or ""),
-                                   text="模型本轮只输出了思考，没有产出正文或调用工具，所以看起来像停住了。"
-                                        "已产出的内容都保留，点「继续」可让它接着做。")
+                            # First thinking-only round: nudge the model to act and keep
+                            # working instead of returning to the user. This mirrors loop.py
+                            # so both chains auto-continue on the first pure-thinking round.
+                            messages.append({"role": "assistant", "content": acc["reasoning"] or ""})
+                            messages.append({"role": "user", "content":
+                                             "[system] 你的回复只有思考链，没有产出正文或工具调用。"
+                                             "如果任务还没做完：现在立刻调用工具执行，或给出明确的回复。"
+                                             "如果确实已完成：用一句话说明「已完成」。"})
+                            touch()
+                            continue
                     # B (2026-10-24): the model hallucinated the markdown plan/next-steps
                     # fence as an XML tool call -- `<function=plan>` + a `<parameter=...>`
                     # argument, with a NAME the parser drops. The round then looks "answered"

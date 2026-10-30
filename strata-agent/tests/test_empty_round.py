@@ -6,11 +6,13 @@ reasoning_content, then the round ends with finish_reason=stop, no assistant tex
 no tool call. The gateway used to `break` straight to [DONE], so the UI showed a
 finished turn with nothing in it and no explanation.
 
-The test pins three things:
-  1. such a round now emits a recoverable `strata_notice` (code=empty_round) with text,
-  2. a SECOND identical round is reported as non-resumable (retrying blindly would just
-     burn another round), and
-  3. the composer's sampling settings (temperature/top_p/top_k) reach `_llm_stream`
+The test pins four things:
+  1. the FIRST thinking-only round triggers an auto-nudge (continue working) -- the
+     user never sees a notice; the model gets another chance and produces a real answer,
+  2. a SECOND consecutive empty round within the same request stops with a notice
+     (non-resumable, asks for a setting change) -- another nudge would burn a round,
+  3. a normal answer still finalizes without any invented notice, and
+  4. the composer's sampling settings (temperature/top_p/top_k) reach `_llm_stream`
      instead of being dropped -- at the engine default 1.0 a reasoning model wanders
      and produces exactly this empty round.
 Pure standard library, no network, no model.
@@ -177,35 +179,33 @@ def main() -> int:
         state.api_key = None
         state.max_rounds = 8
 
-        # ── 1) thinking-only round is reported, not silently finished ──
-        print("\n=== 1: thinking-only round -> recoverable notice ===")
-        h, ev = run(state, [thinking_only()], "s1")
-        notice = next((e["strata_notice"] for e in ev if isinstance(e, dict)
-                       and e.get("strata_notice")), None)
-        check("a notice is emitted", notice is not None, f"events={ev}")
-        check("code is empty_round", notice and notice.get("code") == "empty_round", notice)
-        check("it is resumable", notice and notice.get("resumable") is True, notice)
-        check("it carries human text", notice and len(notice.get("text") or "") > 10, notice)
-        check("finish_reason is reported", notice and notice.get("finish") == "stop", notice)
-        check("thinking is still streamed to the UI",
+        # ── 1) first thinking-only round: auto-nudged, model recovers with a real answer ──
+        print("\n=== 1: first thinking-only round -> nudged, no notice to user ===")
+        REAL_ANSWER1 = [{"choices": [{"delta": {"content": "All done."}}]},
+                        {"choices": [{"delta": {}, "finish_reason": "stop"}]}]
+        h, ev = run(state, [thinking_only(), REAL_ANSWER1], "s1")
+        notices = [e["strata_notice"] for e in ev if isinstance(e, dict) and e.get("strata_notice")]
+        check("no notice for the user (model recovered after nudge)",
+              len(notices) == 0, f"notices={notices}")
+        check("model gave a real answer after being nudged",
+              any("All done" in json.dumps(e, ensure_ascii=False) for e in ev))
+        check("thinking was still streamed to the UI",
               any(isinstance(e, dict) and "reasoning_content" in json.dumps(e) for e in ev))
         check("turn terminates with [DONE]", ev[-1] == "[DONE]", ev[-1])
         check("no bogus error chunk", not any(isinstance(e, dict) and e.get("error") for e in ev))
 
-        # ── 2) two empty rounds in a row must NOT invite a blind retry ──
-        # An empty round ENDS the turn, so "in a row" means two separate requests in the same
-        # conversation -- the second one is what the user gets after pressing 继续.
-        print("\n=== 2: second consecutive empty round -> not resumable ===")
-        _h2a, ev2a = run(state, [thinking_only()], "s2")
-        _h2b, ev2b = run(state, [thinking_only()], "s2")
-        notices = ([e["strata_notice"] for e in ev2a if isinstance(e, dict) and e.get("strata_notice")]
-                   + [e["strata_notice"] for e in ev2b if isinstance(e, dict) and e.get("strata_notice")])
-        check("a notice per empty round", len(notices) == 2, notices)
-        check("first one is resumable", notices[0].get("resumable") is True, notices[0])
-        check("second one is NOT resumable", notices[1].get("resumable") is False, notices[1])
-        check("second one reports the streak", notices[1].get("streak") == 2, notices[1])
-        check("second one asks for a setting change",
-              "温度" in (notices[1].get("text") or ""), notices[1])
+        # ── 2) two consecutive thinking-only rounds within ONE request -> stop with notice ──
+        # First round: empty -> auto-nudge (continue). Second round: still empty -> streak=2
+        # -> STOP with a non-resumable notice (asks for a setting change).
+        print("\n=== 2: two consecutive empty rounds -> stop with non-resumable notice ===")
+        _h2, ev2 = run(state, [thinking_only(), thinking_only()], "s2")
+        notices = [e["strata_notice"] for e in ev2 if isinstance(e, dict) and e.get("strata_notice")]
+        check("exactly one notice (the stop notice)", len(notices) == 1, notices)
+        check("code is empty_round", notices[0].get("code") == "empty_round", notices[0])
+        check("it is NOT resumable", notices[0].get("resumable") is False, notices[0])
+        check("it reports the streak", notices[0].get("streak") == 2, notices[0])
+        check("it asks for a setting change",
+              "温度" in (notices[0].get("text") or ""), notices[0])
 
         # ── 3) a real answer still ends silently (no notice invented) ──
         print("\n=== 3: a normal answer does not grow a notice ===")
@@ -216,9 +216,11 @@ def main() -> int:
         check("no notice on a normal answer",
               not any(isinstance(e, dict) and e.get("strata_notice") for e in ev3))
 
-        # ── 4) composer sampling reaches the LLM call ──
+        # ── 4) composer sampling reaches the LLM call (first empty round gets nudged) ──
         print("\n=== 4: sampling is forwarded, not dropped ===")
-        h4, _ = run(state, [thinking_only()], "s4")
+        REAL_ANSWER4 = [{"choices": [{"delta": {"content": "ok"}}]},
+                        {"choices": [{"delta": {}, "finish_reason": "stop"}]}]
+        h4, _ = run(state, [thinking_only(), REAL_ANSWER4], "s4")
         s = h4.sampling_seen or {}
         check("temperature forwarded", s.get("temperature") == 0.6, s)
         check("top_p forwarded", s.get("top_p") == 0.95, s)

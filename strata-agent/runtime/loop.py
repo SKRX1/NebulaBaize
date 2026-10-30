@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from llm_client import StrataClient
 from planner import Planner
 from executor import Executor
-from toolcall_parse import hallucinated_tool_call, looks_like_narration
+from toolcall_parse import hallucinated_tool_call, looks_like_narration, is_thinking_only_round
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are Strata Agent, an autonomous agent. Use the available tools to plan, act, "
@@ -246,6 +246,7 @@ class AgentLoop:
         self._verify_attempts = 0
 
         nudges = [0]   # per-turn budget for the finalize-branch guards (B action-shape cap 5, narration cap 2)
+        thinking_nudges = [0]   # separate budget for thinking-only-round guard (cap 2)
         for rnd in range(1, self.max_rounds + 1):
             # --- automatic context management: fold old turns if over budget ---
             compressed = self._maybe_compress()
@@ -272,6 +273,18 @@ class AgentLoop:
             # SHARED module so both chains judge them identically. Each guard keeps working
             # when it fires; the budget caps it so a model stuck on the pattern is bounded.
             known = {t["name"] for t in self._tools}
+            # thinking-only-round guard: model emitted ONLY reasoning, no text, no call.
+            # Without this it falls through to the bare break at the bottom. Cap 2 per turn.
+            if (action.final_answer is None and not action.actions
+                    and thinking_nudges[0] < 2
+                    and is_thinking_only_round(action.final_answer or "", action.thinking, False)):
+                thinking_nudges[0] += 1
+                messages.append({"role": "assistant", "content": action.thinking or ""})
+                messages.append({"role": "user", "content":
+                                 "[system] 你的回复只有思考链，没有产出正文或工具调用。"
+                                 "如果任务还没做完：现在立刻调用工具执行，或给出明确的回复。"
+                                 "如果确实已完成：用一句话说明「已完成」。"})
+                continue
             if (action.final_answer is not None and not action.actions
                     and nudges[0] < 5 and hallucinated_tool_call(action.final_answer, known)):
                 nudges[0] += 1
