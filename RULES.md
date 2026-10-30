@@ -137,3 +137,5 @@ RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git
 工作树混入上一轮遗留（RULES经验行/scratch）挡住 post-green 打 tag 时，按归属分 commit：本轮真实改动单独 feat-commit，上轮遗留单独 chore-commit，scratch 送回收站——绝不把别轮产物混进本轮 commit，也不物理删 scratch（铁律 COM SendToRecycleBin）
 部署对账=跑 strata-agent/tools/_deploy_mirror.py（权威源 serve/web→E:\Program Files\Strata-main\serve\web 逐文件MD5，幂等，跑完即ALL MATCH即视为一致）；servers/ 不在镜像范围（后端从工作区直跑，无需镜像同步）
 git stash drop 只认 stash@{N} 索引、不吃裸SHA（用SHA报'not a stash reference'）；批量删多条须从后往前反向删(stash@{高}→stash@{低})防索引移位误删
+test_model_live.mjs 是手动 live 测试（不在 run_tests 套件），用例写死假设 selected=local(iq3_xxs)；当真实 selected=custom 时它会因「dot期望on实际na」而红，属用例假设与配置耦合，非代码回归——判断此类红须做 stash 差分坐实基线同样红。
+精准改含中文的配置/前端文件前，先 dry-run 确认锚点精确命中恰好1次，再 apply，并跑对应门禁（i18n 中英键数必须成对增长）坐实不破绿。
