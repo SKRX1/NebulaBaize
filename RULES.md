@@ -136,3 +136,4 @@ RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git
 给「同级结构 + aria 双射 + data-tab/id/白名单三集合一致」补门禁时用 jsdom 真实解析验父链（direct==total），静态标签栈单用会被 HTML 解析器 un-nest 骗过
 工作树混入上一轮遗留（RULES经验行/scratch）挡住 post-green 打 tag 时，按归属分 commit：本轮真实改动单独 feat-commit，上轮遗留单独 chore-commit，scratch 送回收站——绝不把别轮产物混进本轮 commit，也不物理删 scratch（铁律 COM SendToRecycleBin）
 部署对账=跑 strata-agent/tools/_deploy_mirror.py（权威源 serve/web→E:\Program Files\Strata-main\serve\web 逐文件MD5，幂等，跑完即ALL MATCH即视为一致）；servers/ 不在镜像范围（后端从工作区直跑，无需镜像同步）
+git stash drop 只认 stash@{N} 索引、不吃裸SHA（用SHA报'not a stash reference'）；批量删多条须从后往前反向删(stash@{高}→stash@{低})防索引移位误删

@@ -29,7 +29,7 @@
       ],
       "cwd": "E:\\WorkBuddy\\星云智能体\\strata-agent",
       "env": {
-        "STRATA_PROXY": "socks5://127.0.0.1:10808"
+        "STRATA_PROXY": "http://127.0.0.1:10808"
       }
     },
     "memory": {
