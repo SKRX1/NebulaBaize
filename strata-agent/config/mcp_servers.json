@@ -27,7 +27,10 @@
       "args": [
         "E:\\WorkBuddy\\星云智能体\\strata-agent\\servers\\websearch_server.py"
       ],
-      "cwd": "E:\\WorkBuddy\\星云智能体\\strata-agent"
+      "cwd": "E:\\WorkBuddy\\星云智能体\\strata-agent",
+      "env": {
+        "STRATA_PROXY": "socks5://127.0.0.1:10808"
+      }
     },
     "memory": {
       "command": "E:\\WorkBuddy\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
