@@ -133,3 +133,4 @@ RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git
 删除一律送 Windows 系统回收站（Shell.Application COM），绝不物理删除，保留还原机会；临时脚本用毕也送回收站
 前端删除类动作一律走 /api/recycle（机制A COM 送真回收站），禁止 fsWrite 副本+物理删的伪回收站写法
 对超大文件(如 serve/web/app.js 520KB)做单行替换时,禁用 filesystem__write(其默认 overwrite 会把整个文件覆盖成传入片段),须用 python 脚本读全文+精确 replace+断言命中次数
+给「同级结构 + aria 双射 + data-tab/id/白名单三集合一致」补门禁时用 jsdom 真实解析验父链（direct==total），静态标签栈单用会被 HTML 解析器 un-nest 骗过
