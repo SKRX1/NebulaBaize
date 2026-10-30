@@ -781,11 +781,19 @@ class GatewayState:
         self.api_requests = collections.deque(maxlen=100)
         self.status_lock = threading.Lock()
 
-    def ctx_window(self):
-        """ONE denominator for the whole gateway: explicit env override > the engine's real
-        n_ctx (polled from its own /health) > the hardcoded fallback. Lets the proactive guard
-        and the output cap agree with what the frontend bar shows, instead of judging against a
-        stale 128K (the 2026-10 "50% but the gateway said 92%" double-denominator bug)."""
+    def ctx_window(self, entry=None):
+        """ONE denominator for the whole gateway: a per-model DECLARED window > explicit env
+        override > the engine's real n_ctx (polled from its own /health) > the hardcoded fallback.
+
+        A `custom` model whose endpoint never answers /health in JSON (cloud APIs, and the 47831
+        front-instance that returns HTML) cannot be polled for n_ctx, so it declares its window in
+        model_registry (context_window / native_ctx). A per-model declaration is the more specific
+        statement about THIS model, so it wins over the machine-wide env override."""
+        if isinstance(entry, dict):
+            for k in ("context_window", "native_ctx"):
+                v = entry.get(k)
+                if isinstance(v, (int, float)) and v > 0:
+                    return int(v)
         if self._ctx_env:
             return int(self._ctx_env)
         return endpoint_max_context(self.upstream_url) or self.max_context
@@ -2172,7 +2180,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 # genuinely grown large does. The frontend's auto-compact may be disabled, so the gateway
                 # enforces the ceiling too.
                 _lp = self.state.prompt_tokens_for(session_id)
-                _win = self.state.ctx_window()      # the real engine window, not the 128K fallback
+                _win = self.state.ctx_window(getattr(self, "_model_override", None))  # declared window > env > engine > fallback
                 if (not _is_compact and _lp and _win
                         and _lp >= int(_win * 0.92)):
                     pct = round(100 * _lp / _win)
@@ -2187,7 +2195,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 # composer's explicit Max tokens is honoured as a cap but is itself clamped to
                 # OUTPUT_CEILING. `_lp` is this conversation's last recorded prompt usage
                 # (prompt_tokens_for), a safe proxy for how full the window already is.
-                out_cap = compute_output_cap(_asked, _win or self.state.ctx_window(), _lp, _ceiling,
+                out_cap = compute_output_cap(_asked, _win or self.state.ctx_window(getattr(self, "_model_override", None)), _lp, _ceiling,
                                           reasoning_budget=budget, answer_floor=_answer_floor)
                 view = system_view_with_fallback(messages)
                 acc = {"content": "", "reasoning": "", "tool_calls": [], "finish": None, "usage": None}
@@ -2265,7 +2273,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                         # a scary banner for it. Only if the resend ALSO fails do we surface a
                         # notice, and then we say what it actually is (contention), not the generic
                         # wording that misled the user this time.
-                        _act = overflow_action(_lp, _win or self.state.ctx_window(), overflow_retried)
+                        _act = overflow_action(_lp, _win or self.state.ctx_window(getattr(self, "_model_override", None)), overflow_retried)
                         if _act == "retry":
                             overflow_retried = True
                             time.sleep(1.0)          # let the engine finish the eviction it just did

@@ -95,7 +95,7 @@ def normalize_entry(raw: dict, taken: set | None = None) -> dict:
             out["think_modes"] = list(dict.fromkeys(clean))
     level = str(raw.get("think_default") or "auto").strip().lower()
     out["think_default"] = level if level in ("auto",) + THINK_LEVELS else "auto"
-    for num in ("ctx_in", "ctx_out", "native_ctx"):
+    for num in ("ctx_in", "ctx_out", "native_ctx", "context_window"):
         if raw.get(num) not in (None, ""):
             try:
                 v = int(raw[num])

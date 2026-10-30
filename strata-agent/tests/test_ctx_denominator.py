@@ -121,5 +121,36 @@ if real is not None and resolved == real and resolved > FALLBACK:
 else:
     skip("real window == fallback -> no double-denominator split to demonstrate; trigger math skipped")
 
+# ── Per-model DECLARED window (the custom-endpoint fix) ────────────────────────────
+# A custom model whose endpoint never answers /health in JSON (cloud APIs, the 47831
+# front-instance that returns HTML) cannot be polled for n_ctx, so it declares
+# context_window / native_ctx in model_registry. A per-model declaration is the most
+# specific statement about THIS model, so it wins over the machine-wide env override and
+# over the poll. Back-compat: an entry that declares nothing keeps the old order unchanged.
+import importlib as _il
+sys.path.insert(0, os.path.join(ROOT, "serve"))
+_mr = _il.import_module("model_registry")
+
+_declared = 262144
+check("ctx_window reads a per-model DECLARED context_window",
+      st.ctx_window({"context_window": _declared}) == _declared,
+      str(st.ctx_window({"context_window": _declared})))
+check("native_ctx alias is honored too",
+      st.ctx_window({"native_ctx": _declared}) == _declared,
+      str(st.ctx_window({"native_ctx": _declared})))
+# a declared window on a model wins even over the machine-wide env override
+check("a DECLARED per-model window beats the env override (more specific)",
+      st_env.ctx_window({"context_window": _declared}) == _declared,
+      str(st_env.ctx_window({"context_window": _declared})))
+# back-compat: an entry that declares nothing keeps the existing order (here env still wins)
+check("no declaration -> unchanged behavior (env still wins)",
+      st_env.ctx_window(None) == 200000 and st_env.ctx_window({}) == 200000,
+      str(st_env.ctx_window(None)))
+# the normalize layer keeps the field, so the registry round-trips a declared window
+_norm = _mr.normalize_entry({"kind": "custom", "base_url": "http://x/v1",
+                             "model": "m", "context_window": _declared})
+check("model_registry.normalize_entry keeps context_window",
+      _norm.get("context_window") == _declared, str(_norm.get("context_window")))
+
 print("\nCTX-DENOMINATOR: " + ("ALL PASSED" if not FAILURES else "FAILURES: " + ", ".join(FAILURES)))
 sys.exit(0 if not FAILURES else 1)
