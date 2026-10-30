@@ -1,4 +1,4 @@
-/* Tools tab: manage MCP servers and skills — a pure same-origin MCP client.
+﻿/* Tools tab: manage MCP servers and skills — a pure same-origin MCP client.
  *
  * The old version probed for a management API: same-origin first, then the
  * standalone gateway's port, remembering what worked. That existed because the
@@ -497,11 +497,61 @@
     if (loaded && sel) { renderDetail(); return; }   // a re-visit keeps the selection
     try {
       await refresh();
+      await loadProxyCard();
       loaded = true;
     } catch (e) {
       host.innerHTML = `<div class="st-card adm-card">
         <span class="card-title">${esc(t("adm.loadfailed"))}</span>
         <p class="muted">${esc(e.message)}</p></div>`;
+    }
+  }
+
+  // ─── Proxy card (Tools page): SOCKS5 fallback for websearch ──────────────────
+  // Reads the websearch server's env.STRATA_PROXY out of mcp_servers.json and lets the
+  // user edit it. On save it re-writes that env via the same registry update_server
+  // path the server form uses (atomic write + backup). The running websearch subprocess
+  // inherits it only on its next start, so the message says "restart to apply".
+  async function loadProxyCard() {
+    const card = $("proxy-card");
+    if (!card) return;
+    if (!canWrite) { card.hidden = true; return; }        // read-only: nothing to edit
+    try {
+      const r = await mcpCall("registry", "get_server", { name: "websearch" });
+      const env = (r.server || {}).env || {};
+      const inp = $("proxy-input");
+      if (inp) inp.value = env.STRATA_PROXY || "";
+      card.hidden = false;
+    } catch (e) {
+      card.hidden = true;                                  // websearch missing or unreadable
+    }
+  }
+
+  async function saveProxy() {
+    const msg = $("proxy-msg");
+    const inp = $("proxy-input");
+    if (!canWrite) { if (msg) msg.textContent = t("adm.readonly.title"); return; }
+    const v = ((inp && inp.value) || "").trim();
+    // empty = disable fallback; otherwise host:port with an optional scheme/credentials
+    const hostport = v.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/^\S+@/, "");
+    if (v && !/^[\w.\-]+:\d{1,5}$/.test(hostport)) {
+      if (msg) msg.textContent = t("tools.proxy.bad");
+      return;
+    }
+    try {
+      const r = await mcpCall("registry", "get_server", { name: "websearch" });
+      const cur = r.server || {};
+      const spec = { command: cur.command, args: cur.args || [] };
+      if (cur.cwd) spec.cwd = cur.cwd;
+      const env = Object.assign({}, cur.env || {});
+      if (v) env.STRATA_PROXY = v;
+      else delete env.STRATA_PROXY;
+      if (Object.keys(env).length) spec.env = env;
+      await mcpCall("registry", "update_server", { name: "websearch", spec });
+      if (msg) msg.textContent = t("tools.proxy.saved");
+      await refresh();
+      await loadProxyCard();
+    } catch (e) {
+      if (msg) msg.textContent = String((e && e.message) || e);
     }
   }
 
@@ -521,6 +571,7 @@
     wire("adm-new-server", () => { notice = null; sel = { kind: "server", name: "", isNew: true }; renderList(); renderDetail(); renderNotice(); });
     wire("adm-new-skill", () => { notice = null; sel = { kind: "skill", name: "", isNew: true }; renderList(); renderDetail(); renderNotice(); });
     wire("adm-import-btn", importJson);
+    wire("proxy-save", saveProxy);
     if (location.hash.slice(1) === "tools") loadAdmin();
   }
 })();

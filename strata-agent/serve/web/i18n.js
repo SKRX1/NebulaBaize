@@ -1,4 +1,4 @@
-/* Star Nebula Agent — frontend i18n (zh default, en supported).
+﻿/* Star Nebula Agent — frontend i18n (zh default, en supported).
  *
  * Loaded synchronously before app.js so t() is available while templates render.
  *
@@ -397,6 +397,12 @@
       "about.rt": "运行参数",
       "about.rt.desc": "网关 agent 循环与工具执行的运行参数。修改后即时生效（无需重启），并写入 mcp_servers.json 下次启动沿用。留空表示使用默认值。",
       "about.rt.save": "保存",
+      "tools.proxy": "代理设置",
+      "tools.proxy.desc": "代理地址，支持 socks5://、socks4://、http://、https://（如 socks5://127.0.0.1:10808 或 http://127.0.0.1:7890）。websearch 搜索主路径直连 Bing，代理仅用于回退。修改后写入 mcp_servers.json 下次启动生效。留空表示禁用回退。",
+      "tools.proxy.placeholder": "socks5://127.0.0.1:10808",
+      "tools.proxy.save": "保存",
+      "tools.proxy.saved": "已保存。需重启网关后新代理对 websearch 子进程生效。",
+      "tools.proxy.bad": "格式无效：应为 scheme://host:port（socks5/socks4/http/https）或 host:port",
       "about.ilog": "中断日志",
       "about.ilog.desc": "每次回合非正常结束（连接被截断、可恢复停止、报错、手动停止）都会记录时间与当时所处阶段：思考中 / 回答中 / 哪个工具正在跑。用于判断到底是引擎静默、某个工具卡住，还是网络断开。",
       "about.ilog.empty": "暂无中断记录。",
@@ -1545,6 +1551,12 @@
       "about.rt": "Runtime",
       "about.rt.desc": "Gateway agent-loop and tool-execution runtime caps. Changes apply immediately (no restart) and persist to mcp_servers.json for next launch. An empty field is the default.",
       "about.rt.save": "Save",
+      "tools.proxy": "Proxy Settings",
+      "tools.proxy.desc": "Proxy URL supporting socks5://, socks4://, http://, https:// (e.g. socks5://127.0.0.1:10808 or http://127.0.0.1:7890). websearch primary path connects directly to Bing; proxy is only a fallback. Saved to mcp_servers.json, takes effect on next gateway restart. Leave empty to disable fallback.",
+      "tools.proxy.placeholder": "socks5://127.0.0.1:10808",
+      "tools.proxy.save": "Save",
+      "tools.proxy.saved": "Saved. Restart the gateway for the proxy to take effect in websearch subprocess.",
+      "tools.proxy.bad": "Invalid format: expected scheme://host:port (socks5/socks4/http/https) or host:port",
       "about.ilog": "Interruption log",
       "about.ilog.desc": "Every turn that did not finish cleanly (cut connection, recoverable stop, error, manual stop) is recorded with the time and the phase it was in: thinking / answering / which tool was running. This tells a silent engine, a wedged tool and a dropped network apart.",
       "about.ilog.empty": "No interruptions recorded yet.",

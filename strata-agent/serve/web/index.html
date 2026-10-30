@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8">
@@ -397,6 +397,15 @@
       </aside>
       <div class="adm-main">
         <div id="adm-notice" class="adm-notice"></div>
+      <div class="st-card adm-card proxy-card" id="proxy-card" hidden>
+        <div class="req-head"><span class="card-title" data-i18n="tools.proxy">Proxy Settings</span></div>
+        <p class="muted small" data-i18n="tools.proxy.desc">SOCKS5 proxy URL. websearch primary path connects directly to Bing; proxy is only a fallback.</p>
+        <form class="cfg-form" id="proxy-form" onsubmit="return false">
+          <input class="st-input" id="proxy-input" size="34" type="text" data-i18n-attr="placeholder:tools.proxy.placeholder" placeholder="socks5://127.0.0.1:10808" autocomplete="off">
+        </form>
+        <div class="cfg-actions"><button class="st-btn st-btn--primary" id="proxy-save" type="button" data-i18n="tools.proxy.save">Save</button>
+          <span class="muted small" id="proxy-msg" role="status"></span></div>
+      </div>
         <div id="adm-detail"></div>
       </div>
     </div>
