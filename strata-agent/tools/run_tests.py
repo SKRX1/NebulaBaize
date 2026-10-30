@@ -16,6 +16,8 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "runtime"))   # shared plan-A tiered probe (one source for every consumer)
+from parallel_probe import compute as _probe_compute
 PY = sys.executable
 
 # Node for the .mjs suites. PATH first (the managed runtime exports it), then the
@@ -154,6 +156,7 @@ SUITES = [
     "tests/test_ctx_denominator.py",   # 2026-10: the gateway denominator == the engine's real n_ctx (no 128K-vs-256K split)
     "tests/test_resident_retry.py",   # 2026-10-24: resident-contention vs true-overflow split (quiet retry, budget is one)
     "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)
+    "tests/test_parallel_probe.py",   # 2026-10-30: plan-A tiered probe lands; locks this machine reproduces tests=7/recycle=4/batch=8 + differential (factors/caps MOVE the numbers) + env override highest
 ]
 
 
@@ -179,7 +182,7 @@ def main() -> int:
     if os.environ.get("STRATA_TESTS_SERIAL") == "1":
         workers = 1
     else:
-        workers = int(os.environ.get("STRATA_TESTS_WORKERS") or 0) or min(4, os.cpu_count() or 1)
+        workers = _probe_compute("tests")   # floor(cores*0.6) cap16; STRATA_TESTS_WORKERS env override wins (probe handles it)
     results = [None] * len(SUITES)
     if workers <= 1:
         for i, s in enumerate(SUITES):

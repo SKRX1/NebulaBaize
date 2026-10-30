@@ -149,3 +149,16 @@ a{color:var(--st-accent-text);text-decoration:none} a:hover{text-decoration:unde
 .st-toast--warn .st-icon{color:var(--st-warn)}
 .st-toast--error .st-icon{color:var(--st-danger)}
 .st-toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;z-index:50}
+
+/* Hardware / parallelism chip (2026-10-30, plan A tiered probe). Read-only:
+   sits LEFT of the status pill on the chat header and shows what the server
+   actually computed (cores + per-load worker counts). The browser cannot see
+   the host core count, so it is rendered from GET /api/parallel-probe — the
+   same numbers the probe module feeds run_tests and the recycle pool. */
+.hw-chip{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:var(--st-r-pill);
+  border:1px solid var(--st-line);background:transparent;color:var(--st-ink-muted);font-size:12px;
+  font-family:var(--st-font-mono,ui-monospace,monospace);white-space:nowrap;user-select:none;cursor:default}
+.hw-chip__k{color:var(--st-ink-muted);opacity:.7}
+.hw-chip__v{color:var(--st-accent);font-weight:600}
+.hw-chip__sep{opacity:.35}
+.hw-chip[hidden]{display:none}

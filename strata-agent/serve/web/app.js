@@ -5995,6 +5995,41 @@ let modelEditId = null;            // entry being edited in the modal; null = a 
 const POLL_MS = 4000;              // how often the dot asks the server again (probe cache is 3s)
 let polling = false;               // one probe in flight at a time
 
+// ── Read-only hardware / parallelism chip (plan A tiered probe) ──────────
+// The browser cannot see the host core count, so the numbers come from the
+// server (GET /api/parallel-probe) — the SAME probe module that feeds run_tests
+// and the recycle pool, so what the chip shows is what actually runs. Visible
+// text is language-neutral (the four numbers); i18n drives the tooltip + labels.
+let hwChipData = null;                 // last probe snapshot; chip stays hidden until we have it
+async function loadHwChip() {
+  try {
+    const r = await fetch("api/parallel-probe", { headers: headers(false) });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    hwChipData = await r.json();
+  } catch (e) {
+    hwChipData = null;                     // old server / offline: keep the chip hidden, never lie
+  }
+  paintHwChip();
+  return hwChipData;
+}
+function paintHwChip() {
+  const el = $("hw-chip");
+  if (!el) return;
+  if (!hwChipData || !hwChipData.loads) { el.hidden = true; return; }
+  const ld = hwChipData.loads;
+  const V = (k) => (ld[k] && ld[k].value != null ? ld[k].value : "–");
+  const seg = (k, v) => '<span class="hw-chip__k">' + esc(t("hw.chip." + k)) + " </span>" +
+                        '<span class="hw-chip__v">' + esc(v) + "</span>";
+  el.title = t("hw.chip.tooltip", { cores: hwChipData.cores, tests: V("tests"),
+                                    recycle: V("recycle_workers"), batch: V("recycle_batch") });
+  el.setAttribute("aria-label", el.title);
+  el.innerHTML = seg("cores", hwChipData.cores) + '<span class="hw-chip__sep">·</span>' +
+                   seg("tests", V("tests")) + '<span class="hw-chip__sep">·</span>' +
+                   seg("recycle", V("recycle_workers")) + '<span class="hw-chip__sep">·</span>' +
+                   seg("batch", V("recycle_batch"));
+  el.hidden = false;
+}
+
 async function loadModels() {
   try {
     const r = await fetch("models/config", {headers: headers(false)});
@@ -6454,8 +6489,10 @@ async function testModelForm() {
     if (document.visibilityState === "visible") { pollModels(); refreshIdleTimeout(); }
   });
   window.addEventListener("focus", () => { pollModels(); refreshIdleTimeout(); });
+  loadHwChip();   // hardware chip: host core count is server-side, pull once at boot (low frequency)
 })();
 document.addEventListener("strata:langchange", () => {
+  paintHwChip();                                   // labels/tooltip follow the language switch
   paintModelChip();
   if (!$("model-pop").hidden) renderModelPop();
   if (!$("model-modal").hidden) renderModelList();

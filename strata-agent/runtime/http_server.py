@@ -49,8 +49,12 @@ JUDGE_WRITE_LOCK = threading.Lock()
 _RECYCLE_JOBS = {}                # job_id -> {total,done,failed,cancelled,lock,event,finished}
 _RECYCLE_JOBS_LOCK = threading.Lock()
 _RECYCLE_LEDGER_LOCK = threading.Lock()   # serialises concurrent appends to one ledger.jsonl
-_RECYCLE_TRASH_BATCH = 10         # paths per PowerShell process (one spawn handles a whole batch; measured sweet spot on this machine)
-_RECYCLE_TRASH_WORKERS = 4        # concurrent batch processes per job (bench: batch10 x 4 = fastest tier, 6 is noise-level gain; fewer procs than the old 12)
+# parallel_probe lives in this same runtime/ folder (http_server runs as a script,
+# so sys.path[0] is runtime/ and the bare import resolves at load time, before the constants).
+import parallel_probe   # shared plan-A tiered probe (one source for every consumer)
+from parallel_probe import compute as _probe_compute
+_RECYCLE_TRASH_BATCH = _probe_compute("recycle_batch")        # fixed 8 by design (plan A); STRATA_RECYCLE_BATCH env override wins
+_RECYCLE_TRASH_WORKERS = _probe_compute("recycle_workers")     # adaptive floor(cores*0.4) cap8 -> 4 on this box (reproduces the tuned value)
 _RECYCLE_TRASH_SYNC_MAX = 3       # paths <= this stay on the synchronous path (no job overhead)
 import traceback
 import urllib.error
@@ -1202,6 +1206,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
         except Exception:
             return {}
 
+    def _api_parallel_probe(self):
+        """GET /api/parallel-probe -> shared tiered probe snapshot. Read-only and local
+        (the browser cannot see the host core count), so the UI chip renders exactly what
+        the server computed. ASCII-safe JSON, no side effects, never touches the registry."""
+        self._json(200, parallel_probe.probe())
+
     def _api(self, method: str) -> bool:
         """Dispatch /api/servers/* and /api/skills/*. Returns True when handled."""
         path = self.path.split("?")[0]
@@ -1221,6 +1231,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return True
         if path.rstrip("/") == "/api/interrupt-log":
             self._api_interrupt_log(method)
+            return True
+        if path.rstrip("/") == "/api/parallel-probe":
+            self._api_parallel_probe()
             return True
         if path.rstrip("/") == "/api/requests":
             # Step2-A: the streaming-debug suite reads the per-chunk timeline here. Served
