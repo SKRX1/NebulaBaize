@@ -1,0 +1,64 @@
+===== 观测锚：方案A两链对齐后实跑日志 =====
+重启进程启动时间(切线)：2026-10-31T03:56:29
+rounds.jsonl 重启后新增：8 行
+empty-round.jsonl 重启后新增：0 行
+
+----- rounds.jsonl 重启后逐行（看 thinking-only 轮 + 续跑）-----
+{"ts": "2026-10-31T03:59:46", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 1, "finish": "tool_calls", "content_chars": 244, "reasoning_chars": 841, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "用户已自行重启 8099，所以我直接做端到端复验。先侦察真实状态（8099 进程、日志落点、确认加载的是新代码），这是端到端复验的前提，必须 ground truth 不凭记忆。\n\n```plan\n- [ ] 侦察：8099 进程/PID/启动时间 + rounds.jsonl/empty-round.jsonl 真实落点 + 确认加载新代码\n- [ ] 端到端：跑一次真实多轮任务，触发首轮纯思考轮 → 观察是否真自动续跑\n- [ ] 采一段方案A对齐后的实跑日志留档作观测锚\n```", "usage": {"prompt_tokens": 81151, "completion_tokens": 878, "total_tokens": 82029, "prompt_tokens_details": {"cached_tokens": 4100}}}
+{"ts": "2026-10-31T03:59:56", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 2, "finish": "tool_calls", "content_chars": 0, "reasoning_chars": 126, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "", "usage": {"prompt_tokens": 81633, "completion_tokens": 283, "total_tokens": 81916, "prompt_tokens_details": {"cached_tokens": 81146}}}
+{"ts": "2026-10-31T04:00:11", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 3, "finish": "tool_calls", "content_chars": 69, "reasoning_chars": 1403, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "进程 30988 于 03:56:29 启动（确实是刚重启）。核对代码文件 mtime 早于进程启动时间，坐实 8099 加载的是新代码：", "usage": {"prompt_tokens": 82329, "completion_tokens": 557, "total_tokens": 82886, "prompt_tokens_details": {"cached_tokens": 81628}}}
+{"ts": "2026-10-31T04:00:48", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 4, "finish": "tool_calls", "content_chars": 222, "reasoning_chars": 6037, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "进程 30988 启动于 **03:56:29**，代码文件 mtime **03:53:11**（早于启动）→ 坐实 8099 加载的是新代码。\n\n关键点：`empty-round.jsonl` 最后写入 **03:03:19**（重启前），`rounds.jsonl` 写到 **03:59:56**（重启后有活动）。先读 _diag_round/empty-round 落盘字段结构，再看重启后真实日志（ground truth，不猜）：", "usage": {"prompt_tokens": 82602, "completion_tokens": 1822, "total_tokens": 84424, "prompt_tokens_details": {"cached_tokens": 82324}}}
+{"ts": "2026-10-31T04:01:10", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 5, "finish": "tool_calls", "content_chars": 99, "reasoning_chars": 991, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "进程/代码时间已坐实（重启进程 03:56:29 > 代码 mtime 03:53:11，加载的是新代码）。先记录两日志的**改前行数基线**（端到端复验要对比新增行），再确认 8099 上游在线：", "usage": {"prompt_tokens": 83771, "completion_tokens": 829, "total_tokens": 84600, "prompt_tokens_details": {"cached_tokens": 82597}}}
+{"ts": "2026-10-31T04:01:52", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 6, "finish": "tool_calls", "content_chars": 279, "reasoning_chars": 3126, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "基线到手（rounds 31633 行 / empty-round 69 行，均已记录用于对比）。8099 在线、上游 `swift-1.5-iq3_s` loaded。\n\n**关键判定逻辑**（读实代码坐实）：`_diag_empty_round` 在 if/else **之前**调用——所以方案A下首次纯思考轮**仍会写 empty-round.jsonl（streak=1）**，随后走 nudge+continue（不再发停机 notice）。这就是可观测锚。\n\n先被动观察重启后（进程启动 03:56:29 之后）是否已有真实纯思考轮+续跑证据：", "usage": {"prompt_tokens": 84290, "completion_tokens": 1917, "total_tokens": 86207, "prompt_tokens_details": {"cached_tokens": 83766}}}
+{"ts": "2026-10-31T04:02:17", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 7, "finish": "tool_calls", "content_chars": 94, "reasoning_chars": 488, "calls": ["filesystem__write"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "cmd 把 PowerShell 管道符解析错了（已知易错点）。改用 Python 脚本落盘分析两日志，UTF-8 读避免 GBK，并直接筛重启进程启动时间(03:56:29)之后的记录：", "usage": {"prompt_tokens": 84763, "completion_tokens": 1153, "total_tokens": 85916, "prompt_tokens_details": {"cached_tokens": 84285}}}
+{"ts": "2026-10-31T04:02:27", "session": "ad67c622-c8a1-482f-a226-6cd94587fc51", "round": 8, "finish": "tool_calls", "content_chars": 32, "reasoning_chars": 234, "calls": ["shell__exec"], "rescued": [], "call_markup_in_text": false, "narration": false, "nudges": 0, "content_tail": "跑观测锚分析脚本，先看重启后被动日志有无真实纯思考轮+续跑证据：", "usage": {"prompt_tokens": 85665, "completion_tokens": 256, "total_tokens": 85921, "prompt_tokens_details": {"cached_tokens": 84758}}}
+
+----- empty-round.jsonl 重启后逐行（每条=一次纯思考轮；nudge轮无停机notice=方案A生效）-----
+
+----- 纯思考轮判定统计（rounds 重启后）-----
+纯思考轮(rounding>0,content==0,no calls)：0
+
+
+============================================================
+端到端复验三层证据链汇总（续）
+============================================================
+
+【代码层(加载新代码)】
+  commit eca46f6b914752f72d7a0ee6a7e2768194ef5f4d @ 2026-10-31 03:52:53 (+0800) < 进程启动 2026-10-31 03:56:29 -> 8099 加载方案A新代码；读实 finalize 守卫判定链：L2337 note_empty_round() 先计数 -> streak / L2338-2347 _diag_empty_round() 落盘(含 empty_streak)【在 if/else 之前=首次纯思考轮必写日志】 / L2348 if empty_rounds>=2 -> 停机notice(问温度); L2356 else(首次) -> nudge+continue续跑(不发停机notice)
+
+【确定性契约层(test_empty_round 25/25全绿,刚重跑坐实)】
+  Test1锁『首轮纯思考->nudge续跑、用户无notice』(真实生产代码_agent_stream+finalize守卫+diag落盘,仅mock _llm_stream喂确定脚本)；Test2锁『同请求连续两轮->停机问温度』
+
+【真实端到端(真HTTP->真8099->真模型swift-15-iq3->真守卫->真diag落盘)】
+  session e2e-planA-anchor-1793390664(temp=0.3):真HTTP进真代码跑出工具轮(round1 filesystem__list,round2 shell__exec)正常收尾;session e2e-anchor2-1793391130(默认温度1.0):2.1s正常答完。两次均无停机notice、以[DONE]正常收尾(量化模型对稳定任务不『只思考不落笔』,未自然触发纯思考轮)
+
+【历史streak分布佐证】
+  empty-round.jsonl 共69条全部streak=1、无一streak>=2 -> 绝大多数纯思考轮都是首轮即被救回、不需升级到停机,与方案A『首轮nudge续跑』设计意图一致(注:69条均在方案A生效前,反映老代码行为,作方向性佐证)
+
+【判定】方案A两链对齐生效:首次纯思考轮写empty-round(streak=1)后nudge续跑(无停机notice),仅连续两轮才停机问温度。契约层25/25绿+代码判定链实读=坐实;真实端到端证明真代码路径跑通。
+
+【诚实边界:真实HTTP两次都没自然触发纯思考轮(量化模型对这类任务稳定产出),无法从真实行为日志直接抓到『纯思考轮->nudge->续跑』这一跳。该跳唯一可控的确定性证据=契约层25/25全绿(真实生产代码路径,仅喂确定脚本)。】
+
+
+
+============================================================
+第四层证据（本轮新增，真进程端到端，测试实跑 PASSED）
+============================================================
+【测试】tests/test_empty_round_e2e.py（已登记进 run_tests.py 显式 SUITES 清单）
+  脚手架=真 subprocess 网关(--agent 模式) + 真 HTTP + 假上游喂确定序列(无 mock _llm_stream，生产代码不改动)。
+  确定序列：request1=纯思考轮(reasoning→finish=stop，无正文无工具) / request2=nudge 换来的真答("All done.")。
+  隔离：STRATA_EMPTY_ROUND_DIR 指向测试专用目录，绝不打真实 logs/empty-round.jsonl。
+
+【实测通过的四条断言（坐实『纯思考轮→nudge→续跑』这一跳）】
+  1. 首次纯思考轮被自动 nudge：用户侧无停机 notice（仅 1 次空轮，未达 streak>=2 停机线）。
+  2. 假上游被打到第 2 次 = 守卫真 continue 续跑（这是 plan A 缺席即失败的可证伪判定点：
+     无 plan A 则首轮直接 break 到 [DONE]，假上游永不被打第 2 次）。
+  3. 第 2 次 forwarded body 真带 nudge 指令作 user 轮 + 思考作 assistant 轮
+     （与 http_server.py L2361-2364 原文逐字比对，证明 continue 按方案 A 精确重建 messages）。
+  4. 首次纯思考轮仍写 empty-round.jsonl 且 empty_streak=1（diag 在 if/else 之前，铁证走的是
+     nudge+continue 链而非 >=2 停机链）；以 [DONE] 正常收尾、无 fatal error。
+
+【判定升级】此前『真实 HTTP 行为不可控触发纯思考轮』导致最后一跳只能停在契约层 25/25 绿。
+  现用假上游喂确定序列把这一跳变成可控可证伪：真进程 + 真 HTTP + 真 finalize 守卫实跑 PASSED，
+  三层证据链补全为四层闭合——代码层(读实判定链) + 契约层(test_empty_round 25/25) +
+  真实端到端(真模型行为跑通真代码路径) + 真进程确定序列端到端(本测试,可证伪铁证)。

@@ -132,6 +132,7 @@ SUITES = [
     "tests/test_loop_finalize_resume.py",  # 2026-10-25: loop.py finalize-branch resume (the 8099 agent chain), driven through the real AgentLoop + shared toolcall_parse discriminators
     "tests/test_turn_budget.py",
     "tests/test_empty_round.py",
+    "tests/test_empty_round_e2e.py",   # 2026-10-31: plan-A nudge guard REAL subprocess + REAL HTTP (fake upstream feeds round1-thinking / round2-answer); closes the last mile test_empty_round could only prove at the contract layer (falsifiable: upstream hit 2x + nudge user-turn + streak=1 diag)
     "tests/test_turn_guard.py",
     "tests/test_narration_guard.py",
     "tests/test_adversarial_llm.py",
