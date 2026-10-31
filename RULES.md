@@ -139,3 +139,4 @@ RULES.md 单行拆 commit 法：构造 index=HEAD+目标行（脚本写盘→git
 git stash drop 只认 stash@{N} 索引、不吃裸SHA（用SHA报'not a stash reference'）；批量删多条须从后往前反向删(stash@{高}→stash@{低})防索引移位误删
 test_model_live.mjs 是手动 live 测试（不在 run_tests 套件），用例写死假设 selected=local(iq3_xxs)；当真实 selected=custom 时它会因「dot期望on实际na」而红，属用例假设与配置耦合，非代码回归——判断此类红须做 stash 差分坐实基线同样红。
 精准改含中文的配置/前端文件前，先 dry-run 确认锚点精确命中恰好1次，再 apply，并跑对应门禁（i18n 中英键数必须成对增长）坐实不破绿。
+含中文的 README 追加必须「写脚本→读回逐字核对用字→错字立即锚点修正→numstat 验行尾」四步串行，本次靠读回抓到 3 处手打字面错字（工件/巻化/后套），验证了此铁律是防错唯一闸
