@@ -907,16 +907,22 @@ function stripToolCallScaffolding(text) {
   if (!touched) return src;                                      // nothing matched -> original
   return lines.join("\n");
 }
-function blocks(text) {
+function blocks(text, inlineFlow) {
   text = stripToolCallScaffolding(text);
   const out = [], lines = text.split("\n");
   let para = [], list = null;
-  const flushPara = () => { if (para.length) out.push(`<p>${para.map(inline).join("<br>")}</p>`); para = []; };
+  // inlineFlow (the mixed text+image bubble path): paragraphs stay INLINE -- content is joined
+  // with <br> and gets no block wrapper, so a message the user typed as ONE line renders as
+  // one line with the thumbnail sitting in the text flow, and a message typed with real
+  // newlines breaks exactly where the user broke it (a blank line counts as one break).
+  // Non-inlineFlow callers (every other path) stay on the old <p>-block layout.
+  const wrapP = (inner) => (inlineFlow ? inner : `<p>${inner}</p>`);
+  const flushPara = () => { if (para.length) out.push(wrapP(para.map(inline).join("<br>"))); para = []; };
   const flushList = () => { if (list) out.push(`<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; };
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     let m;
-    if (!l.trim()) { flushPara(); flushList(); continue; }
+    if (!l.trim()) { flushPara(); flushList(); if (inlineFlow && out.length) out.push("<br>"); continue; }
     if ((m = l.match(/^(#{1,6})\s+(.*)$/))) { flushPara(); flushList(); out.push(`<${m[1].length <= 2 ? "h3" : "h4"}>${inline(m[2])}</${m[1].length <= 2 ? "h3" : "h4"}>`); continue; }
     if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)) { flushPara(); flushList(); out.push("<hr>"); continue; }
     if ((m = l.match(/^>\s?(.*)$/))) { flushPara(); flushList(); out.push(`<blockquote>${inline(m[1])}</blockquote>`); continue; }
@@ -944,12 +950,12 @@ function blocks(text) {
   flushPara(); flushList();
   return out.join("");
 }
-function markdown(text) {
+function markdown(text, inlineFlow) {
   let html = "", rest = text;
   for (;;) {
     const m = rest.match(/(^|\n)```([^\n`]*)\n/);
-    if (!m) { html += blocks(rest); break; }
-    html += blocks(rest.slice(0, m.index));
+    if (!m) { html += blocks(rest, inlineFlow); break; }
+    html += blocks(rest.slice(0, m.index), inlineFlow);
     rest = rest.slice(m.index + m[0].length);
     const end = rest.match(/(^|\n)```[ \t]*(\n|$)/);
     if (!end) { html += codeBlock(m[2].trim(), rest); break; }         // still streaming
@@ -2059,17 +2065,27 @@ function msgEl(m, i) {
     b.className = "st-bubble";
     const mseg = mixedSegments(m);
     if (mseg) {
-      // placeholders present: lay text and images out interleaved, exactly where the user placed them
+      // placeholders present: lay text and images out interleaved, exactly where the user placed
+      // them -- INCLUDING their newlines. The whitespace at a segment boundary is what the
+      // placeholder anchor stood for: a real newline there becomes a <br> between the nodes,
+      // a spaces-only junction keeps everything on the SAME line (single line in -> one line out).
+      let _prevSeg = null;
       for (const sg of mseg) {
+        if (_prevSeg) {
+          const _ws = (sg.type === "image" ? "" : (sg.text.match(/^\s*/) || [""])[0])
+                    + (_prevSeg.type === "image" ? "" : ((_prevSeg.text.match(/\s*$/) || [""])[0]));
+          if (_ws.indexOf("\n") >= 0) b.appendChild(document.createElement("br"));
+        }
         if (sg.type === "image") {
           const img = document.createElement("img");
           img.src = sg.url; img.alt = sg.name || "image"; img.className = "inline-msg-img"; img.title = t("img.view");
           b.appendChild(img);
         } else {
           const span = document.createElement("span");
-          span.innerHTML = markdown(sg.text);
+          span.innerHTML = markdown(sg.text, true);
           b.appendChild(span);
         }
+        _prevSeg = sg;
       }
     } else {
       b.textContent = m.text;
