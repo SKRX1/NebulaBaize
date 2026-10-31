@@ -5609,7 +5609,7 @@ async function executeSpark(id) {
   renderSpark();
   toast("success", t("spark.sent.toast"));
   showTab("chat");
-  await sendUserMessage(s.text, id);
+  const _push = sparkToPush(s); await sendUserMessage(_push.text, id, _push.images);
 }
 
 // Called after a spark's turn finishes: stamp the outcome. On failure we auto-retry
@@ -5626,7 +5626,7 @@ async function markSparkExecuted(sparkId) {
       setSparks(arr);
       renderSpark();
       toast("warn", t("spark.retry.toast", { n: s.retries }));
-      await sendUserMessage(s.text, sparkId);   // busy is null now → immediate resend
+      const _push = sparkToPush(s); await sendUserMessage(_push.text, sparkId, _push.images);   // busy is null now → immediate resend
       return;
     }
     s.status = "error";
@@ -5650,7 +5650,7 @@ async function drainSparkQueue() {
   for (const s of queued) { s.status = "sent"; s.sentAt = Date.now(); }
   setSparks(arr);
   renderSpark();
-  for (const s of queued) await sendUserMessage(s.text, s.id);
+  for (const s of queued) { const _push = sparkToPush(s); await sendUserMessage(_push.text, s.id, _push.images); }
   toast("success", t("spark.sent.toast"));
 }
 
@@ -5714,13 +5714,32 @@ function saveSparkEdit(id, html, tags) {
   renderSpark();
 }
 
+// Push a stored spark into chat: its images live ONLY in s.html (paste lands them as a data-pid anchor + img). When the body carries such anchored images with a live src, extract them and rebuild the text WITH [img:pid] anchors so mixedSegments/serialize/bubble/modal all keep the picture; a spark with no real (anchored, src-valid) image pushes as plain text exactly as before (no markup leaks).
+function sparkToPush(s) {
+  const html = (s && s.html) || "";
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  const nodes = d.querySelectorAll("[data-pid]");
+  const images = [];
+  nodes.forEach((node) => {
+    const pid = node.getAttribute("data-pid");
+    const img = (node.tagName === "IMG") ? node : node.querySelector("img");
+    const src = img && img.getAttribute("src");
+    if (!src) return;   // sanitizer stripped an unsafe src: nothing to send
+    const name = node.getAttribute("title") || node.getAttribute("alt") || (img && (img.getAttribute("alt") || img.getAttribute("title"))) || "image";
+    images.push({ pid: pid, url: src, name: name });
+  });
+  if (!images.length) return { text: sparkHtmlToText(html) || ((s && s.text) || "").trim(), images: [] };
+  return { text: ceTextFromDom(d).trim(), images: images };
+}
 // Send arbitrary text as a user message into the current chat (shared by spark exec).
 // When sparkId is given, the turn's outcome is written back to that spark afterwards.
-async function sendUserMessage(text, sparkId) {
+async function sendUserMessage(text, sparkId, images) {
   if (busy) return false;
   text = (text || "").trim();
-  if (!text) return false;
-  messages.push({ role: "user", text, images: [], files: [], time: Date.now() });
+  const imgs = images || [];
+  if (!text && !imgs.length) return false;
+  messages.push({ role: "user", text, images: imgs, files: [], time: Date.now() });
   ceSetText($("input"), "");
   await streamAssistant();
   if (sparkId) await markSparkExecuted(sparkId);
