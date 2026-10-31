@@ -716,6 +716,15 @@ def _is_vision_failure(err) -> bool:
                               or "decode" in t or "invalid image" in t))
 
 
+def _except_vision_resend(e, msg, budget_left: bool) -> bool:
+    """[VISION-DEGRADE 2026-10-31] The HTTP-400 path: the engine refuses the request so the
+    error arrives as an EXCEPTION from _llm_stream, not as an SSE data chunk the inner-loop
+    predicate can see. Decide whether THIS 400 is a vision failure we recover by re-sending
+    with image blocks as text. Narrow: context-overflow 400s and generic 400s never hijack."""
+    return (isinstance(e, UpstreamHTTPError) and e.status == 400
+            and budget_left and _is_vision_failure(msg))
+
+
 def tool_failure_text(err, tool: str) -> str:
     """Turn a raised tool failure into a result the MODEL can act on.
 
@@ -2338,6 +2347,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
                                text="上下文已超出模型上下文窗口，上游拒绝生成。"
                                     "请开启自动压缩或发送 /compact 精简历史后点「继续」。")
                         break
+                    if _except_vision_resend(e, msg, not vision_degraded):
+                        messages = _degrade_image_blocks(messages)
+                        vision_degraded = True
+                        continue                 # [VISION-DEGRADE] re-send once, image blocks now text
                     sse({"error": {"message": f"upstream error: {e}"}})
                     break
 

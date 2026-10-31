@@ -64,5 +64,37 @@ check("text-only unchanged", _degrade(plain), plain)
 strc = [{"role": "user", "content": "plain string"}]
 check("string-content unchanged", _degrade(strc), strc)
 
+# ---- DIFFERENTIAL GATE: the HTTP-400 exception path wiring (2026-10-31) ----
+# The engine refuses an undecodable image, so it arrives as an UpstreamHTTPError
+# EXCEPTION (not an SSE data chunk). _except_vision_resend is the branch predicate.
+class _UpErr(Exception):
+    def __init__(self, status, reason="", detail=""):
+        self.status = status; self.reason = reason or ""; self.detail = detail or ""
+        super().__init__(("HTTP %d: %s %s" % (status, self.reason, self.detail)).strip())
+
+ns2 = {"_is_vision_failure": _is_vf, "UpstreamHTTPError": _UpErr}
+g2 = re.search(r"^def _except_vision_resend\(.*?(?=^def |\Z)", SRC, re.S | re.M)
+if not g2:
+    raise SystemExit("helper not found: _except_vision_resend")
+exec(compile(g2.group(0), "<grab2>", "exec"), ns2)
+verdict = ns2["_except_vision_resend"]
+
+# REAL engine string from the live probe (the image could not be read)
+REAL = 'upstream error: HTTP 400: Bad Request {"error": {"type": "invalid_request_error", "message": "the image could not be read (cannot identify image file)"}}'
+CO   = _UpErr(400, "Bad Request", '{"error": {"message": "the image could not be read (cannot identify image file)"}}')
+
+# positive: real engine 400 + budget available -> fires the degrade resend
+check("D1 real-engine 400 fires resend", verdict(CO, REAL, True), True)
+# differential: SAME shape but budget spent -> must NOT fire again (exactly-once lock)
+check("D2 budget spent stays quiet", verdict(CO, REAL, False), False)
+# guard: a context-overflow 400 must NOT be hijacked by the vision path
+COV = _UpErr(400, "Bad Request", '{"error": {"message": "request exceeds the context window"}}')
+check("D3 context-overflow not hijacked", verdict(COV, str(COV), True), False)
+# guard: a generic 400 (no image wording) stays a plain error
+CG = _UpErr(400, "Bad Request", '{"error": {"message": "internal server error"}}')
+check("D4 generic 400 stays plain", verdict(CG, str(CG), True), False)
+# guard: a non-400 exception (e.g. 500) must not fire
+check("D5 non-400 never fires", verdict(_UpErr(500, "Server Error", REAL), REAL, True), False)
+
 print("\nTOTAL FAILS:", fails)
 sys.exit(1 if fails else 0)
