@@ -93,5 +93,24 @@ check("removePlaceholder clears that tag again", (() => {
   return !doc.getElementById("input").textContent.includes("[img:42]");
 })());
 
+// --- A1 race-condition lock: DOM node + array entry must land BEFORE the upload await --------
+// The bug: pasteImageToRich() pushed to the array and inserted the inline-DOM node only AFTER
+// `await fetch(api/images/upload)` returned. A send/re-generate that fired the instant you pasted
+// (before the slow upload came back) saw an empty array + no [img:N] anchor and dropped the image
+// from the bubble. A1 lands them synchronously; the upload is now a background ref upgrade. This
+// static lock pins that ordering so it can never regress back behind the await.
+const _lines = src.split(/\r?\n/);
+const _start = _lines.findIndex((l) => l.includes("async function pasteImageToRich"));
+let _end = _start + 1;
+while (_end < _lines.length && !/^(async\s+)?function\s/.test(_lines[_end])) _end++;
+const _body = _lines.slice(_start, _end);
+const _lineIdx = (needle) => { const j = _body.findIndex((l) => l.includes(needle)); return j < 0 ? Infinity : j; };
+const _upload = _lineIdx("api/images/upload");
+const _dom = Math.min(_lineIdx("execCommand"), _lineIdx("appendChild"));
+const _push = _lineIdx("push(entry)");
+check("A1: paste DOM node lands BEFORE the upload await", _dom < _upload);
+check("A1: paste array entry lands BEFORE the upload await", _push < _upload);
+check("A1: upload is the LAST step (background best-effort, never gates the paste)", _upload > Math.max(_dom, _push) && _upload < Infinity);
+
 console.log("\nREGRESSION: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);

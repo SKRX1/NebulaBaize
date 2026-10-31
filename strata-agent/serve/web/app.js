@@ -5808,46 +5808,45 @@ async function pasteImageToRich(e, editable) {
   for (const f of files) {
     const reader = new FileReader();
     reader.onload = async () => {
-      const dataUrl = String(reader.result);
-      let src = dataUrl;
-      if (health.images) {
-        try {
-          const j = await (await fetch("api/images/upload", {method: "POST", headers: headers(true),
-            body: JSON.stringify({dataUrl, name: f.name || "pasted"})})).json();
-          if (j && j.ref) src = j.ref;
-        } catch (e) { /* offline fallback: keep base64 data URL */ }
-      }
-      // Insert ONE inline thumbnail at the caret, carrying its stable pid so ceText() can rebuild
-      // the [img:N] anchor from data-pid. Prefer the native command so undo history works; jsdom has
-      // no command so we fall back to appendChild. No separate visible text anchor is appended — the
-      // single visual representation is the thumbnail; storage/ordering is restored by ceText.
-      const _nm = f.name || "pasted";
-      const pid = attachNextPid();
-      if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
-        document.execCommand("insertHTML", false,
-          `<span class="ce-thumb" contenteditable="false" data-pid="${pid}" title="${esc(_nm)}"><span class="ce-thumb__box"><img class="inline-ce-img" src="${src}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span></span>`);
-      } else {
-        editable.appendChild(makeInlineThumb({ pid, url: src, name: _nm }, editable));
-      }
-      // Move the caret to AFTER the inserted chip (mirrors insertPlaceholder): the chip is atomic
-      // (contenteditable=false), so typing must land OUTSIDE it, not inside the hover button.
-      if (isCE(editable)) {
-        const chipNode = editable.querySelector('[data-pid="' + pid + '"]');
-        const sel = window.getSelection();
-        if (chipNode && sel && sel.removeAllRanges) {
-          const range = document.createRange(); range.setStartAfter(chipNode); range.collapse(true);
-          sel.removeAllRanges(); sel.addRange(range);
+        // A1: land the DOM node + the array entry SYNCHRONOUSLY, right when the local FileReader
+        // result is ready and BEFORE any network upload, so a send/re-generate that fires the instant
+        // you paste still has the [img:N] anchor (via data-pid) and the attachment to assemble from.
+        // The base64 data URL is the storage fallback; the slow upload below only UPGRADES it to a ref.
+        const dataUrl = String(reader.result);
+        const _nm = f.name || "pasted";
+        const pid = attachNextPid();
+        const entry = {kind: "image", url: dataUrl, name: _nm, pid};
+        if (document.queryCommandSupported && document.queryCommandSupported("insertHTML")) {
+          document.execCommand("insertHTML", false,
+            `<span class="ce-thumb" contenteditable="false" data-pid="${pid}" title="${esc(_nm)}"><span class="ce-thumb__box"><img class="inline-ce-img" src="${dataUrl}" alt="${esc(_nm)}" title="${esc(_nm)}"><button type="button" class="ce-thumb__x" data-delpid="${pid}" aria-label="${esc(t("attach.remove"))}">${icon("trash")}</button></span></span>`);
+        } else {
+          editable.appendChild(makeInlineThumb({ pid, url: dataUrl, name: _nm }, editable));
         }
-      }
-      const entry = {kind: "image", url: dataUrl, ref: src !== dataUrl ? src : undefined, name: f.name || "pasted", pid};
-      if (isComposer) {
-        attachments.push(entry);
-        renderAttachments();
-      } else {
-        editAttachments.push(entry);
-        renderEditAttachments();
-      }
-      autosize(editable);
+        // Move the caret to AFTER the inserted chip (the chip is atomic, so typing lands OUTSIDE it).
+        if (isCE(editable)) {
+          const chipNode = editable.querySelector('[data-pid="' + pid + '"]');
+          const sel = window.getSelection();
+          if (chipNode && sel && sel.removeAllRanges) {
+            const range = document.createRange(); range.setStartAfter(chipNode); range.collapse(true);
+            sel.removeAllRanges(); sel.addRange(range);
+          }
+        }
+        if (isComposer) { attachments.push(entry); renderAttachments(); }
+        else { editAttachments.push(entry); renderEditAttachments(); }
+        autosize(editable);
+        // best-effort: upgrade the stored base64 to a server ref in the BACKGROUND (never blocks the
+        // paste). The DOM node + array entry already exist, so send is race-free either way.
+        if (health.images) {
+          try {
+            const j = await (await fetch("api/images/upload", {method: "POST", headers: headers(true),
+              body: JSON.stringify({dataUrl, name: f.name || "pasted"})})).json();
+            if (j && j.ref) {
+              entry.ref = j.ref;
+              const chipImg = editable.querySelector('[data-pid="' + pid + '"] .inline-ce-img');
+              if (chipImg) chipImg.src = j.ref;
+            }
+          } catch (e) { /* offline: keep the base64 data URL as the source */ }
+        }
     };
     reader.readAsDataURL(f);
   }
