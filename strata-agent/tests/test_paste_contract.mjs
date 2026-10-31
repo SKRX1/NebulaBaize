@@ -112,5 +112,11 @@ check("A1: paste DOM node lands BEFORE the upload await", _dom < _upload);
 check("A1: paste array entry lands BEFORE the upload await", _push < _upload);
 check("A1: upload is the LAST step (background best-effort, never gates the paste)", _upload > Math.max(_dom, _push) && _upload < Infinity);
 
+// --- delete-button ALWAYS-VISIBLE lock (was hover-only by design 9bd6a3b; user feedback 2026-10-31 -> made permanent) ---
+// jsdom cannot compute CSS layout, so this is a STATIC source lock on the relaxed state: the .ce-thumb__x rule MUST default to a visible display (grid), NOT display:none. If a future edit snaps it back to hover-only, this reds. The :hover row staying as grid is fine (it is a no-op enhancer now).
+const _thumbM = css.match(/\.ce-thumb__x \{[^\r\n]*\r?\n[^\r\n]*\}/); const _thumbRule = _thumbM ? _thumbM[0] : "";
+check("delete-button rule found", !!_thumbRule);
+check("delete button defaults to ALWAYS-VISIBLE (display grid, not hover-only)", !!_thumbRule && /display:\s*grid/.test(_thumbRule) && !/display:\s*none/.test(_thumbRule));
+
 console.log("\nREGRESSION: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);
