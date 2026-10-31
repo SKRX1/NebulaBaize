@@ -1104,6 +1104,9 @@ let branchSeq = branches.reduce((m, b) => Math.max(m, b.id || 0), 0);
 let liveMessages = null;              // stash of the live thread while a saved branch is being viewed
 let activeBranchId = store.get("activeBranch", null);
 let attachments = [];                 // {name, url}
+let pendingPastes = new Set();         // 2026-11: promises that RESOLVE once a paste's DOM node +
+// array entry have landed (before any upload). A send/confirmEdit that fires the instant you pasted
+// awaits these so the empty-array/empty-text guard never trips on a paste still mid-flight.
 let busy = null;                      // {controller, msg}
 // autonomous auto-drive (AI 自动续跑建议): chain bookkeeping so the feature can run on its own yet
 // always yield back to the human on demand.
@@ -5815,6 +5818,12 @@ async function pasteImageToRich(e, editable) {
   e.preventDefault();
   for (const f of files) {
     const reader = new FileReader();
+    // Register the gate BEFORE the async read starts: at send time pendingPastes is already
+    // populated even though onload has not fired yet, so send()/confirmEdit await it. onload
+    // resolves it the instant DOM + array land; the upload stays background (after resolve).
+    const _gate = new Promise((res) => { reader._landResolve = res; });
+    pendingPastes.add(_gate);
+    _gate.then(() => pendingPastes.delete(_gate));
     reader.onload = async () => {
         // A1: land the DOM node + the array entry SYNCHRONOUSLY, right when the local FileReader
         // result is ready and BEFORE any network upload, so a send/re-generate that fires the instant
@@ -5842,6 +5851,7 @@ async function pasteImageToRich(e, editable) {
         if (isComposer) { attachments.push(entry); renderAttachments(); }
         else { editAttachments.push(entry); renderEditAttachments(); }
         autosize(editable);
+        if (reader._landResolve) reader._landResolve();   // DOM + array are real now -> the paste gate is safe to send on
         // best-effort: upgrade the stored base64 to a server ref in the BACKGROUND (never blocks the
         // paste). The DOM node + array entry already exist, so send is race-free either way.
         if (health.images) {
@@ -6583,6 +6593,7 @@ async function send(human = true) {
   if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }   // the composer guard now speaks up, like the other 6 guards
   if (chunkedCompacting) return;   // chunked pre-compaction owns the transcript while it folds (kept silent: the auto path must not spam)
   if (human) { autoDriveDepth = 0; autoDriveAbort = false; showAutoDrivePill(false); autoResumeChain = 0; }  // a human turn starts a fresh chain
+  if (pendingPastes.size) await Promise.allSettled(pendingPastes);   // 2026-11: a paste still landing (DOM+array) must not read as empty here
   let text = ceText($("input"));
   reconcileArray($("input"));   // 方案1: the array is the source of truth for sending -- drop any chip the DOM no longer shows (browser-native Backspace bypasses our handler)
   // A chip selection on the newest answer plus whatever was typed in the composer go out TOGETHER as one
@@ -7528,11 +7539,12 @@ function makeDraggableCard(m){
 
 function closeEditModal() { const m = $("edit-modal"); if (m) m.hidden = true; editingIndex = -1; editAttachments = []; }
 
-function confirmEdit() {
+async function confirmEdit() {   // 2026-11: async so the modal paste gate can be awaited; sole caller is #edit-send.onclick (fire-and-forget)
   const i = editingIndex;
   if (i < 0) return;
   const m = $("edit-modal");
   const strategy = m.dataset.strategy || "hard";
+  if (pendingPastes.size) await Promise.allSettled(pendingPastes);   // 2026-11: same gate as composer send
   const newText = ceText(m.querySelector("#edit-area"));
   reconcileArray(m.querySelector("#edit-area"));   // 方案1: modal side, same source-of-truth rule as the composer
   const imgs = editAttachments.slice();   // capture BEFORE closeEditModal clears the modal list
