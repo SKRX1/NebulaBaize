@@ -239,11 +239,11 @@ main { flex: 1; min-height: 0; display: flex; }
 .st-bubble table { border-collapse: collapse; margin: 0 0 var(--st-s-3); font-size: var(--st-fs-md); }
 .st-bubble th, .st-bubble td { border: 1px solid var(--st-line); padding: 6px 10px; text-align: left; }
 .msg-images { display: flex; flex-wrap: wrap; gap: var(--st-s-2); justify-content: flex-end; }
-.msg-images img { max-width: 220px; max-height: 180px; border-radius: var(--st-r-md); border: 1px solid var(--st-line); cursor: zoom-in; }
+.msg-images img { width: 32px; height: 32px; object-fit: cover; border-radius: var(--st-r-md); border: 1px solid var(--st-line); cursor: zoom-in; }
 /* inline mixed text+image: an [img:N] placeholder renders the image at its spot in the prose,
    sized down so it reads as part of the sentence, not a full-width banner */
-.st-bubble .inline-msg-img { max-width: 200px; max-height: 160px; display: inline-block; vertical-align: middle;
-  margin: 4px 2px; border-radius: var(--st-r-md); border: 1px solid var(--st-line); cursor: zoom-in; }
+.st-bubble .inline-msg-img { width: 32px; height: 32px; object-fit: cover; display: inline-block; vertical-align: -0.18em;
+  margin: 0 0.12em; border-radius: var(--st-r-md); border: 1px solid var(--st-line); cursor: zoom-in; }
 .st-msg .st-collapse { width: 100%; }
 .st-collapse__body.thinking { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow-y: auto; }
 /* A thought: one collapsible segment per reasoning burst, sitting next to the calls it produced. Collapsed it
