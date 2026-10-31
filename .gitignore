@@ -91,6 +91,7 @@ patches/
 /Date.now()
 /,n.count('{s}'))
 /vision_test.html
+!/vision_test_shot.png
 /sample_small.html
 /_loop.txt
 /_loop2.txt
