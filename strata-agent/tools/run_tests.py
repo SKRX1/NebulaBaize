@@ -111,6 +111,7 @@ SUITES = [
     "tests/test_ce_text_extract.mjs",   # 2026-10-29: composer/edit-area contenteditable migration helpers (ceText/ceSetText/isCE/insertPlaceholder/removePlaceholder) boot as real functions + jsdom fallbacks produce correct results; differential positive(contenteditable)/negative(real textarea keeps .value)
     "tests/test_backspace_delete_chip.mjs",   # 2026-10-29: Backspace on a focused/adjacent/selection-covered inline chip removes it AND splices the array (source-of-truth differential, core invariant locked)
     "tests/test_chip_text_rescue.mjs",   # 2026-10-30: caret-dropped text inside a chip survives removeThumb; delete keeps text, delete button pins to fixed image via box wrapper
+    "tests/test_wire_image_url.mjs",   # 2026-10-31: OUTBOUND image wire format must stay a data URL on BOTH routes (anchor mixedSegments + fallback imgs.map) via one shared helper wireImageUrl; locks the ref-drop bug (engine got relative uploads/ path and dropped the image); differential positive(url+ref->data)/negative(ref-only->ref)
     # These three guard "which directory do relative paths resolve against". They existed
     # but were never registered, so the 2026-10-20 wrong-base bug shipped green.
     "tests/test_fs_workspace_base.py",

@@ -76,5 +76,31 @@ check("event handler on IMG is stripped, src kept (XSS net intact)", (() => {
   return /src="\/data\/uploads\/x\.png"/.test(out) && !/onerror/i.test(out);
 })());
 
+
+// --- 2026-10-31 differential: an inline thumbnail's DELETE BUTTON must survive sanitize -------
+// The inline-chip HTML the composer/edit-modal paste path builds. Before this fix BUTTON was
+// NOT in SPARK_HTML_ALLOW, so sanitizeHtml flattened the <button class="ce-thumb__x"> to its text
+// (the delete button vanished on any saved/repainted spark). It must now survive WITH its hooks.
+const CHIP = '<span class="ce-thumb" contenteditable="false" data-pid="7"><span class="ce-thumb__box">'
+  + '<img class="inline-ce-img" src="/data/uploads/x.png" alt="pasted" title="pasted">'
+  + '<button type="button" class="ce-thumb__x" data-delpid="7" aria-label="Remove"><svg class="st-icon"><use href="#i-trash"></use></svg></button>'
+  + '</span></span>';
+const cleanChip = api.sanitizeHtml(CHIP);
+check("delete BUTTON survives sanitize (the fix)", /<button[^>]*class="ce-thumb__x"/.test(cleanChip));
+check("button keeps its data-delpid hook (delete delegation intact)", /data-delpid="7"/.test(cleanChip));
+check("button keeps class + aria-label + type (styling/a11y intact)",
+  /class="ce-thumb__x"/.test(cleanChip) && /aria-label="Remove"/.test(cleanChip) && /type="button"/.test(cleanChip));
+check("sprite icon (svg/use #anchor) survives so the trash glyph renders", /<use[^>]*href="#i-trash"/.test(cleanChip));
+check("chip image still survives alongside the button", /<img[^>]*src="\/data\/uploads\/x\.png"/.test(cleanChip));
+
+// --- differential: XSS net STAYS intact on a button (event handlers must still be stripped) ----
+const CHIP_XSS = '<button class="ce-thumb__x" data-delpid="8" onclick="alert(1)" formaction="javascript:alert(2)">x</button>';
+const cleanXss = api.sanitizeHtml(CHIP_XSS);
+check("event handler on a surviving BUTTON is still stripped (XSS net intact)",
+  /<button/.test(cleanXss) && !/onclick/i.test(cleanXss));
+check("non-allow-listed attr (formaction) on button is stripped (XSS net intact)", !/formaction/i.test(cleanXss));
+check("USE href pointing OFF-SITE is stripped (only #fragment allowed)",
+  !/http/i.test(api.sanitizeHtml('<svg><use href="http://evil/x#i-trash"></use></svg>')));
+
 console.log("\nSPARK-IMAGE-SANITIZE: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);

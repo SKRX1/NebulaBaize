@@ -4076,14 +4076,14 @@ function apiMessages() {
         // placeholders present: emit text/image blocks in the order the user placed them (OpenAI
         // multimodal accepts any text<->image order). file attachments are appended as trailing text.
         const blocks = segs.map((sg) => (sg.type === "image"
-          ? {type: "image_url", image_url: {url: sg.url}}
+          ? {type: "image_url", image_url: {url: sg.wire}}
           : {type: "text", text: sg.text.trim()})).filter((b) => b.type === "image_url" || b.text);
         const fileTxt = (m.files || []).filter((f) => f.text != null).map(fileBlock).join("\n\n");
         if (fileTxt) blocks.push({type: "text", text: fileTxt});
         out.push({role: "user", content: blocks.length ? blocks : text});
       } else {
         out.push({role: "user", content: imgs.length ? [{type: "text", text},
-          ...imgs.map((i) => ({type: "image_url", image_url: {url: i.url}}))] : text});
+          ...imgs.map((i) => ({type: "image_url", image_url: {url: wireImageUrl(i)}}))] : text});
       }
     } else if (!(busy && busy.msg === m)) {            // the answer being asked for now is not history yet
       out.push(...assistantMessages(m));
@@ -5392,8 +5392,9 @@ function normalizeTags(v) {
 // --- Rich-text safety (M3 rich editor) ----------------------------------------
 // Allow-list sanitizer for user-authored spark notes. Strips every element not in
 // the list (scripts/styles/imgs/handlers) and every attribute except a safe href.
-const SPARK_HTML_ALLOW = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "DIV", "UL", "OL", "LI", "SPAN", "A", "IMG"]);   // 2026-10-28: IMG added so pasted/persisted spark images survive sanitizeHtml
+const SPARK_HTML_ALLOW = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "DIV", "UL", "OL", "LI", "SPAN", "A", "IMG", "BUTTON", "SVG", "USE"]);   // 2026-10-28: IMG added so pasted/persisted spark images survive sanitizeHtml; 2026-10-31: BUTTON/SVG/USE added so an inline thumbnail's delete button (and its sprite icon) survive sanitizeHtml instead of being flattened to text
 const SPARK_IMG_SRC = /^(https?:\/\/|data:image\/|\/data\/uploads\/|\/)/i;   // src scheme allow-list: reject javascript:, blob: (dead after reload), and protocol-relative//offsite
+const SPARK_ATTR_ALLOW = new Set(["class", "title", "alt", "aria-label", "type", "role"]);   // 2026-10-31: safe, non-executing attributes kept on surviving tags (the delete button needs class/data-delpid/aria-label/type); data-* also allowed; on* event handlers stay stripped
 function sanitizeHtml(html) {
   const root = document.createElement("div");
   root.innerHTML = html || "";
@@ -5401,7 +5402,7 @@ function sanitizeHtml(html) {
     for (const child of Array.from(node.childNodes)) {
       if (child.nodeType === 3) continue;            // text node: keep
       if (child.nodeType !== 1) { node.removeChild(child); continue; }
-      if (!SPARK_HTML_ALLOW.has(child.tagName)) {     // drop unsafe tag, keep its text
+      if (!SPARK_HTML_ALLOW.has(child.tagName.toUpperCase())) {     // drop unsafe tag, keep its text
         node.replaceChild(document.createTextNode(child.textContent), child);
         continue;
       }
@@ -5413,6 +5414,13 @@ function sanitizeHtml(html) {
           if (!SPARK_IMG_SRC.test((a.value || "").trim())) child.removeAttribute("src");
         } else if (child.tagName === "IMG" && (a.name === "alt" || a.name === "title")) {
           // the filename lives on the image as alt/title -> hover; safe plain text, keep it
+        } else if (child.tagName.toUpperCase() === "USE" && (a.name === "href" || a.name === "xlink:href")) {
+          // sprite icon reference: only an in-page fragment anchor (#i-trash) survives; a scheme
+          // that could reach off-site is stripped (the XSS net stays intact).
+          if (!/^#/.test((a.value || "").trim())) child.removeAttribute(a.name);
+        } else if (SPARK_ATTR_ALLOW.has(a.name) || /^data-/.test(a.name)) {
+          // structural/hook attributes on surviving tags (class/aria-label/type/role + data-*).
+          // event handlers (on*) are NOT in the allow-set, so they fall through to the strip below.
         } else {
           child.removeAttribute(a.name);
         }
@@ -7868,6 +7876,8 @@ function removePlaceholder(pid, target) {
 // Split a message into alternating text/image segments driven by [img:N] placeholders. images are
 // matched by their stable pid. Any image no placeholder references is appended at the END so nothing
 // is ever lost. null = no placeholders (caller keeps the old gallery layout).
+function wireImageUrl(a){ return a.url || a.ref || ""; }   // engine wire format: data URL first (the engine can resolve it); ref is render/persist-only
+
 function mixedSegments(m) {
   const imgs = (m.images || []).filter((a) => a && (a.url || a.ref));
   const byPid = {};
@@ -7881,12 +7891,12 @@ function mixedSegments(m) {
     hit = true;
     if (mm.index > last) segs.push({type: "text", text: text.slice(last, mm.index)});
     const a = byPid[mm[1]];
-    if (a && !used[a.pid]) { segs.push({type: "image", url: a.ref || a.url, name: a.name}); used[a.pid] = 1; }
+    if (a && !used[a.pid]) { segs.push({type: "image", url: a.ref || a.url, wire: wireImageUrl(a), name: a.name}); used[a.pid] = 1; }
     last = mm.index + mm[0].length;
   }
   if (!hit) return null;
   if (last < text.length) segs.push({type: "text", text: text.slice(last)});
-  for (const a of imgs) if (!used[a.pid]) segs.push({type: "image", url: a.ref || a.url, name: a.name});
+  for (const a of imgs) if (!used[a.pid]) segs.push({type: "image", url: a.ref || a.url, wire: wireImageUrl(a), name: a.name});
   return segs;
 }
 function addFiles(files, opts = {}, target) {
