@@ -158,6 +158,7 @@ SUITES = [
     "tools/_archive_gate.py",   # deterministic gate: archive write/read zero-loss + whitelist N=3 + default-on (locks the recoverable-archive design)
     "tests/test_ctx_denominator.py",   # 2026-10: the gateway denominator == the engine's real n_ctx (no 128K-vs-256K split)
     "tests/test_resident_retry.py",   # 2026-10-24: resident-contention vs true-overflow split (quiet retry, budget is one)
+    "tests/test_vision_degrade.py",  # 2026-10-31: [VISION-DEGRADE] pure-helper grab: image->text placeholder + narrow vision-failure predicate (pos/neg differential)
     "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)
     "tests/test_parallel_probe.py",   # 2026-10-30: plan-A tiered probe lands; locks this machine reproduces tests=7/recycle=4/batch=8 + differential (factors/caps MOVE the numbers) + env override highest
 ]

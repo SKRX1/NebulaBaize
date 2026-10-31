@@ -685,6 +685,36 @@ def _is_context_overflow(text: str) -> bool:
     return ("context window" in t or "exceeds the context window" in t
             or "request exceeds" in t or "never truncated" in t)
 
+def _degrade_image_blocks(messages):
+    """[VISION-DEGRADE 2026-10-31] Return a copy of `messages` with every image_url content
+    block replaced by a plain-text placeholder sentence, so a turn whose image the upstream
+    refused to decode (small quantized vision model) can be re-sent as text-only instead of
+    silently dropping the picture. Text blocks are kept; only image blocks become placeholder.
+    """
+    _PLACEHOLDER = "[图片无法被上游解析，已降级为纯文本重试]"
+    out = []
+    for m in messages:
+        c = m.get("content")
+        if isinstance(c, list):
+            newc = []
+            for b in c:
+                if isinstance(b, dict) and b.get("type") == "image_url":
+                    newc.append({"type": "text", "text": _PLACEHOLDER})
+                else:
+                    newc.append(b)
+            out.append({**m, "content": newc})
+        else:
+            out.append(m)
+    return out
+
+def _is_vision_failure(err) -> bool:
+    """True when an upstream error is specifically about an image it could not read/decode
+    (NOT a context-overflow or a generic failure) -- the trigger for the text-placeholder
+    single degrade resend. Kept narrow so it never hijacks a normal overflow/failed turn."""
+    t = str(err).lower()
+    return ("image" in t and ("could not be read" in t or "cannot read" in t
+                              or "decode" in t or "invalid image" in t))
+
 
 def tool_failure_text(err, tool: str) -> str:
     """Turn a raised tool failure into a result the MODEL can act on.
@@ -2172,6 +2202,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
             sse("[DONE]")
 
         overflow_retried = False     # one quiet resend budget for a resident-contention 400
+        vision_degraded = False      # [VISION-DEGRADE] one text-占位 resend budget when upstream rejects an image
+        vision_retry = False         # set by the inner consumer to trigger that single resend
         try:
             for rnd in range(1, self.state.max_rounds + 1):
                 turn_no[0] = rnd
@@ -2220,6 +2252,15 @@ class GatewayHandler(BaseHTTPRequestHandler):
                         if cancel.is_set():
                             break
                         touch()                    # tokens flowing = the turn is alive
+                        # [VISION-DEGRADE] upstream refused THIS image but the turn has one
+                        # text-占位 resend budget: swap image blocks for text and re-send, instead
+                        # of silently dropping the picture.
+                        if (data.get("error") and not vision_degraded
+                                and _is_vision_failure(data["error"])):
+                            messages = _degrade_image_blocks(messages)
+                            vision_degraded = True
+                            vision_retry = True
+                            break
                         _ch = (data.get("choices") or [{}])[0]
                         if _ch.get("finish_reason"):
                             # "length" = THIS ROUND ran out of output budget (not the turn). It has
@@ -2302,6 +2343,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
                 if cancel.is_set():
                     break
+
+                if vision_retry:
+                    vision_retry = False
+                    continue                 # [VISION-DEGRADE] re-send once with image blocks as text
 
                 calls = [t for t in acc["tool_calls"] if t.get("function", {}).get("name")]
                 capped = acc.get("finish") == "length"          # this round hit out_cap
