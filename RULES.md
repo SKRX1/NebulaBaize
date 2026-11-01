@@ -142,3 +142,5 @@ test_model_live.mjs 是手动 live 测试（不在 run_tests 套件），用例�
 含中文的 README 追加必须「写脚本→读回逐字核对用字→错字立即锚点修正→numstat 验行尾」四步串行，本次靠读回抓到 3 处手打字面错字（工件/巻化/后套），验证了此铁律是防错唯一闸
 contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 isCE(el)（认 contenteditable=true/DIV），只写 id/tagName===TEXTAREA 会漏整个 contenteditable 家族导致打字键被吞。
 收尾轮自检裁决A-vs-B（2026-10-23 拍板）：每轮都必须独立成行落笔真围栏块；本轮若在等用户拍板，不得整块漏发围栏——用蓝档(等你确认)作停等闸，绿/黄只填被误跑也无害的动作。此条裁决推翻「停等轮不出建议条以防自我复读」旧读法(规则B旧解)。
+收尾/选择条漏发的机制层兜底乙（已落地门禁锁）：renderNextSteps 的无-chips 分支——本轮回填了全勾 plan 或有未处置决策卡却无 chips 时画最小 info 提醒，纯空 steps 仍隐藏（不破坏既有 hidden-on-empty 门禁），把"漏发不再纯押模型自律"从行为约定升级为可验证机制。
+filesystem__write 只能写 allowed roots 内的路径；给被驱动脚本准备的探针/临时件应由脚本自己写盘（Python tempfile 或工作区根内相对路径），不要经由 filesystem_write 写到沙箱外绝对路径（如 C:\Users\sk），否则报 path escapes sandbox root
