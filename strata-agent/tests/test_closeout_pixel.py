@@ -38,6 +38,7 @@ import subprocess
 import sys
 import tempfile
 import zlib
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(HERE, "servers"))
@@ -61,6 +62,10 @@ SCENES = {
 # the blank control must carry fewer than this (real layout of a visible reminder is >> this)
 CONTENT_MIN = 80
 BLANK_MAX = 40
+
+# Parallelism cap: workers = min(#scenes, cpu_count, PARALLEL_CAP). Each scene is an
+# independent cold browser launch in its OWN profile, so they parallelise cleanly.
+PARALLEL_CAP = 8
 
 
 # ---- pure-stdlib PNG decoder (8-bit RGB/RGBA, non-interlaced, filters 0-4) ---------------
@@ -148,10 +153,12 @@ def main() -> int:
         if line.startswith("jsdom"):
             print("  " + line)
 
-    profile = tempfile.mkdtemp(prefix="pxprof_")
     results = {}
     fails = []
-    for scene in SCENES:
+    def run_scene(scene):
+        # per-scene profile: Chromium locks ONE profile per process, so parallel scenes must
+        # not share one (the same lesson that made each scene already use its own profile).
+        profile = tempfile.mkdtemp(prefix="pxprof_")
         snap = os.path.join(work, "snap_%s.html" % scene)
         url = "file:///" + snap.replace("\\", "/")
         out, _ = bs._run_capture([browser, *bs.BASE_FLAGS, "--user-data-dir=" + profile,
@@ -162,7 +169,15 @@ def main() -> int:
         bs._run_capture([browser, *bs.BASE_FLAGS, "--user-data-dir=" + profile, "--timeout=8000",
                          "--window-size=900,500", "--hide-scrollbars",
                          "--screenshot=" + png, url], timeout=45, cwd=HERE)
-        results[scene] = (probe, pixel_stats(png), png)
+        return scene, (probe, pixel_stats(png), png)
+
+    # Auto-scale: workers = min(#scenes, cpu_count, cap). I/O-bound (waiting on child processes),
+    # so the GIL is released and the cold launches truly overlap. With only 3 scenes the cap
+    # never binds today -- it exists so a future scene increase scales up automatically.
+    workers = max(1, min(len(SCENES), os.cpu_count() or 1, PARALLEL_CAP))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for scene, res in ex.map(run_scene, list(SCENES)):
+            results[scene] = res
 
     # differential assertions (both sides of every boundary locked)
     for scene, (exp_box, exp_rem) in SCENES.items():
