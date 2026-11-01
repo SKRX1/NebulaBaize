@@ -145,3 +145,4 @@ contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 
 收尾/选择条漏发的机制层兜底乙（已落地门禁锁）：renderNextSteps 的无-chips 分支——本轮回填了全勾 plan 或有未处置决策卡却无 chips 时画最小 info 提醒，纯空 steps 仍隐藏（不破坏既有 hidden-on-empty 门禁），把"漏发不再纯押模型自律"从行为约定升级为可验证机制。
 filesystem__write 只能写 allowed roots 内的路径；给被驱动脚本准备的探针/临时件应由脚本自己写盘（Python tempfile 或工作区根内相对路径），不要经由 filesystem_write 写到沙箱外绝对路径（如 C:\Users\sk），否则报 path escapes sandbox root
 门禁表锚串行链「绿→打tag→推锚→纯文档登记」里，若某轮真跑绿 commit 当时未及时把门禁表锚列对齐到该轮 tag，下一次真跑绿轮须把门禁表锚值统一推到最新真跑绿 tag 并在登记条注明「统一推进行为」，避免锚值滞后于实际链尾
+执行记忆里记录的历史动作前先按磁盘真值确认文件是否还在（已退役脚本读必报 does not exist）
