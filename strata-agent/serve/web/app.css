@@ -861,6 +861,7 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .next-steps__sub { width: 100%; font-size: var(--st-fs-xs); color: var(--st-ink-muted); margin-top: -3px; }
 /* the chips row inside a group: wraps horizontally under the header */
 .next-steps__chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.next-steps__reminder { display: inline-flex; flex-direction: column; gap: 4px; color: var(--st-info); font-style: italic; font-size: 13px; line-height: 1.5; }
 
 /* 推荐建议 group — green accent system (the "do this" tier) */
 .next-steps__group--rec .next-steps__title { color: var(--st-accent-text); }

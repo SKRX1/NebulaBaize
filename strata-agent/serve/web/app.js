@@ -2595,7 +2595,21 @@ function renderNextSteps(el, m) {
     box.innerHTML = html;
     syncStepsSendLabel();                          // reflect typed text ("+ 自定义") right away
   } else {
-    box.hidden = true;
+    // closing-out backstop (B): this turn declared it is done (all-ticked plan)
+    // or is waiting on a decision (a live proposal card) yet has no chips -- draw a
+    // minimal reminder so a missed fence is VISIBLE, not purely down to model
+    // self-discipline. A plain empty-steps turn with none of these signals stays
+    // hidden, which keeps the existing hidden-on-empty gates green.
+    const closing = (m.plan && m.plan.length && m.plan.every((p) => p.done)) ||
+      ((m.proposals || []).some((p) => !p.dismissed));
+    if (closing) {
+      box.hidden = false;
+      box.innerHTML = `<span class="next-steps__reminder">` +
+        `<span class="next-steps__reminder__t">${esc(t("nextsteps.closeoutremind.title"))}</span>` +
+        `<span class="next-steps__reminder__s">${esc(t("nextsteps.closeoutremind.sub"))}</span></span>`;
+    } else {
+      box.hidden = true;
+    }
   }
 }
 

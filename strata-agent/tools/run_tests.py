@@ -133,6 +133,7 @@ SUITES = [
     "tests/test_proposal_tier.mjs",     # 2026-10-20: 决策卡推荐选项绿档 + 推荐徽标 + 主/幽灵按钮分档
     "tests/test_suggestion_tiers.mjs",  # 2026-10-20: 建议三档（推荐/可选/不推荐）解析+渲染+proposal+i18n
     "tests/test_format_fence_differential.mjs",  # 2026-10-23: FORMAT-ROOT-CAUSE differential gate (inline-mention->0 chips vs standalone fence->4 chips, four tier groups)
+    "tests/test_closeout_backstop.mjs",   # 2026-11-02: closing-out backstop (B mechanism) -- all-ticked plan OR live decision card + empty steps -> minimal reminder visible; plain empty stays hidden (keeps hidden-on-empty gates green); differential A/B/C/D + i18n pair
     "tests/test_code_style.mjs",        # 2026-10-20: 代码块语法高亮 + 思考区围栏渲染成真代码卡片
     "tests/test_shell_timeout.py",
     "tests/test_shell_utf8_trim.py",   # 2026-10-26: shell output byte-boundary UTF-8 trim (no mojibake)
