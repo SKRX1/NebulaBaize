@@ -172,6 +172,7 @@ SUITES = [
     "tests/test_vision_degrade.py",  # 2026-10-31: [VISION-DEGRADE] pure-helper grab: image->text placeholder + narrow vision-failure predicate (pos/neg differential)
     "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)
     "tests/test_parallel_probe.py",   # 2026-10-30: plan-A tiered probe lands; locks this machine reproduces tests=7/recycle=4/batch=8 + differential (factors/caps MOVE the numbers) + env override highest
+    "tools/_orphan_chain_gate.py",   # 2026-11-02: post-green hook leaves HEAD detached -> a pure-doc register commit lands on it as an ORPHAN (master unmoved); live probe locks HEAD==master-tip on-branch, differential builds a REAL orphan and proves the predicate catches it (red on the drift)
 ]
 
 
