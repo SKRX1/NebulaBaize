@@ -9258,3 +9258,32 @@ if ($("recycle-bin")) $("recycle-bin").addEventListener("click", async (e) => {
   if (typeof toast === "function") toast(j && j.restored && j.restored.length ? t("recycle.restored") : t("recycle.restorefail"));
   renderRecycle();
 });
+
+// ---- ROOT-CAUSE A migration (2026-11-01, one-time, idempotent) -------------
+// Historical spark notes (created before the data-pid inline-thumbnail anchor existed) store
+// their image as a BARE img (valid src, NO data-pid anchor) in s.html. The list renders it fine
+// via innerHTML, but sparkToPush only counts [data-pid] anchors, so such a note pushes text-only
+// and the chat bubble drops the image (the reported "list shows, bubble drops" bug). We add the
+// missing data-pid anchor to each bare img (sparkToPush accepts data-pid directly on an IMG),
+// so the anchor is present and the bubble re-attaches. Purely additive: it changes nothing about
+// notes that already have the anchor. Runs once at boot; re-running on already-migrated notes is
+// a no-op. Gate: tests/test_spark_datapid_migrate.mjs.
+function migrateSparkDataPid() {
+  const arr = getSparks();
+  let changed = 0;
+  for (const s of arr) {
+    if (!s || !s.html) continue;
+    const d = document.createElement("div");
+    d.innerHTML = s.html;
+    let n = 0;
+    d.querySelectorAll("img").forEach((img) => {
+      if (img.hasAttribute("data-pid") || (img.closest && img.closest("[data-pid]"))) return; // already anchored
+      n++;
+      img.setAttribute("data-pid", "mig" + n);   // unique within the note; sparkToPush accepts pid on an IMG
+    });
+    if (n) { s.html = d.innerHTML; changed++; }
+  }
+  if (changed) setSparks(arr);
+  return changed;
+}
+try { migrateSparkDataPid(); } catch (e) { /* localStorage read failed: skip migration this boot */ }
