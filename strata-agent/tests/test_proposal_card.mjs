@@ -156,6 +156,43 @@ console.log("PROPOSAL CARD:");
   check("p.savedFile recorded", p.savedFile === target);
 }
 
+// T7: differential lock for the streaming render crash (real bug-log stack hit
+// proposalCardHtml -> (o.pros||[]).map). A quantized model sometimes writes pros/cons as a
+// STRING; the old `|| []` guard returned that truthy string and .map threw EVERY frame.
+// Fix = Array.isArray gate (string -> one <li>, falsy -> empty). Three states must differ.
+{
+  // POS A -- the crash site: string pros/cons must NOT throw and must keep the content as a li.
+  const hostA = doc.createElement("div");
+  hostA.innerHTML = `<div class="proposals"></div>`;
+  const mA = { proposals: [{ id: "p7a", title: "StringPros", verified: false,
+    options: [{ label: "A", verdict: "", pros: "low risk only", cons: "needs test" }] }] };
+  let threwA = false;
+  try { api.renderProposals(hostA, mA); } catch (e) { threwA = true; console.log("   A-throw=" + (e && e.message)); }
+  check("T7 string pros/cons no throw", threwA === false);
+  check("T7 string content kept as li", hostA.querySelector(".proposals").innerHTML.includes("low risk only") && hostA.querySelector(".proposals").innerHTML.includes("needs test"));
+
+  // POS B -- array path must still render every entry (no regression from the gate).
+  const hostB = doc.createElement("div");
+  hostB.innerHTML = `<div class="proposals"></div>`;
+  const mB = { proposals: [{ id: "p7b", title: "ArrayPros", verified: false,
+    options: [{ label: "A", verdict: "", pros: ["pa1", "pa2"], cons: ["ca1"] }] }] };
+  let threwB = false;
+  try { api.renderProposals(hostB, mB); } catch (e) { threwB = true; }
+  check("T7 array pros/cons no throw", threwB === false);
+  const htmlB = hostB.querySelector(".proposals").innerHTML;
+  check("T7 array entries kept", htmlB.includes("pa1") && htmlB.includes("pa2") && htmlB.includes("ca1"));
+
+  // NEG C -- falsy/absent must stay empty (no li), and must not throw.
+  const hostC = doc.createElement("div");
+  hostC.innerHTML = `<div class="proposals"></div>`;
+  const mC = { proposals: [{ id: "p7c", title: "NoPros", verified: false,
+    options: [{ label: "A", verdict: "" }] }] };
+  let threwC = false;
+  try { api.renderProposals(hostC, mC); } catch (e) { threwC = true; }
+  check("T7 absent pros/cons no throw", threwC === false);
+  check("T7 empty cell has no li", !/<li>/.test(hostC.querySelector(".proposals").innerHTML));
+}
+
 // ---------- summary ------------------------------------------------------------
 console.log("");
 if (FAILURES.length) {

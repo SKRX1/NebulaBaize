@@ -2720,8 +2720,8 @@ function proposalCardHtml(p, gi) {
   if (p.options && p.options.length) {
     opts = `<table class="proposal__opts"><thead><tr><th>${esc(t("proposal.option"))}</th><th>${esc(t("proposal.verdict"))}</th><th>${esc(t("proposal.pros"))}</th><th>${esc(t("proposal.cons"))}</th><th></th></tr></thead><tbody>` +
       p.options.map((o, oi) => {
-        const pros = (o.pros || []).map((x) => `<li>${esc(x)}</li>`).join("");
-        const cons = (o.cons || []).map((x) => `<li>${esc(x)}</li>`).join("");
+        const pros = Array.isArray(o.pros) ? o.pros.map((x) => `<li>${esc(x)}</li>`).join("") : (o.pros ? `<li>${esc(o.pros)}</li>` : "");
+        const cons = Array.isArray(o.cons) ? o.cons.map((x) => `<li>${esc(x)}</li>`).join("") : (o.cons ? `<li>${esc(o.cons)}</li>` : "");
         // Mirror the next-steps three-tier scheme: verdict "推荐" -> green "do this" row (primary adopt);
         // verdict "不推荐" -> amber "caution" row (still adoptable, but warned); everything else stays neutral.
         const rec = !!o.verdict && (o.verdict === "推荐" || o.verdict === t("nextsteps.badge"));
