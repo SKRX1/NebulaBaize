@@ -8943,7 +8943,7 @@ function bindKbdHints() {
     if (e.key === "Escape") { toggleKbdHints(false); return; }
     if (e.key !== "?" || e.metaKey || e.ctrlKey) return;
     const ae = document.activeElement;
-    if (ae && (ae.id === "input" || ae.tagName === "TEXTAREA")) return;   // let "?" type normally
+    if (ae && (ae.id === "input" || ae.tagName === "TEXTAREA" || isCE(ae))) return;   // let "?" type normally (incl. contenteditable inputs)
     e.preventDefault();
     toggleKbdHints();
   });
