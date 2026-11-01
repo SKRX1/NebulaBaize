@@ -7201,7 +7201,16 @@ async function streamAssistant() {
       // root cause is the client crash, not a transport drop. Tag it so the debug
       // drawer shows the true cause instead of a misleading "连接中断".
       if (_dbg.errors.length) { m.clientError = true; m.rootCause = "client"; }
-      toast("error", t("toast.reqfailed.title"), m.error, 6000);
+      // A compact-request-overflow of this EXACT wording is OWNED by the pendingCompact branch
+      // below (it surfaces ONE accurate quiet notice and reroutes through the chunked path -- the
+      // escape hatch that works). Drawing the generic "request failed" red toast here too would
+      // DOUBLE-report it and put a scary banner on the path designed to be quiet. Keep m.error
+      // (the pendingCompact branch still reads it for its own match) but stay silent here; the
+      // pendingCompact branch is the single owner. A plain error (no pendingCompact) still draws
+      // the red toast -- differential control.
+      if (!(pendingCompact && /context window exceeded even when compacting/i.test(m.error))) {
+        toast("error", t("toast.reqfailed.title"), m.error, 6000);
+      }
     }
   } finally {
     clearInterval(liveTimer);
