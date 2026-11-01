@@ -3830,6 +3830,13 @@ function renderStats(el, m, streaming) {
   box._sig = sig;
   box.innerHTML = sig;
 }
+// A/B shared entry: force one live paint of the running turn NOW, bypassing the rAF scheduler (which the
+// browser pauses on hidden pages). No-op when nothing is streaming or the turn lives in a viewed-away session.
+function paintLive() {
+  if (!busy) return;
+  const el = liveMsgEl(busy.msg);
+  if (el) updateAssistant(el, busy.msg, true);
+}
 function renderChat() {
   const chat = $("chat");
   chat.querySelectorAll(".st-msg").forEach((e) => e.remove());
@@ -3837,6 +3844,7 @@ function renderChat() {
   messages.forEach((m, i) => chat.appendChild(msgEl(m, i)));
   scrollDown(true);
   renderBranchBar();
+  if (busy) paintLive();   // B: on switching back, paint immediately if a turn is live -- do not wait for the next rAF-scheduled chunk
 }
 let streamingFollow = true;            // while a turn streams, stick to the newest content
 function nearBottom() { const s = $("chat-scroll"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
@@ -7099,6 +7107,7 @@ async function streamAssistant() {
     if (el) renderStats(el, m, true);
     renderInspector();
     if (el) tickToolTimers(el, m);    // live "timeout-wait" countdown on running tool cards
+    if (el && document.hidden) updateAssistant(el, m, true);   // A: rAF is PAUSED on a hidden page, so the live session's body text would freeze; this 500ms timer paints it. Visible state: no change.
     if (streamingFollow && busy.sessionId === activeId) scrollDown();
     if (tab === "debug") { renderDebug(); renderGatewayDebug(); renderBugBox(); }   // live capture view: the debug page (tab) is showing
   }, 500);
