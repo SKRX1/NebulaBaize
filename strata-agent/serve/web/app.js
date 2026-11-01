@@ -7794,6 +7794,35 @@ function makeInlineThumb(entry, target) {
 }
 // Delegation: a delete button on any inline thumbnail (composer or edit modal). The button lives in
 // the DOM but the ARRAY is the source of truth for sending, so removal must drop the array entry too.
+// 2026-11-02: spark-note inline thumbnail delete. A spark image is ONLY ever in the stored s.html
+// string (paste lands it as a data-pid chip + img); the composer/modal arrays (attachments /
+// editAttachments) are NOT the source of truth for a stored spark. So when the chip sits inside a
+// spark item (has data-id) we drop the chip node and persist the box's remaining HTML back through
+// the existing saveSparkEdit path. The add-box is the only spark container whose live images ride in
+// the shared editAttachments runtime array, so it uses the array-splice path instead.
+function sparkThumbDelete(e) {
+  const btn = e.target.closest(".ce-thumb__x");
+  if (!btn) return;            // not one of our inline delete buttons: leave to the existing delegation
+  e.preventDefault(); e.stopPropagation();
+  const chip = btn.closest("[data-pid]");
+  if (!chip) return;
+  const box = chip.parentElement;   // the live box whose innerHTML we persist (.spark-item__text / .spark-edit-ta / #spark-add-input)
+  const item = chip.closest(".spark-item[data-id]");
+  if (item) {                       // stored spark (list preview / inline edit): source of truth is the stored s.html
+    chip.remove();
+    const tg = item.querySelector(".spark-edit-tags");
+    saveSparkEdit(item.dataset.id, box.innerHTML, tg ? tg.value : "");
+    return;
+  }
+  // add-box (not yet a stored spark): its live images ride in the shared editAttachments runtime array
+  const pid = chip.getAttribute("data-pid");
+  const idx = editAttachments.findIndex((a) => String(a.pid) === String(pid));
+  chip.remove();
+  if (idx >= 0) editAttachments.splice(idx, 1);
+  renderEditAttachments();
+  autosize(box);
+}
+
 function bindInlineThumbDelete() {
   const onClick = (e) => {
     const btn = e.target.closest(".ce-thumb__x");
@@ -7805,6 +7834,12 @@ function bindInlineThumbDelete() {
   if (inp) attachChipObserver(inp);
   const ea = $("edit-area"); if (ea && !ea._thumbBound) { ea.addEventListener("click", onClick); ea._thumbBound = true; }
   if (ea) attachChipObserver(ea);
+  // 2026-11-02: spark side. The composer/modal removeThumb arrays do NOT apply to the three spark
+  // containers (their images live in the stored s.html string), so spark chips get their OWN delete
+  // delegation routed through the spark data path. Bound once; spark-list already covers both the
+  // list preview (.spark-item__text) and the inline edit box (.spark-edit-ta) since both are inside it.
+  const sa = $("spark-add-input"); if (sa && !sa._thumbBound) { sa.addEventListener("click", sparkThumbDelete); sa._thumbBound = true; }
+  const sl = $("spark-list"); if (sl && !sl._sparkDelBound) { sl.addEventListener("click", sparkThumbDelete); sl._sparkDelBound = true; }
 }
 // Shared removal: the ARRAY is the source of truth for sending, so every delete path (hover
 // button click, Backspace on a focused/adjacent chip) MUST splice the array AND drop the DOM node
