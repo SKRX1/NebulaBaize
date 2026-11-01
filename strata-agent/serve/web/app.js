@@ -5434,9 +5434,12 @@ function sanitizeHtml(html) {
         } else if (child.tagName === "IMG" && (a.name === "alt" || a.name === "title")) {
           // the filename lives on the image as alt/title -> hover; safe plain text, keep it
         } else if (child.tagName.toUpperCase() === "USE" && (a.name === "href" || a.name === "xlink:href")) {
-          // sprite icon reference: only an in-page fragment anchor (#i-trash) survives; a scheme
-          // that could reach off-site is stripped (the XSS net stays intact).
-          if (!/^#/.test((a.value || "").trim())) child.removeAttribute(a.name);
+          // sprite icon reference: an in-page fragment anchor (#i-trash) survives; 2026-11-02 also
+          // accepts the in-page sprite file path (web/sprite.svg#...) because icon() emits exactly that
+          // href -- without it the delete-button <use> is emptied and the button becomes a dead shell
+          // after SAVE (the reported symptom). A scheme that could reach off-site is STILL stripped (XSS net intact).
+          const _useval = (a.value || "").trim();
+          if (!/^#/.test(_useval) && !/^web\/sprite\.svg#/i.test(_useval)) child.removeAttribute(a.name);
         } else if (SPARK_ATTR_ALLOW.has(a.name) || /^data-/.test(a.name)) {
           // structural/hook attributes on surviving tags (class/aria-label/type/role + data-*).
           // event handlers (on*) are NOT in the allow-set, so they fall through to the strip below.
