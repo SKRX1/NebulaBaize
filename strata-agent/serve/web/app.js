@@ -2357,6 +2357,27 @@ function thinkOpen(m, slot, live, isLatest) {
   if ((live || isLatest) && settings.show !== false) return true;  // the live thought and the latest message follow the show switch
   return false;                                                  // older turns stay folded
 }
+// Gate B (2026-11-04): the thought box is the only place a small quantised model's degenerate echo
+// shows up -- the SAME line emitted several times in a row. Fold a run of >=3 identical non-empty
+// lines to a single line, right before the paint, so a reader sees it once. A run of <3 is left
+// untouched, so a model that legitimately repeats a 1-2 line action stays verbatim. Pure string work
+// (no fence parsing here -- thinkRich handles fences after this); deterministic, input-determined output.
+function dedupeThink(src) {
+  const MIN_RUN = 3;
+  const lines = String(src || "").split("\n");
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const t = lines[i];
+    if (t.trim() === "") { out.push(t); i++; continue; }          // blank lines pass through untouched
+    let j = i;
+    while (j < lines.length && lines[j] === t) j++;                // exact-identical run only
+    if (j - i >= MIN_RUN) out.push(t);                             // fold the whole run to one line
+    else { for (let k = i; k < j; k++) out.push(lines[k]); }        // <3 identical: keep verbatim
+    i = j;
+  }
+  return out.join("\n");
+}
 // Thinking is mostly prose, but a model that is debugging pastes code into it — and a raw ```js dump in a
 // pre-wrap box is unreadable. Split the thought on fences and give each block the same .st-code card the
 // answer body uses (dark surface + language label + copy + highlighting); prose keeps its plain pre-wrap.
@@ -2387,7 +2408,7 @@ function paintThink(body, src, live) {
   body._at = performance.now();
   body._src = src;
   const keep = body.scrollTop;                            // never yank a reader back to the top
-  body.innerHTML = thinkRich(src);
+  body.innerHTML = thinkRich(dedupeThink(src));   // Gate B: fold >=3 identical lines before paint
   if (keep) body.scrollTop = keep;
 }function thinkHtml(src, slot) {
   return `<details class="st-collapse st-think" data-slot="${esc(slot)}" data-state="">` +

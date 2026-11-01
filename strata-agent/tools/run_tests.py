@@ -48,6 +48,7 @@ SUITES = [
     "tests/test_switch_busy_e2e.mjs",
     "tests/test_hidden_paint.mjs",   # 2026-11-03 gate A: hidden-page compensating paint, single-variable differential (only document.hidden differs)
     "tests/test_switchback_paint.mjs",   # 2026-11-03 gate B: switch-back immediate paint (viewed-away negative vs on-screen positive)
+    "tests/test_think_dedupe.mjs",   # 2026-11-04 gate B: paintThink routes through dedupeThink (>=3 identical lines fold, <3 verbatim, differential)
     "tests/test_edit_resend.mjs",
     "tests/test_edit_modal_images.mjs",     # 2026-10-24: edit-modal scope parametrization (dim2 image -> multimodal part) + hard-delete now undoable (dim3 differential)
 "tests/test_edit_modal_e2e.mjs",   # 2026-10-29: edit-modal E2E - paste image+type, delete-last-image, request side all agree after hard-delete+regenerate (locks editResend empty-list = real-delete-intent)
