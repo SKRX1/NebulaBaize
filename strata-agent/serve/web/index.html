@@ -88,7 +88,6 @@
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-info"/></svg><span data-i18n="tab.about">About</span></button>
   </nav>
   <span class="st-header__spacer"></span>
-  <span class="hw-chip" id="hw-chip" hidden title="" role="note" aria-live="off"></span>
   <span class="st-pill" id="pill" data-state="idle" role="status" aria-live="polite">
     <!-- 星云 working mark: one green core + five specks orbiting it. Its state, not its words,
          answers "is she working?" — bright & fast = generating, dim & frozen = 静止. -->
@@ -419,6 +418,7 @@
       <button class="db-subtab" role="tab" data-db="live" aria-selected="false" data-i18n="debug.tab.live">实时异常流</button>
       <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
       <button class="db-subtab" role="tab" data-db="recycle" aria-selected="false" data-i18n="debug.tab.recycle">垃圾回收</button>
+      <button class="db-subtab" role="tab" data-db="probe" aria-selected="false" data-i18n="hw.chip.title">Hardware probe</button>
     </div>
 
     <div class="bugbox-hero" id="bugbox-hero"></div>
@@ -494,6 +494,10 @@
       <div class="debug-list" id="recycle-list"></div>
       <div class="debug-list" id="recycle-bin" hidden></div>
       <div class="debug-list" id="recycle-audit" hidden></div>
+    </div>
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="probe">
+      <div class="req-head"><span class="card-title" data-i18n="hw.chip.title">Hardware probe</span></div>
+      <dl class="facts" id="hw-chip"></dl>
     </div>
   </div>
 </section>

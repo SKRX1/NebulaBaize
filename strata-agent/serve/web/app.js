@@ -6139,14 +6139,12 @@ function paintHwChip() {
   if (!hwChipData || !hwChipData.loads) { el.hidden = true; return; }
   const ld = hwChipData.loads;
   const V = (k) => (ld[k] && ld[k].value != null ? ld[k].value : "–");
-  const seg = (k, v) => '<span class="hw-chip__k">' + esc(t("hw.chip." + k)) + " </span>" +
-                        '<span class="hw-chip__v">' + esc(v) + "</span>";
+  const seg = (k, v) => '<dt>' + esc(t("hw.chip." + k)) + '</dt><dd>' + esc(v) + '</dd>';
   el.title = t("hw.chip.tooltip", { cores: hwChipData.cores, tests: V("tests"),
                                     recycle: V("recycle_workers"), batch: V("recycle_batch") });
   el.setAttribute("aria-label", el.title);
-  el.innerHTML = seg("cores", hwChipData.cores) + '<span class="hw-chip__sep">·</span>' +
-                   seg("tests", V("tests")) + '<span class="hw-chip__sep">·</span>' +
-                   seg("recycle", V("recycle_workers")) + '<span class="hw-chip__sep">·</span>' +
+  el.innerHTML = seg("cores", hwChipData.cores) +
+                   seg("tests", V("tests")) + seg("recycle", V("recycle_workers")) +
                    seg("batch", V("recycle_batch"));
   el.hidden = false;
 }
