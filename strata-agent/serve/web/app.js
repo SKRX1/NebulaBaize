@@ -5553,10 +5553,21 @@ function sparkHtmlToText(html) {
   return (d.textContent || "").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{2,}/g, "\n").trim();
 }
 
+// 2026-11-03: a note with NO text is still valid if its sanitized HTML carries a real image whose
+// src survived the scheme allow-list. sanitizeHtml already strips javascript:/blob:, so an img that
+// still has a src here is safe; a dangerous pure-image note ends up with none and stays rejected.
+function hasValidImageHtml(cleanHtml) {
+  if (!cleanHtml) return false;
+  const d = document.createElement("div");
+  d.innerHTML = cleanHtml;
+  for (const i of d.querySelectorAll("img")) { if (i.getAttribute("src")) return true; }
+  return false;
+}
+
 function addSpark(text, tags, html) {
+  const clean = html ? sanitizeHtml(html) : undefined;   // 2026-11-03: hoisted above the guard so a PURE-IMAGE note is judged against its sanitized HTML
   text = (text || "").trim();
-  if (!text) return false;
-  const clean = html ? sanitizeHtml(html) : undefined;
+  if (!text && !hasValidImageHtml(clean)) return false;   // 2026-11-03: image-only note (no text) now valid; empty + no-valid-image stays rejected (XSS net intact)
   const arr = getSparks();
   arr.unshift({
     id: "spk_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
