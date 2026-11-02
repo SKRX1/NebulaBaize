@@ -36,7 +36,6 @@ BAT 部署命令：deploy_to_strata.bat [目标路径]，无参数=默认 Strata
 速度/性能对比问题：先确认两种模式连的是否同一上游模型——同模型则速度相同，模式只影响前端服务与工具执行归属，不影响推理本身
 模式选择默认：日常用寄生（功能最全）；需接非 Strata 上游或避免升级冲补丁时用独立；两者前端同源只维护一份
 自适应阈值中的模型原生窗口不得硬编码全局常量，一律从 models.json 每模型字段读取并保留回落值
-_live_vision.py 等 CI 断言关键词匹配须识别否定语境：模型说"NO red circles"时，纯子串匹配会把"no red"误判为 PASS；应加否定词检测或词边界，否则软断言假阳性误导
 多模态 CI 门禁若跑在 IQ3_S 级量化模型上，对合成测试图会产生幻觉（描述成熟悉的界面图），硬断言不可信——门禁须跑在视觉可靠的更大量化模型，硬断言只锁模型真能稳定识别的主特征
 验证脚本统一纯 ASCII 输出：含中文字符串的 print 经管道/代码页会被吞，只打印命中行号与计数，不打印中文本体
 部署脚本 deploy_to_strata.bat 写死的默认目标为 E:\Program Files\Strata-main\serve\web，可作同步目标事实
@@ -141,8 +140,14 @@ test_model_live.mjs 是手动 live 测试（不在 run_tests 套件），用例�
 精准改含中文的配置/前端文件前，先 dry-run 确认锚点精确命中恰好1次，再 apply，并跑对应门禁（i18n 中英键数必须成对增长）坐实不破绿。
 含中文的 README 追加必须「写脚本→读回逐字核对用字→错字立即锚点修正→numstat 验行尾」四步串行，本次靠读回抓到 3 处手打字面错字（工件/巻化/后套），验证了此铁律是防错唯一闸
 contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 isCE(el)（认 contenteditable=true/DIV），只写 id/tagName===TEXTAREA 会漏整个 contenteditable 家族导致打字键被吞。
+输入框依赖"打字即时刷新"的绑定不能只挂 input：中文输入法落字/粘贴常常不派发标准 input 事件，须统一补 compositionend（必要时 paste）兜底；已覆盖 composer、ws-path、bugbox-search，后续同类刷新点一并遵守。
+前端状态显示机制已知结论（防误判成 bug）：顶部 pill 文案由 poll 每 1 s 拉网关 /metrics 快照→render(live.state) 驱动，聊天正文由 streamAssistant 逐 token 即时写入——二者数据源不同、天然差≤1 个 poll 周期属固有滞后；收尾瞬间靠 bumpNebDone 只切图标，文字对齐已由 setPill 完成窗口补齐（门禁 test_pill_closeout_align.mjs）。默认保持该 bumpNebDone 窗口口径不动。
 收尾轮自检裁决A-vs-B（2026-10-23 拍板）：每轮都必须独立成行落笔真围栏块；本轮若在等用户拍板，不得整块漏发围栏——用蓝档(等你确认)作停等闸，绿/黄只填被误跑也无害的动作。此条裁决推翻「停等轮不出建议条以防自我复读」旧读法(规则B旧解)。
 收尾/选择条漏发的机制层兜底乙（已落地门禁锁）：renderNextSteps 的无-chips 分支——本轮回填了全勾 plan 或有未处置决策卡却无 chips 时画最小 info 提醒，纯空 steps 仍隐藏（不破坏既有 hidden-on-empty 门禁），把"漏发不再纯押模型自律"从行为约定升级为可验证机制。
 filesystem__write 只能写 allowed roots 内的路径；给被驱动脚本准备的探针/临时件应由脚本自己写盘（Python tempfile 或工作区根内相对路径），不要经由 filesystem_write 写到沙箱外绝对路径（如 C:\Users\sk），否则报 path escapes sandbox root
 门禁表锚串行链「绿→打tag→推锚→纯文档登记」里，若某轮真跑绿 commit 当时未及时把门禁表锚列对齐到该轮 tag，下一次真跑绿轮须把门禁表锚值统一推到最新真跑绿 tag 并在登记条注明「统一推进行为」，避免锚值滞后于实际链尾
 执行记忆里记录的历史动作前先按磁盘真值确认文件是否还在（已退役脚本读必报 does not exist）
+决策卡轮不等于可省建议条：当一轮既收尾又等你拍板时，须发标准next-steps围栏、把待拍板事项放进蓝档(?)作停等闸；完成徽标/底部绿勾仅在围栏被渲染时才亮，不能只写"已收尾"文字而不发围栏
+可复用锚点补丁工具沉淀于 tools/_anchor_patch.py：jobs.json驱动,命中≠1报错退出、每文件独立链副本、默认dry-run只写.qchain副本(--commit才落盘并自动留.bak_<tag>),模式replace/after/before按行strip匹配
+星云智能体运行的版本一直是工作区里的独立版不是寄生版,优先修改修复独立版
+可复用锚点补丁工具沉淀于 strata-agent/tools/_anchor_patch.py：jobs.json驱动,命中≠1报错退出、每文件独立链副本、默认dry-run只写.qchain副本(--commit才落盘并自动留.bak_<tag>),模式replace/after/before按行strip匹配；"纳入git跟踪"才算真沉淀，落工作区根tools\=scratch未跟踪不算兑现
