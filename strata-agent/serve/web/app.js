@@ -5585,11 +5585,12 @@ function renderSpark() {
           <span class="spark-status spark-status--${s.status}">${esc(t("spark.status." + s.status))}</span>
           ${(s.tags && s.tags.length) ? `<span class="spark-tags">${s.tags.map((tg) => `<span class="spark-tag">${esc(tg)}</span>`).join("")}</span>` : ""}
           ${s.status === "done" && s.execDur != null ? `<span class="spark-dur">${esc(t("spark.exec.dur", { n: s.execDur }))}</span>` : ""}
+          ${(s.runCount > 0) ? `<span class="spark-runs">${esc(t("spark.run.count", { n: s.runCount }))}</span>` : ""}
           <span class="spark-item__time">${fmtSparkTime(s.createdAt)}</span>
         </div>
       </div>
       <div class="spark-item__actions">
-        ${(s.status === "pending" || s.status === "error") ? `<button type="button" class="st-btn st-btn--small st-btn--primary spark-exec" data-id="${s.id}" data-i18n="${s.status === "error" ? "spark.retry.btn" : "spark.item.exec"}">${s.status === "error" ? "Retry" : "Run"}</button>` : ""}
+        ${(s.status === "pending" || s.status === "error" || s.status === "done") ? `<button type="button" class="st-btn st-btn--small st-btn--primary spark-exec" data-id="${s.id}" data-i18n="${s.status === "error" ? "spark.retry.btn" : (s.status === "done" ? "spark.rerun.btn" : "spark.item.exec")}">${s.status === "error" ? "Retry" : (s.status === "done" ? "Re-run" : "Run")}</button>` : ""}
         <button type="button" class="st-btn st-btn--small st-btn--secondary spark-edit" data-id="${s.id}" data-i18n="spark.item.edit">Edit</button>
         <button type="button" class="st-btn st-btn--small st-btn--ghost spark-del" data-id="${s.id}" data-i18n="spark.item.del">Delete</button>
         <button type="button" class="st-btn st-btn--small st-btn--ghost spark-promote" data-id="${s.id}" data-i18n="spark.promote.btn">Promote</button>
@@ -5653,7 +5654,7 @@ function renderSparkMemory() {
 async function executeSpark(id) {
   const arr = getSparks();
   const s = arr.find((x) => x.id === id);
-  if (!s || s.status === "sent" || s.status === "done") return;
+  if (!s || s.status === "sent") return;   // done/pending/error/queued are re-runnable
   if (busy) {
     if (s.status !== "queued") { s.status = "queued"; setSparks(arr); renderSpark(); }
     toast("info", t("spark.queued.toast", { n: arr.filter((x) => x.status !== "sent" && x.status !== "done").length }));
@@ -5692,6 +5693,7 @@ async function markSparkExecuted(sparkId) {
     return;
   }
   s.status = "done";
+  s.runCount = (s.runCount || 0) + 1;
   s.executedAt = Date.now();
   if (last && last.stats) s.execDur = Math.round((last.stats.dur || 0) * 10) / 10;
   setSparks(arr);
