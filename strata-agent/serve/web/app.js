@@ -5595,7 +5595,7 @@ function renderSpark() {
         </div>
       </div>
       <div class="spark-item__actions">
-        ${(s.status === "pending" || s.status === "error" || s.status === "done") ? `<button type="button" class="st-btn st-btn--small st-btn--primary spark-exec" data-id="${s.id}" data-i18n="${s.status === "error" ? "spark.retry.btn" : (s.status === "done" ? "spark.rerun.btn" : "spark.item.exec")}">${s.status === "error" ? "Retry" : (s.status === "done" ? "Re-run" : "Run")}</button>` : ""}
+        ${(s.status === "pending" || s.status === "error" || s.status === "done") ? `<button type="button" class="st-btn st-btn--small st-btn--primary ${s.status === "done" ? "spark-rerun" : "spark-exec"}" data-id="${s.id}" data-i18n="${s.status === "error" ? "spark.retry.btn" : (s.status === "done" ? "spark.rerun.btn" : "spark.item.exec")}">${s.status === "error" ? "Retry" : (s.status === "done" ? "Re-run" : "Run")}</button>` : ""}
         <button type="button" class="st-btn st-btn--small st-btn--secondary spark-edit" data-id="${s.id}" data-i18n="spark.item.edit">Edit</button>
         <button type="button" class="st-btn st-btn--small st-btn--ghost spark-del" data-id="${s.id}" data-i18n="spark.item.del">Delete</button>
         <button type="button" class="st-btn st-btn--small st-btn--ghost spark-promote" data-id="${s.id}" data-i18n="spark.promote.btn">Promote</button>
@@ -6042,7 +6042,7 @@ function bindSparks() {
       const btn = e.target.closest("button[data-id]");
       if (!btn) return;
       const id = btn.dataset.id;
-      if (btn.classList.contains("spark-exec")) executeSpark(id);
+      if (btn.classList.contains("spark-exec") || btn.classList.contains("spark-rerun")) executeSpark(id);
       else if (btn.classList.contains("spark-edit")) editSpark(id);
       else if (btn.classList.contains("spark-del")) deleteSpark(id);
       else if (btn.classList.contains("spark-promote")) promoteSpark(id);
