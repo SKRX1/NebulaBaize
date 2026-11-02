@@ -116,3 +116,18 @@ strata-agent/tools/_verifyast_scan.py
 
 # recycle-bin runtime data dir (com/shell runtime store, not source)
 .strata-recycle/
+
+# --- scratch from the per-hunk attribution round (gate D landing, 2026-11-02) ---
+# backup files named with UNDERSCORE suffix (.bak_anchorpatch/.bak_nsp/...) were missed by
+# the existing hyphen-only *.bak-* rule; add the underscore variant so tree stays clean.
+*.bak_*
+/_p_*.diff
+/_t_*.diff
+/_q_*.py
+/_rt_backup_mixed.txt
+# per-hunk attribution round one-shot scripts (transient; test_pill_closeout_align.mjs is NOT here
+# on purpose -- it belongs to the pill-closeout round, not this scratch cleanup)
+strata-agent/tools/_anchor_patch.py
+strata-agent/tests/_diag_acts.mjs
+strata-agent/tests/_diff_spark_render.mjs
+strata-agent/tests/_spark_ids.txt
