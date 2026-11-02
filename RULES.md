@@ -151,3 +151,6 @@ filesystem__write 只能写 allowed roots 内的路径；给被驱动脚本准�
 可复用锚点补丁工具沉淀于 tools/_anchor_patch.py：jobs.json驱动,命中≠1报错退出、每文件独立链副本、默认dry-run只写.qchain副本(--commit才落盘并自动留.bak_<tag>),模式replace/after/before按行strip匹配
 星云智能体运行的版本一直是工作区里的独立版不是寄生版,优先修改修复独立版
 可复用锚点补丁工具沉淀于 strata-agent/tools/_anchor_patch.py：jobs.json驱动,命中≠1报错退出、每文件独立链副本、默认dry-run只写.qchain副本(--commit才落盘并自动留.bak_<tag>),模式replace/after/before按行strip匹配；"纳入git跟踪"才算真沉淀，落工作区根tools\=scratch未跟踪不算兑现
+门禁补「合法用例测试」时必须实测该正则对目标输入的真实返回值再写断言，勿凭记忆旧结论下笔；字符类内 \N 是八进制转义(chr)非反向引用——三字符hr是它唯一能匹配的形态。
+commit后必须对最终拓扑重跑orphan-chain门禁转绿才算锚链健康,别因"全套里绿过"或"单独退出码异常"就宣布完成
+纯文档登记(README锚表/注册行)单独成commit挂在tag之后、绝不混入锚定commit;跨轮脏项(如他人遗留的RULES.md)精确add本轮件不混入
