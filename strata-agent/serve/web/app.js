@@ -2546,9 +2546,18 @@ function syncStepsSendLabel() {
   const b = document.querySelector("[data-steps-send]");
   if (!b) return;
   const n = +b.dataset.n || 0;
-  const typed = !!ceText($("input"));
+  const typedRaw = ceText($("input"));
+  const typed = !!typedRaw;
   const txt = typed ? t("nextsteps.send.custom", {n}) : t("nextsteps.send.n", {n});
   if (b.textContent !== txt) b.textContent = txt;
+  // Live preview so "select a chip, then type" is visible right away -- the gap that made people
+  // think custom text was not allowed. Independent of any IME event: whatever lands in the composer shows here.
+  const prev = document.querySelector(".next-steps__custom");
+  if (prev) {
+    const clip = typedRaw.length > 24 ? typedRaw.slice(0, 24) + "…" : typedRaw;
+    prev.textContent = typed ? t("nextsteps.custom.preview", {text: clip}) : "";
+    prev.hidden = !typed;
+  }
 }
 // Send the selected suggestions of one message as a single combined turn, keeping whatever the user typed
 // in the composer as an extra instruction instead of overwriting it.
@@ -2611,7 +2620,8 @@ function renderNextSteps(el, m) {
     html += sel.size
       ? `<span class="next-steps__acts">` +
         `<button type="button" class="st-btn st-btn--primary st-btn--sm" data-steps-send data-n="${sel.size}">${esc(t("nextsteps.send.n", {n: sel.size}))}</button>` +
-        `<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-steps-clear>${esc(t("nextsteps.clear"))}</button></span>`
+        `<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-steps-clear>${esc(t("nextsteps.clear"))}</button>` +
+        `<span class="next-steps__custom"></span></span>`
       : "";
     box.innerHTML = html;
     syncStepsSendLabel();                          // reflect typed text ("+ 自定义") right away
@@ -7489,6 +7499,11 @@ function autosize(el) {
   t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`;
 }
 $("input").addEventListener("input", autosize);
+// IME / paste do not always fire a standard "input" event the instant text lands (a known gap for
+// CJK input). Bind compositionend + paste so the send label & custom preview refresh on commit.
+const __nsSync = () => { syncStepsSendLabel(); };
+$("input").addEventListener("compositionend", __nsSync);
+$("input").addEventListener("paste", () => setTimeout(__nsSync, 0));
 
 // ------------------------------------------------------------------ P0-1: Regenerate & Edit
 function doRegenerate(i) {

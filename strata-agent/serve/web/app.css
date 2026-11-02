@@ -910,6 +910,7 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .next-step__badge--avoid { background: #ff4326; color: #fff; }
 .next-step--avoid.next-step--on .next-step__badge--avoid { background: #fff; color: #ff4326; }
 .next-steps__acts { display: inline-flex; gap: 6px; align-items: center; }
+.next-steps__custom { flex-basis: 100%; min-width: 200px; margin-left: auto; font-size: .82em; color: var(--st-muted, #9aa); opacity: .9; }
 
 /* autonomous auto-drive pill (shown while the AI is driving the next steps) */
 .autodrive-pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 10px;
