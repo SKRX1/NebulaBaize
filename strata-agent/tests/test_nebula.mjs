@@ -122,7 +122,7 @@ console.log("\n=== 5: the streaming caret is the same nebula ===");
   check("caret is painted with gradients, not a solid bar", /\.cursor::after,[\s\S]{0,400}radial-gradient/.test(css));
   check("caret orbit keyframes exist", /@keyframes neb-caret/.test(css));
   check("old bouncing bar is gone", !/\.cursor::after\s*\{[^}]*height:\s*1\.1em/.test(css));
-  check("caret is frozen under reduced motion", /prefers-reduced-motion: reduce\)[\s\S]{0,160}neb-caret|\.cursor > \.ans > \.ans-md:last-child p:last-child::after\s*\{\s*animation:\s*none/.test(css));
+  check("caret stays dynamic - never frozen under reduced motion (product decision: always dynamic)", /@keyframes neb-caret/.test(css) && !/prefers-reduced-motion:[\s\S]{0,160}\.cursor[\s\S]{0,80}animation:\s*none/.test(css));
 }
 
 // ── 6) 无脸金黄星云：动态承载在核心/轨道/道具上（表情已删除，与左上角同源） ──

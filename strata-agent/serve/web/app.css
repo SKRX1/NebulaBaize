@@ -76,9 +76,6 @@ main { flex: 1; min-height: 0; display: flex; }
   .brand-sub { display: none; }
   .brand-name { font-size: 16px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .brand-swirl, .brand-dust, .brand-halo { animation: none; }
-}
 [data-theme="light"] .brand-author { color: var(--st-yellow-text); }
 [data-theme="light"] .brand-ai     { color: #7c3aed; }
 [data-theme="light"] .brand-tag { color: var(--st-yellow-text); }
@@ -297,8 +294,6 @@ main { flex: 1; min-height: 0; display: flex; }
 /* the paragraph rule above already put it on the last line - don't paint a second one below */
 .cursor:has(> .ans > .ans-md:last-child p:last-child)::after { content: none; }
 @keyframes neb-caret { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .cursor::after,
-  .cursor > .ans > .ans-md:last-child p:last-child::after { animation: none; } }
 @keyframes blink { 50% { opacity: 0; } }
 .msg-error { color: var(--st-danger-text); background: var(--st-danger-tint); border-radius: var(--st-r-md); padding: 10px 14px;
              font-size: var(--st-fs-md); }
