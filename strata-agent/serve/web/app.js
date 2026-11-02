@@ -1695,6 +1695,7 @@ $("ws-pick").onclick = () => openBrowser($("ws-path").value.trim());
 // server's cwd elsewhere. So "浏览" opens an in-app browser that reads the tree from
 // the server (which already owns the filesystem) and returns the absolute path.
 $("ws-path").addEventListener("input", debounce(updateResolved, 350));
+    $("ws-path").addEventListener("compositionend", debounce(updateResolved, 350));   // IME: CJK typed path must refresh on commit
 $("ws-path").addEventListener("change", updateResolved);
 // Show the resolved absolute path + exists check under the input field, so the user
 // can confirm what will actually be used before pressing 设置工作区 (a tooltip alone
@@ -8723,7 +8724,10 @@ function _bugboxClearAll() {
 }
 if ($("bugbox-mergedup")) $("bugbox-mergedup").onclick = _bugboxMergeDups;
 if ($("bugbox-clearall")) $("bugbox-clearall").onclick = _bugboxClearAll;
-if ($("bugbox-search")) $("bugbox-search").addEventListener("input", () => renderBugBox());
+if ($("bugbox-search")) {
+    $("bugbox-search").addEventListener("input", () => renderBugBox());
+    $("bugbox-search").addEventListener("compositionend", () => renderBugBox());   // IME: CJK filter must refresh on commit
+}
 if ($("bugbox-filter")) $("bugbox-filter").addEventListener("change", () => renderBugBox());
 
 // Manual entry points for the bug-box autofix. The edge-triggered loop (autofixTick on
