@@ -3006,11 +3006,24 @@ function maybeAutoResume(m) {
   const cap = settings.autoresumeMax > 0 ? settings.autoresumeMax : AUTO_RESUME_MAX;   // A: drawer field wins; the const is only the unset fallback
   const emptyCap = settings.emptyRoundMax >= 0 ? settings.emptyRoundMax : 2;            // B: pure-thinking empty rounds get their OWN small budget (default 2)
   const isEmptyLane = !!(m.notice && m.notice.code === "empty_round");
+  const openPlan = (m.plan || []).filter((p) => !p.done).length;   // D(early-done): the model's OWN unchecked checklist - strongest premature-close signal.
   const mainResumable = m.truncated ||
     (m.notice && m.notice.resumable && m.notice.code !== "context_overflow") || isEmptyLane;
-  if (!mainResumable) return false;
+  // D(early-done lane): model wrote what reads like a closing line while its OWN plan checklist still had boxes left -> premature, not done.
+  const earlyCap = settings.emptyRoundMax >= 0 ? settings.emptyRoundMax : 2;   // reuses the anti-spin family budget on purpose (default 2); a real answer with nothing left never lights this lane
+  const isEarlyLane = !mainResumable && openPlan > 0 && !!(m.text || "").trim();   // ONLY when no existing lane took it AND its own plan has boxes left AND there is real text -> near-zero misjudge on a genuine short answer
+  if (!isEarlyLane && !mainResumable) return false;   // early lane IS a mainResumable=false case, so let it through the gate too
   let chainN, chainMax;                                  // per-lane count/max so the toast never mixes the two chains
-  if (isEmptyLane) {
+  if (isEarlyLane) {                                  // D: its OWN counter + small budget; never borrows the main-chain count
+  if (earlyDoneChain >= earlyCap) {                 // fuse reached -> say WHY and hand control back to the human
+  earlyDoneChain = 0;
+  m.resumeExhausted = earlyCap;
+  toast("info", t("resume.stopped.early", {n: earlyCap}));
+  renderChat();
+  return false;
+  }
+  earlyDoneChain++; chainN = earlyDoneChain; chainMax = earlyCap;
+  } else if (isEmptyLane) {
     // B: separate counter + own budget -> a long thinking-only stall is auto-carried up to emptyCap then handed back with WHY.
     if (emptyRoundChain >= emptyCap) {
       emptyRoundChain = 0;
@@ -3051,6 +3064,7 @@ let resumeBadge = null;             // auto-resume badge for the next streamed t
 let pendingResume = null;             // auto-resume undo window: {timer} while the deferred send() waits; null once fired or cancelled
 let autoResumeChain = 0;              // consecutive AUTOMATIC resumes on the MAIN chain (capped by settings.autoresumeMax)
 let emptyRoundChain = 0;              // B: separate counter for the pure-thinking empty_round lane (own budget, default 2)
+let earlyDoneChain = 0;             // D: separate counter for the premature-close lane (own budget), mirroring emptyRoundChain on purpose.
 const AUTO_RESUME_MAX = 24;           // A: raise floor so a normal long task runs to finish; s-autoresumeMax (drawer) overrides it when set.
 // Adaptive auto-compact threshold.
 //   settings.compactPct > 0 -> manual override (user pinned this percentage).
