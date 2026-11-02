@@ -42,6 +42,7 @@ SUITES = [
     "tests/test_stream_intel.mjs",
     "tests/test_paste_contract.mjs",   # 2026-10-24: paste/mixed-image helpers must be DEFINED and RUN (locks the "only a call site, no definition" ReferenceError bug)
     "tests/test_inline_flow.mjs",   # 2026-10-31: mixed text+image bubble keeps the typed layout (inlineFlow: single line in -> one line out)
+        "tests/test_hr_regex_semantics.mjs",   # 2026-11: hr regex semantics baseline -- legal three-char hrs match; NOT ReDoS (sub-ms, no blow-up); "-----" FALSE is by-design ([\s\1] octal, not backref). Locks against a future false-ReDoS edit.
     "tests/test_memory_card_title.mjs",   # 2026-10-24: memory-card rows via .kb-source__name must carry title= so the single-line-ellipsis hover reveals the full text (esc is the necessity - differential double-probe)
     "tests/test_sidebar_tree.mjs",
     "tests/test_switch_busy.mjs",
