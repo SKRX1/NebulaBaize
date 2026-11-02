@@ -1084,7 +1084,8 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, speedDropPct: 50, archiveOn: true, memCompactLLM: false, cnThink: false, designLang: "auto", persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true};
+                  autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
+                  autoresumeMax: 24, emptyRoundMax: 2};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
 // the model reply in English. cnThink appends a reasoning-language rule (off by default — forcing
@@ -3000,21 +3001,37 @@ function ilogRowHtml(e) {
 // undo window), so every automatic retry is still visible and cancellable.
 function maybeAutoResume(m) {
   if (busy || !m) return false;
-  if (!settings.autoresume) return false;
+  if (!settings.autoresume) return false;               // master switch off -> never auto-resume
   if (m.stopped || m.error) return false;
-  const resumable = m.truncated ||
-    (m.notice && m.notice.resumable && m.notice.code !== "context_overflow");
-  if (!resumable) return false;
-  if (autoResumeChain >= AUTO_RESUME_MAX) {          // give up: say why, and hand it back
-    autoResumeChain = 0;
-    m.resumeExhausted = AUTO_RESUME_MAX;   // STAMP the message so the banner survives the toast; a long task that hit the cap should say WHY it stopped, not go silent
-    toast("info", t("resume.stopped", {n: AUTO_RESUME_MAX}));
-    renderChat();                          // repaint: updateAssistant already ran before this branch, so the banner only shows up now
-    return false;
+  const cap = settings.autoresumeMax > 0 ? settings.autoresumeMax : AUTO_RESUME_MAX;   // A: drawer field wins; the const is only the unset fallback
+  const emptyCap = settings.emptyRoundMax >= 0 ? settings.emptyRoundMax : 2;            // B: pure-thinking empty rounds get their OWN small budget (default 2)
+  const isEmptyLane = !!(m.notice && m.notice.code === "empty_round");
+  const mainResumable = m.truncated ||
+    (m.notice && m.notice.resumable && m.notice.code !== "context_overflow") || isEmptyLane;
+  if (!mainResumable) return false;
+  let chainN, chainMax;                                  // per-lane count/max so the toast never mixes the two chains
+  if (isEmptyLane) {
+    // B: separate counter + own budget -> a long thinking-only stall is auto-carried up to emptyCap then handed back with WHY.
+    if (emptyRoundChain >= emptyCap) {
+      emptyRoundChain = 0;
+      m.resumeExhausted = emptyCap;                      // stamp so the banner says WHY, not go silent
+      toast("info", t("resume.stopped.empty", {n: emptyCap}));
+      renderChat();
+      return false;
+    }
+    emptyRoundChain++; chainN = emptyRoundChain; chainMax = emptyCap;
+  } else {
+    if (autoResumeChain >= cap) {                        // main-chain hard stop: say why, and hand it back
+      autoResumeChain = 0;
+      m.resumeExhausted = cap;                           // STAMP the message so the banner survives the toast; a long task that hit the cap should say WHY it stopped, not go silent
+      toast("info", t("resume.stopped", {n: cap}));
+      renderChat();                                      // repaint: updateAssistant already ran before this branch, so the banner only shows up now
+      return false;
+    }
+    autoResumeChain++; chainN = autoResumeChain; chainMax = cap;
   }
-  autoResumeChain++;
   ceSetText($("input"), t("chat.resume.cmd"));
-  toast("ok", t("chat.resume.auto"), t("resume.chain", {n: autoResumeChain, max: AUTO_RESUME_MAX}), 6000);
+  toast("ok", t("chat.resume.auto"), t("resume.chain", {n: chainN, max: chainMax}), 6000);
   resumeBadge = t("chat.resume.meta");
   pendingResume = {timer: setTimeout(() => { pendingResume = null; send(false); }, 3000)};
   renderInspector();                                  // show the undo affordance on the panel row now
@@ -3032,8 +3049,9 @@ let pendingCompact = false;
 let resumeSnapshot = null;                                 // auto-resume: set before any compaction (auto or manual), consumed once by the hook
 let resumeBadge = null;             // auto-resume badge for the next streamed turn (meta label + hidden autoResume flag)
 let pendingResume = null;             // auto-resume undo window: {timer} while the deferred send() waits; null once fired or cancelled
-let autoResumeChain = 0;              // consecutive AUTOMATIC resumes of one interrupted task (capped)
-const AUTO_RESUME_MAX = 6;            // hand the task back to the human after this many automatic retries
+let autoResumeChain = 0;              // consecutive AUTOMATIC resumes on the MAIN chain (capped by settings.autoresumeMax)
+let emptyRoundChain = 0;              // B: separate counter for the pure-thinking empty_round lane (own budget, default 2)
+const AUTO_RESUME_MAX = 24;           // A: raise floor so a normal long task runs to finish; s-autoresumeMax (drawer) overrides it when set.
 // Adaptive auto-compact threshold.
 //   settings.compactPct > 0 -> manual override (user pinned this percentage).
 //   settings.compactPct === 0 -> adaptive: 75% of the model's effective (native) window,
@@ -6688,7 +6706,7 @@ function isCE(el) {
 async function send(human = true) {
   if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }   // the composer guard now speaks up, like the other 6 guards
   if (chunkedCompacting) return;   // chunked pre-compaction owns the transcript while it folds (kept silent: the auto path must not spam)
-  if (human) { autoDriveDepth = 0; autoDriveAbort = false; showAutoDrivePill(false); autoResumeChain = 0; }  // a human turn starts a fresh chain
+  if (human) { autoDriveDepth = 0; autoDriveAbort = false; showAutoDrivePill(false); autoResumeChain = 0; emptyRoundChain = 0; }  // a human turn starts a fresh chain on every lane
   if (pendingPastes.size) await Promise.allSettled(pendingPastes);   // 2026-11: a paste still landing (DOM+array) must not read as empty here
   let text = ceText($("input"));
   reconcileArray($("input"));   // 方案1: the array is the source of truth for sending -- drop any chip the DOM no longer shows (browser-native Backspace bypasses our handler)
@@ -8512,6 +8530,7 @@ function loadDrawer(s = settings) {
   $("s-temp").value = s.temperature; $("s-topp").value = s.top_p; $("s-topk").value = s.top_k;
   $("s-max").value = s.max; $("s-ceiling").value = s.maxCeiling; $("s-seed").value = s.seed;
   $("s-thinkbudget").value = s.thinkBudget; $("s-answerfloor").value = s.answerFloor;
+  $("s-autoresumeMax").value = (s.autoresumeMax>0?s.autoresumeMax:24); $("s-emptyRoundMax").value = (s.emptyRoundMax>=0?s.emptyRoundMax:2);
   $("s-show").setAttribute("aria-checked", String(!!s.show));
   $("s-esp").setAttribute("aria-checked", String(s.esp !== false));
   $("esp-row").hidden = !projectionLoaded();
@@ -8646,6 +8665,7 @@ $("s-apply").onclick = async () => {
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
+              autoresumeMax: Number($("s-autoresumeMax").value) || 24, emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",
               stepsFold: $("s-stepsfold").getAttribute("aria-checked") === "true",

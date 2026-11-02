@@ -826,6 +826,16 @@
     <div class="toggle-row toggle-row--sub"><div class="st-legend"><span data-i18n="drawer.autosteps.legend">下一步建议颜色即决定</span><ul class="st-legend__list"><li><i class="st-legend__dot st-legend__dot--rec"></i><span data-i18n="drawer.autosteps.legend.rec"></span></li><li><i class="st-legend__dot st-legend__dot--normal"></i><span data-i18n="drawer.autosteps.legend.normal"></span></li><li><i class="st-legend__dot st-legend__dot--hold"></i><span data-i18n="drawer.autosteps.legend.hold"></span></li><li><i class="st-legend__dot st-legend__dot--avoid"></i><span data-i18n="drawer.autosteps.legend.avoid"></span></li></ul></div></div>
     <div class="toggle-row"><span><span data-i18n="drawer.autoresume">中断后自动续跑</span><br><span class="muted small" data-i18n="drawer.autoresume.hint">思考/工具途中被切断（掉线、看门狗、轮次上限）时自动接着做，无需手动点「继续」；连续 3 次仍中断则交回给你</span></span>
       <button class="st-toggle" id="s-autoresume" role="switch" aria-checked="true" aria-label="Auto-resume interrupted turns"></button></div>
+    <div class="st-field">
+      <label class="st-label" for="s-autoresumeMax"><span data-i18n="drawer.autoresume.max">自动续跑硬上限</span> <output data-i18n="drawer.autoresume.max.hint">开启后一路跑到任务自然结束；达此数才熔断交回（真死循环才触顶）</output></label>
+      <input class="st-input" id="s-autoresumeMax" type="number" min="1" step="1" placeholder="24"
+             data-i18n-attr="placeholder:drawer.autoresume.max.ph,title:drawer.autoresume.max.tip">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-emptyRoundMax"><span data-i18n="drawer.emptyroundmax">纯思考空轮·独立预算</span> <output data-i18n="drawer.emptyroundmax.hint">纯思考无产出的中断走此小预算自动续跑，与主链分开计数</output></label>
+      <input class="st-input" id="s-emptyRoundMax" type="number" min="0" step="1" placeholder="2"
+             data-i18n-attr="placeholder:drawer.emptyroundmax.ph,title:drawer.emptyroundmax.tip">
+    </div>
     <div class="toggle-row"><span><span data-i18n="drawer.autofix">自动修复收集箱 bug</span><br><span class="muted small" data-i18n="drawer.autofix.hint">开启后 AI 空闲时自动取最旧一条未修复的 bug 发起修复任务（推送即标 fixing 防自反馈）；修复需复现+门禁双绿才标 verified 并移出收集箱，审计留 JSONL。</span></span>
       <button class="st-toggle" id="s-autofix" role="switch" aria-checked="false" aria-label="Auto-fix bugs in the collection box"></button></div>
     <div class="toggle-row"><span><span data-i18n="drawer.cnthink">强制中文思考</span><br><span class="muted small" data-i18n="drawer.cnthink.hint">让模型用中文推理（可能更慢、token 更多，可用统计条实测）</span></span>

@@ -59,6 +59,7 @@ SUITES = [
     "tests/test_stop_notice.mjs",
     "tests/test_turn_stats.mjs",
     "tests/test_auto_resume.mjs",
+        "tests/test_autoresume_lanes.mjs",   # 2026-11-XX: auto-resume lane gate -- A main stop reads settings.autoresumeMax (not hardcoded), B empty_round gets its own separate budget, C i18n keys both lang; extract-source differential proves load-bearing.
     "tests/test_auto_memory.mjs",
     "tests/test_mem_expand_all.mjs",   # 2026-10-26: A+C landing - memExpandAll real-fn differential (expand reveals loaded body / fold hides all)
     "tests/test_expand_persist.mjs",   # 2026-10-30: expand/collapse persistence (bug-box + memory item-level, static+runtime+differential)
