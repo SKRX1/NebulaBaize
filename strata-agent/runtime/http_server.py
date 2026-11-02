@@ -2528,7 +2528,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                                             "server": server_part, "arguments": {}, "round": rnd}})
                         sse({"strata_mcp": {"event": "result", "id": tid, "text": msg, "ok": False,
                                             "chars": len(msg), "truncated": True, "ms": 0,
-                                            "state": "error"}})
+                                            "state": "error", "skipreason": "arg_truncated"}})
                         messages.append({"role": "tool", "tool_call_id": tid, "content": msg})
                         continue
                     sse({"strata_mcp": {"event": "call", "id": tid, "name": name, "tool": name,

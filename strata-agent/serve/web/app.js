@@ -2155,7 +2155,7 @@ function toolBodyHtml(tool) {
     const lbl = tool.state === "running" ? t("tool.state.running")
           : tool.ok === false ? t("mon.state.error") : t("tool.result");
     body += `<div class="tool-call__label">${lbl}${tool.chars ? ` · ${t("tool.chars", {n: fmt(tool.chars)})}` : ""}` +
-            `${tool.truncated ? ", " + t("tool.cut") : ""}</div><pre class="tool-call__pre">${esc(tool.result)}</pre>`;
+            `${tool.skipreason ? " · " + t("tool.cut_argtrunc") : (tool.truncated ? ", " + t("tool.cut") : "")}</div><pre class="tool-call__pre">${esc(tool.result)}</pre>`;
   }
   return body;
 }
@@ -2490,6 +2490,7 @@ function onTool(m, x) {
   } else if (x.event === "result") {
     Object.assign(t, {result: x.text, ok: x.ok, chars: x.chars, truncated: x.truncated, ms: x.ms,
                       state: x.skipped ? "skipped" : x.ok ? "done" : "error"});
+                      t.skipreason = x.skipreason || null;
     if (!t._userTouched) t.open = false;           // collapse once it finishes (unless the user pinned it open)
   }
 }
