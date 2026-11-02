@@ -334,6 +334,9 @@ async function poll() {
 // used to go quiet exactly then, so a slow tool looked like a dead agent. The mark keeps orbiting,
 // just slower, instead.
 function setPill(state, text, working) {
+  // Closeout alignment: when a turn just finished cleanly (bumpNebDone window), show the pill as
+  // done/idle NOW instead of waiting for the next 1 s poll frame to carry live.state off "generating".
+  if (!working && Date.now() < nebDoneUntil) { state = "done"; text = t("mon.state.idle"); }   // 文字与图标同步翻完成/空闲
   $("pill").dataset.state = state === "error" ? "queued" : state;
   $("pill-text").textContent = text;
   const neb = $("pill-neb");
