@@ -6015,7 +6015,7 @@ function bindSparks() {
   // dblclick on inline thumbnails in contenteditable inputs -> lightbox
   document.addEventListener("dblclick", (e) => {
     const img = e.target;
-    if (img.tagName === "IMG" && img.closest(".ce-input")) {
+    if (img.tagName === "IMG" && (img.closest(".ce-input")||(img.classList&&img.classList.contains("inline-ce-img")&&img.closest("[data-bugtoggle]")))) {
       openImageView(img.src, img.alt || "image");
     }
   });
@@ -6971,13 +6971,14 @@ function renderBugBox() {
     return '<div class="debug-item debug-item--bug' + collapsed + '" data-bugtoggle="' + tsAttr + '">'
       + '<div class="debug-item__head"><span class="badge badge--ws">' + esc(t("debug.bugbox.tag")) + '</span>' + statusBadge + dupBadge
       + '<span>' + esc(e.kind || "") + '</span><span class="muted small">' + esc(e.sourceTab || "?") + ' \u00b7 ' + esc(when) + '</span></div>'
-      + '<div class="debug-err"><div class="debug-err__msg">' + esc(e.msg || "") + '</div>'
+      + '<div class="debug-err"><div class="debug-err__msg">' + ((e.kind==="bug:manual" && e.msgHtml) ? e.msgHtml : esc(e.msg || "")) + '</div>'
       + '<pre class="debug-err__stack">' + esc(e.stack || "") + '</pre></div>'
       + vTxt
       + '<div class="debug-bug__acts">'
         + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="copy" data-bugts="' + tsAttr + '">' + esc(t("debug.copy")) + '</button>'
         + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="diagnose" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.pf.diag")) + '</button>'
         + '<button type="button" class="st-btn st-btn--primary st-btn--sm" data-bugact="push" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.push")) + '</button>'
+        + '<button type="button" class="st-btn st-btn--secondary st-btn--sm" data-bugact="edit" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.edit")) + '</button>'
         + '<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-bugact="dismiss" data-bugts="' + tsAttr + '">' + esc(t("debug.bugbox.dismiss")) + '</button>'
       + '</div></div>';
   }).join("");
@@ -8771,6 +8772,63 @@ function _bugboxClearAll() {
 }
 if ($("bugbox-mergedup")) $("bugbox-mergedup").onclick = _bugboxMergeDups;
 if ($("bugbox-clearall")) $("bugbox-clearall").onclick = _bugboxClearAll;
+function _bugboxManualAdd(){
+  const m=$("bugbox-addmodal"); if (!m) return;
+  const ti=$("bugbox-am-title"), de=$("bugbox-am-desc"), no=$("bugbox-am-note");
+  ti.value=""; de.value=""; no.value="";         // fresh form each open
+  m.hidden=false; ti.focus();
+}
+
+if ($("bugbox-addman")) $("bugbox-addman").onclick = _bugboxManualAdd;
+
+// Manual-add card modal: collect three fields in ONE form (replaces the 3x window.prompt UX).
+function _bugboxAddModalClose(){ const m=$("bugbox-addmodal"); if(m) m.hidden=true; }
+async function _bugboxAddModalSubmit(){
+  try { await Promise.all(pendingPastes); } catch(e){}
+  const title=(($("bugbox-am-title").value)||"").trim();
+  if (!title){ toast("info", t("debug.bugbox.addman"), t("debug.bugbox.empty")); return; }
+  const descHtml=($("bugbox-am-desc").innerHTML)||"";   // CE -> rich text incl. pasted thumbnails
+  const descText=($("bugbox-am-desc").textContent||"").trim();
+  const note=($("bugbox-am-note").value||"").trim();
+  let msg=title; if (descText) msg += " \u2014 "+descText; if (note) msg += " ["+note+"]";
+  const hasImg=/<img[\s>]/i.test(descHtml);
+  let msgHtml="";
+  if (hasImg){ msgHtml = esc(title) + (sanitizeHtml(descHtml)? " \u2014 "+sanitizeHtml(descHtml):"") + (note? " ["+esc(note)+"]":""); }
+  const rec = {
+    ts: Date.now(), sig: msg, count: 1, kind: "bug:manual", status: "open", origin: "ui-manual",
+    sourceTab: (typeof tab !== "undefined" ? tab : null), session: (typeof activeId !== "undefined" ? activeId : null), msg, stack: "", msgHtml,
+    mTitle: title, mDescHtml: hasImg? sanitizeHtml(descHtml): descText, mNote: note,
+  };
+  bugBoxSave(bugBoxEntries().concat([rec]).slice(-BUGBOX_MAX));
+  try { postQuiet("api/interrupt-log", { entry: rec }); } catch (e) {}
+  renderBugBox(); _bugboxAddModalClose();
+  toast("success", t("debug.bugbox.addman"), t("debug.bugbox.addman.done"));
+}
+if ($("bugbox-am-ok")) $("bugbox-am-ok").onclick = _bugboxAddModalSubmit;
+let _editingTs=null;   // modal opened to EDIT an existing manual row (null => create)
+function openAddModalForEdit(ts){
+  const e=bugBoxFindByTs(ts); if(!e) return;
+  _editingTs=String(ts);
+  $("bugbox-am-title").value=(e.mTitle!=null?e.mTitle:(e.msg||""));
+  const de=$("bugbox-am-desc"); if(/<img/i.test(e.mDescHtml||"")) de.innerHTML=sanitizeHtml(e.mDescHtml); else de.textContent=(e.mDescHtml||"");
+  $("bugbox-am-note").value=(e.mNote!=null?e.mNote:"");
+  $("bugbox-addmodal").hidden=false; $("bugbox-am-title").focus();
+}
+
+async function _bugboxPasteImg(e){
+  const cd=e.clipboardData||window.clipboardData; if(!cd) return;
+  let files=[...(cd.files||[])].filter(f=>f&&f.type&&f.type.startsWith("image/"));
+  if(!files.length&&typeof cd.items==="object") files=[...cd.items].filter(it=>it&&it.kind==="file"&&it.type&&it.type.startsWith("image/")).map(it=>(typeof it.getAsFile==="function"?it.getAsFile():null)).filter(Boolean);
+  if(!files.length) return; e.preventDefault();
+  const box=$("bugbox-am-desc"); for(const f of files){ const dataUrl=await new Promise(r=>{const rd=new FileReader();rd.onload=()=>r(String(rd.result));rd.readAsDataURL(f);});
+    const nm=f.name||"pasted"; const span=document.createElement("span"); span.className="ce-thumb"; span.setAttribute("contenteditable","false"); span.title=nm;
+    span.innerHTML='<span class="ce-thumb__box"><img class="inline-ce-img" src="'+dataUrl+'" alt="'+esc(nm)+'"></span>'; box.appendChild(span);
+  }
+}
+if ($("bugbox-am-desc")) $("bugbox-am-desc").addEventListener("paste",(e)=>_bugboxPasteImg(e));
+if ($("bugbox-am-cancel")) $("bugbox-am-cancel").onclick = _bugboxAddModalClose;
+if ($("bugbox-addmodal-close")) $("bugbox-addmodal-close").onclick = _bugboxAddModalClose;
+if ($("bugbox-addmodal")) $("bugbox-addmodal").addEventListener("click", (e)=>{ if(e.target===$("bugbox-addmodal")) _bugboxAddModalClose(); });
 if ($("bugbox-search")) {
     $("bugbox-search").addEventListener("input", () => renderBugBox());
     $("bugbox-search").addEventListener("compositionend", () => renderBugBox());   // IME: CJK filter must refresh on commit
@@ -8833,9 +8891,11 @@ if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
         else if (act === "diagnose") diagnoseBugCard(ts);
         else if (act === "push") pushBugFix(ts);
         else if (act === "dismiss") dismissBug(ts);
+        else if (act === "edit") openAddModalForEdit(ts);
       }
       return;   // a button click never toggles the row
     }
+    if (e.target.closest && e.target.closest(".ce-thumb")) return;   // 2026-11-XX: a click on an inline thumbnail must NOT fold the row (double-click opens the viewer); guard before the toggle match.
     const row0 = e.target.closest && e.target.closest("[data-bugtoggle]");
     if (row0) { const key = row0.getAttribute("data-bugtoggle"); if (bugBoxExpanded.has(key)) bugBoxExpanded.delete(key); else bugBoxExpanded.add(key); expandSetSave('strata.bugBoxExpanded', bugBoxExpanded); renderBugBox(); return; }   // default-collapsed rows expand on click (persisted)
   });
