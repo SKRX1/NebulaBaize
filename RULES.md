@@ -155,3 +155,10 @@ filesystem__write 只能写 allowed roots 内的路径；给被驱动脚本准�
 commit后必须对最终拓扑重跑orphan-chain门禁转绿才算锚链健康,别因"全套里绿过"或"单独退出码异常"就宣布完成
 纯文档登记(README锚表/注册行)单独成commit挂在tag之后、绝不混入锚定commit;跨轮脏项(如他人遗留的RULES.md)精确add本轮件不混入
 改动新增顶层常量/符号时，须排查所有 extract-source（只eval函数体片段）的同族门禁是否已 stub 该符号——若否则它们会 ReferenceError；优先选不破坏既有家族契约的最小落点（如save源头clamp而非运行时读新常量）。
+命令行内联 python -c/单行命令只做单行；多行逻辑一律写临时 _q_*.py 脚本再跑、用完即删，避免转义踩坑（本轮两次验证）。
+前端发送层 body.strata_mcp 取全局 mcpInfo.tools，per-model 的 tools 字段在发送层不被读取；改 per-model tools 语义时不要以为它直接驱动前端发送链路
+图像渲染运行时回退必须靠 <img onerror>（ref 坏链时 JS 取非空 ref 不回退 url，纯字符串 || 做不到），不能依赖 im.ref||im.url 字符串优先级
+前端粘贴/上传守卫判定 per-model modelAcceptsImages()，勿被全局 health.images 一票否决（外部端点未配 vision 时粘贴会被源头丢弃）
+图像门禁套件 test_image_persist_serialize.mjs 已含 I1/J1 静态锁锁死粘贴守卫为 modelAcceptsImages()，改动时勿删
+指向外部端点（非本机网关默认上游）的模型条目在 models.json 必须标 kind:custom（非 local），否则前端 poll 豁免与工具勾选两处 local 分支逻辑都会误判
+一次性 scratch 落地脚本（如 _add_*_lock.py/_land_*.py）任务收尾即删除；baseline tag 命名沿用 v-baseline-YYYY-MM-DD-<字母> 递增
