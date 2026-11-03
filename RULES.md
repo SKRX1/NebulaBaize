@@ -154,3 +154,4 @@ filesystem__write 只能写 allowed roots 内的路径；给被驱动脚本准�
 门禁补「合法用例测试」时必须实测该正则对目标输入的真实返回值再写断言，勿凭记忆旧结论下笔；字符类内 \N 是八进制转义(chr)非反向引用——三字符hr是它唯一能匹配的形态。
 commit后必须对最终拓扑重跑orphan-chain门禁转绿才算锚链健康,别因"全套里绿过"或"单独退出码异常"就宣布完成
 纯文档登记(README锚表/注册行)单独成commit挂在tag之后、绝不混入锚定commit;跨轮脏项(如他人遗留的RULES.md)精确add本轮件不混入
+改动新增顶层常量/符号时，须排查所有 extract-source（只eval函数体片段）的同族门禁是否已 stub 该符号——若否则它们会 ReferenceError；优先选不破坏既有家族契约的最小落点（如save源头clamp而非运行时读新常量）。
