@@ -57,7 +57,8 @@ SUITES = [
     "tests/test_think_segments.mjs",
     "tests/test_think_latest_open.mjs",
     "tests/test_stop_notice.mjs",
-    "tests/test_turn_stats.mjs",
+    "tests/test_turn_stats.mjs",
+    "tests/test_footer_progressive_seed.mjs",   # 2026-11 plan-A: the streaming footer progressively lights send-time-known data (above all the SEED, written in send(), not a usage chunk). Static locks skeleton stat--seed span + own _seedSig anti-flicker + honest hidden-until-seed guard; jsdom differential flips ONE variable (does m.seed exist?): present -> lit with the number, absent -> stays hidden. Round-chip single-variable flip proves it still works.
     "tests/test_auto_resume.mjs",
         "tests/test_autoresume_lanes.mjs",   # 2026-11-XX: auto-resume lane gate -- A main stop reads settings.autoresumeMax (not hardcoded), B empty_round gets its own separate budget, C i18n keys both lang; extract-source differential proves load-bearing.
         "tests/test_early_done_lane.mjs",   # 2026-11: early-done lane gate (A+B) -- a closing line while the model's OWN checklist still has UNCHECKED boxes is premature, not done; new fourth lane with its own counter+budget, never borrows the main chain. Load-bearing single-variable differential (box-count flips output) + B self-check hard-constraint in BOTH langs + resume.stopped.early key both langs; extract-source anti-drift.
