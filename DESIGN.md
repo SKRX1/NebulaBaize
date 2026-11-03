@@ -113,3 +113,31 @@
   23 token/s，单破 32768 需约 24 分钟、60000 需约 43 分钟，远超工具单次超时——属物理限制，
   非 bug；模型不会自然生成几万 token 就主动 stop，故端到端长跑不经济，按用户决定不跑。
 - 当前监听进程（7088，20:01 启动）晚于 http_server.py 落盘（19:44），新代码已加载、无需重启。
+
+## §3 生成期 footer 渐进点亮：只点亮「发送即已可得」的数据，依赖引擎 usage 的到位即亮避免虚假跳变
+
+**日期**：2026-11-03　**状态**：已落地（方案A）
+
+### 背景
+生成中（streaming）阶段的 turn footer 此前刻意精简——live skeleton 只显耗时 + phase。
+用户诉求：生成过程中 footer 应能实时点亮「此刻已经拿得到」的数据，最典型就是种子 chip。
+但必须先分清哪些数据"发送那一刻就已可得"、哪些"必须等引擎回报 usage 才有"——否则中途要么显示假数字、要么跳变。
+
+### 决策
+只对 **send() 发起阶段就已写入** 的数据做渐进点亮；依赖引擎回报的项保持在完成态到位即亮：
+1. `m.seed` / `m.seedPinned` 在 send() 里即写入（app.js L7146/7147，非 usage chunk），整个流式窗口都已可得 → streaming 骨架新增 `stat--seed` span 并逐 tick 点亮；自带专属 anti-flicker sig（`_seedSig`），只在变化时重写、避免跳变。
+2. lit chip 与完成态种子 chip 完全同款（class / data-seed / role / tabindex / title + i18n 键 + pin/refresh icon）；`#chat` 的 click-copy 委托用 `closest()`+data-seed，所以同一容器的 live chip 也能点一下复制。
+3. **诚实守卫**：`m.seed==null` 时 chip 保持隐藏——中途绝不显示假数字。
+
+依赖引擎 usage / 完整计时的项（tok/s、tokens、ctx%、思考耗时）中途没有或会跳变 → **保持在完成态到位即亮，不强行塞进骨架避免虚假跳变**。轮次 chip 流式期本就支持（跑 tool 即显），未动。
+
+### 实测依据（差分门禁，工具实测；非估算）
+- `tests/test_footer_progressive_seed.mjs`：单一变量翻转「m.seed 是否存在」证明守卫 load-bearing——有→点亮含种子数、无→保持隐藏；round-chip 单变量翻证照旧工作。单跑 8/8 GREEN（4 静态锁 + 4 差分），已纳入 run_tests SUITES 基线。
+
+### 代价（诚实记录）
+- 依赖 usage 的项不能中途点亮（否则虚假跳变），这部分视觉改善要等完成态才到位——这是诚实取舍，非缺陷。
+
+### 锁（防退化的常驻门禁，已并入 run_tests）
+- `tests/test_footer_progressive_seed.mjs`：静态锁「骨架 gained stat--seed span」「seed chip 自带 _seedSig anti-flicker、不与 _sig 共用」「honest hidden-until-seed guard」；jsdom 差分翻转单一变量证 load-bearing。
+
+> 落点：前端 `app.js` renderStats streaming 分支 = anchor commit `v-baseline-2026-11-03-p`（实现本体）；门禁与其 SUITES 登记 off-anchor 在其之上。
