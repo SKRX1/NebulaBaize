@@ -1,5 +1,5 @@
 {
-  "selected": "iq3-xxs",
+  "selected": "swift-iq3_xxs",
   "models": [
     {
       "id": "swift-1.5-iq2_xs",
@@ -50,22 +50,6 @@
       "think_default": "auto"
     },
     {
-      "id": "iq3_xxs",
-      "name": "swift-iq3_xxs-界面",
-      "kind": "local",
-      "base_url": "http://127.0.0.1:47831/v1",
-      "model": "swift-iq3_xxs",
-      "tools": true,
-      "vision": true,
-      "think_modes": [
-        "off",
-        "low",
-        "medium",
-        "high"
-      ],
-      "think_default": "auto"
-    },
-    {
       "id": "swift-iq3_s",
       "name": "swift-iq3_s界面",
       "kind": "custom",
@@ -86,6 +70,22 @@
       "id": "swift-iq3_xxs",
       "name": "swift-iq3_xxs界面",
       "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "swift-iq3_xxs",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    },
+    {
+      "id": "swift-iq3_xxs-2",
+      "name": "swift-iq3_xxs本地",
+      "kind": "local",
       "base_url": "http://127.0.0.1:47831/v1",
       "model": "swift-iq3_xxs",
       "tools": true,
