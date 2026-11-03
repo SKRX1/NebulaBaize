@@ -426,7 +426,23 @@
     <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="bugbox">
       <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
       <div class="mem-kb-bar" id="bugbox-search-bar"><input class="st-input" id="bugbox-search" type="text" data-i18n-attr="placeholder:debug.bugbox.search.ph"><select class="st-input" id="bugbox-filter"><option value="" data-i18n="debug.bugbox.filter.all">All statuses</option><option value="open" data-i18n="debug.bugbox.stats.open">Open</option><option value="fixing" data-i18n="debug.bugbox.status.fixing">Fixing</option><option value="verified" data-i18n="debug.bugbox.status.verified">Verified</option></select></div>
-      <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-foldall" data-i18n="chat.fold.all">Collapse all</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixone" data-i18n="debug.bugbox.fixone">Fix one now</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixall" data-i18n="debug.bugbox.fixall">Fix all (poll)</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-stopall" data-i18n="debug.bugbox.stopall" style="display:none">Stop polling</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-mergedup" data-i18n="debug.bugbox.mergedup">Merge duplicates</button><button class="st-btn st-btn--danger st-btn--sm" id="bugbox-clearall" data-i18n="debug.bugbox.clearall">Clear all</button></div>
+      <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-foldall" data-i18n="chat.fold.all">Collapse all</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixone" data-i18n="debug.bugbox.fixone">Fix one now</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixall" data-i18n="debug.bugbox.fixall">Fix all (poll)</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-stopall" data-i18n="debug.bugbox.stopall" style="display:none">Stop polling</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-mergedup" data-i18n="debug.bugbox.mergedup">Merge duplicates</button><button class="st-btn st-btn--danger st-btn--sm" id="bugbox-clearall" data-i18n="debug.bugbox.clearall">Clear all</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-addman" data-i18n="debug.bugbox.addman">Add manually</button></div>
+      <div class="st-modal" id="bugbox-addmodal" hidden role="dialog" aria-modal="true" data-i18n-attr="aria-label:debug.bugbox.addman">
+        <div class="st-modal__card">
+          <div class="st-modal__head"><span class="card-title" data-i18n="debug.bugbox.addman">Add manually</span>
+            <button class="st-btn st-btn--icon" id="bugbox-addmodal-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+              <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chevron"/></svg></button></div>
+          <label class="st-label" for="bugbox-am-title" data-i18n="debug.bugbox.addman.prompt.title">Title</label>
+          <input class="st-input" id="bugbox-am-title" type="text" spellcheck="false" autocomplete="off">
+          <label class="st-label" for="bugbox-am-desc" data-i18n="debug.bugbox.addman.prompt.desc">Description</label>
+          <div class="st-input st-textarea spark-rich__ed" id="bugbox-am-desc" contenteditable="true" role="textbox" aria-multiline="true"></div>
+          <label class="st-label" for="bugbox-am-note" data-i18n="debug.bugbox.addman.prompt.note">Size/shape note</label>
+          <input class="st-input" id="bugbox-am-note" type="text" spellcheck="false" autocomplete="off">
+          <div class="st-modal__actions"><span class="spacer"></span>
+            <button class="st-btn st-btn--secondary" id="bugbox-am-cancel" data-i18n="debug.bugbox.addman.cancel">Cancel</button>
+            <button class="st-btn st-btn--primary" id="bugbox-am-ok" data-i18n="debug.bugbox.addman.ok">Add</button></div>
+        </div>
+      </div>
       <div class="debug-list" id="bugbox-list"></div>
     </div>
 
