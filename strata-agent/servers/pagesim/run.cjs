@@ -95,9 +95,21 @@ function scanScripts(html, baseDir) {
       continue;
     }
     if (attrs.src) {
-      const p = attrs.src.startsWith('http')
+      let p = attrs.src.startsWith('http')
         ? null
         : path.resolve(baseDir, attrs.src.replace(/^\//, ''));
+      // Same-origin fallback: a src carrying the served mount prefix (e.g. "web/foo.js") is
+      // resolved by the real server as docroot + stripped-first-segment. The sim's baseDir IS
+      // that docroot, so when the plain relative resolve misses AND the src has a leading dir
+      // segment, strip it and re-resolve against baseDir -- mirrors _serve_static byte-for-byte.
+      if (p && !fs.existsSync(p) && !attrs.src.startsWith('http')) {
+        const bare = attrs.src.replace(/^\//, '');
+        const slash = bare.indexOf('/');
+        if (slash >= 0) {
+          const stripped = path.resolve(baseDir, bare.slice(slash + 1));
+          if (fs.existsSync(stripped)) p = stripped;
+        }
+      }
       if (!p || !fs.existsSync(p)) { out.push({ skip: `external script not fetched: ${attrs.src}` }); continue; }
       out.push({ code: fs.readFileSync(p, 'utf8'), filename: p });
       continue;

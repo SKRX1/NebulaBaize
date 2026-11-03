@@ -312,6 +312,38 @@ def main() -> int:
     ok(g7["replace_tree"] is True and g7["after_remove"] == 0,
        f"replaceChild/removeChild must keep the tree consistent, got {g7}")
 
+    # --- 8) external src resolve fallback, 2026-11 ------------------
+    # HTML at serve/web/index.html carries <script src="web/app.js">. The real server serves it
+    # via docroot + strip-first-segment; the sim baseDir (the HTML's own dir) IS that docroot. A
+    # plain relative resolve lands on mount/app.js (missing); when it misses AND the src has a
+    # leading dir segment, scanScripts strips that segment and re-resolves against baseDir -- this
+    # mirrors _serve_static byte-for-byte. Before this fix such scripts were silently skipped
+    # ("external script not fetched"), so jsdom gates lost the app-code global layer (the root of
+    # the reported "jsdom missing i18n" pain). Load-bearing single-variable differential: the
+    # strip-hit arm EXECUTES vs a miss-control that stays SKIPPED.
+    fs_dir = os.path.join(tmp, "extsrc")
+    os.makedirs(fs_dir, exist_ok=True)
+    with open(os.path.join(fs_dir, "index.html"), "w", encoding="utf-8") as f:
+        f.write('<!doctype html><html><body><div id=d></div>'
+                '<script src="mount/app.js"></script>'
+                '<script>srcRan = (typeof fromSrcFile === "string");</script></body></html>')
+    with open(os.path.join(fs_dir, "app.js"), "w", encoding="utf-8") as f:
+        f.write('globalThis.fromSrcFile = "SRC_FILE_RAN";')
+    hit = run_job({"page": os.path.join(fs_dir, "index.html"), "steps": 1,
+                   "probes": {"from_src_file": "fromSrcFile", "src_ran": "typeof srcRan !== \"undefined\" ? srcRan : false"}})
+    ok(hit["probes"]["from_src_file"] == "SRC_FILE_RAN",
+       f"strip-first-segment fallback must execute the referenced script, got {hit['probes']}")
+
+    # control: same shape but a filename that does NOT exist even after stripping -> stays skip.
+    with open(os.path.join(fs_dir, "ctrl.html"), "w", encoding="utf-8") as f:
+        f.write('<!doctype html><html><body>'
+                '<script src="mount/ghost.js"></script>'
+                '<script>ran = (typeof ghostMarker !== "undefined");</script></body></html>')
+    ctrl8 = run_job({"page": os.path.join(fs_dir, "ctrl.html"), "steps": 1,
+                     "probes": {"executed": "typeof ran !== \"undefined\" ? ran : false"}})
+    warned = any("external script not fetched" in w and "ghost.js" in w for w in ctrl8.get("warnings", []))
+    ok(warned is True, f"a truly-missing external src must STILL be skipped, got {ctrl8}")
+
     print(f"PAGE-SIM: {checks} checks passed")
     return 0
 
