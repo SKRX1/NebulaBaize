@@ -3066,6 +3066,7 @@ let autoResumeChain = 0;              // consecutive AUTOMATIC resumes on the MA
 let emptyRoundChain = 0;              // B: separate counter for the pure-thinking empty_round lane (own budget, default 2)
 let earlyDoneChain = 0;             // D: separate counter for the premature-close lane (own budget), mirroring emptyRoundChain on purpose.
 const AUTO_RESUME_MAX = 24;           // A: raise floor so a normal long task runs to finish; s-autoresumeMax (drawer) overrides it when set.
+const AUTO_RESUME_FLOOR = 12;         // 2026-11 plan-A guard: the smallest main-chain cap we honour. A drawer value below this too-small floor falls back to DEFAULTS/AUTO_RESUME_MAX, so a stray small number (like a leftover 2) can no longer fuse-and-hand-back after only a couple of resumes.
 // Adaptive auto-compact threshold.
 //   settings.compactPct > 0 -> manual override (user pinned this percentage).
 //   settings.compactPct === 0 -> adaptive: 75% of the model's effective (native) window,
@@ -8713,7 +8714,7 @@ $("s-apply").onclick = async () => {
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
-              autoresumeMax: Number($("s-autoresumeMax").value) || 24, emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),
+              autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",
               stepsFold: $("s-stepsfold").getAttribute("aria-checked") === "true",
