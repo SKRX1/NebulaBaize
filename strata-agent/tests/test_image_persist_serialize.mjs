@@ -56,7 +56,7 @@ win.eval(appCode);
 const api = win.__api;
 
 // --- Test A: image with ref -> stored as lightweight {name, pid, ref} (no url) ---
-check("A1. saveChat keeps ref and omits url when ref exists", (() => {
+check("A1. saveChat keeps BOTH ref and url when both exist (fallback lock)", (() => {
   const testSessions = [{ id: "test-a", name: "TestA", messages: [], updatedAt: 0 }];
   api.setSessions(testSessions);
   api.setActiveId("test-a");
@@ -70,7 +70,7 @@ check("A1. saveChat keeps ref and omits url when ref exists", (() => {
   const sess = s.find(x => x.id === "test-a");
   if (!sess || !sess.messages || !sess.messages[0]) return false;
   const img = sess.messages[0].images[0];
-  return img.ref === "/data/uploads/img-abc.png" && img.url === undefined;
+  return img.ref === "/data/uploads/img-abc.png" && img.url === "data:image/png;base64,AAAA";
 })());
 
 // --- Test B (DIFFERENTIAL - root cause lock): image with url but NO ref -> url must be PRESERVED ---
@@ -115,7 +115,23 @@ check("E1. app.js msgEl renders from im.ref || im.url (static lock)",
 
 // --- Test F: saveChat serialization lock (static) -- the new conditional ---
 check("F1. app.js saveChat has the ref-or-url conditional (static lock)",
-  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("i.ref ? {ref: i.ref} : (i.url ? {url: i.url} : {})"));   // 2026-10-28: substring lock -- strict-mode regex literals forbid brace escapes
+  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("Object.assign({}, i.ref ? {ref: i.ref} : {}, i.url ? {url: i.url} : {})"));   // 2026-10-28: substring lock -- strict-mode regex literals forbid brace escapes
+
+// --- Test G (NEW lock): gallery render mounts an onerror fallback to url when ref is present ---
+check("G1. msgEl gallery mounts onerror fallback (ref dead -> url) [static lock]",
+  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("if (im.ref && im.url) { img.dataset.fb = im.url; img.onerror = function()"));
+
+// --- Test H (NEW lock): inline render mounts an onerror fallback to the data URL (sg.wire) when src is the ref ---
+check("H1. msgEl inline render mounts onerror fallback to wire data URL [static lock]",
+  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("if (sg.url !== sg.wire) { img.dataset.fb = sg.wire; img.onerror = function()"));
+
+// --- Test I (NEW lock): pasteImageToRich guard is per-model modelAcceptsImages, not global health.images ---
+check("I1. pasteImageToRich guard is per-model modelAcceptsImages [static lock]",
+  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("if (!modelAcceptsImages()) return;"));
+
+// --- Test J (NEW lock): background upload guard is per-model modelAcceptsImages ---
+check("J1. paste background upload guard is per-model modelAcceptsImages [static lock]",
+  fs.readFileSync(path.join(WEB, "app.js"), "utf8").includes("if (modelAcceptsImages()) {"));
 
 console.log("\nIMAGE PERSIST SERIALIZE: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);

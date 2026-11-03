@@ -1,4 +1,4 @@
-// serve/web/app.js - the Strata web app: Chat, Monitor, About. No framework, no network beyond this server.
+﻿// serve/web/app.js - the Strata web app: Chat, Monitor, About. No framework, no network beyond this server.
 // The Monitor tab rebuilds PR #22's dashboard idea (code-martin) on the server's own /metrics.
 "use strict";
 
@@ -2029,7 +2029,7 @@ syncPermSelect();
 
 function saveChat() {
   const s = activeSession();
-  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => Object.assign({name: i.name, pid: i.pid}, i.kind ? {kind: i.kind} : {}, i.ref ? {ref: i.ref} : (i.url ? {url: i.url} : {}))),
+  const data = messages.map((m) => ({...m, images: (m.images || []).map((i) => Object.assign({name: i.name, pid: i.pid}, i.kind ? {kind: i.kind} : {}, Object.assign({}, i.ref ? {ref: i.ref} : {}, i.url ? {url: i.url} : {}))),
                                       files: (m.files || []).map((f) => ({name: f.name}))}));
   if (s) { s.messages = data; s.updatedAt = Date.now(); }   // drives the sidebar's "3分钟前"
   store.set("chat", data);   // backward-compatible fallback
@@ -2061,7 +2061,7 @@ function msgEl(m, i) {
       const wrap = document.createElement("div");
       wrap.className = "msg-images";
       for (const im of m.images) {
-        if (im.ref || im.url) { const img = document.createElement("img"); img.src = im.ref || im.url; img.alt = im.name || "image"; img.className = "msg-img"; img.title = t("img.view"); wrap.appendChild(img); }
+        if (im.ref || im.url) { const img = document.createElement("img"); img.src = im.ref || im.url; img.alt = im.name || "image"; img.className = "msg-img"; img.title = t("img.view"); if (im.ref && im.url) { img.dataset.fb = im.url; img.onerror = function(){ if (!this.dataset.fbDone) { this.dataset.fbDone = "1"; this.src = this.dataset.fb; } }; } wrap.appendChild(img); }
         else { const c = document.createElement("span"); c.className = "chip"; c.innerHTML = icon("image", "st-icon st-icon--sm"); c.append(im.name || "image"); wrap.appendChild(c); }
       }
       el.appendChild(wrap);
@@ -2083,7 +2083,7 @@ function msgEl(m, i) {
         }
         if (sg.type === "image") {
           const img = document.createElement("img");
-          img.src = sg.url; img.alt = sg.name || "image"; img.className = "inline-msg-img"; img.title = t("img.view");
+          img.src = sg.url; img.alt = sg.name || "image"; img.className = "inline-msg-img"; img.title = t("img.view"); if (sg.url !== sg.wire) { img.dataset.fb = sg.wire; img.onerror = function(){ if (!this.dataset.fbDone) { this.dataset.fbDone = "1"; this.src = this.dataset.fb; } }; }
           b.appendChild(img);
         } else {
           const span = document.createElement("span");
@@ -5968,7 +5968,7 @@ function reorderSpark(dragId, dropId) {
 // (the sanitizer now allows data:image/* per the scheme whitelist). Plain text paste untouched.
 async function pasteImageToRich(e, editable) {
   const isComposer = (editable === $("input"));
-  if (!health.images) return;
+  if (!modelAcceptsImages()) return;
   const cd = e.clipboardData || window.clipboardData;
   if (!cd) return;
   let files = [...(cd.files || [])].filter((f) => f && f.type && f.type.startsWith("image/"));
@@ -6018,7 +6018,7 @@ async function pasteImageToRich(e, editable) {
         if (reader._landResolve) reader._landResolve();   // DOM + array are real now -> the paste gate is safe to send on
         // best-effort: upgrade the stored base64 to a server ref in the BACKGROUND (never blocks the
         // paste). The DOM node + array entry already exist, so send is race-free either way.
-        if (health.images) {
+        if (modelAcceptsImages()) {
           try {
             const j = await (await fetch("api/images/upload", {method: "POST", headers: headers(true),
               body: JSON.stringify({dataUrl, name: f.name || "pasted"})})).json();
