@@ -3827,10 +3827,12 @@ function renderStats(el, m, streaming) {
     if (box.dataset.mode !== "live" || !box.querySelector(".stat--dur")) {
       box.dataset.mode = "live";
       box._sig = null;
+      box._seedSig = null;                       // 2026-11: progressive-reveal seed chip tracks its own sig, same anti-flicker idea as _sig
       box.innerHTML =
         `<span class="stat stat--dur">${icon("clock", "st-icon st-icon--xs")}<span class="stat__v"></span></span>` +
         `<span class="stat stat--live"></span>` +
-        `<span class="stat stat--round" hidden></span>`;
+        `<span class="stat stat--round" hidden></span>` +
+        `<span class="stat stat--seed" hidden></span>`;
     }
     const v = box.querySelector(".stat--dur .stat__v");
     if (v) { const txt = fmtClock(ms); if (v.textContent !== txt) v.textContent = txt; }
@@ -3845,6 +3847,26 @@ function renderStats(el, m, streaming) {
         const rcTxt = rc.querySelector("span");
         if (rcTxt && rcTxt.textContent !== roundText) rcTxt.textContent = roundText;
         if (rc.title !== roundText) rc.title = roundText;
+      }
+    }
+    // 方案A progressive-reveal: a send-time seed is ALREADY known (m.seed set in send()), so light it
+    // up during streaming instead of waiting for the finish row. Mirrors the finished-row seed chip
+    // exactly (class/data-seed/role/tabindex/title/icon + t() keys); the #chat click-copy handler uses
+    // closest()+data-seed so this same-container live chip is clickable too. Only rewrite on change.
+    const scv = box.querySelector(".stat--seed");
+    if (scv) {
+      if (m.seed == null) { scv.hidden = true; }   // honest guard: the chip stays hidden until a seed exists
+      else {
+        const ssig = String(m.seed) + "|" + (m.seedPinned ? "p" : "");
+        if (box._seedSig !== ssig) {
+          box._seedSig = ssig;
+          scv.hidden = false;
+          scv.setAttribute("role", "button"); scv.tabIndex = 0;
+          scv.dataset.seed = String(m.seed);
+          scv.title = t("stat.seed.tip");
+          scv.innerHTML = `${icon(m.seedPinned ? "pin" : "refresh", "st-icon st-icon--xs")}<span></span>`;
+          scv.querySelector("span").textContent = t("stat.seed", {n: m.seed});
+        }
       }
     }
     return;
