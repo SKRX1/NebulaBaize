@@ -165,3 +165,7 @@ commit后必须对最终拓扑重跑orphan-chain门禁转绿才算锚链健康,�
 改产物 JS 引用新 i18n 文案时，必须在 i18n.js 的 zh+en 两处同键双写；只改一侧会让 i18n 门禁键数不一致变红。
 给"每秒被轮询重画"的顶栏加 custom 多态：四态逻辑必须抽成共享 helper，render() 成功分支顶部加守卫优先调用、catch 兜底分支也调用同一 helper（单一来源），否则 native 在线时四态永不触发。
 改产物 JS 引用新 i18n 文案时，必须在 i18n.js 的 zh+en 两处同键双写；只改一侧会让 i18n 门禁键数不一致变红（本次已实测 1124→1125×2 绿）。
+本仓库 serve/web/*.js 历史按"纯 CRLF+BOM 字节"入库，core.autocrlf=true 会使整文件行尾漂移成巨量伪 diff；要纯逻辑提交须用 `git -c core.autocrlf=false add/commit` 按字节比对。
+向 Windows 回收站送文件用 Shell.Application COM（Namespace 绝对路径 + ParseName + InvokeVerb('delete')），VisualBasic DeleteFile 重载在 PowerShell 绑定 enum 会失败。
+PowerShell here-string 遇注释含单引号会解析失败；对含中文/引号的批量替换改用 Python 脚本（newline='' 保字节）。
+空闲态顶栏文案用专用键 mon.pill.endpoint.idle（zh「端点在线（空闲中）」/en「Endpoint live (idle)」），工作态仍用 mon.state.working；两者都从 paintCustomPill 的非工作/工作分支分流，单一来源。
