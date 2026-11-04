@@ -1,5 +1,5 @@
 {
-  "selected": "swift-iq3_xxs",
+  "selected": "swift-iq3_s",
   "models": [
     {
       "id": "swift-1.5-iq2_xs",
@@ -80,7 +80,8 @@
         "medium",
         "high"
       ],
-      "think_default": "auto"
+      "think_default": "auto",
+      "context_window": 131072
     }
   ]
 }

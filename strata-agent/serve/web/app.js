@@ -3277,7 +3277,7 @@ function renderInspector() {
   if (!ins) return;
   // --- context fill ---
   const escNum = (s, tone) => s.replace(/(\d[\d,]*)/g, '<span class="ins-note__val"' + (tone ? ' data-tone="' + tone + '"' : '') + '>$1</span>');
-  const ctx = maxCtx || 0, used = lastPromptTokens || 0;
+  const ctx = maxCtx || (currentModel() && (+currentModel().context_window || +currentModel().native_ctx || 0)) || 0, used = lastPromptTokens || 0;
   const frac = ctx ? Math.min(1, used / ctx) : 0, pct = Math.round(frac * 100);
   const cachePct = used ? Math.round(100 * (lastCacheTokens || 0) / used) : 0;
   const tone = pct >= 90 ? "danger" : pct >= 75 ? "warning" : "success";
@@ -6282,6 +6282,7 @@ async function loadModels() {
   }
   paintModelChip();
   autoAlignSelected();
+  if (typeof renderInspector === "function") renderInspector();  // repaint panel now that modelsDoc is live (metrics/poll path is dead under custom mode)
   return modelsDoc;
 }
 // The engine can neither announce that it started nor that its window was closed, so the dot has to
@@ -6592,6 +6593,7 @@ function openModelForm(id) {
   $("mf-model").value = m ? (m.model || "") : "";
   $("mf-ctx-in").value = m && m.ctx_in ? m.ctx_in : "";
   $("mf-ctx-out").value = m && m.ctx_out ? m.ctx_out : "";
+  $("mf-context-window").value = m && m.context_window ? m.context_window : "";
   $("mf-tools").checked = m ? m.tools !== false : true;
   $("mf-vision").checked = m ? m.vision !== false : true;   // a Strata endpoint with mmproj reads images
   const modes = (m && Array.isArray(m.think_modes) && m.think_modes.length)
@@ -6618,7 +6620,8 @@ async function submitModelForm() {
                  think_modes: modes,
                  think_default: $("mf-think").value,
                  ctx_in: $("mf-ctx-in").value.trim(),
-                 ctx_out: $("mf-ctx-out").value.trim()};
+                 ctx_out: $("mf-ctx-out").value.trim(),
+                 context_window: $("mf-context-window").value.trim()};
   if (modelEditId) entry.id = modelEditId;
   const key = $("mf-key").value.trim();
   if (key) entry.api_key = key;                             // empty = keep the stored one

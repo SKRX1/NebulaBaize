@@ -749,11 +749,12 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 .st-sidebar__workspace { display: flex; align-items: center; gap: 8px; height: auto; padding: 9px 10px;
                          justify-content: flex-start; gap: var(--st-s-2); border-radius: var(--st-r-sm); font-size: var(--st-fs-sm); }
 .st-sidebar__workspace span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.st-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; }
 .st-modal[hidden] { display: none; }
 .st-modal__card { width: min(480px, 92vw); background: var(--st-surface); border: 1px solid var(--st-line);
                   border-radius: var(--st-r-lg); box-shadow: var(--st-sh-pop); padding: var(--st-s-6);
-                  display: flex; flex-direction: column; gap: var(--st-s-4); }
+                  display: flex; flex-direction: column; gap: var(--st-s-4);
+                  max-height: min(90vh, 92vw); overflow-y: auto; margin: auto; }
 .st-modal__head { display: flex; align-items: center; justify-content: space-between; }
 .st-modal__head--draggable { cursor: move; user-select: none; }
 .st-modal__head .st-icon { transform: rotate(-90deg); }
