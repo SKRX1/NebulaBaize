@@ -322,7 +322,7 @@ function paintCustomPill() {
     setPill("tool", tk != null ? `${t("tool.state.running")} · ${fmt(tk, 1)} tok/s` : t("tool.state.running"), true);
     if (tk != null) setNebSpin(tk);
   } else {
-    setPill("idle", busy ? t("mon.state.working") : t("mon.pill.endpoint"), !!busy);
+    setPill("idle", busy ? t("mon.state.working") : t("mon.pill.endpoint.idle"), !!busy);
   }
   return true;
 }
