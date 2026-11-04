@@ -162,3 +162,6 @@ commit后必须对最终拓扑重跑orphan-chain门禁转绿才算锚链健康,�
 图像门禁套件 test_image_persist_serialize.mjs 已含 I1/J1 静态锁锁死粘贴守卫为 modelAcceptsImages()，改动时勿删
 指向外部端点（非本机网关默认上游）的模型条目在 models.json 必须标 kind:custom（非 local），否则前端 poll 豁免与工具勾选两处 local 分支逻辑都会误判
 一次性 scratch 落地脚本（如 _add_*_lock.py/_land_*.py）任务收尾即删除；baseline tag 命名沿用 v-baseline-YYYY-MM-DD-<字母> 递增
+改产物 JS 引用新 i18n 文案时，必须在 i18n.js 的 zh+en 两处同键双写；只改一侧会让 i18n 门禁键数不一致变红。
+给"每秒被轮询重画"的顶栏加 custom 多态：四态逻辑必须抽成共享 helper，render() 成功分支顶部加守卫优先调用、catch 兜底分支也调用同一 helper（单一来源），否则 native 在线时四态永不触发。
+改产物 JS 引用新 i18n 文案时，必须在 i18n.js 的 zh+en 两处同键双写；只改一侧会让 i18n 门禁键数不一致变红（本次已实测 1124→1125×2 绿）。

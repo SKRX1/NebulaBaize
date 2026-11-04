@@ -81,22 +81,6 @@
         "high"
       ],
       "think_default": "auto"
-    },
-    {
-      "id": "swift-iq3_xxs-2",
-      "name": "swift-iq3_xxs本地",
-      "kind": "local",
-      "base_url": "http://127.0.0.1:47831/v1",
-      "model": "swift-iq3_xxs",
-      "tools": true,
-      "vision": true,
-      "think_modes": [
-        "off",
-        "low",
-        "medium",
-        "high"
-      ],
-      "think_default": "auto"
     }
   ]
 }
