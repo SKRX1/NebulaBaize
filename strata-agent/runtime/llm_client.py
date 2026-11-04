@@ -96,6 +96,11 @@ class StrataClient:
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"
+        if stream:
+            # B5: ask for a final usage chunk (OpenAI-standard). Providers that honour it light
+            # up prompt/output/cached for real; one that rejects an unknown field answers 400
+            # through the existing reject path, so no new failure mode is introduced.
+            body["stream_options"] = {"include_usage": True}
         url = f"{self.base_url}/chat/completions"
         req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=self._headers())
         if not stream:

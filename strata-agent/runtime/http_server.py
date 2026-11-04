@@ -1045,8 +1045,50 @@ class GatewayState:
             for e in (rec.get("chunk_timeline") or []):
                 if e["type"] == "usage":
                     # usage 事件仅记 bytes，不含 token；custom 端点若不回 usage 结构则拿不到真 token
+                    if e.get("tok"):                                  # A1 real (prompt,output,cached)
+                        return e["tok"][0], e["tok"][1]
                     return e.get("prompt_tokens"), e.get("output_tokens")
             return None, None
+
+        def decode_speed(rec):
+            # (value, est_bool). REAL usage output-tokens / real content-phase span when the
+            # upstream carried usage; else an honest byte/3.5 estimate tagged est=True so the
+            # UI prefixes it with a ≈. Never invents a number when there is no data.
+            tl = rec.get("chunk_timeline") or []
+            evs = [e for e in tl if e["type"] == "content" and e.get("t") is not None]
+            if len(evs) < 2:
+                return None, False
+            span = evs[-1]["t"] - evs[0]["t"]
+            if span <= 0.5:
+                return None, False
+            usage = [e for e in tl if e["type"] == "usage" and e.get("tok")]
+            if usage:
+                ot = (list(usage[-1]["tok"]) + [None, None, None])[1]
+                if ot:
+                    return round(ot / span, 1), False
+            total = sum(int(e.get("bytes") or 0) for e in evs)
+            if total <= 0:
+                return None, False
+            return round((total / 3.5) / span, 1), True
+
+        def hit_rate_of(rec):
+            # reused/prompt from the real usage tuple only; honest None when usage is absent.
+            for e in (rec.get("chunk_timeline") or []):
+                if e["type"] == "usage" and e.get("tok"):
+                    pt, _ot, cached = (list(e["tok"]) + [None, None, None])[:3]
+                    if pt and cached:
+                        return round(cached / pt, 4)
+            return None
+
+        def engine_block(rec):
+            # A4: ONLY the model_registry-declared window for THIS custom model (its real
+            # denominator). No 8080 fallback — on the custom path the engine is a different box.
+            try:
+                ent = _route_model((rec or {}).get("model"))
+                win = (ent or {}).get("context_window") or (ent or {}).get("native_ctx") or 0
+                return {"max_context": int(win)} if win else {}
+            except Exception:
+                return {}
 
         live = {"state": "idle", "queued": 0}
         live["first_token_s"] = None
@@ -1055,6 +1097,7 @@ class GatewayState:
             et = last_event_type(r)
             finish = {"done": "done", "[DONE]": "done", "error": "error", "stopped": "cancel"}.get(et, et)
             pt, ot = usage_tokens(r)
+            _ds = decode_speed(r)
             requests_out.append({
                 "time": r.get("started_at"),
                 "finish": finish,
@@ -1062,9 +1105,10 @@ class GatewayState:
                 "reused": 0,
                 "output_tokens": ot,
                 "prompt_ms": None,
-                "decode_tok_s": None,
-                "hit_rate": None,
-                "duration_s": r.get("wallclock_s"),
+                "decode_tok_s": _ds[0],
+                "est": _ds[1],
+                "hit_rate": hit_rate_of(r),
+                "duration_s": r.get("duration_s", r.get("wallclock_s")),
                 "first_token_s": first_token_s(r),
             })
 
@@ -1091,7 +1135,7 @@ class GatewayState:
             "live": live,
             "hardware": hw_local["hardware"],
             "hardware_static": hw_local["hardware_static"],
-            "engine": {},
+            "engine": engine_block(newest),
             "history": {},
             "requests": requests_out,
             "totals": None,
@@ -2151,7 +2195,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         threading.Thread(target=_run, name="turn-judge", daemon=True).start()
 
     # ── Step2-A: per-chunk monitor helpers ──────────────────────────────────────
-    def _mon_chunk(self, typ, length):
+    def _mon_chunk(self, typ, length, tokens=None):
         """Append one streamed event to the current request's chunk_timeline.
 
         `typ` is the classified event kind (thinking/content/usage/tool_call/tool_result/
@@ -2172,7 +2216,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
         except Exception:                         # noqa: BLE001 - the clock is always present; never break a stream
             t = None
         with self.state.status_lock:
-            tl.append({"t": t, "type": typ, "bytes": int(length)})
+            ev = {"t": t, "type": typ, "bytes": int(length)}
+            if tokens:
+                ev["tok"] = tokens
+            tl.append(ev)
 
     @staticmethod
     def _chunk_type(c):
@@ -2387,7 +2434,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if isinstance(obj, str):
                 self._mon_chunk("done", len(payload.encode("utf-8")))
             else:
-                self._mon_chunk(self._chunk_type(obj), len(payload.encode("utf-8")))
+                _ct = self._chunk_type(obj)
+                _tok = None
+                if _ct == "usage" and isinstance(obj, dict):
+                    _u = obj.get("usage") or {}
+                    _det = _u.get("prompt_tokens_details") or {}
+                    _tok = (_u.get("prompt_tokens"), _u.get("completion_tokens"),
+                            _det.get("cached_tokens", _det.get("cache_read_input_tokens")))
+                self._mon_chunk(_ct, len(payload.encode("utf-8")), tokens=_tok)
             _write("data: " + payload + "\n\n")
 
         def notice(code, **extra):

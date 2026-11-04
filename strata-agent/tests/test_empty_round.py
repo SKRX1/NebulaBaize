@@ -98,7 +98,7 @@ class FakeHandler:
     def send_header(self, *a, **k):
         pass
 
-    def _mon_chunk(self, typ, length):
+    def _mon_chunk(self, typ, length, tokens=None):
         pass                                    # monitor timeline not asserted in these loop tests
 
     def _chunk_type(self, c):

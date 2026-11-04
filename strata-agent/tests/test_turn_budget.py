@@ -82,7 +82,7 @@ class FakeHandler:
     def _diag_empty_round(self, info):
         pass                                    # diagnostic only; see GatewayHandler._diag_empty_round
 
-    def _mon_chunk(self, typ, length):
+    def _mon_chunk(self, typ, length, tokens=None):
         pass                                    # monitor timeline not asserted in these loop tests
 
     def _chunk_type(self, c):
