@@ -2850,6 +2850,7 @@ function continueTask(btn) {
   // auto-resumes the interrupted task with the correct prompt instead of spinning.
   if (m && m.notice && m.notice.code === "context_overflow") {
     resumeSnapshot = taskResumeSnapshot() || {leftItems: null};   // force-arm so it resumes after compacting
+    continueRequested = true;   // A: asked for by the Continue button -> must not be deferred
     compactConversation(true);
     return;
   }
@@ -3059,6 +3060,7 @@ let maxCtx = 0;                                  // model context window (from t
 let lastPromptTokens = 0, lastCacheTokens = 0;    // latest request usage (per turn)
 let lastRag = "";                                 // F3: knowledge recalled for the current turn (empty if none)
 let pendingCompact = false;
+let continueRequested = false;   // A: a Continue click on a context_overflow forces the compaction through, past the chain-active guard
 let resumeSnapshot = null;                                 // auto-resume: set before any compaction (auto or manual), consumed once by the hook
 let resumeBadge = null;             // auto-resume badge for the next streamed turn (meta label + hidden autoResume flag)
 let pendingResume = null;             // auto-resume undo window: {timer} while the deferred send() waits; null once fired or cancelled
@@ -3548,7 +3550,8 @@ function compactConversation(auto = false) {
   const budget = compactReqBudgetChars();
   const total = messages.reduce((s, m) => s + estMsgChars(m), 0) + t("insp.compact.prompt").length;
   if (total > budget) {
-    if (auto && autoDriveDepth > 0) { pendingCompact = false; resumeSnapshot = null; return; }   // chain-active guard: chunking a RUNNING task is the interruption; defer to the chain tail (exhausted/idle fires normally)
+    const _byContinue = continueRequested; continueRequested = false;   // A: single-shot -> only the Continue-asked compaction skips the guard
+    if (auto && autoDriveDepth > 0 && !_byContinue) { pendingCompact = false; resumeSnapshot = null; toast("warn", t("insp.compact.deferred.title"), t("insp.compact.deferred.msg"), 6000); return; }   // chain-active guard: chunking a RUNNING task is the interruption; defer to the chain tail. B: was silent, now says so.
     if (!resumeSnapshot) resumeSnapshot = taskResumeSnapshot() || {leftItems: null}; precondenseAndCompact(auto); return;
   }
   ceSetText($("input"), t("insp.compact.prompt"));

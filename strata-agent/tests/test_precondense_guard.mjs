@@ -81,6 +81,7 @@ async function makeScope(seedMessages, opts = {}) {
     let maxCtx = env.maxCtx, activeId = env.activeId;
     let messages = env.messages, busy = env.busy, chunkedCompacting = env.chunkedCompacting;
     let pendingCompact = env.pendingCompact, resumeSnapshot = env.resumeSnapshot, autoDriveDepth = env.autoDriveDepth;
+    let continueRequested = false;   // 2026-11 A+B: the grabbed fn now reads this module global; all three runs here are NON-Continue autos -> stays false, guard defers exactly as before
     const calls = env.calls;
     const t = env.t;
     const $ = (id) => env.$(id);

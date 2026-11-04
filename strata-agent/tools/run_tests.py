@@ -99,6 +99,7 @@ SUITES = [
     "tests/test_chunked_compact.mjs",      # 2026-10-20: oversized history folds in bounded chunks before the single-shot compact
     "tests/test_compact_overflow_quiet.mjs",   # 2026-11-02: compact-overflow error -> ONE quiet notice, generic red toast stays quiet (differential TARGET quiet / CONTROL reports)
     "tests/test_precondense_guard.mjs",    # 2026-10-23: chain-active guard defers chunking for auto mid-task; manual/idle unchanged
+    "tests/test_continue_bends_send.mjs",   # 2026-11 gate A+B: a Continue-asked compaction must REACH send past the chain-active guard (single-shot flag), other autos still deferred + now-visible toast (single-variable differential drives real compactConversation)
     "tests/test_compact_target.mjs",       # 2026-10: the compression-target slider actually moves the post-compact tail budget
     "tests/test_stale_tab.mjs",            # 2026-10-20: stale tab detects newer server build and reloads itself once
     "tests/test_model_registry.py",
