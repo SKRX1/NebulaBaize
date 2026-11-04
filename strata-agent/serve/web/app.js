@@ -301,6 +301,32 @@ function setMetric(key, value, unit, sub) {
 
 let lastMetrics = null, metricsFailures = 0, keyWarned = false, mcpTick = 0;
 let reqShowAll = false;   // the Monitor's request table: the last 12, or every one the server keeps (issue #35)
+// 方案A 真多态共享 helper（2026-11）：当前模型是 custom 且在线时，按客户端 streamAssistant
+// 已知的 m._phase 走四态（CSS 支持 reading/generating/tool）；思考中借用 reading 视觉态配独立文案。
+// render() 成功分支顶部与 poll catch 兜底分支都调用本 helper（单一来源），命中返回 true。
+function paintCustomPill() {
+  const sel = currentModel();
+  if (!(sel && sel.kind === "custom" && modelOnline(sel) === true)) return false;
+  const cm = busy && busy.msg;
+  const p = cm ? cm._phase : null;
+  const tk = cm ? cm._liveTokS : null;
+  if (busy && p === "reading") {
+    setPill("reading", t("mon.state.reading"), true);
+  } else if (busy && p === "thinking") {
+    setPill("reading", tk != null ? `${t("mon.state.thinking")} · ${fmt(tk, 1)} tok/s` : t("mon.state.thinking"), true);
+    if (tk != null) setNebSpin(tk);
+  } else if (busy && p === "answering") {
+    setPill("generating", tk != null ? `${t("mon.state.generating")} · ${fmt(tk, 1)} tok/s` : t("mon.state.generating"), true);
+    if (tk != null) setNebSpin(tk);
+  } else if (busy && p === "tool") {
+    setPill("tool", tk != null ? `${t("tool.state.running")} · ${fmt(tk, 1)} tok/s` : t("tool.state.running"), true);
+    if (tk != null) setNebSpin(tk);
+  } else {
+    setPill("idle", busy ? t("mon.state.working") : t("mon.pill.endpoint"), !!busy);
+  }
+  return true;
+}
+
 async function poll() {
   try {
     const r = await fetch(reqShowAll ? "metrics?requests=all" : "metrics", {headers: headers()});
@@ -319,10 +345,8 @@ async function poll() {
     // selected, its own endpoint liveness — the same one the switcher dot uses — is what decides
     // whether a message can actually reach it, so the top pill follows the selection instead of
     // blaming a dead default upstream the message never goes through (2026-10-31).
-    const sel = currentModel();
-    if (sel && sel.kind === "custom" && modelOnline(sel) === true) {
+    if (paintCustomPill()) {
       metricsFailures = 0;
-      setPill("idle", t("mon.pill.endpoint"));
     } else if (++metricsFailures === 3) setPill("error", t("mon.pill.serverdown"));
   }
   if (tab === "monitor" && ++mcpTick % 10 === 0) loadMcp();       // server states change rarely: every 10 s
@@ -361,6 +385,21 @@ function setNebSpin(tokS) {
   neb.style.setProperty("--neb-spin", (5.2 - (v / 40) * 2.6).toFixed(2) + "s");
 }
 
+// Turn-level real throughput accumulator (single source, shared by all four states). Times from
+// the first token; reasoning AND content chunks both feed the numerator, so thinking/generating/
+// tool read off the same real speed curve. Below a 250 ms window it returns null (kills the
+// first-frame Infinity and noise); once valid it caches on m._liveTokS, and a tool round with no
+// new token shows the frozen-but-real last cumulative value.
+function bumpLiveSpeed(m, dtok) {
+  const now = performance.now();
+  if (m._speedStartMs == null) { m._speedStartMs = now; m._speedTokens = dtok; }
+  else { m._speedTokens += dtok; }
+  const elapsed = (now - m._speedStartMs) / 1000;
+  if (elapsed < 0.25) return null;
+  m._liveTokS = m._speedTokens / elapsed;
+  return m._liveTokS;
+}
+
 // 星云酱的「表情/形态」扩展：工具运行时亮出对应任务的表情；回合收尾闪一下「完成」。
 let nebTaskKind = null, nebTaskUntil = 0, nebDoneUntil = 0;
 function setNebTask(kind) {                       // 由 mcpCall 调用，4.5s 内有效
@@ -382,6 +421,7 @@ function render(m) {
   const live = m.live || {}, hw = m.hardware || {}, st = m.hardware_static || {}, eng = m.engine || {}, h = m.history || {};
   const last = (m.requests || [])[0];
   // the header pill
+  if (!paintCustomPill()) {   // custom 在线时优先走客户端已知四态，否则落回 native live.state 原逻辑
   if (live.state === "reading") {
     const pct = live.prompt_total ? Math.round((100 * live.prompt_read) / live.prompt_total) : null;
     setPill("reading", pct != null ? `${t("mon.state.reading")} · ${pct}%` : t("mon.state.reading"), !!busy);
@@ -395,6 +435,7 @@ function render(m) {
     setPill("idle", busy ? t("mon.state.working") : t("mon.state.idle"), !!busy);
   }
   if (live.queued > 0) setPill("queued", `${live.queued} ${t("mon.state.queued")}`, !!busy);
+  }
   if (tab === "monitor") renderMonitor(live, hw, st, eng, h, last, m.requests || [], m.totals, m.requests_kept);
   if (tab === "monitor") renderConvCache(m.conversation_cache);
   if (tab === "about") renderAbout(eng, hw, st);
@@ -7220,7 +7261,7 @@ async function streamAssistant() {
   try {
     const r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body),
                                                            signal: controller.signal}, {retries: 3, base: 800});
-    const reader = r.body.getReader(), dec = new TextDecoder();
+    const reader = r.body.getReader(), dec = new TextDecoder();  m._phase = "reading";   // 方案A：请求已发出、首token未到=读取中(估算态)
     let buf = "";
     for (;;) {
       const {value, done} = await reader.read();
@@ -7279,6 +7320,7 @@ async function streamAssistant() {
           if (!thinkStart) thinkStart = performance.now();
           if (lastTool && m.reasoning && lastTool.rat === m.reasoning.length) m.reasoning += "\n\n";
           m.reasoning += d.reasoning_content;
+          bumpLiveSpeed(m, 1);               // real throughput: reasoning chunk counts in the shared curve
           m._lastActivityAt = Date.now();    // any token touches the idle watchdog
           noteStreamPhase(m, "thinking");
         }
@@ -7289,6 +7331,7 @@ async function streamAssistant() {
           if (lastTool && m.text && lastTool.at === m.text.length) m.text += "\n\n";
           m.text += d.content;
           rawContent += d.content;                // Step4-E: exact model output, before any render/post-processing
+          bumpLiveSpeed(m, 1);                   // real throughput: content chunk feeds the SAME shared curve
           m._lastActivityAt = Date.now();        // any token touches the idle watchdog
           noteStreamPhase(m, "answering");
           extractProposalsFromText(m);            // lift ```proposal fences out of m.text -> cards (zero context bloat)
@@ -8854,7 +8897,8 @@ async function _bugboxPasteImg(e){
 if ($("bugbox-am-desc")) $("bugbox-am-desc").addEventListener("paste",(e)=>_bugboxPasteImg(e));
 if ($("bugbox-am-cancel")) $("bugbox-am-cancel").onclick = _bugboxAddModalClose;
 if ($("bugbox-addmodal-close")) $("bugbox-addmodal-close").onclick = _bugboxAddModalClose;
-if ($("bugbox-addmodal")) $("bugbox-addmodal").addEventListener("click", (e)=>{ if(e.target===$("bugbox-addmodal")) _bugboxAddModalClose(); });
+if ($("bugbox-addmodal")) $("bugbox-addmodal").addEventListener("click", (e)=>{ if(e.target===$("bugbox-addmodal")) _bugboxAddModalClose(); });
+
 if ($("bugbox-search")) {
     $("bugbox-search").addEventListener("input", () => renderBugBox());
     $("bugbox-search").addEventListener("compositionend", () => renderBugBox());   // IME: CJK filter must refresh on commit
