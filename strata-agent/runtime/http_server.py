@@ -31,6 +31,10 @@ import queue
 import re
 import select
 import shutil
+try:
+    import psutil
+except ImportError:
+    psutil = None  # type: ignore
 import socket
 import subprocess
 import sys
@@ -145,7 +149,7 @@ _GUARD_FRACTION = 0.92
 # this reaches the banner verbatim -- no i18n key needed; the guidance is machine-generated).
 _CONTENTION_TEXT = (
     "上游拒收，但本会话占用还不到窗口的多数（非真正的窗口溢出）。"
-    "若静默重试已失败，说明引擎共享驻留预算仍紧张：关闭闲置会话或新建一个任务后点「继续」。"
+    "若静默重试已失败，请先关闭闲置会话腾出预算，然后直接在本窗口底部点「继续」续跑——不要新建窗口，新建窗口会读不到当前上下文。"
 )
 
 
@@ -752,6 +756,135 @@ def tool_failure_text(err, tool: str) -> str:
     return f"error: {tool} failed: {msg}\n[system] {hint}"
 
 
+# ─── Local hardware reader (custom-mode Monitor fallback) ──────────────────────────
+# When a custom model reasons on a SEPARATE instance, the gateway cannot ask that box about
+# its GPU — 8080 only ever sees its OWN machine. The Monitor should show what is in front of
+# the user on THIS box, so the gateway reads its own hardware and says so. Pure stdlib (the
+# gateway imports nothing new): nvidia-smi runs as a subprocess with a cached result so the
+# 1 Hz poll never stalls on it; anything unmeasurable (CPU/RAM/disk without psutil) stays
+# absent, so the existing frontend shows a dash, not a lie.
+_HW_CACHE = None
+_HW_DISK_PREV = None  # (time_monotonic, read_bytes, write_bytes) for disk rate differential                          # (monotonic, result) | None — matches the other TTL caches
+_HW_CACHE_TTL = 3.0                       # seconds
+_HW_LOCK = threading.Lock()
+# One nvidia-smi query returns all of these; the CSV column order is locked by
+# tests/test_local_metrics_fallback.py so a field rename cannot silently shift the parser.
+_HW_SMI_FIELDS = ("index", "name", "utilization.gpu", "memory.used", "memory.total",
+                  "temperature.gpu", "power.draw", "power.limit",
+                  "pcie.link.gen.current", "pcie.link.width.current")
+_HW_SMI_TIMEOUT = 2.0                     # nvidia-smi cold-start is sub-second; 2s is the ceiling
+
+
+def _smi_num(v):
+    """One nvidia-smi CSV cell -> int/float, or None for [N/A] and anything unparsable."""
+    try:
+        n = float(v)
+    except ValueError:
+        return None
+    return int(n) if n.is_integer() else n
+
+
+def _read_nvidia_gpu():
+    """One nvidia-smi subprocess -> rows of {field: number}. [] on ANY failure (no driver, no
+    binary, non-zero exit, unparsable). A GPU-less host and a dead one both read as no rows."""
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return []
+    try:
+        out = subprocess.run(
+            [exe, "--query-gpu=" + ",".join(_HW_SMI_FIELDS), "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=_HW_SMI_TIMEOUT)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    rows = []
+    for line in out.stdout.splitlines():
+        parts = [p.strip() for p in line.strip().split(",")]
+        if len(parts) != len(_HW_SMI_FIELDS):
+            continue
+        rows.append({k: _smi_num(v) for k, v in zip(_HW_SMI_FIELDS, parts)})
+    return rows
+
+
+def _read_local_hardware():
+    """This box's hardware in the frontend's own field shape (renderMonitor unchanged).
+
+    Field names match what 8080 already sends (gpus[] rows + gpu_util/mem/temp/power/pcie on
+    the flat top). nvidia-smi reports VRAM in MiB; the frontend divides bytes by 1048576, so
+    the values are scaled there, not here. CPU/RAM/disk stay absent — no psutil on this box,
+    so inventing them would be the lie the honesty rule forbids. Cached so a 1 Hz poll does
+    not fork a subprocess every tick."""
+    global _HW_CACHE
+    now = time.monotonic()
+    with _HW_LOCK:
+        if _HW_CACHE is not None and (now - _HW_CACHE[0]) < _HW_CACHE_TTL:
+            return _HW_CACHE[1]
+    gpus = _read_nvidia_gpu()
+    hw, hst = {}, {}
+    if gpus:
+        def gib(n):
+            return n * 1048576 if n is not None else None
+        hw["gpus"] = [{"index": g["index"], "util": g["utilization.gpu"],
+                       "mem_used": gib(g["memory.used"]), "mem_total": gib(g["memory.total"]),
+                       "temp": g["temperature.gpu"]} for g in gpus]
+        g0 = gpus[0]
+        if g0["utilization.gpu"] is not None:
+            hw["gpu_util"] = g0["utilization.gpu"]
+        if g0["memory.used"] is not None:
+            hw["gpu_mem_used"] = gib(g0["memory.used"])
+        if g0["memory.total"] is not None:
+            hw["gpu_mem_total"] = gib(g0["memory.total"])
+        if g0["temperature.gpu"] is not None:
+            hw["gpu_temp"] = g0["temperature.gpu"]
+        if g0["power.draw"] is not None:
+            hw["gpu_power"] = g0["power.draw"]
+        if g0["power.limit"] is not None:
+            hw["gpu_power_limit"] = g0["power.limit"]
+        if g0["pcie.link.gen.current"] is not None:
+            # renderMonitor reads gpu_pcie_gen_max for the headline (and gpu_pcie_gen for the idle hint)
+            hw["gpu_pcie_gen_max"] = g0["pcie.link.gen.current"]
+        if g0["pcie.link.width.current"] is not None:
+            hw["gpu_pcie_width"] = g0["pcie.link.width.current"]
+        if g0["name"]:
+            hst["gpu_name"] = g0["name"]
+    ps = _read_psutil_hw()
+    if ps:
+        hw.update(ps)
+    result = {"hardware": hw, "hardware_static": hst}
+    with _HW_LOCK:
+        _HW_CACHE = (now, result)
+    return result
+
+def _read_psutil_hw():
+    """CPU%, RAM (bytes), Disk read/write (MB/s) from psutil. Any field that psutil
+    cannot measure is left absent (honesty). Called inside _read_local_hardware."""
+    out = {}
+    if psutil is None:
+        return out
+    # CPU percent (first call is 0 as it primes; subsequent calls give real value)
+    # One try, not three: if any psutil call raises (no permission / unsupported
+    # platform) we return whatever was collected so far -- a real action, exactly the
+    # honesty rule the docstring promises (read it or stay absent, never invent).
+    global _HW_DISK_PREV
+    try:
+        out["cpu"] = round(psutil.cpu_percent(interval=None), 1)  # first call primes to 0
+        vm = psutil.virtual_memory()  # bytes; frontend divides by 1048576 for display
+        out["ram_total"] = vm.total
+        out["ram_used"] = vm.used
+        dio = psutil.disk_io_counters()  # I/O rate via differential; first sample primes
+        now = time.monotonic()
+        if _HW_DISK_PREV is not None:
+            prev_t, prev_r, prev_w = _HW_DISK_PREV
+            dt = now - prev_t
+            if dt > 0:
+                out["disk_read_mb"] = round((dio.read_bytes - prev_r) / dt / 1048576, 1)
+                out["disk_write_mb"] = round((dio.write_bytes - prev_w) / dt / 1048576, 1)
+        _HW_DISK_PREV = (now, dio.read_bytes, dio.write_bytes)
+    except Exception:
+        return out  # the psutil field(s) that raised stay absent; keep the ones we read
+    return out
+
 class GatewayState:
     """Shared mutable state for the gateway HTTP server."""
 
@@ -864,6 +997,105 @@ class GatewayState:
             self.api_requests.append(record)
         return record
 
+    def aggregate_local_metrics(self, now=None):
+        """Local fallback for GET /metrics when the upstream is unreachable (custom mode).
+
+        The Monitor page renders from one JSON contract (the 8080 engine's own /metrics).
+        When a custom model is selected the agent loop runs HERE, so the gateway owns the
+        only real data there is: the api_requests ring (begin_request) and its per-chunk
+        timelines. This maps that ring onto the frontend's field shape so the Monitor lights
+        up. Honest-by-construction: a field is filled only when real data backs it.
+
+        * live.state / state badges / progress  <- last chunk_timeline event type (real)
+        * recent-requests table                 <- per-record start/finish/duration/first-token (real)
+        * context ring, speed, prefill          <- only when a usage chunk carried token counts
+        * hardware cards (VRAM/temp/PCIe/CPU/disk) stay null: the gateway measures only its OWN
+          box, and the custom model reasons on a SEPARATE instance whose GPU it cannot see.
+        Returns a dict the frontend renderMonitor can consume unchanged.
+        """
+        import time as _t
+        now = now if now is not None else _t.time()
+        with self.status_lock:
+            recs = [dict(r) for r in self.api_requests]
+
+        # 事件类型 -> 前端 live.state（thinking 借用 reading 视觉态，与 paintCustomPill 一致）
+        type_to_state = {"content": "generating", "thinking": "reading",
+                         "tool_call": "generating", "tool_result": "reading",
+                         "tool_progress": "generating", "usage": "generating",
+                         "error": "error", "stopped": "idle"}
+        idle_after_s = 5.0   # 最新事件距今超过此值视为空闲（无活跃 turn）
+
+        def last_event_type(rec):
+            tl = rec.get("chunk_timeline") or []
+            return tl[-1]["type"] if tl else None
+
+        def first_token_s(rec):
+            if rec.get("first_token_s") is not None:
+                return rec.get("first_token_s")
+            tl = rec.get("chunk_timeline") or []
+            for e in tl:
+                if e["type"] in ("content", "thinking", "tool_call"):
+                    return e["t"]
+            return None
+
+        def usage_tokens(rec):
+            for e in (rec.get("chunk_timeline") or []):
+                if e["type"] == "usage":
+                    # usage 事件仅记 bytes，不含 token；custom 端点若不回 usage 结构则拿不到真 token
+                    return e.get("prompt_tokens"), e.get("output_tokens")
+            return None, None
+
+        live = {"state": "idle", "queued": 0}
+        live["first_token_s"] = None
+        requests_out = []
+        for r in reversed(recs):   # frontend treats requests[0] as the MOST RECENT
+            et = last_event_type(r)
+            finish = {"done": "done", "[DONE]": "done", "error": "error", "stopped": "cancel"}.get(et, et)
+            pt, ot = usage_tokens(r)
+            requests_out.append({
+                "time": r.get("started_at"),
+                "finish": finish,
+                "prompt_tokens": pt,
+                "reused": 0,
+                "output_tokens": ot,
+                "prompt_ms": None,
+                "decode_tok_s": None,
+                "hit_rate": None,
+                "duration_s": r.get("wallclock_s"),
+                "first_token_s": first_token_s(r),
+            })
+
+        newest = recs[-1] if recs else None
+        if newest is not None:
+            ft = first_token_s(newest)
+            live["first_token_s"] = ft
+            et = last_event_type(newest)
+            # 距最新事件的时间差用 timeline 末尾 t（相对 _clock 的秒）近似新鲜度
+            tl = newest.get("chunk_timeline") or []
+            last_t = tl[-1]["t"] if tl else None
+            fresh = (last_t is not None and last_t < idle_after_s)
+            if et and fresh:
+                live["state"] = type_to_state.get(et, "idle")
+            # token 真值（仅 usage 携带时）
+            pt, ot = usage_tokens(newest)
+            if pt is not None:
+                live["prompt_tokens"] = pt
+            if ot is not None:
+                live["generated"] = ot
+
+        hw_local = _read_local_hardware()
+        return {
+            "live": live,
+            "hardware": hw_local["hardware"],
+            "hardware_static": hw_local["hardware_static"],
+            "engine": {},
+            "history": {},
+            "requests": requests_out,
+            "totals": None,
+            "requests_kept": len(requests_out),
+            "conversation_cache": None,
+            "source": "local",          # 标记来源，供未来 UI 标注用（现不改前端）
+        }
     def request_records(self, request_id=None):
         """GET /api/requests: the most recent records (newest first), or one by id. Internal
         keys (starting with _) are stripped so the wire shape never leaks the perf clock."""
@@ -1168,6 +1400,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(resp_body)
         except Exception as e:
+            # custom mode: the agent loop runs HERE, so when the upstream is unreachable the
+            # Monitor page can only be fed by this gateway's own request ring. GET /metrics gets a
+            # local aggregate (renderMonitor consumes it unchanged); every other path keeps 502.
+            if method == "GET" and self.path.split("?")[0].rstrip("/") == "/metrics":
+                self._json(200, self.state.aggregate_local_metrics())
+                return
             self._json(502, {"error": {"type": "bad_gateway", "message": f"upstream unreachable: {e}"}})
 
     # ─── Static file serving ───────────────────────────────────────────────────────
