@@ -91,9 +91,9 @@ s.api_requests.append(rec([
     {"t": 1.2, "type": "content", "bytes": 350},
 ]))
 row = s.aggregate_local_metrics()["requests"][0]
-# total 700 bytes / 3.5 = 200 est tokens over 1.0s span = 200 t/s, tagged est=True
-check("A3 no-usage path -> estimated decode speed (bytes/3.5 over content span)",
-      row["decode_tok_s"] == 200.0 and row["est"] is True)
+# total 700 bytes / 5.1 = 137.3 est tokens over 1.0s span = 137.3 t/s, tagged est=True
+check("A3 no-usage path -> estimated decode speed (bytes/5.1 over content span)",
+      row["decode_tok_s"] == 137.3 and row["est"] is True)
 
 s = fresh_state()
 s.api_requests.append(rec([

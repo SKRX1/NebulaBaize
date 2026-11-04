@@ -169,3 +169,8 @@ commit后必须对最终拓扑重跑orphan-chain门禁转绿才算锚链健康,�
 向 Windows 回收站送文件用 Shell.Application COM（Namespace 绝对路径 + ParseName + InvokeVerb('delete')），VisualBasic DeleteFile 重载在 PowerShell 绑定 enum 会失败。
 PowerShell here-string 遇注释含单引号会解析失败；对含中文/引号的批量替换改用 Python 脚本（newline='' 保字节）。
 空闲态顶栏文案用专用键 mon.pill.endpoint.idle（zh「端点在线（空闲中）」/en「Endpoint live (idle)」），工作态仍用 mon.state.working；两者都从 paintCustomPill 的非工作/工作分支分流，单一来源。
+改 runtime/http_server.py 后必跑全套门禁 tests/run_tests.py（含 post-green rollback verify），不只跑单测
+棘轮门禁（test_code_hygiene 的 swallow/stub 计数）报 NEW 时优先重构掉新引入的纯 pass except，不要 --bless 永久放宽基线
+会话内commit后必跑tools/run_tests.py全套,ORPHAN-CHAIN-GATE报RED不得假绿;游离链修复前先git merge-base --is-ancestor确认纯快进再merge --ff-only
+棘轮门禁(test_code_hygiene)报NEW时优先重构掉新引入的纯pass except(except body用真实动作如return不算哑弹),不--bless永久放宽基线
+一次性侦察脚本命名tools/_q_*;清理用Shell.Application COM InvokeVerb('delete')逐个送回收站+0.25s停顿防批量丢项,可一键撤销

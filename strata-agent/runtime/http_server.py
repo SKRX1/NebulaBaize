@@ -1052,7 +1052,7 @@ class GatewayState:
 
         def decode_speed(rec):
             # (value, est_bool). REAL usage output-tokens / real content-phase span when the
-            # upstream carried usage; else an honest byte/3.5 estimate tagged est=True so the
+            # upstream carried usage; else an honest byte/5.1 estimate tagged est=True so the
             # UI prefixes it with a ≈. Never invents a number when there is no data.
             tl = rec.get("chunk_timeline") or []
             evs = [e for e in tl if e["type"] == "content" and e.get("t") is not None]
@@ -1069,7 +1069,7 @@ class GatewayState:
             total = sum(int(e.get("bytes") or 0) for e in evs)
             if total <= 0:
                 return None, False
-            return round((total / 3.5) / span, 1), True
+            return round((total / 5.1) / span, 1), True
 
         def hit_rate_of(rec):
             # reused/prompt from the real usage tuple only; honest None when usage is absent.

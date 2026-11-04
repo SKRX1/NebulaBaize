@@ -1,5 +1,5 @@
 {
-  "selected": "swift-iq3_s",
+  "selected": "unsloth-ud-q4_k_xl",
   "models": [
     {
       "id": "swift-1.5-iq2_xs",
@@ -82,6 +82,22 @@
       ],
       "think_default": "auto",
       "context_window": 131072
+    },
+    {
+      "id": "unsloth-ud-q4_k_xl",
+      "name": "unsloth-ud-q4_k_xl",
+      "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "unsloth-ud-q4_k_xl",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
     }
   ]
 }
