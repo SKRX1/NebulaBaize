@@ -183,6 +183,17 @@ finally:
     http_server._read_nvidia_gpu = _ORIG_PARSER
     _reset_cache()
 
+# Differential that the injected fake row could not catch: the REAL nvidia-smi CSV
+# path. name is a STRING column; the parser used to float() every column and Nulled
+# it out (gpu_name stayed None). Only asserted when this box actually has a GPU.
+_real = _ORIG_PARSER()
+if _real:
+    check("REAL nvidia-smi row -> name stays a STRING (not Nulled by float)",
+          isinstance(_real[0].get("name"), str) and bool(_real[0].get("name")),
+          repr(_real[0].get("name")))
+else:
+    print("SKIP  real nvidia-smi name check (no GPU on this box)")
+
 if fails:
     print("\nFAILED: " + ", ".join(fails))
     sys.exit(1)

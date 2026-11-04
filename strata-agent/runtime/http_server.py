@@ -803,7 +803,10 @@ def _read_nvidia_gpu():
         parts = [p.strip() for p in line.strip().split(",")]
         if len(parts) != len(_HW_SMI_FIELDS):
             continue
-        rows.append({k: _smi_num(v) for k, v in zip(_HW_SMI_FIELDS, parts)})
+        # name is a STRING field (the CSV column is locked by the test); keep it raw,
+        # parse only the numeric columns -- float("NVIDIA GeForce RTX ...") would None it.
+        rows.append({k: (v if k == "name" else _smi_num(v))
+                     for k, v in zip(_HW_SMI_FIELDS, parts)})
     return rows
 
 
