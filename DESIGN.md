@@ -141,3 +141,61 @@
 - `tests/test_footer_progressive_seed.mjs`：静态锁「骨架 gained stat--seed span」「seed chip 自带 _seedSig anti-flicker、不与 _sig 共用」「honest hidden-until-seed guard」；jsdom 差分翻转单一变量证 load-bearing。
 
 > 落点：前端 `app.js` renderStats streaming 分支 = anchor commit `v-baseline-2026-11-03-p`（实现本体）；门禁与其 SUITES 登记 off-anchor 在其之上。
+
+
+---
+
+## §4 监控页 custom-API 路径：网关本地聚合接管显示，静默区逐项点亮（DESIGN S4）
+
+**日期**：2026-11-05　**状态**：已落地（实现 anchor commit `6e17519` + 接线 commit `5d5df6a`）
+
+### 背景
+选定在线自定义 API 模型后，监控页整页失联（全「—」、上下文 0%、暂无请求），
+顶栏 pill 却仍工作。根因链（读实非臆测）：监控页 `renderMonitor` 的数据只来自
+`poll() → fetch("metrics")`，这条相对地址命中 `PROXY_PREFIXES` 被转发给默认上游
+8080 引擎；custom 模型的请求只进网关**自己的 `api_requests` 环**（走 `/api/requests`），
+`/metrics` 永远到不了 custom 端点。8080 引擎不在跑 → fetch 失败进 `catch` →
+`paintCustomPill()` 点亮顶栏，但 `renderMonitor()` 根本没被调用 → 整页空白。
+
+### 决策
+分两步，均带常驻差分门禁（实现本体 anchor 在前，接线在后）：
+1. **本地聚合接管（`6e17519`）**：`/metrics` 代理失败时回落网关自己的
+   `aggregate_local_metrics()`——ring → 契约字段映射 + `_read_local_hardware()`
+   读本机（nvidia-smi/psutil），custom 模式下页面不再空白。
+2. **静默区逐项点亮（`5d5df6a`）**：
+   - **A1** `_mon_chunk(tokens=)` 承接 sse() 解析出的 usage 真值三元组
+     (prompt, output, cached)，`usage_tokens()` 优先读 `e["tok"]`——上游回 usage
+     时提示词/输出/复用/命中率列真点亮。
+   - **A2** 修真实读键 bug（见 known-bugs 段）。
+   - **A3** 解码速度：有 usage 用真 token/真跨度；无则 bytes/3.5 估算并标 `est`
+     标志，前端「≈」前缀 + hover tooltip 明示「估算值，非引擎实测」。
+   - **A4** `engine_block()` 只取 model_registry 声明窗口作分母（**不回落 8080
+     引擎 n_ctx**——custom 模式下那是另一台机器/另一个模型的窗口），环形占用仪表点亮。
+   - **B5** llm_client 流式请求带 `stream_options.include_usage`（OpenAI 标准扩展，
+     主流兼容端点认；拒收方走既有 400 拒绝路径，无新失败模式）。
+   - **C6** 专家槽位卡结构上拿不到（本地引擎独有），诚实留空 + 悬浮说明「仅本地
+     引擎模式可用」，中英 i18n 双语。
+
+### known-bugs（本轮钉死并修复）
+- **A2 读键错位（真 bug，非「数据拿不到」）**：aggregate 的耗时列读
+  `r.get("wallclock_s")`，但 finalize 实际写入的键是 `duration_s`（L2950 附近，
+  注释明写「waterfall must use this」因为 wallclock_s 对已完结轮次仍增长）。
+  两键永不相交 → custom 模式耗时列**永远显示「—」**，本地聚合数据其实一直都在。
+  修复 = 读键对齐 finalize（`r.get("duration_s", r.get("wallclock_s"))` 保留回落）。
+- **手写桩镜像生产签名的同步陷阱（环境结论，非产品 bug）**：6 个 agent-loop
+  主链路测试手写桩镜像旧签名 `def _mon_chunk(self, typ, length)`；生产加
+  `tokens=None` 关键字参数后桩收不到 → 事件丢失 → 9 测试红。生产签名是
+  source of truth，桩是镜像——改桩即同步恢复（生产签名向后兼容，不动）。
+
+### 实测依据（差分门禁，工具实测）
+- `tests/test_monitor_custom_api_landing.py` 16 项差分全绿（A1 tok 三元组填充/
+  无 tok 回落、A2 有/无 duration_s 翻转、A3 估算 vs 真实 tag 翻转、A4 有/无
+  registry 条目翻转、B5 源码静态锁、C6 双词典静态锁），已注册进 run_tests SUITES。
+- 全套 `REGRESSION: ALL GREEN` + 锚链门禁绿 + post-green 真回退 tag 复验绿。
+
+### 锁（防退化的常驻门禁，已并入 run_tests）
+- `tests/test_local_metrics_fallback.py`（S4 第一步的门禁，差分证 live.state
+  由事件类型驱动、freshness 驱动 idle、GPU 有/无翻转、psutil 有/无翻转）。
+- `tests/test_monitor_custom_api_landing.py`（本轮 16 项差分，每条都是单一变量翻转）。
+- 生效条件：前端 app.js/i18n.js 部署即生效；后端 http_server.py/llm_client.py
+  改动需**重启独立版 8099** 加载。
