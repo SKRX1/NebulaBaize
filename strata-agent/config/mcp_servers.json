@@ -97,7 +97,13 @@
     "tool_keep_recent": 3
   },
   "schedule": {
-    "entries": []
+    "entries": [
+      {
+        "name": "daily-git-bundle-backup",
+        "task": "cd /d \"E:\\WorkBuddy\\星云智能体\\strata-agent\" && python tools\\backup-bundle.py --keep 14",
+        "daily_at": "03:30"
+      }
+    ]
   },
   "verify": {
     "command": ".venv\\Scripts\\python.exe tests\\test_undefined_names.py && .venv\\Scripts\\python.exe tests\\test_code_hygiene.py",
