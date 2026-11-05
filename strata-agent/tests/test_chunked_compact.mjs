@@ -282,6 +282,15 @@ const main = async () => {
   check("D: history NOT rolled back to the untouched seed (no chunkfail path)",
     !!persistedD && persistedD[0] && persistedD[0].role === "system",
     persistedD && persistedD[0] ? persistedD[0].role : "no persist");
+  // #compactthink: summarisation is a pure-summarise task -- a long chain caused the
+  // thinking-only empty summary + 85-181s first token. BOTH compact requests must
+  // arrive with reasoning_effort=low + a short budget, overriding the chat HIGH level.
+  check("D: chunked fold requests cap reasoning to low",
+    sumsD.length >= 2 && sumsD.every((c) => c.body.reasoning_effort === "low" && c.body.reasoning_budget_tokens === 1024),
+    sumsD.map((c) => c.body.reasoning_effort).join(","));
+  check("D: post-fold single-shot compact caps reasoning to low (overrides chat HIGH)",
+    !!finalD && finalD.body.reasoning_effort === "low" && finalD.body.reasoning_budget_tokens === 1024,
+    finalD ? String(finalD.body.reasoning_effort) : "no final");
   D.win.close();
 
   console.log();

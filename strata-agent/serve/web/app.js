@@ -3523,6 +3523,14 @@ function compactChunkMaxTokens(requestChars) {
   const safe = maxCtx - promptTok - injectTok - reserve;
   return Math.min(4096, Math.max(800, safe));
 }
+// Compression is a PURE summarisation task: a long thinking chain only adds latency
+// (85-181s first-token measured on the custom model) and, on a thinking-only turn,
+// starves the content channel -> empty summary -> "chunked compaction failed". Cap the
+// reasoning effort on BOTH compact paths (the chunked fold in llmSummarize AND the
+// post-fold single-shot in streamAssistant) to a short budget. Single source: the constant
+// + helper below are the only place the compact level is defined.
+const COMPACT_THINK_EFFORT = "low";
+function compactThinkBudget() { return thinkingBudget(COMPACT_THINK_EFFORT) || 1024; }
 // One bounded summarisation request through the SAME streaming endpoint the chat uses (the gateway's
 // agent loop only speaks SSE). strata_compact bypasses the proactive guard; no strata_workspace /
 // recall / tool extras — this is a pure summarise call.
@@ -3530,6 +3538,10 @@ async function llmSummarize(userPrompt) {
   const reqChars = COMPACT_SYS.length + (userPrompt || "").length;
   const body = {model: requestModel(), stream: true, temperature: 0.2,
                 max_tokens: compactChunkMaxTokens(reqChars),
+                // #compactthink: summarisation needs no long chain -- cap the fold's reasoning
+                // so the custom model (think_default:auto -> xhigh uncapped) stops emitting a
+                // 85-181s thinking block that leaves content empty.
+                reasoning_effort: COMPACT_THINK_EFFORT, reasoning_budget_tokens: compactThinkBudget(),
                 messages: [{role: "system", content: COMPACT_SYS}, {role: "user", content: userPrompt}],
                 strata_session: activeId, strata_compact: true};
   const r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body)}, {retries: 1, base: 800});
@@ -7255,7 +7267,15 @@ async function streamAssistant() {
   // Mark a compaction turn so the gateway's proactive context guard lets it through (the whole point
   // of a compact is to escape an overflowing context, so blocking it there would wedge the chat
   // permanently -- see reset_prompt_tokens / the _is_compact guard in http_server.py).
-  if (pendingCompact) body.strata_compact = true;
+  if (pendingCompact) {
+    body.strata_compact = true;
+    // #compactthink: the post-fold single-shot is the SAME pure-summarise task as the
+    // chunked fold (capped in llmSummarize). A long thinking chain here is what produced
+    // the thinking-only empty summary + 85-181s first token, so force the short level
+    // (overrides the chat档位 set above at the body build).
+    body.reasoning_effort = COMPACT_THINK_EFFORT;
+    body.reasoning_budget_tokens = compactThinkBudget();
+  }
   // Per-workspace approval tier: sent on every request so the server can gate tool calls.
   // Missing on a session -> "full" (preserves the old autonomous behaviour for pre-existing tasks).
   const _perm = sessionPerm(activeSession() || {});

@@ -97,7 +97,8 @@
         "medium",
         "high"
       ],
-      "think_default": "auto"
+      "think_default": "auto",
+      "context_window": 131072
     }
   ]
 }
