@@ -832,6 +832,9 @@
     <div class="toggle-row" id="s-targetpct-row"><label class="st-label" for="s-targetpct"><span data-i18n="drawer.compacttarget">压缩保留比例（近期原文）</span> <output id="o-targetpct">25%</output></label>
       <input class="st-slider" type="range" id="s-targetpct" min="5" max="50" step="5" value="25">
       <div class="muted small" data-i18n="drawer.compacttarget.hint">左端=压得更狠，右端=保留更多近期原文</div></div>
+    <div class="toggle-row" id="s-precondmax-row"><label class="st-label" for="s-precondmax"><span data-i18n="drawer.precondmax">压缩重试上限（防死循环）</span> <output id="o-precondmax">2</output></label>
+      <input class="st-slider" type="range" id="s-precondmax" min="1" max="5" step="1" value="2">
+      <div class="muted small" data-i18n="drawer.precondmax.hint">连续分段压缩仍装不下时，最多重试几次后停止并告警（防压缩死循环）。默认 2</div></div>
       <div class="toggle-row" id="s-speeddrop-row"><label class="st-label" for="s-speeddrop"><span data-i18n="drawer.speeddrop">速度提前触发降幅</span> <output id="o-speeddrop">50%</output></label>
         <input class="st-slider" type="range" id="s-speeddrop" min="5" max="80" step="5" value="50">
         <div class="muted small" data-i18n="drawer.speeddrop.hint">仅在阈值滑条=自动时生效：解码速度较安静期基线下降达此百分比即提前压缩；左端灵敏，右滑迟钝</div></div>

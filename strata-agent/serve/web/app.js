@@ -1125,7 +1125,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, speedDropPct: 50, archiveOn: true, memCompactLLM: false, cnThink: false, designLang: "auto", persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: false, cnThink: false, designLang: "auto", persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -3433,6 +3433,28 @@ function estMsgChars(m) {
 // chunks (each request far below the window), THEN run the normal single-shot compact on the
 // condensed transcript. The user-visible flow and the post-compact tail/resume logic are unchanged.
 let chunkedCompacting = false;   // true while the pre-condense loop runs (blocks send/compact re-entry)
+// A (2026-11): hard cap on precondense self re-entry. precondenseAndCompact folds the history,
+// then a single-shot compact fires; if THAT also overflows (full window + injection) the gateway
+// 400s "even when compacting", the finalize hook rolls back and re-enters precondense -- an
+// unbounded recursion that compacted 20+ times in a row. Two folds are plenty: the second runs on
+// the summary+tail (far smaller). Past the cap we stop and surface a self-rescue warning.
+let precondenseDepth = 0;
+const PRECONDENSE_MAX = 2;   // default re-entry cap; settings.precondenseMax (drawer slider) overrides it
+function precondenseCap() { const v = +settings.precondenseMax; return v >= 1 ? v : PRECONDENSE_MAX; }
+
+// B (2026-11): calibrate the per-request injection overhead (system prompt + tool schemas +
+// memory/recall) from REAL usage instead of a flat 10% guess. Near a full window the prompt is
+// (messages + injection), so injection ≈ lastPromptTokens − (message chars / 1.8). A workspace whose
+// rules/knowledge/schemas exceed 10% of the window made the compact budget optimistic: the
+// single-shot compact request overflowed and re-entered precondense forever. A measured floor
+// shrinks the budget so the compact request actually fits -- fewer chats fall into that loop.
+function measuredInjectTokens() {
+  if (!(maxCtx > 0) || !lastPromptTokens) return 0;
+  let chars = 0;
+  for (const m of messages) chars += estMsgChars(m);
+  const msgTok = Math.floor(chars / 1.8);
+  return Math.max(0, lastPromptTokens - msgTok);
+}
 
 function compactReqBudgetChars() {
   // One compaction request must fit the REAL model window: message chars PLUS the injected
@@ -3442,7 +3464,7 @@ function compactReqBudgetChars() {
   // char scale kept at 1.8/token (zh-mixed); token floors for injection and reply.
   const perTok = 1.8;
   if (!(maxCtx && maxCtx > 0)) return 24000;
-  const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10));   // preamble+schemas+memory floor
+  const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10), measuredInjectTokens());   // B: measured floor, not just 10%
   const replyTok = Math.max(800, Math.floor(maxCtx * 0.05));      // the summarise reply itself
   const tok = Math.max(Math.floor(maxCtx * 0.12), maxCtx - injectTok - replyTok);
   return Math.max(6000, Math.floor(tok * perTok));
@@ -3496,7 +3518,7 @@ function compactChunkMaxTokens(requestChars) {
   // the edge. The chunk prompt is bounded by compactReqBudgetChars; the injection still
   // rides along on EVERY request, so charge for it here too before giving the reply room.
   const promptTok = Math.ceil(requestChars / 4);
-  const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10));
+  const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10), measuredInjectTokens());   // B: measured floor
   const reserve = Math.floor(maxCtx * 0.05);
   const safe = maxCtx - promptTok - injectTok - reserve;
   return Math.min(4096, Math.max(800, safe));
@@ -3537,6 +3559,7 @@ async function llmSummarize(userPrompt) {
 }
 
 async function precondenseAndCompact(auto) {
+  precondenseDepth++;   // A: count this fold attempt (reset on success / after the cap fires)
   const budget = compactReqBudgetChars();
   chunkedCompacting = true;
   const original = messages;
@@ -3581,6 +3604,7 @@ async function precondenseAndCompact(auto) {
 
 function compactConversation(auto = false) {
   if (busy || chunkedCompacting) return;
+  if (!auto) precondenseDepth = 0;   // A: a fresh manual compact restarts the fold budget from zero
   if (!auto && !confirm(t("insp.compact.confirm"))) return;
   pendingCompact = auto ? "auto" : "manual";
   // Compaction IS truncation: every compact (auto or manual) arms a resume (approved 2026-10,
@@ -7491,6 +7515,15 @@ async function streamAssistant() {
       saveChat(); renderChat();
       toast("err", t("insp.compact.chunkfail"), m.error || "", 9000);
       if (m.error && /context window exceeded even when compacting/i.test(m.error)) {
+        // A: the escape hatch itself overflowed. Cap re-entry -- past PRECONDENSE_MAX a third fold
+        // won't fit either (the window is genuinely full + injection); stop the loop and tell the
+        // user how to self-rescue (shrink the tail target / pin a lower auto-compact %).
+        if (precondenseDepth >= precondenseCap()) {
+          precondenseDepth = 0;
+          toast("err", t("insp.compact.loopstop.title"), t("insp.compact.loopstop.msg"), 12000);
+          renderInspector();
+          return;
+        }
         precondenseAndCompact(auto);                  // bounded chunks: the escape hatch that works
         return;
       }
@@ -7498,6 +7531,7 @@ async function streamAssistant() {
       return;                                         // plain failure: history untouched, user can retry
     }
     compactCount++;
+    precondenseDepth = 0;   // A: a real compaction succeeded -- reset the re-entry cap for the next overflow
     const summary = m.text || "";
     const withoutPair = messages.slice(0, -2);          // drop [user compact-request, assistant summary]
     // Size-aware tail: keep recent messages verbatim only while under a token-derived
@@ -8649,6 +8683,7 @@ function loadDrawer(s = settings) {
   $("s-compactpct-row").hidden = !s.autocompact;
   $("s-speeddrop").value = s.speedDropPct || 50;
   $("s-targetpct").value = s.compactTarget || 25;
+  $("s-precondmax").value = (+s.precondenseMax >= 1) ? +s.precondenseMax : 2;
   $("s-archiveon").setAttribute("aria-checked", String(s.archiveOn !== false));
   renderArchiveManager();   // fire-and-forget: refresh the cold-archive panel
   $("s-cnthink").setAttribute("aria-checked", String(!!s.cnThink));
@@ -8708,11 +8743,12 @@ function outputs() {
   $("s-compactpct").disabled = !settings.autocompact;
   const sd = +$("s-speeddrop").value;
   $("o-targetpct").textContent = (+(+$("s-targetpct").value) || 25) + "%";
+  $("o-precondmax").textContent = (+(+$("s-precondmax").value) || 2);
   $("o-speeddrop").textContent = sd + "%";
   $("s-speeddrop").disabled = !settings.autocompact || settings.compactPct > 0;   // pinned threshold = pure window rule, speed channel sleeps
 }
 for (const b of $("s-thinking").children) b.onclick = () => { for (const x of $("s-thinking").children) x.setAttribute("aria-checked", String(x === b)); outputs(); };
-for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop"]) $(id).oninput = outputs;
+for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax"]) $(id).oninput = outputs;
 $("s-show").onclick = () => $("s-show").setAttribute("aria-checked", String($("s-show").getAttribute("aria-checked") !== "true"));
 $("s-esp").onclick = () => $("s-esp").setAttribute("aria-checked", String($("s-esp").getAttribute("aria-checked") !== "true"));
 $("s-mcp").onclick = () => $("s-mcp").setAttribute("aria-checked", String($("s-mcp").getAttribute("aria-checked") !== "true"));
@@ -8765,6 +8801,7 @@ $("s-apply").onclick = async () => {
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
+              precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,
               autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",

@@ -562,6 +562,8 @@
       "drawer.archiveon": "压缩时可恢复归档",
       "drawer.archiveon.hint": "开启：被折叠的旧历史写入工作区 .strata-archive/ 便于随时读回（零损失，仅留摘要+搜索指针在窗口）；最近决策/任务状态始终驻留不归档。关闭=旧行为（直接销毁）",
       "drawer.compacttarget.hint": "压缩后保留多少近期原文（占窗口比例）。左滑=压得更狠，右滑=保留更多。注：总占用还含每轮必发的固定开销，此滑条只管可压的部分",
+      "drawer.precondmax": "压缩重试上限（防死循环）",
+      "drawer.precondmax.hint": "连续分段压缩仍装不下时，最多重试几次后停止并告警（防压缩死循环）。默认 2，越小越早止损，越大越肯尝试",
 "drawer.speeddrop": "速度提前触发降幅",
 "drawer.speeddrop.hint": "仅在阈值滑条=自动时生效：解码速度较安静期基线下降达此百分比即提前压缩；左端灵敏，右滑迟钝",
       "drawer.cnthink": "强制中文思考",
@@ -1084,6 +1086,8 @@
       "insp.compact.resumed": "本轮为自动续跑",
       "insp.compact.msgs": "条消息",
       "insp.compact.block.shortchat": "消息太少（≤6条），暂不压缩",
+      "insp.compact.loopstop.title": "上下文压缩已停止（连续多次装入不下）",
+      "insp.compact.loopstop.msg": "窗口已接近占满且每请求注入开销较大，连续分段压缩仍装不下，已停止以避免死循环。请点右上角齿轮把「压缩后保留」目标调小（如 15%），或把「自动压缩阈值」调低，再重试压缩。",
 
       /* ── Per-turn stats footer (duration / speed / tokens / context) ── */
       "stat.generating": "生成中",
@@ -1718,6 +1722,8 @@
       "drawer.archiveon": "Recoverable archive on compaction",
       "drawer.archiveon.hint": "On: dropped history is written to the workspace .strata-archive/ folder so it can be re-read any time (zero loss; only the summary + a search pointer stay in the window); recent decisions / open task-state always stay resident. Off = old behaviour (discard)",
       "drawer.compacttarget.hint": "How much recent history stays verbatim after compaction (% of window). Slide left = compress harder, right = keep more. Note: total usage still includes the per-turn fixed overhead this slider cannot touch.",
+      "drawer.precondmax": "Compaction retry cap (anti-loop)",
+      "drawer.precondmax.hint": "How many times chunked compaction retries before it stops and warns (prevents the compaction infinite loop). Default 2 — lower fails fast, higher tries harder",
 "drawer.speeddrop": "Speed-drop trigger",
 "drawer.speeddrop.hint": "Active only when the threshold slider = Auto: fires early when decode speed falls this %% below the quiet-period baseline; left = sensitive, right = relaxed",
       "drawer.cnthink": "Force Chinese thinking",
@@ -2240,6 +2246,8 @@
       "insp.compact.resumed": "auto-resumed this turn",
       "insp.compact.msgs": "messages",
       "insp.compact.block.shortchat": "too few messages (≤6), not compacting",
+      "insp.compact.loopstop.title": "Compaction stopped (repeatedly would not fit)",
+      "insp.compact.loopstop.msg": "The window is nearly full and the per-request injection overhead is large; repeated chunked compaction still overflowed, so it stopped to avoid an infinite loop. Open the gear and lower the \"keep after compact\" target (e.g. 15%) or the auto-compact threshold, then retry.",
 
       /* ── Per-turn stats footer (duration / speed / tokens / context) ── */
       "stat.generating": "Generating",

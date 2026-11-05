@@ -82,6 +82,7 @@ async function makeScope(seedMessages, opts = {}) {
     let messages = env.messages, busy = env.busy, chunkedCompacting = env.chunkedCompacting;
     let pendingCompact = env.pendingCompact, resumeSnapshot = env.resumeSnapshot, autoDriveDepth = env.autoDriveDepth;
     let continueRequested = false;   // 2026-11 A+B: the grabbed fn now reads this module global; all three runs here are NON-Continue autos -> stays false, guard defers exactly as before
+    let precondenseDepth = 0;      // 2026-11 loopfix: the grabbed fns now read/write this module global (re-entry cap)
     const calls = env.calls;
     const t = env.t;
     const $ = (id) => env.$(id);
@@ -104,7 +105,7 @@ async function makeScope(seedMessages, opts = {}) {
     const precondenseAndCompact = ${GRABS.precondenseAndCompact};
     const compactConversation = ${GRABS.compactConversation};
     return { run: async (auto) => { await compactConversation(auto); },
-      get: () => ({ pendingCompact, resumeSnapshot, chunkedCompacting }) };
+      get: () => ({ pendingCompact, resumeSnapshot, chunkedCompacting, precondenseDepth }) };
   `);
   const api = await S(scope);
   return { calls, api };
