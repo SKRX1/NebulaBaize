@@ -459,6 +459,38 @@ seed();
   check("T8 new-btn (clear current): STILL blocked by busy guard (static lock)", /if \(busy\) \{[^}]*return; \}/.test(newBtnHead), newBtnHead.split("\n")[0]);
 }
 
+// ================================================================ T9: busy-differential
+console.log("\n=== T9: busy differential (deleteTask single-delete) ===");
+seed();
+{
+  const BUSY_SID = "s2";                 // the running task (not active, on purpose)
+  // FIX: deleteTask guard was keyed on activeId; it must key on busy.sessionId so a
+  // running task does NOT block deleting OTHER, not-running tasks (active or not).
+  // -- active task that is NOT running -> ALLOWED (the user-reported case) --
+  api.setActiveId("s1");
+  api.setBusy({sessionId: BUSY_SID, msg: {role: "user", text: "x"}, origin: null});
+  let n = api.getSessions().length;
+  api.deleteTask("s1");                  // active, not running -> must delete
+  check("T9 deleteTask: active-not-running -> DELETED", api.getSessions().length < n, String(api.getSessions().length));
+
+  // -- non-active, non-running task -> ALLOWED --
+  seed();
+  api.setActiveId("s1");
+  api.setBusy({sessionId: BUSY_SID, msg: {role: "user", text: "x"}, origin: null});
+  n = api.getSessions().length;
+  api.deleteTask("s3");                  // neither active nor running -> must delete
+  check("T9 deleteTask: non-active-not-running -> DELETED", api.getSessions().length < n, String(api.getSessions().length));
+
+  // -- the running task -> BLOCKED (protection kept) --
+  seed();
+  api.setActiveId("s1");
+  api.setBusy({sessionId: BUSY_SID, msg: {role: "user", text: "x"}, origin: null});
+  n = api.getSessions().length;
+  api.deleteTask(BUSY_SID);               // the running task -> must be blocked
+  check("T9 deleteTask: running task -> BLOCKED", api.getSessions().length === n, String(api.getSessions().length));
+  api.setBusy(null);
+}
+
 console.log("\n" + (FAILURES.length ? "SIDEBAR TREE: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ")
                                     : "SIDEBAR TREE: ALL PASSED"));
 process.exit(FAILURES.length ? 1 : 0);

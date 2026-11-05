@@ -1450,7 +1450,7 @@ function deleteTask(sid) {
   const s = findSession(sid);
   if (!s) return;
   if (sessions.length <= 1) { toast("warn", t("toast.lasttask.title"), t("toast.lasttask.msg")); return; }
-  if (sid === activeId && busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
+  if (busy && sid === busy.sessionId) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   if (!confirm(t("side.deltask.confirm", {name: sessionTitle(s)}))) return;
   sessions = sessions.filter((x) => x.id !== sid);
   batchSel.delete(sid);
