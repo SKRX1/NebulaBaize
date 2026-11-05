@@ -46,6 +46,8 @@
   实测；语义摘要器判准非 100%（实测 3/4，漏 1 条），靠白名单硬规则兜底。
 - **本机小套件并行≈串行（实测，勿误以为调高 factor 能提速）**：本机12核，强制串行(STRATA_TESTS_SERIAL=1)≈50.5s、自适应7路(factor 0.6 算出7)≈52.5s、推荐4路(STRATA_TESTS_WORKERS=4)≈59.9s——短子进程套件并行收益≈持平甚至略慢（冷启动开销占比小 + 计时敏感门禁 + 调度开销；代码注释故意 default 4 是防抖非提速），故 factor/封顶**维持现状不调高**。对照：真·I/O-bound 负载（回收池，每批一个 PowerShell 冷启动进程、GIL 释放、启动真重叠）差分实测 workers 1→4 加速 3.92x（16.40s→4.18s，近线性）、1→7 近线性——自适应引擎的价值在真 I/O-bound 上吃满，不在小套件上提速。
 
+- **8099 网关级 UPSTREAM=8080 与前端 per-model=47831 是两套上游（2026-11-05 实测坐实，勿混淆）**：8099 独立版有两条独立上游链路——①前端聊天真用的走 per-model `base_url`（models.json selected 驱动，如 47831→native 18500，本轮实测 47831 /v1/models=200 通）；②网关级 `GET 8099/v1/models` 走 run_standalone.bat 写死的 `UPSTREAM_URL=http://127.0.0.1:8080/v1`。故“8099 跑着+聊天正常”与“GET 8099/v1/models 报 502”可并存不矛盾——502 仅因网关级 8080 没起，与前端聊天链路（47831）无关。CPU 链路冒烟坐实：8080 起极简 OpenAI mock 后 8099/v1/models 从 502→200 透传 mock body。注：宿主 strata CLI 是 CUDA 引擎，launch setup 强制要求至少一张 GPU 为 Main/Helper（--gpu-roles 0=off 被拒），无纯 CPU 起 GGUF 入口。
+
 - **run_tests post-green 钩子 restore 留游离 HEAD（2026-11-05 实测，收尾自检必查）**：
   全套 run_tests 的 post-green rollback verify 钩子跑完用 `git checkout <sha>`（不是
   `git checkout master`）恢复 HEAD，故每次全套跑完 HEAD 会停在游离态（detached）。本轮三项
