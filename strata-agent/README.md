@@ -46,6 +46,13 @@
   实测；语义摘要器判准非 100%（实测 3/4，漏 1 条），靠白名单硬规则兜底。
 - **本机小套件并行≈串行（实测，勿误以为调高 factor 能提速）**：本机12核，强制串行(STRATA_TESTS_SERIAL=1)≈50.5s、自适应7路(factor 0.6 算出7)≈52.5s、推荐4路(STRATA_TESTS_WORKERS=4)≈59.9s——短子进程套件并行收益≈持平甚至略慢（冷启动开销占比小 + 计时敏感门禁 + 调度开销；代码注释故意 default 4 是防抖非提速），故 factor/封顶**维持现状不调高**。对照：真·I/O-bound 负载（回收池，每批一个 PowerShell 冷启动进程、GIL 释放、启动真重叠）差分实测 workers 1→4 加速 3.92x（16.40s→4.18s，近线性）、1→7 近线性——自适应引擎的价值在真 I/O-bound 上吃满，不在小套件上提速。
 
+- **run_tests post-green 钩子 restore 留游离 HEAD（2026-11-05 实测，收尾自检必查）**：
+  全套 run_tests 的 post-green rollback verify 钩子跑完用 `git checkout <sha>`（不是
+  `git checkout master`）恢复 HEAD，故每次全套跑完 HEAD 会停在游离态（detached）。本轮三项
+  拍板落地后真跑全套全绿，收尾自检 `git rev-parse --abbrev-ref HEAD` 当场查出返回 `HEAD` 而非
+  `master`，已 `git checkout master` 归位（master 与该 sha 同点，纯快进零风险）。铁律：凡跑过全套
+  的收尾自检，第一步必查 HEAD 在不在 master；游离头不处理下次操作危险且会被 tools/_orphan_chain_gate.py
+  抓红。归位前先 `git merge-base --is-ancestor master HEAD` 确认纯快进。
 - **正文里孤立 plan markup（2026-10-23 拍板：偶发抖动，维持现状）**：用户见屏幕上出现孤立
   的 `<tool_call>`/`plan` 代码段，疑工具调用坏了。全量统计坐实——截图会话 `e9539efa` 30 轮仅
   1 次未救回泄漏 = 偶发抖动，非高频；维持纯文本显示、不加折叠（零改动零风险）。判别/折叠逻辑
