@@ -7510,6 +7510,12 @@ async function streamAssistant() {
     // [empty summary, tail] would trade the transcript's focus for nothing. Roll the failed
     // [compact-request, empty-reply] pair back off, keep history AND the resume snapshot, and
     // reroute through the chunked path whose requests demonstrably fit the window.
+    // #chunkfix (2026-11): a thinking-only compaction (finish=thinking, content_chars:0 on a
+    // slow quantized model) leaves m.text empty while m.reasoning is full -- the SAME gap the
+    // chunked fold already honors at llmSummarize (#chunkfail). Promote the reasoning to the
+    // summary body so the post-fold single-shot compact is not judged empty just because the
+    // model thought out loud; this is what silently broke manual compaction on the custom model.
+    if (!(m.text || "").trim() && (m.reasoning || "").trim()) { m.text = m.reasoning; }
     if (!(m.text || "").trim()) {
       messages = messages.slice(0, -2);
       saveChat(); renderChat();

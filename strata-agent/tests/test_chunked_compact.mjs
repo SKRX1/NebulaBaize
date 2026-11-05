@@ -237,6 +237,53 @@ const main = async () => {
   check("C: history REBUILT from reasoning (not left untouched)", !!persistedC && persistedC[0] && persistedC[0].role === "system" && /对话压缩摘要/.test(persistedC[0].content), persistedC && persistedC[0] ? JSON.stringify((persistedC[0].content || "").slice(0, 30)) : "no persist");
   C.win.close();
 
+  console.log("=== phase D: post-fold single-shot compact is reasoning-only (app.js #chunkfix) ===");
+  // The fold path (llmSummarize) already promoted reasoning to content (Phase C).
+  // The FINAL compact goes through streamAssistant()/send(); a thinking-only model
+  // leaves m.text empty there. The #chunkfix promotes m.reasoning to the summary body
+  // in the pendingCompact finalize. Without it the empty summary is judged dead ->
+  // chunkfail toast + history rolled back (persisted[0].role stays 'user').
+  const D = makeDom(seedA.slice());
+  const winD = D.win, docD = D.doc;
+  const callsD = [];
+  winD.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    const body = opts.body ? JSON.parse(opts.body) : null;
+    if (u.endsWith("health")) return { ok: true, status: 200, json: async () => ({ model: "test-model" }) };
+    if (u.endsWith("mcp")) return { ok: true, status: 200, json: async () => ({ servers: [], tools: 0 }) };
+    if (u.endsWith("v1/chat/completions")) {
+      const isSummarise = body && body.messages && body.messages[0] && String(body.messages[0].content || "").startsWith(COMPACT_SYS_PREFIX);
+      callsD.push({ body, isSummarise });
+      if (isSummarise) return sseResponse("分段摘要D" + callsD.filter(c => c.isSummarise).length + "。");   // fold OK (content)
+      return reasoningOnlyResponse("【最终思考摘要】D任务已完成。");                                       // post-fold compact: reasoning-only
+    }
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  winD.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
+  winD.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
+  await sleep(30);
+  winD.confirm = () => true;
+  const btnD = docD.querySelector("#ins-compact");
+  btnD.disabled = false;
+  btnD.click();
+  let persistedD = null;
+  for (let k = 0; k < 150; k++) { await sleep(100); persistedD = JSON.parse(winD.localStorage.getItem("strata.chat")); if (persistedD && persistedD[0] && /最终思考摘要/.test(persistedD[0].content || "")) break; }
+  await sleep(200);
+  const sumsD = callsD.filter((c) => c.isSummarise);
+  check("D: fold summarise issued", sumsD.length >= 2, "got " + sumsD.length);
+  const finalD = callsD.find((c) => !c.isSummarise && c.body.messages.some((m) => String(m.content || "").includes(COMPACT_PROMPT_MARKER) || String(m.content || "").includes("Compress our conversation so far")));
+  check("D: post-fold single-shot compact turn fired", !!finalD);
+  // THE FIX: reasoning promoted to the summary -> rebuild runs with the reasoning text.
+  check("D: reasoning-only compact summary rebuilt (not judged empty)",
+    !!persistedD && persistedD[0] && persistedD[0].role === "system" && /对话压缩摘要/.test(persistedD[0].content) && /最终思考摘要/.test(persistedD[0].content),
+    persistedD && persistedD[0] ? JSON.stringify((persistedD[0].content || "").slice(0, 36)) : "no persist");
+  // DIFFERENTIAL GUARD (red before #chunkfix): the rollback left the seed's first user msg,
+  // never a system 对话压缩摘要 -- so this is the line that proves the toast never fired.
+  check("D: history NOT rolled back to the untouched seed (no chunkfail path)",
+    !!persistedD && persistedD[0] && persistedD[0].role === "system",
+    persistedD && persistedD[0] ? persistedD[0].role : "no persist");
+  D.win.close();
+
   console.log();
   if (FAILURES.length) { console.log(`FAILED (${FAILURES.length}):`); for (const f of FAILURES) console.log("  - " + f); A.win.close(); B.win.close(); process.exit(1); }
   console.log("CHUNKED-COMPACT: ALL PASSED");
