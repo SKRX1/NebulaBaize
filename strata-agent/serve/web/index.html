@@ -701,9 +701,10 @@
     </div>
     <div class="st-inspector__body">
       <section class="ins-sec">
-        <div class="ins-sec__title" data-i18n="insp.ctx">上下文占用</div>
+        <div class="ins-sec__title" data-i18n="insp.ctx" data-i18n-attr="title:insp.ctx.tip">上下文占用</div>
         <div class="ins-bar"><div class="ins-bar__fill" id="ins-ctx-bar" data-tone="success"></div></div>
         <div class="ins-sec__row"><span id="ins-ctx-pct">–</span><span class="muted" id="ins-cache">–</span></div>
+        <div class="ins-sec__sub muted" id="ins-engine" hidden></div>
         <div class="ins-sec__sub muted" id="ins-ctx-sub" data-i18n="insp.ctx.empty">模型信息未加载</div>
         <button class="st-btn st-btn--secondary st-btn--sm" id="ins-compact" type="button"
                 title="把早期消息压缩为模型生成的摘要，以减少上下文占用" data-i18n="insp.compact">压缩对话</button>

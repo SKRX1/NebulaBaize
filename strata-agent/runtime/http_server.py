@@ -1538,6 +1538,52 @@ class GatewayHandler(BaseHTTPRequestHandler):
         except Exception:
             return {}
 
+    def _selected_monitor_base(self):
+        """The external base_url of the currently SELECTED model, trailing /v1 stripped.
+
+        None when the selected model is served by this gateway's own upstream (the 8080 engine,
+        which has no /api/monitor) so the caller returns an empty shape instead of proxying.
+        """
+        try:
+            mr = _model_registry()
+            doc = mr.load()
+            entry = mr.find(doc, doc.get("selected"))
+        except Exception:                                   # noqa: BLE001 - a broken file must not break the page
+            return None
+        base = str((entry or {}).get("base_url") or "").strip().rstrip("/")
+        if not base:
+            return None                                     # "" = this gateway's own upstream: no engine monitor
+        if base.endswith("/v1"):
+            base = base[:-3].rstrip("/")
+        return base
+
+    def _api_monitor(self, method):
+        """GET /api/monitor -> the SELECTED model's own engine-side context occupancy.
+
+        The inspector fill bar measures THIS session's prompt tokens over its declared
+        per-session window (models.json context_window); the engine's monitor measures the
+        SHARED resident KV pool over the engine's real n_ctx. Two honest, deliberately
+        different denominators -- surfacing the engine's number beside the bar stops the two
+        reading as a sync bug. Always 200 with an `available` flag: the 8080 engine (no
+        base_url) and any unreachable endpoint return {available:false} so the chip hides.
+        """
+        if method not in (None, "GET"):
+            self._json(405, {"error": {"type": "method_not_allowed", "message": f"{method} not allowed"}})
+            return
+        base = self._selected_monitor_base()
+        if not base:
+            self._json(200, {"available": False})
+            return
+        try:
+            req = urllib.request.Request(base + "/api/monitor", headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=3.0) as r:
+                doc = json.loads(r.read().decode("utf-8", "replace"))
+        except Exception as e:                              # noqa: BLE001 - monitor is best-effort, never a 5xx
+            self._json(200, {"available": False, "error": str(e)})
+            return
+        ctx = doc.get("context") if isinstance(doc, dict) else None
+        self._json(200, {"available": bool(ctx), "context": ctx or {}})
+
     def _api_parallel_probe(self):
         """GET /api/parallel-probe -> shared tiered probe snapshot. Read-only and local
         (the browser cannot see the host core count), so the UI chip renders exactly what
@@ -1566,6 +1612,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return True
         if path.rstrip("/") == "/api/parallel-probe":
             self._api_parallel_probe()
+            return True
+        if path.rstrip("/") == "/api/monitor":
+            self._api_monitor(method)
             return True
         if path.rstrip("/") == "/api/requests":
             # Step2-A: the streaming-debug suite reads the per-chunk timeline here. Served

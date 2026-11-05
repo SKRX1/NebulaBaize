@@ -251,6 +251,7 @@ SUITES = [
     "tests/test_question_key_contenteditable.mjs",   # 2026-11-02: Shift+/ (the ? key) must TYPE inside every contenteditable input (edit-area/spark-add-input/spark-edit-ta); the global ? shortcut guard exemption now ALSO calls isCE(); static lock on the broadened exemption + runtime differential isCE true on the 3 shapes / false on a plain div (shortcut preserved)
 
     "tests/test_pill_closeout_align.mjs",   # 2026-11-02: close-out window pill TEXT aligns with its icon NOW via setPill when a turn finished cleanly
+    "tests/test_engine_waterline.mjs",   # 2026-11-02: Plan B - inspector engine-waterline sub-row toggles with the gateway-proxied /api/monitor (available shows Engine pool pct; null and available:false hide it; reversible). Locks the two-denominators fix (per-session bar vs shared KV pool).
 
     "tests/test_spark_datapid_anchor.mjs",   # 2026-11-01: ROOT-CAUSE A gate (real app.js jsdom-boot, not a hand-stub): a spark whose image node is a BARE img (valid src, NO data-pid) -> sparkToPush images=[] -> bubble text-only while the LIST innerHTML still shows it; data-pid present -> images=1. Locks the "list shows, bubble drops" phenomenon and guards against a sparkToPush that stops requiring the data-pid anchor.
 

@@ -299,7 +299,7 @@ function setMetric(key, value, unit, sub) {
   $(`ms-${key}`).textContent = sub || "";
 }
 
-let lastMetrics = null, metricsFailures = 0, keyWarned = false, mcpTick = 0;
+let lastMetrics = null, metricsFailures = 0, keyWarned = false, mcpTick = 0; let monTick = 0, engineMonitor = null;
 let reqShowAll = false;   // the Monitor's request table: the last 12, or every one the server keeps (issue #35)
 // 方案A 真多态共享 helper（2026-11）：当前模型是 custom 且在线时，按客户端 streamAssistant
 // 已知的 m._phase 走四态（CSS 支持 reading/generating/tool）；思考中借用 reading 视觉态配独立文案。
@@ -327,6 +327,15 @@ function paintCustomPill() {
   return true;
 }
 
+// Engine-side context pool (shared KV, real n_ctx) for the selected custom endpoint, proxied
+// by the gateway at /api/monitor. Polled every 5 s: it is a coarse capacity signal, not a
+// per-token fill, so a slower cadence than the 1 s metrics poll is enough.
+async function pollEngineMonitor() {
+  try {
+    const r = await fetch("api/monitor", {headers: headers()});
+    if (r.ok) { engineMonitor = await r.json(); if (tab === "chat" || tab === "spark") renderInspector(); }
+  } catch (e) { /* best-effort: a missing/legacy endpoint keeps the chip hidden */ }
+}
 async function poll() {
   try {
     const r = await fetch(reqShowAll ? "metrics?requests=all" : "metrics", {headers: headers()});
@@ -350,6 +359,7 @@ async function poll() {
     } else if (++metricsFailures === 3) setPill("error", t("mon.pill.serverdown"));
   }
   if (tab === "monitor" && ++mcpTick % 10 === 0) loadMcp();       // server states change rarely: every 10 s
+  if (++monTick % 5 === 0) pollEngineMonitor();   // engine pool: every 5 s
   setTimeout(poll, 1000);
 }
 
@@ -3286,6 +3296,19 @@ function renderInspector() {
   const bar = $("ins-ctx-bar"); if (bar) { bar.style.width = (frac * 100) + "%"; bar.dataset.tone = tone; }
   const pe = $("ins-ctx-pct"); if (pe) { const h = ctx ? escNum(esc(`${pct}%`), tone) : esc("–"); if (pe.dataset._h !== h) { pe.innerHTML = h; pe.dataset._h = h; } }
   const su = $("ins-ctx-sub"); if (su) su.textContent = ctx ? `${kfmt(used)} / ${kfmt(ctx)} tokens` : t("insp.ctx.empty");
+  const en = $("ins-engine");
+  if (en) {
+    const c = (engineMonitor && engineMonitor.available) ? engineMonitor.context : null;
+    const mx = c ? (+c.maxTokens || 0) : 0;
+    if (mx > 0) {
+      const raw = (c.pct != null) ? +c.pct : 100 * (+c.usedTokens || 0) / mx;
+      const epct = Math.min(100, Math.round(raw));
+      const etone = epct >= 90 ? "danger" : epct >= 75 ? "warning" : "success";
+      const eh = escNum(esc(`${t("insp.engine")} ${epct}%`), etone) + ` <span class="muted">${kfmt(+c.usedTokens || 0)} / ${kfmt(mx)}</span>`;
+      if (en.dataset._h !== eh) { en.hidden = false; en.innerHTML = eh; en.dataset._h = eh; }
+      en.title = t("insp.engine.tip");
+    } else if (!en.hidden) { en.hidden = true; en.innerHTML = ""; en.dataset._h = ""; }
+  }
   const ca = $("ins-cache"); if (ca) { const h = used ? escNum(esc(`缓存命中 ${cachePct}%`)) : esc("–"); if (ca.dataset._h !== h) { ca.innerHTML = h; ca.dataset._h = h; } }
   // D14: the "compact" action is meaningless while there is no conversation to compact — disable it at 0 tokens
   const cmp = $("ins-compact"); if (cmp) cmp.disabled = !used;
