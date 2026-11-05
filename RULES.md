@@ -174,3 +174,5 @@ PowerShell here-string 遇注释含单引号会解析失败；对含中文/引�
 会话内commit后必跑tools/run_tests.py全套,ORPHAN-CHAIN-GATE报RED不得假绿;游离链修复前先git merge-base --is-ancestor确认纯快进再merge --ff-only
 棘轮门禁(test_code_hygiene)报NEW时优先重构掉新引入的纯pass except(except body用真实动作如return不算哑弹),不--bless永久放宽基线
 一次性侦察脚本命名tools/_q_*;清理用Shell.Application COM InvokeVerb('delete')逐个送回收站+0.25s停顿防批量丢项,可一键撤销
+commit 落在 detached HEAD 会被 tools/_orphan_chain_gate.py 抓红（全套门禁之一）；归位用 git checkout master + git merge --ff-only <sha>（先 git merge-base --is-ancestor master HEAD 确认祖先，纯快进不重写历史）。
+在 cmd 里 git rev-parse --short master HEAD 多参数会被解析报错；写文件/命令时 echo 文案严禁含 > < | 等重定向符（会生成垃圾文件如 HEAD)）。
