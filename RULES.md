@@ -176,3 +176,4 @@ PowerShell here-string 遇注释含单引号会解析失败；对含中文/引�
 一次性侦察脚本命名tools/_q_*;清理用Shell.Application COM InvokeVerb('delete')逐个送回收站+0.25s停顿防批量丢项,可一键撤销
 commit 落在 detached HEAD 会被 tools/_orphan_chain_gate.py 抓红（全套门禁之一）；归位用 git checkout master + git merge --ff-only <sha>（先 git merge-base --is-ancestor master HEAD 确认祖先，纯快进不重写历史）。
 在 cmd 里 git rev-parse --short master HEAD 多参数会被解析报错；写文件/命令时 echo 文案严禁含 > < | 等重定向符（会生成垃圾文件如 HEAD)）。
+重启 8099 网关 = 自杀型动作（agent 寄生在监听 worker 进程树下），必须用 tools/_restart_8099.ps1 经 Start-Process 分离发射真杀，脚本 netstat 动态发现 listener + CIM 解析父链（绝不写死 PID），完成证据读 C:\Users\sk\strata_snapshots\_restart_8099_report.txt 的 killed-listener + 新监听 PID 换血坐实
