@@ -12,10 +12,12 @@ REM
 REM  2026-10-20 enhanced: auto-restart gateway on crash (backoff + max fails),
 REM  to avoid "manual/kill close -> nobody relaunches -> frontend Failed to fetch".
 REM  Stop: close the window (hard) or create stop-flag file .gw_stop.flag (soft, loop exits).
+REM  2026-11-07: PYTHON 改为 %ROOT% 相对定位(原硬编码 E:\... 绝对路径,与
+REM  gw_watchdog.bat 同类隐患); ROOT 已在下一行定义,整目录迁移不再断链。
 REM ============================================================================
 
 set ROOT=%~dp0
-set PYTHON=E:\WorkBuddy\星云智能体\strata-agent\.venv\Scripts\python.exe
+set PYTHON=%ROOT%.venv\Scripts\python.exe
 
 REM --- Upstream API (change for remote endpoints) ---
 set UPSTREAM_URL=http://127.0.0.1:8080/v1
@@ -89,5 +91,5 @@ if !FAILS! geq %MAX_FAILS% (
 )
 
 echo !DELAY! 秒后重启 ...
-ping -n %DELAY% 127.0.0.1 >nul
+ping -n 3 127.0.0.1 >nul
 goto loop
