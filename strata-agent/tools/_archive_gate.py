@@ -6,7 +6,7 @@
 #   HARD 4  the whitelist keyword regex keeps catching decisions/task-state (simulate it)
 # Deterministic: no upstream needed, so no self-skip. ASCII prints + a report file (convention).
 import os, re, sys, tempfile, json
-ROOT = r"E:\WorkBuddy\星云智能体\strata-agent"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "runtime"))
 from memory.session import write_tool_log_text, read_tool_log
 

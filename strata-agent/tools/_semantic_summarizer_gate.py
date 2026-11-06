@@ -13,7 +13,7 @@
 # Self-skip when the shared Strata upstream is unreachable (so a non-live run stays green;
 # same convention as _live_vision / _baseline_probe). ASCII prints + write a report file.
 import os, sys, time
-ROOT = r"E:\WorkBuddy\星云智能体\strata-agent"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "runtime"))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 

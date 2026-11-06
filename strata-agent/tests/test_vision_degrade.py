@@ -1,7 +1,7 @@
-import re, sys, io
+import re, sys, io, os
 
 # Grab the two pure helpers straight from the production source and exec them in isolation.
-SRC = io.open(r"E:\WorkBuddy\星云智能体\strata-agent\runtime\http_server.py",
+SRC = io.open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "runtime", "http_server.py"),
               encoding="utf-8").read()
 
 def grab_fn(name):

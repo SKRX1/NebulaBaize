@@ -31,7 +31,7 @@ run_tests.py SUITES 2026-10-22 (CI runs it on any change).
 """
 import os, sys, json, subprocess, time
 
-HERE = r"E:\WorkBuddy\星云智能体\strata-agent\tools"
+HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 WEBDIR = os.path.join(ROOT, "serve", "web")
 FIXTURE_HTML = os.path.join(ROOT, "serve", "seg_scroll_verify.html")
