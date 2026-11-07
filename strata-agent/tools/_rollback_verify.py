@@ -11,7 +11,7 @@ import argparse, os, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # strata-agent root
 WS   = os.path.dirname(ROOT)                      # workspace root (git root)
-DEFAULT_TAG = "v-baseline-2026-10-22"
+DEFAULT_TAG = "v-baseline-2026-11-05-d"
 
 def git(args, cwd=WS):
     r = subprocess.run(['git', '-c', 'core.quotepath=false'] + args,
