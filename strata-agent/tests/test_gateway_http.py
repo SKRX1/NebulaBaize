@@ -16,13 +16,15 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(ROOT))
+FS_ALLOW_FILE = os.path.join(WORKSPACE_ROOT, "fs_allowed_roots.txt")
 RT = os.path.join(ROOT, "runtime")
 PY = sys.executable
 
 MOCK_PORT = 8231
 GW_PORT = 8232
-TEST_FILE = "E:/WorkBuddy/__gw_http__/x.txt"
-CAP_FILE = "E:/WorkBuddy/__gw_cap__/never.txt"        # a capped tool call must NEVER create this
+TEST_FILE = os.path.join(WORKSPACE_ROOT, "__gw_http__", "x.txt")
+CAP_FILE = os.path.join(WORKSPACE_ROOT, "__gw_cap__", "never.txt")        # a capped tool call must NEVER create this
 MODELS_CFG = os.path.join(ROOT, "tests", "_scratch_gw_models.json")   # never the real models.json
 
 
@@ -155,8 +157,8 @@ def main():
 
     # 2) real gateway in --agent mode
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS_CFG})
     with open(MODELS_CFG, "w", encoding="utf-8") as f:      # seeded, isolated registry
         json.dump({"selected": "m1", "models": [
@@ -305,8 +307,8 @@ def test_runtime_config():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS_CFG})
     gw = subprocess.Popen(
         [PY, "gateway.py", "--serve", "--agent",
@@ -412,8 +414,8 @@ def test_context_overflow():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockOverflowUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS})
     with open(MODELS, "w", encoding="utf-8") as f:
         json.dump({"selected": "m1", "models": [
@@ -480,8 +482,8 @@ def test_context_guard_per_session():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockPerSessionUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS})
     with open(MODELS, "w", encoding="utf-8") as f:
         json.dump({"selected": "m1", "models": [
@@ -569,8 +571,8 @@ def test_interrupt_log():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS_CFG, "STRATA_INTERRUPT_LOG": LOG})
     gw = subprocess.Popen(
         [PY, "gateway.py", "--serve", "--agent",
@@ -654,8 +656,8 @@ def test_round_cap():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockRoundCapUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS})
     with open(MODELS, "w", encoding="utf-8") as f:
         json.dump({"selected": "m1", "models": [
@@ -766,8 +768,8 @@ def test_reasoning_effort():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockEffortUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE,
                 "STRATA_MODELS_CONFIG": MODELS})
     with open(MODELS, "w", encoding="utf-8") as f:
         json.dump({"selected": "m1", "models": [

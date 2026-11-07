@@ -14,6 +14,8 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(ROOT))
+FS_ALLOW_FILE = os.path.join(WORKSPACE_ROOT, "fs_allowed_roots.txt")
 sys.path.insert(0, os.path.join(ROOT, "runtime"))
 
 from http_server import GatewayState, GatewayHandler  # noqa: E402
@@ -23,11 +25,11 @@ PY = sys.executable
 ENV = dict(os.environ)
 ENV.update({
     "FS_ROOT": os.path.join(ROOT),
-    "FS_ALLOW": "E:/WorkBuddy",
-    "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    "FS_ALLOW": WORKSPACE_ROOT,
+    "FS_ALLOW_FILE": FS_ALLOW_FILE,
 })
 
-TEST_FILE = "E:/WorkBuddy/__agent_test__/hello.txt"
+TEST_FILE = os.path.join(WORKSPACE_ROOT, "__agent_test__", "hello.txt")
 
 
 class FakeHandler:
