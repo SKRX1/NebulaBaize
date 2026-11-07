@@ -181,3 +181,4 @@ commit 落在 detached HEAD 会被 tools/_orphan_chain_gate.py 抓红（全套�
 strata-agent 内的 .bat 启动器一律用 %~dp0 相对自身定位脚本与 venv，禁止硬编码盘符绝对路径（项目目录会整体迁移）
 strata-agent 内的 .bat 启动器一律用 %~dp0 相对自身定位脚本与 venv，禁止硬编码盘符绝对路径（项目目录会整体迁移）；run_standalone.bat 的 PYTHON 已据此改为 %ROOT%.venv\Scripts\python.exe
 重启 8099 是分离发射（Start-Process 真杀当前监听 PID），启动器 run_standalone.bat 重启循环检测到非零退出后 3 秒用磁盘新版 bat 拉起新进程，换血即坐实新路径已加载；PID 树每次重启都会洗牌属正常
+_rollback_verify.py 现已从 __file__ 派生 ROOT、从 ROOT 派生 WS（clone-safe），不再写死盘符绝对路径；迁移后全树写死旧根的常驻脚本应统一按此派生
