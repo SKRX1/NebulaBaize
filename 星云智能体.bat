@@ -18,7 +18,7 @@ REM ============================================================
 set MODEL=s
 
 set ENGINE_BAT="E:\Program Files\Strata-main\run-swift-iq3_%MODEL%.bat"
-set STANDALONE="E:\WorkBuddy\星云智能体\strata-agent\run_standalone.bat"
+set STANDALONE="E:\01星云\星云智能体\strata-agent\run_standalone.bat"
 
 echo ===================================================
 echo  Nebula Agent 一键启动  [model=%MODEL%]
@@ -73,7 +73,7 @@ goto :wait8080
 echo       8080 就绪.
 
 REM ---------- 3) 8099 网关看门狗（单实例，重复启动自动跳过） ----------
-set WATCHDOG="E:\WorkBuddy\星云智能体\strata-agent\gw_watchdog.bat"
+set WATCHDOG="E:\01星云\星云智能体\strata-agent\gw_watchdog.bat"
 if exist %WATCHDOG% (
     echo [3/3] 启动网关看门狗（崩溃/关窗自愈，已在运行则跳过）...
     start "Nebula Watchdog" cmd /c %WATCHDOG%
