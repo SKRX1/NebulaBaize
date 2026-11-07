@@ -88,13 +88,22 @@ console.log("\n=== 3: orbit tempo follows tok/s ===");
   const neb = doc.getElementById("pill-neb");
   api.setPill("generating", "生成中", true);
   api.setNebSpin(40);
-  check("40 tok/s -> 2.60s", neb.style.getPropertyValue("--neb-spin") === "2.60s", neb.style.getPropertyValue("--neb-spin"));
+  check("40 tok/s -> 4.55s", neb.style.getPropertyValue("--neb-spin") === "4.55s", neb.style.getPropertyValue("--neb-spin"));
   api.setNebSpin(0);
   check("0 tok/s -> 5.20s", neb.style.getPropertyValue("--neb-spin") === "5.20s", neb.style.getPropertyValue("--neb-spin"));
   api.setNebSpin(999);
-  check("clamped at 40 tok/s", neb.style.getPropertyValue("--neb-spin") === "2.60s");
+  check("clamped at 160 tok/s (999 pinned)", neb.style.getPropertyValue("--neb-spin") === "2.60s");
   api.setNebSpin(undefined);
   check("undefined tok_s does not throw, falls back to slow", neb.style.getPropertyValue("--neb-spin") === "5.20s");
+  // differential: real readings are now RESOLVABLE (the whole point of raising the clamp).
+  // Under the OLD 40 clamp both these landed on top gear and looked identical.
+  api.setNebSpin(51);
+  const spin51 = neb.style.getPropertyValue("--neb-spin");
+  check("end-to-end ~51 tok/s -> 4.37s", spin51 === "4.37s", spin51);
+  api.setNebSpin(81);
+  const spin81 = neb.style.getPropertyValue("--neb-spin");
+  check("engine-peak ~81 tok/s -> 3.88s", spin81 === "3.88s", spin81);
+  check("DIFFERENTIAL 51 vs 81 now resolvable (were both pinned under old clamp)", spin51 !== spin81, spin51 + " vs " + spin81);
   api.setPill("reading", "读取中", true);
   check("leaving generating drops the inline tempo", neb.style.getPropertyValue("--neb-spin") === "");
 }

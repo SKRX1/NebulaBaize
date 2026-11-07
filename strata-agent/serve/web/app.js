@@ -387,12 +387,12 @@ function setPill(state, text, working) {
 }
 
 // Orbit tempo tracks measured throughput: ~5.2 s a lap at a crawl, ~2.6 s when she is writing fast.
-// Clamped at 40 tok/s so it never turns into a blur.
+// Clamped at 160 tok/s (was 40) so real readings (~51 end-to-end, ~81 engine-peak)
 function setNebSpin(tokS) {
   const neb = $("pill-neb");
   if (!neb) return;
-  const v = Math.max(0, Math.min(40, Number(tokS) || 0));
-  neb.style.setProperty("--neb-spin", (5.2 - (v / 40) * 2.6).toFixed(2) + "s");
+  const v = Math.max(0, Math.min(160, Number(tokS) || 0));
+  neb.style.setProperty("--neb-spin", (5.2 - (v / 160) * 2.6).toFixed(2) + "s");
 }
 
 // Turn-level real throughput accumulator (single source, shared by all four states). Times from
