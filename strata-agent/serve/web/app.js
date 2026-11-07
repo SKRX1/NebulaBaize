@@ -3300,11 +3300,28 @@ function renderInspector() {
   if (en) {
     const c = (engineMonitor && engineMonitor.available) ? engineMonitor.context : null;
     const mx = c ? (+c.maxTokens || 0) : 0;
-    if (mx > 0) {
-      const raw = (c.pct != null) ? +c.pct : 100 * (+c.usedTokens || 0) / mx;
-      const epct = Math.min(100, Math.round(raw));
+    // [ENGINE-WATERLINE-HONEST + REALTOKENS] 这套壳引擎的 context.usedTokens/maxTokens 不可信（恒 0 + 占位 32768，
+    // 实测引擎真实处理过 110031 tokens 的请求）。网关已透传引擎侧跨会话真实占用 engineRealTokens（取自 requests[].tokensIn
+    // 最新一条 done）+ 声明窗口 maxCtx(131K)。壳引擎场景：本行显示「引擎侧跨会话真实占用 ÷ 声明窗口」，与上方占用条
+    // (本会话占用 ÷ 同一声明窗口)分工互补——占用条=本会话、本行=引擎全量真实，二者不再同源重复。真 llama.cpp 引擎(无此字段)
+    // 落回共享池口径 usedTokens÷真实 n_ctx。
+    // [ENGINE-WATERLINE] 壳引擎的 context.maxTokens 是占位默认值(实测 32768)，它不维护真实 n_ctx——
+    // 判定「引擎自报分母 ≠ 声明窗口 maxCtx」即壳引擎（两值都稳定，判定恒成立，不依赖会抖动的
+    // engineRealTokens）。壳引擎场景直接隐藏本行：引擎侧读数语义不干净（假分母+恒0水位），隐藏后
+    // 只留上方占用条（用真实声明窗口），零抖动、语义最干净。真 llama.cpp 引擎(自报≈声明)才显示共享池口径。
+    const decl = maxCtx || 0;
+    const shell = decl > 0 && mx > 0 && Math.abs(mx - decl) / decl > 0.02;   // 引擎占位分母与声明窗口明显不同 = 壳引擎
+    if (shell) {
+      if (!en.hidden) { en.hidden = true; en.innerHTML = ""; en.dataset._h = ""; }
+      en.title = "";
+    } else if (mx > 0) {
+      const u = +c.usedTokens || 0;
+      const idle = !busy && u <= 0;
+      const epct = mx ? Math.min(100, Math.round(100 * u / mx)) : 0;
       const etone = epct >= 90 ? "danger" : epct >= 75 ? "warning" : "success";
-      const eh = escNum(esc(`${t("insp.engine")} ${epct}%`), etone) + ` <span class="muted">${kfmt(+c.usedTokens || 0)} / ${kfmt(mx)}</span>`;
+      const eh = idle
+        ? esc(t("insp.engine") + " ") + `<span class="muted">${esc(t("insp.engine.idle"))} · ${kfmt(mx)}</span>`
+        : escNum(esc(`${t("insp.engine")} ${epct}%`), etone) + ` <span class="muted">${kfmt(u)} / ${kfmt(mx)}</span>`;
       if (en.dataset._h !== eh) { en.hidden = false; en.innerHTML = eh; en.dataset._h = eh; }
       en.title = t("insp.engine.tip");
     } else if (!en.hidden) { en.hidden = true; en.innerHTML = ""; en.dataset._h = ""; }
