@@ -177,3 +177,7 @@ PowerShell here-string 遇注释含单引号会解析失败；对含中文/引�
 commit 落在 detached HEAD 会被 tools/_orphan_chain_gate.py 抓红（全套门禁之一）；归位用 git checkout master + git merge --ff-only <sha>（先 git merge-base --is-ancestor master HEAD 确认祖先，纯快进不重写历史）。
 在 cmd 里 git rev-parse --short master HEAD 多参数会被解析报错；写文件/命令时 echo 文案严禁含 > < | 等重定向符（会生成垃圾文件如 HEAD)）。
 重启 8099 网关 = 自杀型动作（agent 寄生在监听 worker 进程树下），必须用 tools/_restart_8099.ps1 经 Start-Process 分离发射真杀，脚本 netstat 动态发现 listener + CIM 解析父链（绝不写死 PID），完成证据读 C:\Users\sk\strata_snapshots\_restart_8099_report.txt 的 killed-listener + 新监听 PID 换血坐实
+改动 E:\WorkBuddy\星云智能体\strata-agent 内的大文件（http_server.py 等数万行）时，绝不用 filesystem__write 的 overwrite 模式写占位符/小片段——它会整文件覆盖。一律用 Python 脚本「读全文→count(old) 断言==1→replace→写回」做精确替换，写盘前先校验锚点命中数。
+strata-agent 内的 .bat 启动器一律用 %~dp0 相对自身定位脚本与 venv，禁止硬编码盘符绝对路径（项目目录会整体迁移）
+strata-agent 内的 .bat 启动器一律用 %~dp0 相对自身定位脚本与 venv，禁止硬编码盘符绝对路径（项目目录会整体迁移）；run_standalone.bat 的 PYTHON 已据此改为 %ROOT%.venv\Scripts\python.exe
+重启 8099 是分离发射（Start-Process 真杀当前监听 PID），启动器 run_standalone.bat 重启循环检测到非零退出后 3 秒用磁盘新版 bat 拉起新进程，换血即坐实新路径已加载；PID 树每次重启都会洗牌属正常
