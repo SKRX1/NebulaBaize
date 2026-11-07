@@ -94,7 +94,7 @@ POS_LINE = "fsWrite({ path: 'C:\\Users\\sk\\probe.html', content: 'x' })"   # ex
 NEG_LINES = [
     "with tempfile.NamedTemporaryFile(suffix='.html') as f: f.write('x')",     # self-writes via tempfile -> no hit
     "const map = { 'C:\\Users': ['sk','admin'] };",                            # data key, not a write -> no hit
-    "open('E:\\WorkBuddy\\星云智能体\\tmp.txt', 'w').write('x')",             # in an allowed root -> no hit
+    "open('@@ALLOWROOT@@/tmp.txt', 'w').write('x')",                                   # in an allowed root -> no hit
 ]
 
 def main() -> int:
@@ -102,7 +102,8 @@ def main() -> int:
     print("allowed roots:", len(allowed))
 
     pos = scan_lines(POS_LINE, allowed)
-    neg = scan_lines("\n".join(NEG_LINES), allowed)
+    neg_samples = [l.replace("@@ALLOWROOT@@", allowed[0]) for l in NEG_LINES]
+    neg = scan_lines("\n".join(neg_samples), allowed)
     pos_ok = len(pos) == 1
     neg_ok = len(neg) == 0
     print("differential POS (external tool-layer write) -> %d hit(s) [expect 1]" % len(pos))
