@@ -1582,7 +1582,29 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._json(200, {"available": False, "error": str(e)})
             return
         ctx = doc.get("context") if isinstance(doc, dict) else None
-        self._json(200, {"available": bool(ctx), "context": ctx or {}})
+        # Extract the latest completed request's tokensIn as engineRealTokens (the engine's
+        # true cross-session occupancy). Shell engines report 0 in context.usedTokens at idle
+        # but track real per-request usage in requests[].tokensIn -- this exposes it so the
+        # front-end can show an honest number even when context.usedTokens is a placeholder.
+        engine_real = None
+        reqs = doc.get("requests") if isinstance(doc, dict) else None
+        if isinstance(reqs, list):
+            for r in reqs:
+                if isinstance(r, dict) and r.get("state") == "done" and r.get("tokensIn"):
+                    engine_real = int(r["tokensIn"])
+                    break  # requests are ordered newest-first
+        # Anti-jitter: engineRealTokens is a "last request" reading that intermittently reads empty
+        # (upstream buffer cleared/restarted, or this round tripped into the except branch). Latch the
+        # last non-empty value on the SHARED self.state (handler is per-connection, so instance attrs
+        # would not survive) for up to 3 consecutive empties so one flaky round doesn't drop it to null.
+        # Still a per-request peak, NOT live resident occupancy -- the number the shell engine won't report.
+        if engine_real is not None:
+            self.state._engine_real_latched = int(engine_real)
+            self.state._engine_real_hold = 3
+        elif getattr(self.state, "_engine_real_latched", None) is not None and getattr(self.state, "_engine_real_hold", 0) > 0:
+            self.state._engine_real_hold -= 1
+            engine_real = self.state._engine_real_latched
+        self._json(200, {"available": bool(ctx), "context": ctx or {}, "engineRealTokens": engine_real})
 
     def _api_parallel_probe(self):
         """GET /api/parallel-probe -> shared tiered probe snapshot. Read-only and local
