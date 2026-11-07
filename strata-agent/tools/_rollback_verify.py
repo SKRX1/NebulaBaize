@@ -9,8 +9,8 @@
 #                  so do NOT spawn another full suite (breaks run_tests recursion).
 import argparse, os, subprocess, sys
 
-ROOT = r"E:\WorkBuddy\星云智能体\strata-agent"      # strata-agent root
-WS   = r"E:\WorkBuddy\星云智能体"                  # workspace root (git root)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # strata-agent root
+WS   = os.path.dirname(ROOT)                      # workspace root (git root)
 DEFAULT_TAG = "v-baseline-2026-10-22"
 
 def git(args, cwd=WS):
