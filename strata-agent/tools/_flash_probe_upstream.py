@@ -25,7 +25,9 @@ import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-ROOT = r"E:\WorkBuddy\星云智能体\strata-agent"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(ROOT))
+FS_ALLOW_FILE = os.path.join(WORKSPACE_ROOT, "fs_allowed_roots.txt")
 RT = os.path.join(ROOT, "runtime")
 PY = sys.executable
 NODE = "node"
@@ -89,8 +91,8 @@ def main():
     threading.Thread(target=mock.serve_forever, daemon=True).start()
 
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt"})
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": WORKSPACE_ROOT,
+                "FS_ALLOW_FILE": FS_ALLOW_FILE})
     gw = subprocess.Popen(
         [PY, "gateway.py", "--serve", "--agent",
          "--url", "http://127.0.0.1:%d/v1" % MOCK_PORT, "--model", "x", "--port", str(GW_PORT)],

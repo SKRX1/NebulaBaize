@@ -40,21 +40,21 @@ PROBE_ENV = ["STRATA_TESTS_WORKERS", "STRATA_RECYCLE_WORKERS", "STRATA_RECYCLE_B
 CHILD = (
     "import sys, os;"
     "sys.path.insert(0, os.path.join(r'{root}', 'runtime'));"
-    "import parallel_probe as p;"
+    "import parallel_probe as p;p.memory_cap=lambda c:c;"
     "print(p.compute('{load}'))"
 )
 # Differential: compute a named load at an explicit core count (factor path, no env).
 CHILD_DIFF = (
     "import sys, os;"
     "sys.path.insert(0, os.path.join(r'{root}', 'runtime'));"
-    "import parallel_probe as p;"
+    "import parallel_probe as p;p.memory_cap=lambda c:c;"
     "print(p.compute('{load}', {cores}))"
 )
 # Env-override: keep ONE override env, strip the others, assert it beats the formula.
 CHILD_ENV = (
     "import sys, os;"
     "sys.path.insert(0, os.path.join(r'{root}', 'runtime'));"
-    "import parallel_probe as p;"
+    "import parallel_probe as p;p.memory_cap=lambda c:c;"
     "print(p.compute('{load}'))"
 )
 
