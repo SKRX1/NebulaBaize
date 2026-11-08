@@ -129,8 +129,8 @@ def main() -> int:
             {"id": "m1", "name": "M1", "kind": "local", "base_url": "", "model": "m1"}]}, f)
 
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "FS_ALLOW_FILE": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt"),
                 "STRATA_MODELS_CONFIG": MODELS_CFG,
                 "STRATA_EMPTY_ROUND_DIR": DIAG_DIR})   # isolated diagnostic sink
     gw = subprocess.Popen(

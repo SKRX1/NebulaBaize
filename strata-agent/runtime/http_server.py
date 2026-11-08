@@ -406,7 +406,7 @@ _ABS_PATH_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|[\\/]{2}|/)")
 
 
 def _fs_allow_file() -> str:
-    return os.environ.get("FS_ALLOW_FILE") or r"E:/WorkBuddy/fs_allowed_roots.txt"
+    return os.environ.get("FS_ALLOW_FILE") or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt")
 
 
 def _recorded_workspaces() -> list[str]:

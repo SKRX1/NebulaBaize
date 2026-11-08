@@ -1,7 +1,7 @@
 import subprocess, json, os, sys
 
-PY = r"C:\Users\sk\.workbuddy\binaries\python\versions\3.13.12\python.exe"
-ROOT = r"E:\WorkBuddy\星云智能体\strata-agent"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PY = sys.executable
 servers = {
     "filesystem": ["servers/fs_server.py"],
     "shell": ["servers/shell_server.py"],
@@ -13,8 +13,8 @@ servers = {
 env = dict(os.environ)
 env.update({
     "FS_ROOT": ROOT,
-    "FS_ALLOW": r"E:\WorkBuddy",
-    "FS_ALLOW_FILE": r"E:\WorkBuddy\fs_allowed_roots.txt",
+    "FS_ALLOW": os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "FS_ALLOW_FILE": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt"),
 })
 
 for name, args in servers.items():

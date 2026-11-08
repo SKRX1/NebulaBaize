@@ -8,7 +8,7 @@
 # into a zip under outputs/ (no cloud sync client detected on this box -- user drags it up).
 # Layout: web files keep the bare root, tests under tests/, deploy chain under deploy/.
 import os, zipfile, datetime
-base = r"E:\WorkBuddy\星云智能体\strata-agent"
+base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = os.path.join(base, "outputs", "serve_web_backup_" + datetime.date.today().strftime("%Y%m%d") + ".zip")
 n = 0
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:

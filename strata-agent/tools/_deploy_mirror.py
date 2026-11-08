@@ -2,7 +2,7 @@ import shutil, hashlib, os
 # Deploy iron-rule: authoritative source serve/web -> parasite mirror, per-file MD5 verify.
 # Python shutil (NOT robocopy command line) because the Chinese workspace path + "Program Files"
 # space break robocopy / cmd command-line invocation.
-src = r"E:\WorkBuddy\星云智能体\strata-agent\serve\web"
+src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "serve", "web")
 dst = r"E:\Program Files\Strata-main\serve\web"
 
 def md5(p):

@@ -69,8 +69,8 @@ def main():
     threading.Thread(target=mock.serve_forever, daemon=True).start()
 
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "FS_ALLOW_FILE": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt"),
                 "STRATA_MODELS_CONFIG": MODELS_CFG})
     with open(MODELS_CFG, "w", encoding="utf-8") as f:
         json.dump({"selected": "m1", "models": [
@@ -185,8 +185,8 @@ def test_breakpoint_annotation():
     mock = ThreadingHTTPServer(("127.0.0.1", MOCK), MockEmptyUpstream)
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt",
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "FS_ALLOW_FILE": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt"),
                 "STRATA_MODELS_CONFIG": CFG})
     with open(CFG, "w", encoding="utf-8") as f:
         json.dump({"selected": "m1", "models": [

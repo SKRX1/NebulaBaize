@@ -6498,7 +6498,7 @@ def make_handler(svc: Service):
             _ws = req.get("strata_workspace")
             if _ws and isinstance(_ws, str):
                 try:
-                    _af = os.environ.get("NEBULA_FS_ALLOW_FILE", r"E:\WorkBuddy\fs_allowed_roots.txt")
+                    _af = os.environ.get("NEBULA_FS_ALLOW_FILE", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt"))
                     # Move-to-end, never a sorted union: the MCP servers treat the LAST line as
                     # the base for relative paths / shell cwd. Sorting scrambled that order and
                     # appending without moving left the previous workspace as the base, so both

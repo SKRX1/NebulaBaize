@@ -106,8 +106,8 @@ def test_stop_integration():
     threading.Thread(target=mock.serve_forever, daemon=True).start()
 
     env = dict(os.environ)
-    env.update({"FS_ROOT": ROOT, "FS_ALLOW": "E:/WorkBuddy",
-                "FS_ALLOW_FILE": "E:/WorkBuddy/fs_allowed_roots.txt"})
+    env.update({"FS_ROOT": ROOT, "FS_ALLOW": os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "FS_ALLOW_FILE": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt")})
     gw = subprocess.Popen(
         [PY, "gateway.py", "--serve", "--agent",
          "--url", f"http://127.0.0.1:{MOCK_PORT}/v1", "--model", "x", "--port", str(GW_PORT)],

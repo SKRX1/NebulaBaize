@@ -35,7 +35,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # strata-agent/
 WSROOT = os.path.dirname(ROOT)                                       # workspace root
 
-ALLOW_FILE_CANDS = [r"E:\WorkBuddy\fs_allowed_roots.txt",
+ALLOW_FILE_CANDS = [os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fs_allowed_roots.txt"),
                     os.path.join(WSROOT, "fs_allowed_roots.txt")]
 
 # Ratchet baseline: known historical scratch writes already on disk (grandfathered, like
