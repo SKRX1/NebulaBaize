@@ -216,6 +216,35 @@ def _workspace_cwd() -> str | None:
     return None
 
 
+def _detect_git_cmd_dir() -> str:
+    """Windows: resolve Git's \\cmd directory from the install registry, so subprocesses
+    this server spawns (gate scripts that shell out to `git`) can find git even when the
+    daemon's PATH lacks it -- the root cause of the orphan-chain/skillhub PATH-type false
+    red. Returns "" when not resolvable (non-Windows, or registry key missing).
+    """
+    try:
+        import winreg
+    except ImportError:
+        return ""
+    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        if hive is None:
+            continue
+        try:
+            with winreg.OpenKey(hive, r"SOFTWARE\GitForWindows") as k:
+                val, _t = winreg.QueryValueEx(k, "InstallPath")
+        except OSError:
+            val = None          # key/value absent under this hive -> keep scanning
+        if not val:
+            continue
+        cand = os.path.join(val, "cmd")
+        if os.path.isdir(cand):
+            return cand
+    return ""
+
+
+_GIT_CMD_DIR = _detect_git_cmd_dir()
+
+
 def _child_env() -> dict:
     """The env for the command we run: force UTF-8 output from anything Python-based.
 
@@ -226,6 +255,11 @@ def _child_env() -> dict:
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    if _GIT_CMD_DIR:
+        p = env.get("PATH", "")
+        parts = p.split(os.pathsep) if p else []
+        if _GIT_CMD_DIR not in parts:
+            env["PATH"] = (_GIT_CMD_DIR + os.pathsep + p) if p else _GIT_CMD_DIR
     return env
 
 
