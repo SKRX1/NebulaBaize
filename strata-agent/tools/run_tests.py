@@ -198,6 +198,7 @@ SUITES = [
 
     "tests/test_precondense_guard.mjs",    # 2026-10-23: chain-active guard defers chunking for auto mid-task; manual/idle unchanged
     "tests/test_precondense_loopcap.mjs",  # 2026-11 loopfix: 100%-window compact re-entry capped at PRECONDENSE_MAX=2 (no 20x loop) + measured-injection budget floor (differential Q1-Q4)
+    "tests/test_chunkretry.mjs",   # 2026-11 chunkretry: compact-chunk transient-contention retry (exceeded-shape ONLY, budget EXACTLY one; SSE error chunk + direct-upstream 400 both shapes; non-exceeded fails fast, no retry)
 
     "tests/test_continue_bends_send.mjs",   # 2026-11 gate A+B: a Continue-asked compaction must REACH send past the chain-active guard (single-shot flag), other autos still deferred + now-visible toast (single-variable differential drives real compactConversation)
     "tests/test_compact_target.mjs",       # 2026-10: the compression-target slider actually moves the post-compact tail budget

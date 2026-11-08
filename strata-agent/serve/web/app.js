@@ -3064,7 +3064,7 @@ function maybeAutoResume(m) {
   const mainResumable = m.truncated ||
     (m.notice && m.notice.resumable && m.notice.code !== "context_overflow") || isEmptyLane;
   // D(early-done lane): model wrote what reads like a closing line while its OWN plan checklist still had boxes left -> premature, not done.
-  const earlyCap = settings.emptyRoundMax >= 0 ? settings.emptyRoundMax : 2;   // reuses the anti-spin family budget on purpose (default 2); a real answer with nothing left never lights this lane
+  const earlyCap = Math.max(AUTO_RESUME_FLOOR, cap);   // 2026-11 plan A+B: early lane is a NOT-finished lane, so it gets the same big budget as the main chain (floor>=12, default 24) and runs to completion; only the pure-spin empty lane keeps its small anti-spin budget.
   const isEarlyLane = !mainResumable && openPlan > 0 && !!(m.text || "").trim();   // ONLY when no existing lane took it AND its own plan has boxes left AND there is real text -> near-zero misjudge on a genuine short answer
   if (!isEarlyLane && !mainResumable) return false;   // early lane IS a mainResumable=false case, so let it through the gate too
   let chainN, chainMax;                                  // per-lane count/max so the toast never mixes the two chains
@@ -3072,6 +3072,7 @@ function maybeAutoResume(m) {
   if (earlyDoneChain >= earlyCap) {                 // fuse reached -> say WHY and hand control back to the human
   earlyDoneChain = 0;
   m.resumeExhausted = earlyCap;
+  m.canContinue = true;
   toast("info", t("resume.stopped.early", {n: earlyCap}));
   renderChat();
   return false;
@@ -3081,7 +3082,8 @@ function maybeAutoResume(m) {
     // B: separate counter + own budget -> a long thinking-only stall is auto-carried up to emptyCap then handed back with WHY.
     if (emptyRoundChain >= emptyCap) {
       emptyRoundChain = 0;
-      m.resumeExhausted = emptyCap;                      // stamp so the banner says WHY, not go silent
+      m.resumeExhausted = emptyCap;
+      m.canContinue = true;                      // stamp so the banner says WHY, not go silent
       toast("info", t("resume.stopped.empty", {n: emptyCap}));
       renderChat();
       return false;
@@ -3090,7 +3092,8 @@ function maybeAutoResume(m) {
   } else {
     if (autoResumeChain >= cap) {                        // main-chain hard stop: say why, and hand it back
       autoResumeChain = 0;
-      m.resumeExhausted = cap;                           // STAMP the message so the banner survives the toast; a long task that hit the cap should say WHY it stopped, not go silent
+      m.resumeExhausted = cap;
+      m.canContinue = true;                           // STAMP the message so the banner survives the toast; a long task that hit the cap should say WHY it stopped, not go silent
       toast("info", t("resume.stopped", {n: cap}));
       renderChat();                                      // repaint: updateAssistant already ran before this branch, so the banner only shows up now
       return false;
@@ -3584,30 +3587,50 @@ async function llmSummarize(userPrompt) {
                 reasoning_effort: COMPACT_THINK_EFFORT, reasoning_budget_tokens: compactThinkBudget(),
                 messages: [{role: "system", content: COMPACT_SYS}, {role: "user", content: userPrompt}],
                 strata_session: activeId, strata_compact: true};
-  const r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body)}, {retries: 1, base: 800});
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  if (!r.body || !r.body.getReader) throw new Error("no stream body");
-  const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "", out = "", reasoningAcc = "";
-  for (;;) {
-    const {done, value} = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, {stream: true});
-    let idx;
-    while ((idx = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
-      if (!line.startsWith("data:")) continue;
-      const data = line.slice(5).trim();
-      if (data === "[DONE]") continue;
-      try {
-        const j = JSON.parse(data);
-        const d = j && j.choices && j.choices[0] && j.choices[0].delta;
-        if (d) { if (typeof d.content === "string") out += d.content; else if (typeof d.reasoning_content === "string") reasoningAcc += d.reasoning_content; }
-      } catch (e) { /* partial line or non-chat event */ }
+  // #chunkretry: KV-residency contention is transient -- a compact request that the engine
+  // 400s as a context overflow can clear when another session's resident slot frees. The
+  // gateway turns the engine's overflow into an SSE error chunk (HTTP 200), so the retry
+  // trigger lives in the stream; a 400 reaching fetchWithRetry (direct upstream) with the
+  // same "exceeded" wording is caught too. Retry budget: EXACTLY ONE, and only for an
+  // exceeded-shaped failure -- a genuine full-window overflow or any other error fails
+  // fast like before.
+  const MAX_ATTEMPTS = 2;   // 1 normal + 1 transient-contention retry
+  for (let attempt = 1; ; attempt++) {
+    let r;
+    try {
+      r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body)}, {retries: 1, base: 800});
+    } catch (e) {
+      if (attempt >= MAX_ATTEMPTS || !(e && e.message && /exceeded/i.test(String(e.message)))) throw e;
+      await sleep(900);
+      continue;
     }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    if (!r.body || !r.body.getReader) throw new Error("no stream body");
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "", out = "", reasoningAcc = "", errHit = "";
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let idx;
+      while ((idx = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data);
+          if (j && j.error && typeof j.error.message === "string") { errHit = j.error.message; continue; }
+          const d = j && j.choices && j.choices[0] && j.choices[0].delta;
+          if (d) { if (typeof d.content === "string") out += d.content; else if (typeof d.reasoning_content === "string") reasoningAcc += d.reasoning_content; }
+        } catch (e) { /* partial line or non-chat event */ }
+      }
+    }
+    if (!out.trim()) out = reasoningAcc;   // #chunkfail: small quantized models emit reasoning-only (content_chars:0); honor "reasoning counts as content" so the summarise call is not judged empty
+    if (out.trim()) return out.trim();
+    if (attempt >= MAX_ATTEMPTS || !/exceeded/i.test(errHit)) break;   // not transient contention -- fail fast
+    await sleep(900);   // the contention is transient: pause and re-issue this chunk once
   }
-  if (!out.trim()) out = reasoningAcc;   // #chunkfail: small quantized models emit reasoning-only (content_chars:0); honor "reasoning counts as content" so the summarise call is not judged empty
-  if (!out.trim()) throw new Error("empty summary");
-  return out.trim();
+  throw new Error("empty summary");
 }
 
 async function precondenseAndCompact(auto) {
