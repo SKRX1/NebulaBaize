@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Differential gate for the shell_server self-suicide guard (ASCII output).
 # We import the REAL module and drive its guard predicates so the assertions lock
-# the SHIPPED code, not a copy. The live CIM walk is stubbed to keep this test
-# deterministic (no dependency on a running process tree).
+# the SHIPPED code, not a copy. The stubbed-CIM half keeps the LOGIC deterministic;
+# the LIVE half (bottom) drives the REAL CIM walk against a real process tree.
 import os, sys, importlib.util
 
 HERE = os.path.dirname(os.path.abspath(__file__))        # strata-agent/tests
@@ -57,6 +57,24 @@ check("guard-return-wired", "if _guard:" in src and "return _guard" in src, True
 i_guard = src.find("_guard = _self_suicide_guard(cmd)")
 i_popen = src.find("proc = subprocess.Popen(cmd")
 check("guard-runs-before-exec", 0 < i_guard < i_popen, True)
+
+# --- LIVE end-to-end probe: drive the REAL CIM walk (NO stub) against this machine's
+# real process tree, proving the guard fires on a genuine ancestor, not just injected
+# data. Gated to Windows with a resolvable chain so it self-skips where CIM is
+# unavailable (keeps the gate deterministic on non-Windows). We only BUILD a command
+# string here -- the guard returns a refusal note and never executes the kill. ---
+live_ok = (sys.platform == "win32")
+real_anc = mod._my_ancestry()
+if not live_ok or not real_anc:
+    print("SKIP live-e2e (win32=%s, resolved_ancestry_size=%d)" % (live_ok, len(real_anc)))
+else:
+    me = os.getpid()
+    others = sorted(p for p in real_anc if p != me)     # a REAL ancestor that is not us
+    anc_pid = others[0]
+    check("LIVE-POS-kill-real-ancestor-refused",
+          mod._self_suicide_guard("taskkill /F /PID %d" % anc_pid) is not None, True)
+    check("LIVE-NEG-kill-not-in-chain-allowed",
+          mod._self_suicide_guard("taskkill /F /PID 99999"), None)
 
 print("SELF-SUICIDE-GUARD: " + ("ALL GREEN" if fails == 0 else ("FAILURES=%d" % fails)))
 sys.exit(1 if fails else 0)
