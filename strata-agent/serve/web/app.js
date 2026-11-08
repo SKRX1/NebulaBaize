@@ -3512,7 +3512,8 @@ function compactReqBudgetChars() {
   if (!(maxCtx && maxCtx > 0)) return 24000;
   const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10), measuredInjectTokens());   // B: measured floor, not just 10%
   const replyTok = Math.max(800, Math.floor(maxCtx * 0.05));      // the summarise reply itself
-  const tok = Math.max(Math.floor(maxCtx * 0.12), maxCtx - injectTok - replyTok);
+  const safety = 0.92;  // CJK-heavy chunks run ~1 char/token, so the 1.8 estimate over-counts capacity; trim a pad so the worst chunk still fits
+  const tok = Math.floor(Math.max(Math.floor(maxCtx * 0.12), maxCtx - injectTok - replyTok) * safety);
   return Math.max(6000, Math.floor(tok * perTok));
 }
 const COMPACT_SYS = "你是对话压缩器。把给定的对话历史合并为一份紧凑但信息完整的摘要：保留任务目标、已完成的步骤与结果、关键文件/命令/数据、重要决定、未完成的事项与下一步计划。不要评论，不要客套，直接输出摘要正文。";
