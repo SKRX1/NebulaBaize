@@ -17,14 +17,14 @@ Exit 0 = all green, non-zero = RED (a gate you can chain).
 
 Usage:
   python tools/backup-bundle.py [DEST_DIR]
-  DEST_DIR default:  E:\\01星云\\星云智能体备份   (outside the repo, same drive)
+  DEST_DIR default:  E:\\星云\\星云智能体备份   (outside the repo, same drive)
 
 Run from anywhere; the repo root is derived at runtime via git (no hardcoded
 Chinese path in the command line -- subprocess passes paths as unicode argv).
 """
 import os, sys, subprocess, tempfile, shutil, datetime
 
-DEFAULT_DEST = "E:\\01星云\\星云智能体备份"
+DEFAULT_DEST = "E:\\星云\\星云智能体备份"
 # Keep the most recent N bundles; older ones are pruned after a green run. Daily backup
 # for ~2 weeks. 0 disables pruning (keep everything).
 DEFAULT_KEEP = 14
