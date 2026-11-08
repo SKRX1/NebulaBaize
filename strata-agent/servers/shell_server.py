@@ -69,6 +69,69 @@ def _denied(cmd: str) -> bool:
     return any(d in low for d in DENY)
 
 
+# --- self-suicide guard (2026-11): kill-class commands whose target PID sits in OUR
+# OWN ancestry must run DETACHED, never synchronously here -- killing the host tree
+# severs the very stream that reports the result (the "wrote half then channel died"
+# root cause). CIM walk proven on this machine (Toolhelp32 snapshot lists empty here,
+# do NOT use it). Only a kill command WITH a parseable target PID pays the CIM cost.
+_KILL_ACTION_RE = re.compile(
+    r"taskkill\b.*?/pid\s+(\d+)"
+    r"|stop-process\b.*?-id\s+(\d+)"
+    r"|os\.kill\(\s*(\d+)"
+    r"|\bkill\s+(\d+)\b", re.IGNORECASE)
+
+
+def _kill_target_pids(cmd: str) -> set:
+    """PIDs a kill-style command would terminate (empty -> guard pays no CIM cost)."""
+    pids = set()
+    for m in _KILL_ACTION_RE.finditer(cmd):
+        for g in m.groups():
+            if g and g.isdigit():
+                pids.add(int(g))
+    return pids
+
+
+def _my_ancestry() -> set:
+    """CIM parent-chain walk from THIS process up to the root (set of ints).
+    Proven working on this machine; same mechanism as tools/_restart_8099.ps1.
+    Called ONLY when a kill command names a target PID, so the CIM cost is rare."""
+    ps = ('$cur=[System.Diagnostics.Process]::GetCurrentProcess().Id;$chain=@($cur);'
+          'while($p=(Get-CimInstance Win32_Process -Filter "ProcessId=$cur" '
+          '-EA SilentlyContinue)){$cur=$p.ParentProcessId;'
+          'if(-not $cur -or $chain -contains $cur){break};$chain+=$cur};'
+          'Write-Output ($chain -join \',\')')
+    try:
+        r = subprocess.run(['powershell', '-NoProfile', '-Command', ps],
+                             capture_output=True, text=True, timeout=8,
+                             stdin=subprocess.DEVNULL)
+    except Exception:
+        return set()
+    line = (r.stdout or "").strip().splitlines()[-1] if (r.stdout or "").strip() else ""
+    out = set()
+    for tok in line.replace(",", " ").split():
+        if tok.isdigit():
+            out.add(int(tok))
+    return out
+
+
+def _self_suicide_guard(cmd: str):
+    """Return a refusal note if this kill command targets a PID in OUR ancestry
+    (would sever our own reporting stream); else None (run normally).
+    Kill unrelated PIDs and kill my own spawned descendants -> None (allowed)."""
+    targets = _kill_target_pids(cmd)
+    if not targets:
+        return None
+    anc = _my_ancestry()
+    hit = targets & anc
+    if not hit:
+        return None
+    return ("error: SELF-SUICIDE GUARD -- this kill targets PID(s) "
+            + str(sorted(hit)) + " which are in THIS shell process's ancestry. "
+            "Running it synchronously here kills the tree that reports the result, "
+            "so the turn dies mid-answer. Run it DETACHED instead (Start-Process "
+            "Bypass, e.g. tools/_restart_8099.ps1) and read its on-disk report in a "
+            "separate call.")
+
 def _unbalanced_quotes(cmd: str) -> bool:
     """True when double quotes are an odd count -> the shell would enter a continuation
     / hang waiting for the close quote. The classic trigger is a trailing backslash
@@ -191,6 +254,11 @@ class ShellServer(McpServerBase):
         cmd = args.get("command", "")
         if _denied(cmd):
             return f"error: command blocked by sandbox deny list: {cmd}"
+
+        # Self-suicide guard (2026-11): refuse a synchronous kill of our own ancestry.
+        _guard = _self_suicide_guard(cmd)
+        if _guard:
+            return _guard
 
         # Per-call timeout: default _TIMEOUT, clamped to [1, _MAX_TIMEOUT]. Without this
         # the model had no way to run a legitimately slow task and fell back to

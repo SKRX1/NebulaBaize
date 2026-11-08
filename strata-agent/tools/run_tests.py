@@ -305,6 +305,7 @@ SUITES = [
     "tests/test_shell_timeout.py",
 
     "tests/test_shell_utf8_trim.py",   # 2026-10-26: shell output byte-boundary UTF-8 trim (no mojibake)
+    "tests/test_self_suicide_guard.py",   # 2026-11-08: shell_server self-suicide guard -- kill of OUR OWN ancestry must go detached (CIM walk proven, Toolhelp32 lists empty here); differential POS(refuse)/NEG(allow) + parse + call_tool-wiring-before-exec lock
 
     "tests/test_agent_loop.py",
 
