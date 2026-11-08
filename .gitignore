@@ -131,3 +131,9 @@ strata-agent/tools/_anchor_patch.py
 strata-agent/tests/_diag_acts.mjs
 strata-agent/tests/_diff_spark_render.mjs
 strata-agent/tests/_spark_ids.txt
+
+# --- jsdom recovery channel: track the workspace-root node_modules so a fresh
+# clone carries the package the 91 jsdom tests resolve through NODE_PATH (2026-11).
+!node_modules/
+!package.json
+!package-lock.json

@@ -40,13 +40,23 @@ from parallel_probe import compute as _probe_compute
 
 PY = sys.executable
 
+# The 91 jsdom .mjs/.js tests resolve jsdom through createRequire, which walks the
+# parent chain off their hardcoded C-workspace base. On a machine with no package
+# manager the only durable source is the workspace-root node_modules now tracked in
+# git; NODE_PATH points every node child at it, so a fresh clone resolves jsdom with
+# no home-dir copy and no injected-view coincidence (proven by the hidden-home probe).
+WSROOT = os.path.dirname(ROOT)
+NODE_PATH_DIR = os.path.join(WSROOT, "node_modules")
+
 
 
 # Node for the .mjs suites. PATH first (the managed runtime exports it), then the
 
-# known managed location as a fallback. The .mjs tests resolve jsdom through an
+# known managed location as a fallback. The .mjs tests resolve jsdom via an absolute
 
-# absolute createRequire, so no NODE_PATH juggling is needed here.
+# createRequire whose base may not exist as a real directory; NODE_PATH (set above)
+
+# is what makes them resolve against the tracked workspace-root node_modules.
 
 NODE = shutil.which("node") or r"C:\Users\sk\.workbuddy\binaries\node\versions\22.22.2-6\node.exe"
 
@@ -389,13 +399,17 @@ def run_suite(rel: str) -> tuple[bool, str]:
 
     p = os.path.join(ROOT, rel)
 
-    cmd = [NODE if rel.endswith((".mjs", ".js")) else PY, p]
+    is_node = rel.endswith((".mjs", ".js"))
+    cmd = [NODE if is_node else PY, p]
+    env = dict(os.environ)
+    if is_node:
+        env["NODE_PATH"] = NODE_PATH_DIR
 
     try:
 
         out = subprocess.run(cmd, capture_output=True, text=True,
 
-                             timeout=300, cwd=ROOT)
+                             timeout=300, cwd=ROOT, env=env)
 
     except Exception as e:
 
