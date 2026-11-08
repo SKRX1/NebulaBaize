@@ -49,7 +49,7 @@ got = smart_decode(pf.stdout).strip()
 warn = got != CANARY
 results.append({"stage": "ps-file-nobom", "ok": not warn, "got": got[:120],
                 "note": "PS5.1 -File reads no-BOM UTF-8 as GBK (known)"})
-print(f"  [{'OK ' if not warn else 'BAD'}] ps-file-nobom: {got[:80]!r}")
+print(f"  [{'OK ' if not warn else 'WARN'}] ps-file-nobom: {got[:80]!r}  (known PS5.1 -File behavior, not counted in verdict)")
 
 # 5) filesystem read of a UTF-8 no-BOM text file through OUR fs_server decode path
 tmpf = os.path.join(ROOT, "tools", "_canary_probe.txt")

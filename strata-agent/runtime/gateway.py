@@ -62,13 +62,13 @@ def load_yaml_or_json(path: str) -> dict:
 
         import yaml  # type: ignore
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8-sig") as f:
 
             return yaml.safe_load(f) or {}
 
     except Exception:
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8-sig") as f:
 
             return json.load(f)
 

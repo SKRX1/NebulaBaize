@@ -185,3 +185,8 @@ _rollback_verify.py 现已从 __file__ 派生 ROOT、从 ROOT 派生 WS（clone-
 setNebSpin 转速 clamp 现为 160（公式分母同为 160，0→5.20s、160→2.60s，端到端~51/引擎峰值~81 落中段可分辨）；test_nebula 已补差分对锁「51→4.37s 与 81→3.88s 必须不同」防未来 clamp 降回 51 以下把可分辨性改没
 post-green 套件脚本结尾用 `git checkout <sha>` 恢复 HEAD 会把工作区留成游离态（detached，rev-parse 返回 HEAD 非 master）；跑完全套的收尾核验必须 `git rev-parse --abbrev-ref HEAD` 实测，返回非分支名就立即 `git checkout master` 归位，不得凭脚本 `RESTORING HEAD` 输出宣布完成。
 shell_server 自杀守卫（2026-11 落地，commit ee1b35b）：杀类命令解析出目标 PID 且命中"本进程 CIM 祖先链"即拒同步执行、逼分离发射；杀无关 PID/杀自己 spawn 的子孙放行；普通命令不付 CIM 成本。门禁 tests/test_self_suicide_guard.py（import 真模块跑守卫，CIM 用注入桩保证确定性）。
+chcp 65001 只改解码不回补窗口宽度：含较长中文 echo 的 BAT 须在 chcp 后加 mode con: cols=120 撑宽默认80列缓冲区，否则接近80列的行会被裁字看似乱码
+改models.json后需重启8099网关才生效(models.json后端读):杀监听PID→run_standalone.bat的:loop约3秒拉起加载最新磁盘代码
+app.js/models.json改动前先copy备份(.bak_xxx),用逐处断言命中=1次的精确字符串替换脚本落地,改完立即node --check+读回+跑对应jsdom回归
+workspaceSystem() 中 knowledge/experience 通过 _memInject() 注入，超过 LAZY_MEM_THRESHOLD(3000 chars) 走摘要行+按需 memory__recall 检索；rules 保持全文注入
+loadMemoryState() 中 GLOBAL_ROOT 去重：当 workspace/.strata-memory == GLOBAL_ROOT 时清空 globalKnowledge/globalExperience，防重复注入

@@ -161,7 +161,7 @@ def _minimal_yaml(text: str) -> dict:
 def load_config(path: str) -> dict:
     if not path or not os.path.isfile(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8-sig") as f:
         text = f.read()
     # JSON native
     s = text.lstrip()

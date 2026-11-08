@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+mode con: cols=120 lines=3000
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 setlocal EnableDelayedExpansion
