@@ -196,7 +196,9 @@ SUITES = [
 
     "tests/test_nebula.mjs",
 
-    "tests/test_compact_resume.js",
+    "tests/test_compact_resume.js",
+
+    "tests/test_compact_resume_owner.js",  # 2026-11-08: failed compaction keeps resume snapshot (C1) + finalize honors pendingCompactOwner (C2 differential)
 
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)
 
