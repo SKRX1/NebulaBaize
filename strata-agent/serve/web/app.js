@@ -1,4 +1,4 @@
-﻿// serve/web/app.js - the Strata web app: Chat, Monitor, About. No framework, no network beyond this server.
+// serve/web/app.js - the Strata web app: Chat, Monitor, About. No framework, no network beyond this server.
 // The Monitor tab rebuilds PR #22's dashboard idea (code-martin) on the server's own /metrics.
 "use strict";
 
@@ -3302,6 +3302,15 @@ function renderInspector() {
   const bar = $("ins-ctx-bar"); if (bar) { bar.style.width = (frac * 100) + "%"; bar.dataset.tone = tone; }
   const pe = $("ins-ctx-pct"); if (pe) { const h = ctx ? escNum(esc(`${pct}%`), tone) : esc("–"); if (pe.dataset._h !== h) { pe.innerHTML = h; pe.dataset._h = h; } }
   const su = $("ins-ctx-sub"); if (su) su.textContent = ctx ? `${kfmt(used)} / ${kfmt(ctx)} tokens` : t("insp.ctx.empty");
+  const sp = $("ins-ctx-split");
+  if (sp) {
+    const inject = (ctx && lastPromptTokens) ? measuredInjectTokens() : 0;   // C: 实测固定开销(压缩压不到的地板)
+    if (inject > 0 && used > 0) {
+      const hist = Math.max(0, used - inject);
+      const sh = esc(t("insp.ctx.split", { inject: kfmt(inject), hist: kfmt(hist) }));
+      if (sp.dataset._h !== sh) { sp.hidden = false; sp.innerHTML = sh; sp.dataset._h = sh; }
+    } else if (!sp.hidden) { sp.hidden = true; sp.innerHTML = ""; sp.dataset._h = ""; }
+  }
   const en = $("ins-engine");
   if (en) {
     const c = (engineMonitor && engineMonitor.available) ? engineMonitor.context : null;
