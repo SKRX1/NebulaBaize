@@ -212,6 +212,7 @@ SUITES = [
 
     "tests/test_continue_bends_send.mjs",   # 2026-11 gate A+B: a Continue-asked compaction must REACH send past the chain-active guard (single-shot flag), other autos still deferred + now-visible toast (single-variable differential drives real compactConversation)
     "tests/test_compact_target.mjs",       # 2026-10: the compression-target slider actually moves the post-compact tail budget
+    "tests/test_models_ctx_window.mjs",   # 2026-11 static anchor: the 3 custom 47831 models must declare context_window=131072 (NOT the monitor default 32768); P1 value, P2 no-drift, P3 count===3
 
     "tests/test_stale_tab.mjs",            # 2026-10-20: stale tab detects newer server build and reloads itself once
 

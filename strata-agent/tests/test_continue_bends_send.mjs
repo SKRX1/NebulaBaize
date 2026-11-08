@@ -79,6 +79,7 @@ function drive(flagSet){
     const confirm = () => { env.calls.confirm++; return true; };
     const toast = (kind, title) => { env.calls.toast.push({kind, title}); };
     let pendingCompact = false, resumeSnapshot = null;
+    let activeId = "s1", pendingCompactOwner = null;   // C2 (2026-11-08): compactConversation now writes pendingCompactOwner = activeId
     let continueRequested = env.flagSet;                                  // <-- the only variable
     const taskResumeSnapshot = () => ({ leftItems: 3 });
     const precondenseAndCompact = async () => { env.calls.precondense++; };
