@@ -42,7 +42,7 @@ check("source has isEarlyLane driven by openPlan", /const\s+isEarlyLane\s*=.*ope
 function makeHarness(seedMax) {
   const src = `
 "use strict";
-let AUTO_RESUME_MAX=${seedMax};
+let AUTO_RESUME_MAX=${seedMax};let AUTO_RESUME_FLOOR=12;
 let autoResumeChain, emptyRoundChain, earlyDoneChain; let busy=false; let settings={};
 let tLog=[]; function t(k){tLog.push(k);return k;}
 function toast(kind,k1,k2){tLog.push("TOAST:"+k1+"|"+(k2||""));}
@@ -89,12 +89,16 @@ console.log("\n=== the early lane is its OWN budget/counter and does NOT borrow 
   const posM = () => ({text:"done.", plan:[{done:false,label:"b"}]});
 
   const headroom = run(h, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 0, posM());   // chain 0 < cap2 -> carry
-  check("early lane at headroom (chain0<cap2) -> carry true", headroom === true);
+  check("early lane at headroom (chain0<big cap) -> carry true", headroom === true);
 
   const h2 = makeHarness(24);
   const mFuse = {text:"done.", plan:[{done:false,label:"b"}]};
-  const fuseAtCap = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 2, mFuse);   // start AT cap -> >=cap fires
-  check("early lane fused at its OWN budget -> false + stamps earlyCap(2)", fuseAtCap === false && mFuse.resumeExhausted === 2, "stamp=" + mFuse.resumeExhausted);
+  // 2026-11 plan A+B: the early lane is a NOT-finished lane -> big budget (floor>=12, same as the main chain).
+  const earlyCarry = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 0, mFuse);   // chain0 < big cap -> carries on
+  check("early lane at headroom under the BIG budget -> carry true [plan A+B: runs to completion]", earlyCarry === true);
+  const mFuse2 = {text:"done.", plan:[{done:false,label:"b"}]};
+  const fuseAtCap = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, Math.max(12, 24), mFuse2);   // start AT the big cap -> >=cap fires
+  check("early lane fused at its OWN big budget -> false + stamps earlyCap(24)", fuseAtCap === false && mFuse2.resumeExhausted === 24, "stamp=" + mFuse2.resumeExhausted);
 
   const tl = h2.tlog();
   check("early-lane fuse uses the EARLY toast key", usedKey(tl,"resume.stopped.early"), JSON.stringify(tl));
