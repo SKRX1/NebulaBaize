@@ -440,6 +440,26 @@ console.log("\n=== 14. weekly summary modal gathers entries within the last 7 da
   api.closeWeeklyModal();
 }
 
+
+// ================================================================ 15. fix A: over-budget store that CAN be losslessly compacted merges straight in
+{
+  // Knowledge hard cap is 200. Seed 205 content lines: 195 unique + 10 exact duplicates -> lossless
+  // dedup drops the 10 dupes, landing at 195 (< maxLines), leaving room to merge the fresh line.
+  // Before fix A an over-budget store fell straight to the draft path, so the fresh line would NOT be
+  // in the store file. With A it compacts then merges, so the fresh line lands in the store file.
+  const uniq = Array.from({ length: 195 }, (_, i) => "kn-unique-" + i);
+  const dupes = uniq.slice(0, 10);
+  const seedLines = uniq.concat(dupes);          // 205 content lines, 195 unique after dedup
+  setup({ [fileOf("knowledge")]: seedLines.join("\n") }, "");
+  api.setSettings({ autoMemory: true, memCompactLLM: false });
+  await api.maybeProposeMemory(PROPOSE(KNOW, ["A-FIX-NEW-ENTRY"]));
+  const kf = disk(fileOf("knowledge")).split("\n").map((l) => l.trim()).filter(Boolean);
+  check("fix A: lossless compaction dropped the 10 duplicate lines", kf.filter((l) => /^kn-unique-/.test(l)).length === 195, String(kf.filter((l) => /^kn-unique-/.test(l)).length));
+  check("fix A: the fresh line merged straight into the store file", kf.includes("A-FIX-NEW-ENTRY"), JSON.stringify(kf.slice(-3)));
+  check("fix A: store stayed within hard cap after merge", kf.length <= 200, String(kf.length));
+  check("fix A: fresh line is NOT stuck in a draft", !(disk(fileOf("knowledge") + ".draft.md") || "").includes("A-FIX-NEW-ENTRY"));
+  api.setSettings({ autoMemory: false, memCompactLLM: false });
+}
 // ------------------------------------------------------------------ result
 console.log("\n" + (FAILURES.length ? "AUTO-MEMORY: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "AUTO-MEMORY: ALL PASSED"));
 process.exit(FAILURES.length ? 1 : 0);

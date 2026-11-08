@@ -1135,7 +1135,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: false, cnThink: false, designLang: "auto", persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, cnThink: false, designLang: "auto", persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -3116,6 +3116,9 @@ let maxCtx = 0;                                  // model context window (from t
 let lastPromptTokens = 0, lastCacheTokens = 0;    // latest request usage (per turn)
 let lastRag = "";                                 // F3: knowledge recalled for the current turn (empty if none)
 let pendingCompact = false;
+let pendingCompactOwner = null;   // C2 (2026-11-08): the session that armed the pending compact. A
+// cross-session finalize must not silently clear a compact that belongs to the ORIGINATING session —
+// doing so was how a failed compaction lost its resume and the old task wedged (only a new task ran).
 let continueRequested = false;   // A: a Continue click on a context_overflow forces the compaction through, past the chain-active guard
 let resumeSnapshot = null;                                 // auto-resume: set before any compaction (auto or manual), consumed once by the hook
 let resumeBadge = null;             // auto-resume badge for the next streamed turn (meta label + hidden autoResume flag)
@@ -3664,7 +3667,10 @@ async function precondenseAndCompact(auto) {
     messages = [{role: "system", content: "【对话压缩摘要·分段预压缩】\n" + carry}, ...tail];
     saveChat(); renderChat();
   } catch (e) {
-    pendingCompact = false; resumeSnapshot = null;    // stay on the untouched history; user can retry
+    pendingCompact = false; pendingCompactOwner = null;    // C2: this view's own pending turn is over
+    // C1 (2026-11-08): KEEP the resume snapshot on failure. History is untouched, so the task the
+    // compaction interrupted is still there and the user can retry — clearing the snapshot here is
+    // exactly what left "compaction failed but the task no longer resumes". The retry re-arms it.
     messages = original;
     toast("err", t("insp.compact.chunkfail"), String(e && e.message || e), 9000);
     return;
@@ -3682,6 +3688,7 @@ function compactConversation(auto = false) {
   if (!auto) precondenseDepth = 0;   // A: a fresh manual compact restarts the fold budget from zero
   if (!auto && !confirm(t("insp.compact.confirm"))) return;
   pendingCompact = auto ? "auto" : "manual";
+  pendingCompactOwner = activeId;   // C2: tag which session this compaction belongs to
   // Compaction IS truncation: every compact (auto or manual) arms a resume (approved 2026-10,
   // reversing the 2026-10-19 scan-decides rule now that the 3s undo window and Stop are the
   // user's regret gates). A missed resume stalls a live task; a spurious one costs only a
@@ -4260,6 +4267,18 @@ $("chat-scroll").addEventListener("scroll", (e) => {
 
 // The workspace-specific system prompt (working dir + plan/next-steps conventions). Kept as a helper
 // so apiMessages can compose it with the always-on base prompt, persona, and RAG context.
+const LAZY_MEM_THRESHOLD = 3000; // chars: stores above this get summary-only injection
+function _memEntryCount(s) {
+  if (!s || !s.trim()) return 0;
+  return s.trim().split(/\n/).filter(function(l){ return l.trim() && !/^#/.test(l.trim()); }).length;
+}
+function _memInject(label, content) {
+  if (!content || !content.trim()) return "";
+  if (content.trim().length <= LAZY_MEM_THRESHOLD) return "\n\n\u3010" + label + "\u3011\n" + content.trim();
+  var n = _memEntryCount(content);
+  return "\n\n\u3010" + label + "\u3011(" + n + " \u6761\uff0c\u5185\u5bb9\u8f83\u5927\u5df2\u7701\u7565\u5168\u6587\uff0c\u8bf7\u7528 memory__recall \u5de5\u5177\u6309\u9700\u68c0\u7d22)";
+}
+
 function workspaceSystem(ws) {
   let txt = `Working directory: ${ws}\nThe agent reads, writes, and runs commands in this folder. Use it as the default target for file and shell operations.\n\n【plan 防幻觉硬约束】下面的计划清单必须用 markdown 三个反引号围起来的 \`\`\`plan 围栏书写，它【不是】工具调用——绝不要把它写成 <function=plan>、<parameter>、\`tool_call\` 这类 XML 工具调用语法（把 markdown 围栏幻觉成工具语法会让本动作被解析器丢弃、整轮空转并中断任务）。
 任务若包含多个步骤，请在执行过程中用下面的「计划清单」格式跟踪进度：每完成一项就把对应的 [ ] 改成 [x]。清单放在回答开头附近（不要放进代码块以外的地方造成歧义），右侧面板会把它渲染成进度条。若任务很简单（一步完成），可以不输出：\n\`\`\`plan\n- [ ] 第一步\n- [x] 第二步（已完成）\n- [ ] 第三步\n\`\`\`\n\n执行命令或写文件后，务必确认结果符合预期（读回文件内容、查看命令输出）；若出现报错，先修复再继续，不要在未验证时就宣布任务完成。\n\n当你判断一项任务已经彻底完成（不再需要调用任何工具）时，在回答的末尾用下面格式给出 2-5 条「下一步建议」，每条一句话、可作为按钮直接点击执行。用行首符号标注优劣（前端据此分色、并据此决定是否自动续跑——颜色即决定）：\n- 行首 \`*\`：你真正推荐、净收益高且风险低的（置顶、绿色、标「推荐」，自动续跑会跑它）；\n- 行首无符号的 \`-\`：可选、中性、值得顺手做的（排中间、黄色，自动续跑会跑它）；\n- 行首 \`!\`：你不推荐、坏处多或风险高的（排最后、红色、标「不推荐」，自动续跑绝不自动跑它，仅由用户决定）；\n- 行首 \`?\`：你已列出但在**等用户真实回复/需要用户拍板或自定义**的（蓝色、标「等你确认」，自动续跑绝不自动跑它——这是防止自我复读的停等信号）。\n重要：当你这一轮其实是在等用户拍板（需要决策、或该等用户真实回复/自定义）时，照旧输出 next-steps 块（含决策卡的轮次前端整轮不自动跑——绿/黄条照出、可点、但不会被自动跑掉），别给自己塞一个会被自动跑的建议而推进自我复读。\n若任务尚未完成，不要输出这个代码块：\n\`\`\`next-steps\n* 推荐项\n- 可选项\n! 不推荐项\n\`\`\``;
@@ -4301,24 +4320,12 @@ function workspaceSystem(ws) {
   if (workspaceRules && workspaceRules.trim()) {
     txt += `\n\n【本工作空间操作约定（已固化，务必遵守）】\n${workspaceRules.trim()}`;
   }
-  if (globalKnowledge && globalKnowledge.trim()) {
-    txt += `\n\n【全局知识库（所有工作空间通用）】\n${globalKnowledge.trim()}`;
-  }
-  if (grp && groupKnowledge && groupKnowledge.trim()) {
-    txt += `\n\n【工作区间知识库（${grp} 组通用）】\n${groupKnowledge.trim()}`;
-  }
-  if (workspaceKnowledge && workspaceKnowledge.trim()) {
-    txt += `\n\n【本工作空间知识库】\n${workspaceKnowledge.trim()}`;
-  }
-  if (globalExperience && globalExperience.trim()) {
-    txt += `\n\n【全局经验库（所有工作空间通用）】\n${globalExperience.trim()}`;
-  }
-  if (grp && groupExperience && groupExperience.trim()) {
-    txt += `\n\n【工作区间经验库（${grp} 组通用）】\n${groupExperience.trim()}`;
-  }
-  if (workspaceExperience && workspaceExperience.trim()) {
-    txt += `\n\n【本工作空间经验库】\n${workspaceExperience.trim()}`;
-  }
+  if (globalKnowledge && globalKnowledge.trim()) txt += _memInject("全局知识库", globalKnowledge);
+  if (grp) txt += _memInject("工作区间知识库", groupKnowledge);
+  if (workspaceKnowledge && workspaceKnowledge.trim()) txt += _memInject("本工作空间知识库", workspaceKnowledge);
+  if (globalExperience && globalExperience.trim()) txt += _memInject("全局经验库", globalExperience);
+  if (grp) txt += _memInject("工作区间经验库", groupExperience);
+  if (workspaceExperience && workspaceExperience.trim()) txt += _memInject("本工作空间经验库", workspaceExperience);
   // Design-doc language: keep filename + body language consistent with the chosen policy.
   const _dl = settings.designLang || "auto";
   if (_dl === "zh") {
@@ -4406,7 +4413,7 @@ async function recallKnowledge(query) {
 //   - "global":    lives under GLOBAL_ROOT and applies to EVERY workspace (cross-project).
 // The human promotes/demotes between scopes from the memory panel; the AI never writes the group or
 // global scope directly (that is the safeguard against over-generalising a workspace quirk).
-const GLOBAL_ROOT = "E:/WorkBuddy/.strata-memory";   // inside FS_ALLOW (E:/WorkBuddy); auto-created on first write
+const GLOBAL_ROOT = "E:/星云/星云智能体/.strata-memory";   // inside FS_ALLOW (E:/星云); auto-created on first write
 const MEMORY_STORES = {
   rules:      {key: "rules",      title: "rules",      file: "RULES.md",                    gfile: "RULES.md",        re: /```propose-rules\s*\n([\s\S]*?)```/i,      audit: ".strata-memory/auto-rules.md",      maxPerTurn: 5, maxChars: 200, maxLines: 80,  grounding: true},
   knowledge:  {key: "knowledge",  title: "knowledge",  file: ".strata-memory/knowledge.md",  gfile: "knowledge.md",    re: /```propose-knowledge\s*\n([\s\S]*?)```/i,  audit: ".strata-memory/auto-knowledge.md",  maxPerTurn: 8, maxChars: 300, maxLines: 200, grounding: false},
@@ -4483,6 +4490,11 @@ async function loadMemoryState(ws) {
   globalRules = await fsRead(`${GLOBAL_ROOT}/RULES.md`);
   globalKnowledge = await fsRead(`${GLOBAL_ROOT}/knowledge.md`);
   globalExperience = await fsRead(`${GLOBAL_ROOT}/experience.md`);
+  // Dedupe: when this workspace IS the global-memory root parent, the
+  // workspace tier already read the same knowledge/experience files.
+  if ((base + "/.strata-memory").replace(/\\/g,"/").toLowerCase() === GLOBAL_ROOT.replace(/\\/g,"/").toLowerCase()) {
+    globalKnowledge = ""; globalExperience = "";
+  }
   // Group tier: only loaded when this workspace declares a group (the "between workspaces" tier).
   currentGroup = await getGroupLabel(base);
   if (currentGroup) {
@@ -4593,7 +4605,38 @@ async function maybeProposeMemory(m) {
         }
         continue;
       }
-      // Safety valve: an oversized store must not grow unattended -> fall back to the draft path below.
+      // A (2026-11): an over-budget store must not be a dead end. First TRY to compact it
+      // (lossless exact-dedup + optional LLM semantic merge). If compaction brings it back
+      // under maxLines, merge the fresh entries straight in as usual; only when compaction
+      // cannot reclaim room do we fall back to the draft/review path below.
+      const comp = await compactMemoryStore(store, "workspace", base, currentGroup,
+                                           {llm: settings.memCompactLLM ? _llmCompactFn : null});
+      if (comp.changed) {
+        const after = (await fsRead(storePath(store, "workspace", base, currentGroup)) || "")
+          .split("\n").map((l) => l.trim()).filter(Boolean).length;
+        if (after <= cfg.maxLines) {
+          const picked2 = fresh.filter((e) => e.length <= cfg.maxChars).slice(0, cfg.maxPerTurn);
+          if (picked2.length) {
+            const m2 = await mergeMemoryInto(store, "workspace", picked2, base, currentGroup);
+            if (m2.added.length) {
+              if (store === "rules") workspaceRules = m2.merged.join("\n");
+              await appendMemoryAudit(store, "workspace", m2.added, base, currentGroup);
+              if (store === "rules") renderRulesBanner();
+              if (comp.usedLLM) toast("info", t("mem.auto.compacted"),
+                    t("mem.auto.compacted.n", {s: cfg.title, n: comp.next.split("\n").filter(Boolean).length,
+                                               llm: t("mem.auto.compacted.llm")}), 9000, {label: t("mem.auto.undo"), run: restoreCompaction});
+              toast("ok", t("mem.auto.applied"), t("mem.auto.applied.n", {n: m2.added.length, s: cfg.title}), 9000,
+                    {label: t("mem.auto.undo"), run: () => undoAutoMemory(store, "workspace", m2.added, base, currentGroup)});
+              continue;
+            }
+          }
+        } else if (comp.usedLLM) {
+          toast("info", t("mem.auto.compacted"),
+                t("mem.auto.compacted.n", {s: cfg.title, n: comp.next.split("\n").filter(Boolean).length,
+                                           llm: t("mem.auto.compacted.llm")}), 9000, {label: t("mem.auto.undo"), run: restoreCompaction});
+        }
+      }
+      // Still over budget after compaction -> the original safety valve: stage as a draft.
       toast("warn", t("mem.auto.full"), t("mem.auto.full.n", {n: lineCount, s: cfg.title}), 7000);
     }
 
@@ -4998,7 +5041,7 @@ async function mcpTxt(server, tool, args) {
 }
 
 // Project-scoped global memory file (read-only in the UI; the agent maintains it).
-const PROJECT_MEMORY = "E:/WorkBuddy/星云智能体/.workbuddy/memory/MEMORY.md";
+const PROJECT_MEMORY = "E:/星云/星云智能体/.strata-memory/MEMORY.md";
 
 // ============================================================ cold-archive manager
 // The drawer panel (option A: same section as the archiveOn toggle) that lets a user
@@ -7576,7 +7619,13 @@ async function streamAssistant() {
     const owner = _origin || findSession(_ownerSid);
     if (owner) { if (!owner.messages.includes(m)) owner.messages.push(m); owner.updatedAt = Date.now(); }
     saveSessions();
-    if (pendingCompact) pendingCompact = false;   // the pending turn belonged to the originating session; don't feed THIS view's compaction path
+    if (pendingCompact) {
+      // C2 (2026-11-08): the turn was started by the ORIGINATING session (_ownerSid). If the pending
+      // compact belongs to that session, hand the compaction-resume back to it (keep the snapshot)
+      // instead of clearing it for THIS view — clearing it here lost the resume on a cross-session
+      // switch and wedged the old task. If it belongs to some other view, drop it as before.
+      if (pendingCompactOwner && pendingCompactOwner !== _ownerSid) { pendingCompact = false; pendingCompactOwner = null; }
+    }   // else: owner keeps its own pending-compact/resume on its own turn
     renderChat();
   } else {
     saveChat();
@@ -7585,9 +7634,10 @@ async function streamAssistant() {
   renderSessions();   // the running badge goes out (either path)            // the turn just added the stats footer + next-step chips: keep them above the composer
   _dbg.turn = null;          // Step1-F: this turn's capture window is closed; later errors aren't attributed to it
   renderDebug();             // Step1-G: refresh the debug drawer with this turn's anomalies (if it's open)
-  if (pendingCompact) {                                 // R5: a compact turn just finished (manual or automatic)
+  if (pendingCompact && (!pendingCompactOwner || pendingCompactOwner === activeId)) {   // C2 (2026-11-08): only the OWNING view finalises its compact
     const auto = pendingCompact === "auto";
     pendingCompact = false;
+    pendingCompactOwner = null;
     // An EMPTY summary means the compaction request itself died (over-window chats die here:
     // the gateway refuses to loop them, http_server "exceeded even when compacting"). Rebuilding
     // [empty summary, tail] would trade the transcript's focus for nothing. Roll the failed
@@ -7774,7 +7824,7 @@ function doRegenerate(i) {
   showUndoToast(removed.length);
 }
 
-// ------------------------------------------------------------------ Edit-in-place (WorkBuddy-style fork)
+// ------------------------------------------------------------------ Edit-in-place (strata-native fork)
 // The bubble becomes a textarea in place; the edit is confirmed; then the message is rewritten
 // and everything after it is discarded and regenerated. Reuses doRegenerate's contract:
 // streamAssistant() must be called with the edited user message as the LAST element of messages.
