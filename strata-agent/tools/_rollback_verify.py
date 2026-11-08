@@ -100,9 +100,9 @@ def main():
                     or 'FAIL' in line or 'TIMEOUT' in line):
                 print(line)
 
-    # ALWAYS restore original HEAD no matter what
-    print('RESTORING HEAD -> %s' % orig)
-    print(git(['checkout', orig]).strip().splitlines()[-1])
+    # ALWAYS restore to the master branch no matter what (avoids detached-HEAD residue)
+    print('RESTORING HEAD -> master (was %s)' % orig)
+    print(git(['checkout', 'master']).strip().splitlines()[-1])
     if stashed:
         print(git(['stash', 'pop']).strip())
     post = git(['status', '--porcelain']).strip()
