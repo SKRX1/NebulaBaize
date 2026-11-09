@@ -71,3 +71,6 @@ contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 
 app.js/models.json改动前先copy备份(.bak_xxx),用逐处断言命中=1次的精确字符串替换脚本落地,改完立即node --check+读回+跑对应jsdom回归
 workspaceSystem() 中 knowledge/experience 通过 _memInject() 注入，超过 LAZY_MEM_THRESHOLD(3000 chars) 走摘要行+按需 memory__recall 检索；rules 保持全文注入
 loadMemoryState() 中 GLOBAL_ROOT 去重：当 workspace/.strata-memory == GLOBAL_ROOT 时清空 globalKnowledge/globalExperience，防重复注入
+tools/ 目录有临时脚本清理机制（_*.py 跑完即被送回收站）：需要"落盘脚本→立即运行"的临时脚本，必须把运行命令接在写入后的同一条 shell 命令里，勿分两个回合（下一回合文件已不在）
+语义合并/压缩类任务先跑数据驱动相似度扫描（difflib.SequenceMatcher，阈值~0.5）列出真实重复簇，禁止凭记忆判重复（怕误删同主题互补事实如 Shell.Application≠pywin32）
+写全量语义合并脚本时守卫只禁"源行被多簇重复使用"，"缺失索引"是合法的原样保留行不得当错误 ABORT
