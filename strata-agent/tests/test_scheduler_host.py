@@ -223,12 +223,111 @@ def test_near_entry_hot_reload_within_slice():
           f"and superseded it (fired={fired}, total={total})")
 
 
+def test_busy_queue_delays_last_run_until_idle():
+    """host-f: agent busy 时到点不写 last_run、转空闲后才触发（锁排队策略的真实时序）。
+
+    Scheduler.due() 的时序契约是 _safe_run(-> _gated_run -> idle_gate.wait -> run_task)
+    返回**之后**才 _record_last_run 写盘。所以 agent BUSY（gate 关闭）期间，任务已经
+    due 却卡在 gate.wait，last_run 必然**尚未写盘**；放行（转空闲）后 _record_last_run
+    才落盘，且 last_run.ts 反映放行后的时钟（>= 转空闲时刻），而非 due 的触发时刻。
+
+    host-c 的 stub gate 立即返回，只验调用顺序，锁不住这条「写盘晚于排队」的真实时序；
+    host-f 用「wait 内读 state 断言此刻无 last_run + 推进时钟模拟排队耗时 + run 后断言
+    last_run.ts>=转空闲时刻」把它锁进 gate。这是 live 实测（RECUR-FIRED-OK + state
+    last_run 落盘）坐实的策略在离线层的等价锁。
+    """
+    import json
+    import tempfile
+    import datetime as _dt
+
+    clock = FakeClock()
+    tmpdir = tempfile.mkdtemp(prefix="q_hostf_")
+    state_path = os.path.join(tmpdir, "state.json")
+    ran = {"n": 0, "at": None}
+
+    # A one-shot pinned to fire at t0+1 (due immediately once clock passes it).
+    at_iso = _dt.datetime.fromtimestamp(clock() + 1).isoformat(timespec="seconds")
+
+    def load():
+        return [{"name": "q", "task": "Q", "at": at_iso}]
+
+    busy_obs = {"last_run_seen_during_wait": "UNSET"}
+    idle_at = clock() + 60.0  # agent stays busy for 60s, then frees up
+
+    class QueueGate:
+        """Real queueing gate: wait() blocks (advances the fake clock) until the agent
+        turns idle, and captures whether last_run was on disk while it was still busy."""
+
+        def __init__(self):
+            self.open_ = False
+            self.wait_calls = 0
+
+        def is_set(self):
+            return self.open_
+
+        def set(self):
+            self.open_ = True
+
+        def wait(self, timeout=None):
+            self.wait_calls += 1
+            # Snapshot persisted state AT THE MOMENT we are queued (gate closed, clock
+            # not yet advanced). Because _record_last_run runs only after _safe_run
+            # returns -- which is after THIS wait -- the entry must NOT be in last_run.
+            try:
+                with open(state_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except FileNotFoundError:
+                data = {}
+            busy_obs["last_run_seen_during_wait"] = "q" in data.get("last_run", {})
+            # Queue: the agent finishes its interactive turn 60s from now, then frees up.
+            clock.t = idle_at
+            self.open_ = True
+            return True
+
+    gate = QueueGate()
+
+    def run_task(name, task):
+        ran["n"] += 1
+        ran["at"] = clock()
+
+    host = SchedulerHost(load_entries=load, run_task=run_task, state_path=state_path,
+                         clock=clock, sleep=clock.sleep, idle_gate=gate)
+    host._ensure_scheduler()
+    # Force due at t0 (next_fire at t0+1, nudge clock to t0+1 so it is due now).
+    clock.t += 1
+    fired = host.sched.due()
+
+    # (1) it fired exactly once
+    assert fired == ["q"], f"entry did not fire: {fired}"
+    # (2) the gate was consulted (queued) before the task ran
+    assert gate.wait_calls >= 1, "idle gate never consulted (no queue arbitration)"
+    # (3) THE LOCK: while queued (agent busy), last_run for 'q' was NOT yet on disk
+    assert busy_obs["last_run_seen_during_wait"] is False, (
+        "last_run was written while the agent was still busy (queued) -- the write "
+        "must be deferred until the gate releases, matching the live behaviour where "
+        "a fired-but-queued job leaves last_run=None until the agent goes idle")
+    # (4) after release, the task ran and last_run landed, timestamped at/after idle
+    assert ran["n"] == 1, f"task did not run after the gate released: {ran}"
+    assert ran["at"] >= idle_at, (
+        f"task ran at {ran['at']} before the agent went idle at {idle_at}")
+    with open(state_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    assert "q" in data.get("last_run", {}),         f"last_run not persisted after idle: {data.get('last_run')}"
+    assert data["last_run"]["q"]["ts"] >= idle_at, (
+        f"last_run.ts={data['last_run']['q']['ts']} predates idle "
+        f"({idle_at}) -- queued run's last_run must carry the post-idle timestamp")
+    print(f"host-f OK: fired-while-busy deferred last_run until idle "
+          f"(last_run during busy={busy_obs['last_run_seen_during_wait']}, "
+          f"ran_at={ran['at']:.1f}>=idle={idle_at:.1f}, ts={data['last_run']['q']['ts']:.1f})")
+
+
 def main() -> int:
     test_fire_via_callback()
     test_hot_reload_picks_up_new_entry()
     test_busy_queue_blocks_behind_gate()
     test_fingerprint_stable_and_sensitive()
     test_near_entry_hot_reload_within_slice()
+    test_busy_queue_delays_last_run_until_idle()
     print("SCHEDULER HOST FUSION GATE OK")
     return 0
 
