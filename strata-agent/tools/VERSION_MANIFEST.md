@@ -18,6 +18,14 @@
 | 合并预算保留比例滑条 | `#s-memreserve` / `_memCompactReservePct()` `memCompactChunkTokens()` | v1：clamp `[5,50]`，默认 `25`；喂 AUTO chunk 预算公式 `reserve=max(4096, 窗口×比例)`，`budget=min(12000,max(2000,窗口−注入−reserve))`；pinned chunk>0 时滑条禁用置灰并绕过 | `2c222db` | `tests/test_mem_reserve_wiring.mjs`（预算契约）+ `tests/test_reserve_linkage.mjs`（拖滑条联动 + 禁用联动） |
 | 断流/截断轮「继续」按钮可见性 + 网关文案 | `updateAssistant()` 按钮 gate (app.js L3929) | v1：按钮 `hidden = !((m.limit \|\| m.canContinue \|\| m.truncated) && !streaming)`——断流转录走 `markTruncatedIfCut()` 设的 `m.truncated`（不置 canContinue），必须纳入此 gate，否则截断轮「继续」按钮被永久隐藏、无法续跑；续跑链路 `continueTask()→send()` 早已就绪。i18n `chat.notice.gateway_down` 中英两版：bat 名 = `星云智能体.bat`(工作区根)，看门狗自动重启 8099，文案改为「看门狗会自动重启，稍候点继续；迟迟未恢复再双击 bat」 | `d90af59` | `tests/test_conn_cut_resume.mjs`（C8：断流轮按钮可见 + 干净轮隐藏 differential + 点击触发 `send()`，真实 app.js 栈，消息挂进 `#chat` 委托容器） |
 
+## 真机验收台账
+
+> 逻辑层由守护测试在真实 app.js 栈坐实；像素/交互层由主人在实时 8099 浏览器硬刷新后真机验收。
+
+| 日期 | 验收项 | 环境 | 验收人 | 结论 | 判据 |
+|------|--------|------|--------|------|------|
+| 2026-11-09 | 断流/截断轮「继续」按钮续跑（`d90af59`，登记见上）| 浏览器硬刷新(Ctrl+Shift+R) + 分离杀网关看门狗拉起 8099 | 主人（时空）| ✅ 三条判据全通过 | ①断流消息底部出现「继续」按钮 ②文案为「看门狗会自动重启，稍候点继续；迟迟未恢复再双击 `星云智能体.bat`」③网关恢复后点「继续」任务接着跑 |
+
 ## 联动契约速查（reserve 滑条）
 
 - **小窗口 16384**：≤25% 触 4096 reserve 地板（预算恒定 4288）；30%→3469；≥40% 触 2000 预算下限饱和。**默认 25% 为甜点**。
