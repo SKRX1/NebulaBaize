@@ -371,6 +371,7 @@ SUITES = [
 
     "tests/test_daemon.py",
     "tests/test_scheduler_host.py",   # 2026-11 fusion gate A: scheduler host hot-reload + busy-queue (offline)
+    "tests/test_scheduler_host_differential.py",   # 2026-11 differential lock: each of 4 mutations (host-e/f/g/h) turns its real host lock red -> proves the locks are load-bearing, not a vacuous green
 
     "tests/test_corpus.py",
 

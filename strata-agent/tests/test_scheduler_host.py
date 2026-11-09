@@ -321,6 +321,126 @@ def test_busy_queue_delays_last_run_until_idle():
           f"ran_at={ran['at']:.1f}>=idle={idle_at:.1f}, ts={data['last_run']['q']['ts']:.1f})")
 
 
+def test_removed_entry_stops_firing_after_reload():
+    """host-g: panel 删项后热重载即时停触发（锁删除方向，host-b 只锁了新增方向）。
+
+    _ensure_scheduler() 每 tick 比对指纹；面板删掉一项 -> 指纹变 -> rebuild -> 被删项
+    从 sched.entries 消失 -> 后续 tick 不再 due -> 不再触发。锁三件事：
+      1. 删项前：job 会 fire（证明测试设置真的在触发它，谓词非空）
+      2. 删项后 reload：reloads+1，sched.entries 不含被删项（删除被即时拾取）
+      3. 删项后继续跑多 tick：被删项再未触发（fires 计数不再因它增长）
+
+    证伪（见 differential 探针 D3）：_ensure_scheduler 在指纹变化时仍 return（永不
+    rebuild），被删项会一直 fire -> host-g 变红。
+    """
+    clock = FakeClock()
+    fired = []
+    state = {"entries": [
+        {"name": "keep", "task": "KEEP", "every_minutes": 1},
+        {"name": "drop", "task": "DROP", "every_minutes": 1},
+    ]}
+
+    def load():
+        return list(state["entries"])
+
+    host = SchedulerHost(load_entries=load, run_task=lambda n, t: fired.append(n),
+                         clock=clock, sleep=clock.sleep)
+
+    # (1) 两个 job 都会 fire 一次：drive 3 个 tick 跨过 60s 边界
+    host.max_iter = 3
+    host.run()
+    assert "drop" in fired and "keep" in fired, \
+        f"setup: neither job fired before removal (predicate vacuous): {fired}"
+    drop_before = fired.count("drop")
+
+    # (2) 面板删掉 drop -> 下一 tick reload 应即时拾取
+    state["entries"] = [{"name": "keep", "task": "KEEP", "every_minutes": 1}]
+    host._ensure_scheduler()
+    names = [e.name for e in host.sched.entries]
+    assert "drop" not in names, \
+        f"removed entry not dropped after reload (entries={names})"
+    assert host.reloads >= 1, f"removal did not bump reloads (reload={host.reloads})"
+
+    # (3) 删项后继续跑多个 tick：drop 绝不复现
+    fired.clear()
+    host.max_iter = 5
+    host.run()
+    assert "drop" not in fired, \
+        f"removed entry kept firing after reload (fires={fired}) -- deletion not honored"
+    print(f"host-g OK: panel removal hot-reloaded, removed entry stopped firing "
+          f"(pre-removal drop hits={drop_before}, post-removal drop hits=0, reloads={host.reloads})")
+
+
+
+def test_run_task_exception_records_ok_false_and_survives():
+    """host-h: run_task 抛异常 -> last_run.ok=false 仍写盘 + 隔离不杀循环。
+
+    Scheduler.due() 用 _safe_run 包住 run_task，捕获异常返 False -> _record_last_run(name,
+    False) 落盘 -> 循环对后续 entry 继续。锁三件事：
+      1. 抛异常项：last_run[name] 存在且 ok is False（失败被持久化，非静默丢失）
+      2. 隔离：异常没把 due() 打断，同 tick 的下一个 entry 照常触发
+      3. 循环存活：后续 tick 仍能处理 recurrence（调度器没被异常杀死）
+
+    证伪（见 differential 探针 D4）：_safe_run 不捕获异常 -> 异常冒泡杀 due()/host.run()
+    -> host-h 变红。
+    """
+    import json
+    import tempfile
+    clock = FakeClock()
+    tmpdir = tempfile.mkdtemp(prefix="q_hosth_")
+    state_path = os.path.join(tmpdir, "state.json")
+    calls = []
+
+    def load():
+        return [
+            {"name": "boom", "task": "BOOM", "every_minutes": 1},
+            {"name": "ok", "task": "OK", "every_minutes": 1},
+        ]
+
+    def run_task(name, task):
+        calls.append(name)
+        if name == "boom":
+            raise RuntimeError("task exploded")
+
+    events = []
+    host = SchedulerHost(load_entries=load, run_task=run_task, state_path=state_path,
+                         clock=clock, sleep=clock.sleep, on_event=events.append)
+    host._ensure_scheduler()
+    # Force both due now -> one due() pass runs boom (raises) then ok.
+    for e in host.sched.entries:
+        e.next_fire = clock() - 1
+    fired = host.sched.due()
+
+    # (1) 异常项被记为 ok=false 并落盘
+    with open(state_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    assert "boom" in data.get("last_run", {}), \
+        f"failing entry not recorded in last_run: {data.get('last_run')}"
+    assert data["last_run"]["boom"]["ok"] is False, \
+        f"failing entry ok is not False: {data['last_run']['boom']}"
+    # (2) 隔离：boom 抛异常没杀死 due()，同 tick 的 ok 也触发了
+    assert "ok" in calls, \
+        f"isolation broken: entry after the raiser never ran (calls={calls})"
+    assert "boom" in events_names(events), \
+        f"schedule-error event not emitted for the failing task: {[e.get('type') for e in events]}"
+    # (3) 循环存活：boom 是 recurrence，下一 tick 应再次被处理（调度器没被杀）
+    boom_before = calls.count("boom")
+    calls.clear()
+    for e in host.sched.entries:
+        e.next_fire = clock() - 1
+    fired2 = host.sched.due()
+    assert "boom" in calls, \
+        f"scheduler died after a failing task (boom not re-scheduled): calls={calls}"
+    print(f"host-h OK: failing task recorded ok=false + isolated + loop survived "
+          f"(boom ok={data['last_run']['boom']['ok']}, ok-ran-after-raiser=True, "
+          f"boom rescheduled next tick={calls.count('boom') >= 1})")
+
+
+def events_names(events):
+    """Names carried by schedule-error events (helper for host-h)."""
+    return [ev.get("name") for ev in events if ev.get("type") == "schedule-error"]
+
+
 def main() -> int:
     test_fire_via_callback()
     test_hot_reload_picks_up_new_entry()
@@ -328,6 +448,8 @@ def main() -> int:
     test_fingerprint_stable_and_sensitive()
     test_near_entry_hot_reload_within_slice()
     test_busy_queue_delays_last_run_until_idle()
+    test_removed_entry_stops_firing_after_reload()
+    test_run_task_exception_records_ok_false_and_survives()
     print("SCHEDULER HOST FUSION GATE OK")
     return 0
 
