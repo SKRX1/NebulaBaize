@@ -22,12 +22,18 @@ Usage:
 Run from anywhere; the repo root is derived at runtime via git (no hardcoded
 Chinese path in the command line -- subprocess passes paths as unicode argv).
 """
-import os, sys, subprocess, tempfile, shutil, datetime
+import os, sys, subprocess, tempfile, shutil, datetime, hashlib
 
-DEFAULT_DEST = "E:\\星云\\星云智能体备份"
+DEFAULT_DEST = "E:\\星云备份\\星云智能体备份"
 # Keep the most recent N bundles; older ones are pruned after a green run. Daily backup
 # for ~2 weeks. 0 disables pruning (keep everything).
 DEFAULT_KEEP = 14
+# Cross-drive mirror: the source repo lives on drive E (an NVMe SSD). A backup on the SAME
+# physical disk is no backup at all (one disk failure loses source + backup together), so after
+# a GREEN run the verified bundle is also copied to an INDEPENDENT physical disk. F is Disk 1
+# (Hitachi HDD), source E is Disk 3 (NVMe SSD) -> genuinely separate hardware. Disable with
+# --no-mirror (e.g. when F is not attached).
+MIRROR_DEST = "F:\\星云备份\\星云智能体备份"
 
 
 def sh(args, cwd=None):
@@ -59,6 +65,7 @@ def main():
     # the scheduler can call "backup-bundle.py --keep 14" and keep the default destination.
     dest = DEFAULT_DEST
     keep = DEFAULT_KEEP
+    mirror = MIRROR_DEST
     rest = sys.argv[1:]
     i = 0
     pos = []
@@ -68,6 +75,8 @@ def main():
             keep = int(rest[i + 1]); i += 2; continue
         if a.startswith("--keep="):
             keep = int(a.split("=", 1)[1]); i += 1; continue
+        if a == "--no-mirror":
+            mirror = None; i += 1; continue
         pos.append(a); i += 1
     if pos:
         dest = pos[0]
@@ -155,6 +164,27 @@ def main():
         return 1
     print("RESULT: ALL GREEN (bundle verified + clone-rehearsal reproduced the repo)")
     print("restorable with:  git clone \"%s\" <dir>" % bundle)
+    # Cross-drive mirror: copy the ALREADY-VERIFIED bundle to an independent physical disk and
+    # prove byte-identity by MD5. Only reaches here on a green run, so a bad bundle is never
+    # propagated. --no-mirror skips it (F not attached / scheduler on a single disk).
+    if mirror:
+        os.makedirs(mirror, exist_ok=True)
+        mb = os.path.join(mirror, os.path.basename(bundle))
+        try:
+            shutil.copy(bundle, mb)
+            same = hashlib.md5(open(bundle, "rb").read()).hexdigest() == \
+                   hashlib.md5(open(mb, "rb").read()).hexdigest()
+            print("mirror  :", ("OK  " + mb) if same else "FAIL MD5 mismatch -> " + mb)
+            if not same:
+                print("RESULT: RED (mirror copy MD5 mismatch)")
+                return 1
+        except OSError as e:
+            print("mirror  : FAIL cannot write %s (%s)" % (mirror, e))
+            print("RESULT: RED (mirror copy failed)")
+            return 1
+        mremoved = prune_old(mirror, keep)
+        if mremoved:
+            print("mirror-prune: kept newest %d, removed %d: %s" % (keep, len(mremoved), ", ".join(mremoved)))
     removed = prune_old(dest, keep)
     if removed:
         print("pruned  : kept newest %d, removed %d: %s" % (keep, len(removed), ", ".join(removed)))
