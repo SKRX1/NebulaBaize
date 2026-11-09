@@ -212,6 +212,7 @@ SUITES = [
     "tests/test_precondense_loopcap.mjs",  # 2026-11 loopfix: 100%-window compact re-entry capped at PRECONDENSE_MAX=2 (no 20x loop) + measured-injection budget floor (differential Q1-Q4)
     "tests/test_chunkretry.mjs",   # 2026-11 chunkretry: compact-chunk transient-contention retry (exceeded-shape ONLY, budget EXACTLY one; SSE error chunk + direct-upstream 400 both shapes; non-exceeded fails fast, no retry)
     "tests/test_safety_pad_gate.mjs",   # 2026-11 safety-pad: chunk budget must carry a SAFETY factor 0<s<1 (CJK chunks ~1 char/token vs the 1.8 estimate -> overflow -> compact 400 -> empty summary); static lock + WITH/NO-PAD differential proves the pad strictly shrinks the budget at inj=0 and inj=20k, pad magnitude 3-20%
+    "tests/test_mem_chunk_compact.mjs",   # 2026-11 memchunk: realLlmCompact splits an oversized store into token-budgeted chunks and merges EACH with its own LLM call (experience ~250% of window overflowed a single call); single chunk keeps one-call behaviour; a failing chunk is kept verbatim (lossless degrade)
 
     "tests/test_continue_bends_send.mjs",   # 2026-11 gate A+B: a Continue-asked compaction must REACH send past the chain-active guard (single-shot flag), other autos still deferred + now-visible toast (single-variable differential drives real compactConversation)
     "tests/test_compact_target.mjs",       # 2026-10: the compression-target slider actually moves the post-compact tail budget

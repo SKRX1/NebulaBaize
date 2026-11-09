@@ -4728,19 +4728,52 @@ const SOFT_BUDGET = { rules: 60, knowledge: 150, experience: 240 };
 let _llmCompactFn = null;
 function setLlmCompactFn(fn) { _llmCompactFn = (typeof fn === "function") ? fn : null; }
 // Real impl: a one-shot chat completion that merges / summarises store entries. Fail-safe: any error -> null.
+// Rough token estimate aligned with estimate_tokens: CJK ~1 tok/char, latin ~4 char/tok.
+function _memEstTokens(s) {
+  var c = (s.match(/[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/g) || []).length;
+  return c + Math.floor((s.length - c) / 4);
+}
+// One semantic-merge LLM call over a single (already chunk-bounded) text block.
+async function _llmMergeOnce(text, store) {
+  const sys = store === "knowledge"
+    ? "你是知识库压缩器。把下面的知识条目合并去重为更紧凑的条目，保留全部事实与关键细节，每条一行，不要编号以外的多余格式。若无法安全合并，原样返回。"
+    : "你是经验库压缩器。把下面这些一次决策的复盘合并为更紧凑、可复用的经验条目，保留决策上下文与结果，每条一行。";
+  const body = { model: (activeSession() || {}).model || "strata",
+                 messages: [{role: "system", content: sys}, {role: "user", content: text}],
+                 temperature: 0.2, max_tokens: 4096, stream: false };
+  const r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body)}, {retries: 2, base: 800});
+  const j = await r.json();
+  const out = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  return out ? out.trim() : null;
+}
+// Chunk-aware semantic merge: split the store into <=MEM_COMPACT_CHUNK_TOKENS token
+// groups and merge each group with its own LLM call, so a store far larger than the
+// context window (experience was ~250%) can still compact -- a single full-file call
+// overflows and fails. A single chunk keeps the original one-call behaviour; any chunk
+// that fails is kept verbatim (lossless degrade).
+const MEM_COMPACT_CHUNK_TOKENS = 7000;
 async function realLlmCompact(text, store) {
-  try {
-    const sys = store === "knowledge"
-      ? "你是知识库压缩器。把下面的知识条目合并去重为更紧凑的条目，保留全部事实与关键细节，每条一行，不要编号以外的多余格式。若无法安全合并，原样返回。"
-      : "你是经验库压缩器。把下面这些一次决策的复盘合并为更紧凑、可复用的经验条目，保留决策上下文与结果，每条一行。";
-    const body = { model: (activeSession() || {}).model || "strata",
-                   messages: [{role: "system", content: sys}, {role: "user", content: text}],
-                   temperature: 0.2, max_tokens: 4096, stream: false };
-    const r = await fetchWithRetry("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body)}, {retries: 2, base: 800});
-    const j = await r.json();
-    const out = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-    return out ? out.trim() : null;
-  } catch (e) { return null; }
+  const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const chunks = [];
+  let cur = [], curTok = 0;
+  for (const ln of lines) {
+    const t = _memEstTokens(ln);
+    if (cur.length && curTok + t > MEM_COMPACT_CHUNK_TOKENS) { chunks.push(cur.join("\n")); cur = []; curTok = 0; }
+    cur.push(ln); curTok += t;
+  }
+  if (cur.length) chunks.push(cur.join("\n"));
+  if (chunks.length <= 1) {
+    try { return await _llmMergeOnce(text, store); } catch (e) { return null; }
+  }
+  const merged = [];
+  for (const ch of chunks) {
+    let r = null;
+    try { r = await _llmMergeOnce(ch, store); } catch (e) { r = null; }
+    const rl = (r ? String(r).split("\n").map((l) => l.trim()).filter(Boolean) : []);
+    merged.push(rl.length ? rl.join("\n") : ch);   // keep chunk verbatim on failure
+  }
+  return merged.join("\n");
 }
 setLlmCompactFn(realLlmCompact);
 
