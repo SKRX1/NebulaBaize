@@ -8886,6 +8886,9 @@ function loadDrawer(s = settings) {
   $("s-speeddrop").value = s.speedDropPct || 50;
   $("s-targetpct").value = s.compactTarget || 25;
   $("s-precondmax").value = (+s.precondenseMax >= 1) ? +s.precondenseMax : 2;
+  var mc = (+s.memCompactChunkTokens || 0);
+  $("s-memchunk").value = (mc > 0 && mc <= 12000) ? mc : 0;
+  $("o-memchunk").textContent = mc > 0 ? String(mc) : "auto";
   $("s-archiveon").setAttribute("aria-checked", String(s.archiveOn !== false));
   renderArchiveManager();   // fire-and-forget: refresh the cold-archive panel
   $("s-cnthink").setAttribute("aria-checked", String(!!s.cnThink));
@@ -8947,10 +8950,12 @@ function outputs() {
   $("o-targetpct").textContent = (+(+$("s-targetpct").value) || 25) + "%";
   $("o-precondmax").textContent = (+(+$("s-precondmax").value) || 2);
   $("o-speeddrop").textContent = sd + "%";
-  $("s-speeddrop").disabled = !settings.autocompact || settings.compactPct > 0;   // pinned threshold = pure window rule, speed channel sleeps
+  $("s-speeddrop").disabled = !settings.autocompact || settings.compactPct > 0;
+  var mcV = +$("s-memchunk").value;
+  $("o-memchunk").textContent = mcV > 0 ? (mcV + " tok") : "auto";   // pinned threshold = pure window rule, speed channel sleeps
 }
 for (const b of $("s-thinking").children) b.onclick = () => { for (const x of $("s-thinking").children) x.setAttribute("aria-checked", String(x === b)); outputs(); };
-for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax"]) $(id).oninput = outputs;
+for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-memchunk"]) $(id).oninput = outputs;
 $("s-show").onclick = () => $("s-show").setAttribute("aria-checked", String($("s-show").getAttribute("aria-checked") !== "true"));
 $("s-esp").onclick = () => $("s-esp").setAttribute("aria-checked", String($("s-esp").getAttribute("aria-checked") !== "true"));
 $("s-mcp").onclick = () => $("s-mcp").setAttribute("aria-checked", String($("s-mcp").getAttribute("aria-checked") !== "true"));
@@ -9004,6 +9009,7 @@ $("s-apply").onclick = async () => {
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
               precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,
+              memCompactChunkTokens: Math.min(12000, Math.max(0, +($("s-memchunk").value) || 0)),
               autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",

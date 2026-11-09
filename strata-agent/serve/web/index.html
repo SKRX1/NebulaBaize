@@ -840,6 +840,11 @@
       <div class="toggle-row" id="s-speeddrop-row"><label class="st-label" for="s-speeddrop"><span data-i18n="drawer.speeddrop">速度提前触发降幅</span> <output id="o-speeddrop">50%</output></label>
         <input class="st-slider" type="range" id="s-speeddrop" min="5" max="80" step="5" value="50">
         <div class="muted small" data-i18n="drawer.speeddrop.hint">仅在阈值滑条=自动时生效：解码速度较安静期基线下降达此百分比即提前压缩；左端灵敏，右滑迟钝</div></div>
+      <div class="st-field">
+      <label class="st-label" for="s-memchunk"><span data-i18n="drawer.memchunk">Memory-merge chunk budget</span> <output id="o-memchunk">auto</output></label>
+        <input class="st-slider" type="range" id="s-memchunk" min="0" max="12000" step="500" value="0">
+        <div class="muted small" data-i18n="drawer.memchunk.hint">Tokens per semantic-merge chunk; 0 = auto. Larger = fewer chunks, closer to window overflow.</div>
+      </div>
     <div class="st-divider" data-i18n="drawer.autodrive">自主推进</div>
     <div class="toggle-row"><span><span data-i18n="drawer.autosteps">AI 自动续跑建议</span><br><span class="muted small" data-i18n="drawer.autosteps.hint">AI 回答后自动选择其给出的建议/下一步继续推进，无需手动点击（默认只跑它标注的推荐项）</span></span>
       <button class="st-toggle" id="s-autosteps" role="switch" aria-checked="false" aria-label="AI auto-drive suggestions"></button></div>

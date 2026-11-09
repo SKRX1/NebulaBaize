@@ -96,6 +96,7 @@ async function makeScope(seedMessages, opts = {}) {
     const PRECONDENSE_MAX = 2;
     const calls = env.calls;
     const t = env.t;
+    const _compactInjectTok = () => { const b = maxCtx > 0 ? maxCtx : 16384; return Math.max(8000, Math.floor(b * 0.10), measuredInjectTokens()); };
     const $ = (id) => env.$(id);
     const confirm = () => { calls.confirmed++; return env.confirmYes; };
     const toast = (kind, title) => { calls.toasts.push({ kind, title }); };
@@ -205,7 +206,7 @@ const main = async () => {
   check("DEFAULTS carries precondenseMax: 2", /compactTarget: 25, precondenseMax: 2,/.test(src));
   check("drawer loads s-precondmax from settings.precondenseMax", src.includes('$("s-precondmax").value = (+s.precondenseMax >= 1) ? +s.precondenseMax : 2;'));
   check("drawer saves precondenseMax from slider", src.includes('precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,'));
-  check("compactReqBudgetChars injectTok uses measuredInjectTokens floor", /injectTok = Math\.max\(8000, Math\.floor\(maxCtx \* 0\.10\), measuredInjectTokens\(\)\)/.test(src));
+  check("compactReqBudgetChars injectTok uses shared _compactInjectTok (measuredInjectTokens floor)", /const injectTok = _compactInjectTok\(\)/.test(src) && /function _compactInjectTok\(\)[\s\S]*?measuredInjectTokens\(\)/.test(src));
   check("compactChunkMaxTokens injectTok uses measuredInjectTokens floor", (src.match(/measuredInjectTokens\(\)/g) || []).length >= 3);
   check("i18n loopstop keys defined (zh+en)", (i18n.match(/insp\.compact\.loopstop\.title/g) || []).length === 2 && (i18n.match(/insp\.compact\.loopstop\.msg/g) || []).length === 2);
   check("index.html has s-precondmax slider wired to drawer.precondmax", html.includes("id=\"s-precondmax\"") && /type="range"[^\n]*id="s-precondmax"/.test(html) && html.includes('data-i18n="drawer.precondmax"'));

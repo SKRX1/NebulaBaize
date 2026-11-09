@@ -37,7 +37,8 @@ check("differential setup: no-pad twin differs", noPad !== body);
 
 // run a grabbed function body with injected stubs (maxCtx + measuredInjectTokens are closure-captured)
 function run(bodyTxt, maxCtx, inj) {
-  const src2 = bodyTxt + "\nreturn compactReqBudgetChars();";
+  const helper = "function _compactInjectTok(){const b=maxCtx>0?maxCtx:16384;return Math.max(8000,Math.floor(b*0.10),measuredInjectTokens());}\n";
+  const src2 = helper + bodyTxt + "\nreturn compactReqBudgetChars();";
   return new Function("maxCtx", "measuredInjectTokens", src2)(maxCtx, () => inj);
 }
 
