@@ -3926,7 +3926,7 @@ function updateAssistant(el, m, streaming) {
   renderNextSteps(el, m);
   renderProposals(el, m);
   const cont = el.querySelector(".continue-btn");
-  if (cont) cont.hidden = !((m.limit || m.canContinue) && !streaming);
+  if (cont) cont.hidden = !((m.limit || m.canContinue || m.truncated) && !streaming);
   // Per-turn stats footer: duration / output speed / token flow / context usage
   renderStats(el, m, streaming);
   el.querySelector(".meta-text").textContent = m.meta || (streaming ? "" : m.stopped ? t("stat.stopped") : "");

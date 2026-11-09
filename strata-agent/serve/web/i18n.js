@@ -1208,7 +1208,7 @@
       "chat.notice.generic": "本轮已停止。",
       "chat.notice.empty_round": "模型本轮只输出了思考，没有产出正文或调用工具，所以看起来像停住了。已产出的内容都保留，点「继续」可让它接着做。",
       "chat.notice.truncated": "连接中断，本轮未跑完{tool}。已经写入磁盘的内容都保留，点「继续」可以接着做；如果反复中断，把长命令拆小再试。",
-      "chat.notice.gateway_down": "连接中断，本轮未跑完{tool}。检测到网关（8099）已经停止——双击「启动星云智能体.bat」重新打开，再点「继续」即可接着做；已写入磁盘的内容不会丢。",
+      "chat.notice.gateway_down": "连接中断，本轮未跑完{tool}。检测到网关（8099）已停止，看门狗会自动重启它——稍候片刻，待其恢复后点「继续」即可接着做；若迟迟未自动恢复，可双击「星云智能体.bat」手动打开。已写入磁盘的内容不会丢。",
       "chat.notice.context_overflow": "上下文已超出模型上下文窗口，上游拒绝生成。请开启自动压缩或发送 /compact 精简历史后点「继续」。",
       /* ── 摄入文件提示 ── */
       "toast.ingest.ok": "已摄入：{name}",
@@ -2377,7 +2377,7 @@
       "chat.notice.generic": "This turn was stopped.",
       "chat.notice.empty_round": "The model spent this round thinking but produced no answer and no tool call, so the turn looks like it stalled. Everything produced so far is kept — press Continue to let it carry on.",
       "chat.notice.truncated": "Connection was cut — this turn did not finish{tool}. Everything already written to disk is kept: press Continue to carry on, and split long commands into smaller steps if it keeps happening.",
-      "chat.notice.gateway_down": "Connection was cut — this turn did not finish{tool}. The gateway (8099) is no longer running: start it again with 「启动星云智能体.bat」, then press Continue. Nothing already written to disk is lost.",
+      "chat.notice.gateway_down": "Connection was cut — this turn did not finish{tool}. The gateway (8099) stopped; the watchdog restarts it automatically — wait a moment, then press Continue once it is back. If it does not come back on its own, double-click 「星云智能体.bat」 to start it. Nothing already written to disk is lost.",
       "chat.notice.context_overflow": "The context exceeds the model's window and the upstream refused to generate. Enable auto-compact or send /compact to trim history, then press Continue.",
       "toast.ingest.ok": "Ingested: {name}",
       "toast.ingest.msg": "File processed",

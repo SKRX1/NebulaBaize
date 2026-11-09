@@ -107,6 +107,7 @@ win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(appCode + `
 ;window.__api = {
   streamAssistant, maybeAutoResume, syncBanners, isTransportError, noticeText,
+  updateAssistant, spySend: () => { window.__sendCalls = 0; send = function () { window.__sendCalls++; }; },
   seed: (text) => { messages = [{role: "user", text}]; },
   last: () => messages[messages.length - 1],
   quiet: () => { settings.autoresume = false; settings.autosteps = false;
@@ -225,6 +226,33 @@ console.log("CONNECTION CUT vs REQUEST FAILURE:");
   check("healthy turn -> clean, no cutError", !m.truncated && !m.error && !m.cutError);
   check("healthy turn -> no orphan cancel", stops.length === 0);
   check("healthy turn -> content intact", m.text === "all done", JSON.stringify(m.text));
+}
+
+// C8: the Continue button is the user's way to pick a CUT turn back up. After the watchdog
+// brings 8099 back, the gate (app.js updateAssistant) must SHOW it for a truncated turn and
+// keep it hidden for a clean one (differential -> the gate is load-bearing on m.truncated, not
+// always-on); clicking it must hand the task to send() (the resume path).
+{
+  const el = win.document.createElement("div");
+  el.className = "st-msg st-msg--assistant";
+  el.innerHTML = `<div class="st-bubble"></div><div class="next-steps" hidden></div>` +
+    `<div class="proposals" hidden></div><div class="st-msg__meta"><span class="meta-text"></span>` +
+    `<span class="msg-stats" hidden></span>` +
+    `<button class="st-btn continue-btn" data-action="continue" hidden>CONTINUE</button>` +
+    `<button class="st-btn msg-fold" data-action="fold" hidden></button>` +
+    `<button class="st-btn st-btn--icon" data-msg-copy>copy</button>` +
+    `<button class="st-btn st-btn--icon" data-action="regen">regen</button></div>`;
+  (win.document.getElementById("chat") || win.document.body).appendChild(el);   // the click delegate lives on #chat
+  const mk = (m) => { api.updateAssistant(el, m, false); return el.querySelector(".continue-btn"); };
+  const cutBtn = mk({ role: "assistant", text: "half an answer", truncated: true, tools: [], meta: "" });
+  check("C8 cut turn -> the Continue button is shown", cutBtn && cutBtn.hidden === false);
+  const cleanBtn = mk({ role: "assistant", text: "all done", tools: [], meta: "" });
+  check("C8 clean turn -> the Continue button stays hidden (gate keys on m.truncated)", cleanBtn && cleanBtn.hidden === true);
+  mk({ role: "assistant", text: "half an answer", truncated: true, tools: [], meta: "" });
+  api.spySend();
+  el.querySelector(".continue-btn").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("C8 click Continue -> resumes the task via send()", win.__sendCalls === 1, "sendCalls=" + win.__sendCalls);
+  el.remove();
 }
 
 console.log("");
