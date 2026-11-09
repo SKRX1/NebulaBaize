@@ -1135,7 +1135,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, cnThink: false, designLang: "auto", persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -4762,12 +4762,17 @@ async function _llmMergeOnce(text, store) {
 // chunk + its reply fits. settings.memCompactChunkTokens>0 overrides (manual); 0 =
 // auto. Clamp [2000,12000]; fall back to 7000 when the window is unknown.
 const MEM_COMPACT_CHUNK_DEFAULT = 7000;
+// Reply-reserve ratio feeding the AUTO chunk budget. Default 25%, clamped [5,50].
+function _memCompactReservePct() {
+  var p = (settings && +settings.memCompactReservePct) || 25;
+  return Math.min(50, Math.max(5, p)) / 100;
+}
 function memCompactChunkTokens() {
   const ov = (settings && settings.memCompactChunkTokens) | 0;
   if (ov > 0) return ov;
   if (!(maxCtx > 0)) return MEM_COMPACT_CHUNK_DEFAULT;
   const injectTok = _compactInjectTok();
-  const reserve = Math.max(4096, Math.floor(maxCtx * 0.25));   // room for the merged reply
+  const reserve = Math.max(4096, Math.floor(maxCtx * _memCompactReservePct()));   // room for the merged reply
   const safe = maxCtx - injectTok - reserve;
   return Math.min(12000, Math.max(2000, safe));
 }
@@ -8889,6 +8894,9 @@ function loadDrawer(s = settings) {
   var mc = (+s.memCompactChunkTokens || 0);
   $("s-memchunk").value = (mc > 0 && mc <= 12000) ? mc : 0;
   $("o-memchunk").textContent = mc > 0 ? String(mc) : "auto";
+  var mr = (+s.memCompactReservePct >= 5) ? Math.min(50, +s.memCompactReservePct) : 25;
+  $("s-memreserve").value = mr;
+  $("o-memreserve").textContent = mr + "%";
   $("s-archiveon").setAttribute("aria-checked", String(s.archiveOn !== false));
   renderArchiveManager();   // fire-and-forget: refresh the cold-archive panel
   $("s-cnthink").setAttribute("aria-checked", String(!!s.cnThink));
@@ -8952,10 +8960,13 @@ function outputs() {
   $("o-speeddrop").textContent = sd + "%";
   $("s-speeddrop").disabled = !settings.autocompact || settings.compactPct > 0;
   var mcV = +$("s-memchunk").value;
-  $("o-memchunk").textContent = mcV > 0 ? (mcV + " tok") : "auto";   // pinned threshold = pure window rule, speed channel sleeps
+  $("o-memchunk").textContent = mcV > 0 ? (mcV + " tok") : "auto";
+  var mrV = +$("s-memreserve").value;
+  $("o-memreserve").textContent = (mrV >= 5 ? mrV : 25) + "%";
+  $("s-memreserve").disabled = mcV > 0;   // reserve only feeds the AUTO budget; a pinned chunk bypasses it   // pinned threshold = pure window rule, speed channel sleeps
 }
 for (const b of $("s-thinking").children) b.onclick = () => { for (const x of $("s-thinking").children) x.setAttribute("aria-checked", String(x === b)); outputs(); };
-for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-memchunk"]) $(id).oninput = outputs;
+for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-memchunk", "s-memreserve"]) $(id).oninput = outputs;
 $("s-show").onclick = () => $("s-show").setAttribute("aria-checked", String($("s-show").getAttribute("aria-checked") !== "true"));
 $("s-esp").onclick = () => $("s-esp").setAttribute("aria-checked", String($("s-esp").getAttribute("aria-checked") !== "true"));
 $("s-mcp").onclick = () => $("s-mcp").setAttribute("aria-checked", String($("s-mcp").getAttribute("aria-checked") !== "true"));
@@ -9010,6 +9021,7 @@ $("s-apply").onclick = async () => {
               compactTarget: +$("s-targetpct").value,
               precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,
               memCompactChunkTokens: Math.min(12000, Math.max(0, +($("s-memchunk").value) || 0)),
+              memCompactReservePct: Math.min(50, Math.max(5, +($("s-memreserve").value) || 25)),
               autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",

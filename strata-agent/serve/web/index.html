@@ -845,6 +845,11 @@
         <input class="st-slider" type="range" id="s-memchunk" min="0" max="12000" step="500" value="0">
         <div class="muted small" data-i18n="drawer.memchunk.hint">Tokens per semantic-merge chunk; 0 = auto. Larger = fewer chunks, closer to window overflow.</div>
       </div>
+      <div class="st-field">
+      <label class="st-label" for="s-memreserve"><span data-i18n="drawer.memreserve">Merge reserve ratio</span> <output id="o-memreserve">25%</output></label>
+        <input class="st-slider" type="range" id="s-memreserve" min="5" max="50" step="5" value="25">
+        <div class="muted small" data-i18n="drawer.memreserve.hint">Window share reserved for the merge reply (auto mode). Inert on large windows; disabled when the chunk budget is pinned. Default 25%.</div>
+      </div>
     <div class="st-divider" data-i18n="drawer.autodrive">自主推进</div>
     <div class="toggle-row"><span><span data-i18n="drawer.autosteps">AI 自动续跑建议</span><br><span class="muted small" data-i18n="drawer.autosteps.hint">AI 回答后自动选择其给出的建议/下一步继续推进，无需手动点击（默认只跑它标注的推荐项）</span></span>
       <button class="st-toggle" id="s-autosteps" role="switch" aria-checked="false" aria-label="AI auto-drive suggestions"></button></div>
