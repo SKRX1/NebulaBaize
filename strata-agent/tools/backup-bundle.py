@@ -60,6 +60,43 @@ def prune_old(dest, keep):
     return removed
 
 
+def rehearse_from_bundle(bundle, head, cnt, tags, label="primary"):
+    """Clone-from-bundle rehearsal: clone `bundle` into a temp dir and prove it reproduces the
+    repo exactly (same HEAD sha, same master commit count, same tag count, master reachable).
+    Returns (red, lines): red = number of failed checks (0 = green), lines = human-readable
+    result lines. Shared by the primary bundle AND the cross-drive mirror so BOTH copies are
+    proven openable -- a backup you have never restored is not a backup. Importable + testable
+    without touching the real F: drive (the gate rehearses a throwaway bundle)."""
+    tmp = tempfile.mkdtemp(prefix="strata_restore_")
+    clone = os.path.join(tmp, "restored")
+    code, out = sh(["git", "clone", bundle, clone])
+    if code:
+        shutil.rmtree(tmp, ignore_errors=True)
+        return 1, ["  [%s] clone-from-bundle FAILED: %s" % (label, out.strip()[:200])]
+    _, rhead = sh(["git", "rev-parse", "HEAD"], cwd=clone)
+    rhead = rhead.strip()
+    _, rcnt = sh(["git", "rev-list", "--count", "refs/heads/master"], cwd=clone)
+    rcnt = rcnt.strip()
+    _, rtagraw = sh(["git", "tag", "-l"], cwd=clone)
+    rtags = [x for x in rtagraw.splitlines() if x.strip()]
+    _, rb = sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=clone)
+    rb = rb.strip()
+    shutil.rmtree(tmp, ignore_errors=True)
+    checks = [
+        ("HEAD sha matches", rhead == head, "%s == %s" % (rhead[:12], head[:12])),
+        ("commit count matches", rcnt == cnt, "%s == %s" % (rcnt, cnt)),
+        ("tag count matches", len(rtags) == len(tags), "%d == %d" % (len(rtags), len(tags))),
+        ("master reachable", rb == "master", rb),
+    ]
+    red = 0
+    lines = []
+    for name, ok, detail in checks:
+        lines.append("  [%s] %-22s %s  %s" % (label, name, "OK" if ok else "FAIL", detail))
+        if not ok:
+            red += 1
+    return red, lines
+
+
 def main():
     # args: [DEST_DIR] [--keep N]. A bare --keep is honored WITHOUT a positional DEST so
     # the scheduler can call "backup-bundle.py --keep 14" and keep the default destination.
@@ -128,37 +165,9 @@ def main():
         return 1
 
     # 3) clone-from-bundle rehearsal -> prove the bundle reproduces the repo
-    tmp = tempfile.mkdtemp(prefix="strata_restore_")
-    clone = os.path.join(tmp, "restored")
-    code, out = sh(["git", "clone", bundle, clone])
-    if code:
-        print("RESULT: RED (clone-from-bundle failed)")
-        print(out)
-        shutil.rmtree(tmp, ignore_errors=True)
-        return 1
-    _, rhead = sh(["git", "rev-parse", "HEAD"], cwd=clone)
-    rhead = rhead.strip()
-    _, rcnt = sh(["git", "rev-list", "--count", "refs/heads/master"], cwd=clone)
-    rcnt = rcnt.strip()
-    _, rtagraw = sh(["git", "tag", "-l"], cwd=clone)
-    rtags = [x for x in rtagraw.splitlines() if x.strip()]
-    # master must be reachable in the restored clone
-    _, rb = sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=clone)
-    rb = rb.strip()
-    shutil.rmtree(tmp, ignore_errors=True)
-
-    checks = [
-        ("HEAD sha matches", rhead == head, "%s == %s" % (rhead[:12], head[:12])),
-        ("commit count matches", rcnt == cnt, "%s == %s" % (rcnt, cnt)),
-        ("tag count matches", len(rtags) == len(tags), "%d == %d" % (len(rtags), len(tags))),
-        ("master reachable", rb == "master", rb),
-    ]
-    red = 0
-    for name, ok, detail in checks:
-        print("  %-22s %s  %s" % (name, "OK" if ok else "FAIL", detail))
-        if not ok:
-            red += 1
-
+    red, lines = rehearse_from_bundle(bundle, head, cnt, tags, "primary")
+    for ln in lines:
+        print(ln)
     if red:
         print("RESULT: RED (restore rehearsal mismatch: %d)" % red)
         return 1
@@ -181,6 +190,15 @@ def main():
         except OSError as e:
             print("mirror  : FAIL cannot write %s (%s)" % (mirror, e))
             print("RESULT: RED (mirror copy failed)")
+            return 1
+        # The mirror is only a real backup if the COPY is openable on the OTHER disk, not just
+        # byte-identical. Run the SAME clone rehearsal against the F-side bundle: a drive that
+        # silently corrupts, a partial write, an unfetchable clone all land here as RED.
+        mred, mlines = rehearse_from_bundle(mb, head, cnt, tags, "mirror(F)")
+        for ln in mlines:
+            print(ln)
+        if mred:
+            print("RESULT: RED (mirror clone-rehearsal mismatch: %d)" % mred)
             return 1
         mremoved = prune_old(mirror, keep)
         if mremoved:

@@ -386,6 +386,7 @@ SUITES = [
     "tests/test_vision_degrade.py",  # 2026-10-31: [VISION-DEGRADE] pure-helper grab: image->text placeholder + narrow vision-failure predicate (pos/neg differential)
 
     "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)
+    "tools/_mirror_rehearse_gate.py",   # 2026-11-09 mirror-rehearse: the cross-drive mirror runs the SAME clone rehearsal against the F-side bundle; this gate drives rehearse_from_bundle() through a LOAD-BEARING differential (POS good bundle -> red 0; NEG wrong head/count/tags -> red>0; NEG missing bundle -> clone-fail branch) WITHOUT touching the real F: drive (rehearses a temp bundle, CI-safe)
 
     "tests/test_parallel_probe.py",   # 2026-10-30: plan-A tiered probe lands; locks this machine reproduces tests=7/recycle=4/batch=8 + differential (factors/caps MOVE the numbers) + env override highest
 
