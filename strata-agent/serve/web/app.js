@@ -1135,7 +1135,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, cnThink: false, designLang: "auto", persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, cnThink: false, designLang: "auto", persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -3519,7 +3519,7 @@ function compactReqBudgetChars() {
   // char scale kept at 1.8/token (zh-mixed); token floors for injection and reply.
   const perTok = 1.8;
   if (!(maxCtx && maxCtx > 0)) return 24000;
-  const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10), measuredInjectTokens());   // B: measured floor, not just 10%
+  const injectTok = _compactInjectTok();   // shared: standing injection (B: measured floor), not just 10%
   const replyTok = Math.max(800, Math.floor(maxCtx * 0.05));      // the summarise reply itself
   const safety = 0.92;  // CJK-heavy chunks run ~1 char/token, so the 1.8 estimate over-counts capacity; trim a pad so the worst chunk still fits
   const tok = Math.floor(Math.max(Math.floor(maxCtx * 0.12), maxCtx - injectTok - replyTok) * safety);
@@ -3567,6 +3567,12 @@ function splitForCompact(msgs, budget) {
 // reply to whatever is left after a 15% safety reserve. Small-window models thus never overflow on a
 // chunk, while the normal 4096 ceiling still applies to large windows (and as a fallback when maxCtx
 // is unknown).
+// Standing-injection token estimate: the memory/rules injection rides along on EVERY
+// request, so history compaction and memory merge both charge for it. One source of truth.
+function _compactInjectTok() {
+  const base = maxCtx > 0 ? maxCtx : 16384;
+  return Math.max(8000, Math.floor(base * 0.10), measuredInjectTokens());
+}
 function compactChunkMaxTokens(requestChars) {
   if (!(maxCtx > 0)) return 4096;
   // Pure-frontend math: the gateway RESETS tracked occupancy for compact-flagged requests,
@@ -3574,7 +3580,7 @@ function compactChunkMaxTokens(requestChars) {
   // the edge. The chunk prompt is bounded by compactReqBudgetChars; the injection still
   // rides along on EVERY request, so charge for it here too before giving the reply room.
   const promptTok = Math.ceil(requestChars / 4);
-  const injectTok = Math.max(8000, Math.floor(maxCtx * 0.10), measuredInjectTokens());   // B: measured floor
+  const injectTok = _compactInjectTok();   // shared: standing injection (B: measured floor)
   const reserve = Math.floor(maxCtx * 0.05);
   const safe = maxCtx - promptTok - injectTok - reserve;
   return Math.min(4096, Math.max(800, safe));
@@ -4746,20 +4752,34 @@ async function _llmMergeOnce(text, store) {
   const out = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   return out ? out.trim() : null;
 }
-// Chunk-aware semantic merge: split the store into <=MEM_COMPACT_CHUNK_TOKENS token
-// groups and merge each group with its own LLM call, so a store far larger than the
-// context window (experience was ~250%) can still compact -- a single full-file call
-// overflows and fails. A single chunk keeps the original one-call behaviour; any chunk
-// that fails is kept verbatim (lossless degrade).
-const MEM_COMPACT_CHUNK_TOKENS = 7000;
+// Chunk-aware semantic merge: split the store into token-budgeted groups and merge
+// each group with its own LLM call, so a store far larger than the context window
+// (experience was ~250%) can still compact -- a single full-file call overflows and
+// fails. A single chunk keeps the original one-call behaviour; any chunk that fails
+// is kept verbatim (lossless degrade).
+// Merge chunk size on the SAME budget math as compactChunkMaxTokens: charge the
+// standing injection + a reply reserve off the window (not a hardcoded 7000), so a
+// chunk + its reply fits. settings.memCompactChunkTokens>0 overrides (manual); 0 =
+// auto. Clamp [2000,12000]; fall back to 7000 when the window is unknown.
+const MEM_COMPACT_CHUNK_DEFAULT = 7000;
+function memCompactChunkTokens() {
+  const ov = (settings && settings.memCompactChunkTokens) | 0;
+  if (ov > 0) return ov;
+  if (!(maxCtx > 0)) return MEM_COMPACT_CHUNK_DEFAULT;
+  const injectTok = _compactInjectTok();
+  const reserve = Math.max(4096, Math.floor(maxCtx * 0.25));   // room for the merged reply
+  const safe = maxCtx - injectTok - reserve;
+  return Math.min(12000, Math.max(2000, safe));
+}
 async function realLlmCompact(text, store) {
+  const chunkBudget = memCompactChunkTokens();
   const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
   if (!lines.length) return null;
   const chunks = [];
   let cur = [], curTok = 0;
   for (const ln of lines) {
     const t = _memEstTokens(ln);
-    if (cur.length && curTok + t > MEM_COMPACT_CHUNK_TOKENS) { chunks.push(cur.join("\n")); cur = []; curTok = 0; }
+    if (cur.length && curTok + t > chunkBudget) { chunks.push(cur.join("\n")); cur = []; curTok = 0; }
     cur.push(ln); curTok += t;
   }
   if (cur.length) chunks.push(cur.join("\n"));

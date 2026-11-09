@@ -62,16 +62,26 @@ win.fetch = async (url, o) => {
 };
 
 let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
-appCode += "\n;window.__api = { realLlmCompact, setSessions: (s)=>{sessions=s;}, setActiveId:(id)=>{activeId=id;}, setModel:(m)=>{activeSession=()=>({model:m});} };";
+appCode += "\n;window.__api = { realLlmCompact, memCompactChunkTokens, setSessions: (s)=>{sessions=s;}, setActiveId:(id)=>{activeId=id;}, setModel:(m)=>{activeSession=()=>({model:m});}, setSettings:(s)=>{settings=Object.assign({},settings,s);}, getSettings:()=>settings };";
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 const api = win.__api;
 api.setSessions([{ id: "s1", workspace: "/tmp/ws", model: "test-model" }]);
 api.setActiveId("s1");
 api.setModel("test-model");
+api.setSettings({ memCompactChunkTokens: 7000 });   // pin: manual override == the old hardcoded budget (deterministic)
 
 // A "big" line ~2000 CJK tokens (one CJK char ~= 1 token in _memEstTokens).
 const big = (tag) => tag + "\u8bb0".repeat(2000);
+
+console.log("\n=== 0. chunk budget is configurable (manual override wins, 0 = auto) ===");
+{
+  api.setSettings({ memCompactChunkTokens: 5000 });
+  check("manual override returns the configured value", api.memCompactChunkTokens() === 5000, String(api.memCompactChunkTokens()));
+  api.setSettings({ memCompactChunkTokens: 0 });
+  check("auto (0) uses the shared budget formula", api.memCompactChunkTokens() >= 2000 && api.memCompactChunkTokens() <= 12000, String(api.memCompactChunkTokens()));
+  api.setSettings({ memCompactChunkTokens: 7000 });   // restore for the split tests
+}
 
 console.log("\n=== 1. small store (fits one chunk) -> exactly ONE LLM call ===");
 {

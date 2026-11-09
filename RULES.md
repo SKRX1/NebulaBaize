@@ -74,3 +74,5 @@ loadMemoryState() 中 GLOBAL_ROOT 去重：当 workspace/.strata-memory == GLOBA
 tools/ 目录有临时脚本清理机制（_*.py 跑完即被送回收站）：需要"落盘脚本→立即运行"的临时脚本，必须把运行命令接在写入后的同一条 shell 命令里，勿分两个回合（下一回合文件已不在）
 语义合并/压缩类任务先跑数据驱动相似度扫描（difflib.SequenceMatcher，阈值~0.5）列出真实重复簇，禁止凭记忆判重复（怕误删同主题互补事实如 Shell.Application≠pywin32）
 写全量语义合并脚本时守卫只禁"源行被多簇重复使用"，"缺失索引"是合法的原样保留行不得当错误 ABORT
+用 io.open(path, 'r', encoding='utf-8') 读含 CRLF 的文件会触发 universal-newlines（\r\n→\n），使后续 '\r\n' in raw 行尾探测恒为 False、写回全变 LF，对 index=CRLF 的文件造成 git diff 全文虚高——落地脚本须二进制读(rb)保留原行尾，或显式 newline='' 关闭转换
+判断 git index 真实行尾：i/crlf|i/lf 表 git 规范化存储按该值写回；i/-text 表 git 按字节原样存(不规范化)，工作树 w/crlf 即 index 真为 CRLF 字节；行尾污染恢复法 git checkout HEAD -- <file> + 二进制读 + 精确插行(新行用原文件行尾)，勿在 CRLF/LF 间反复猜
