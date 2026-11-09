@@ -43,12 +43,31 @@ from scheduler import ScheduleEntry, Scheduler  # noqa: E402
 
 PY = sys.executable
 SCRATCH = os.path.join(ROOT, "tests", "_scratch_daemon")
-MODEL_URL = "http://127.0.0.1:8080/v1"
+# Resolve the live model backend from config/models.json (the SELECTED entry) so
+# this test targets whatever the gateway actually serves -- not a hard-coded
+# 127.0.0.1:8080/v1 that may be a dead fallback (2026-11: the real backend is
+# llama-swap on :47831, and the served model id is the selected entry, not the
+# literal "strata"). Falls back to the historical 8080/strata default only when
+# models.json is missing/unreadable, so offline behaviour is preserved.
+def _resolve_model():
+    try:
+        with open(os.path.join(ROOT, "config", "models.json"), "r", encoding="utf-8") as _f:
+            _m = json.load(_f)
+        _sel = _m.get("selected")
+        for _e in _m.get("models", []):
+            if _e.get("id") == _sel and _e.get("base_url"):
+                return _e["base_url"], _e.get("model", _sel)
+    except Exception:
+        pass
+    return "http://127.0.0.1:8080/v1", "strata"
+
+
+MODEL_URL, MODEL_NAME = _resolve_model()
 
 
 def _model_online() -> bool:
     try:
-        body = {"model": "strata", "messages": [{"role": "user", "content": "ping"}],
+        body = {"model": MODEL_NAME, "messages": [{"role": "user", "content": "ping"}],
                 "max_tokens": 8, "stream": False}
         req = urllib.request.Request(f"{MODEL_URL}/chat/completions",
                                      data=json.dumps(body).encode(),
@@ -92,7 +111,7 @@ def main() -> int:
     assert executor.tools, "no tools started (production servers failed)"
     print("production tools:", sorted(t["name"] for t in executor.tools)[:6], "...")
 
-    client = StrataClient(base_url=MODEL_URL, model="strata", effort="low")
+    client = StrataClient(base_url=MODEL_URL, model=MODEL_NAME, effort="low")
     audit = AuditLog(os.path.join(SCRATCH, "audit.jsonl"))
     skill_meta = load_skills_meta(os.path.join(ROOT, "skills"))
     session = SessionMemory(max_chars=int(cfg.get("session", {}).get("max_chars", 8000)))

@@ -3,8 +3,10 @@
 Mirrors memory_server's pattern so the web panel can drive it via the existing /mcp/call
 proxy. This server reads and writes the SAME config the daemon loads (config/mcp_servers.json
 -> schedule.entries), so what the panel writes is exactly what the daemon will read on its
-next start. Add / remove take effect when the scheduler (daemon) is restarted — the daemon
-reads the schedule once at startup, so we are honest about that and do not fake a live reload.
+next start. In --serve mode the scheduler runs as a fused background thread (scheduler_host) that
+re-reads this config every tick, so add / remove take effect live (no restart). Under
+the bare `--daemon` path, which reads the schedule once at startup, an edit lands on
+the next daemon start.
 
 Tools:
   list   -> the current entries plus a computed next-fire, for the panel to render
@@ -92,13 +94,13 @@ class ScheduleServer(McpServerBase):
     tools = [
         {"name": "list", "description": "List the daemon's schedule entries (name, trigger, next fire) for the panel",
          "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "add", "description": "Add a schedule entry (takes effect when the scheduler daemon restarts): name, task, and exactly one of every_minutes/every_hours/daily_at/at",
+        {"name": "add", "description": "Add a schedule entry (takes effect immediately in --serve mode; on daemon restart in bare --daemon mode): name, task, and exactly one of every_minutes/every_hours/daily_at/at",
          "inputSchema": {"type": "object", "properties": {
             "name": {"type": "string"}, "task": {"type": "string"},
             "every_minutes": {"type": "integer"}, "every_hours": {"type": "integer"},
             "daily_at": {"type": "string"}, "at": {"type": "string"}},
             "required": ["name", "task"]}},
-        {"name": "remove", "description": "Remove a schedule entry by name (destructive: takes effect when the daemon restarts)",
+        {"name": "remove", "description": "Remove a schedule entry by name (destructive: takes effect immediately in --serve mode)",
          "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}},
     ]
 
@@ -134,7 +136,7 @@ class ScheduleServer(McpServerBase):
             entries.append(entry)
             cfg.setdefault("schedule", {})["entries"] = entries
             _save_cfg(cfg)
-            return f"added '{nm}' ({list(trig.keys())[0]}={list(trig.values())[0]}) — takes effect on daemon restart"
+            return f"added '{nm}' ({list(trig.keys())[0]}={list(trig.values())[0]}) — takes effect now (live scheduler; no restart needed)"
         if name == "remove":
             nm = args.get("name", "").strip()
             before = len(entries)
@@ -143,7 +145,7 @@ class ScheduleServer(McpServerBase):
                 return f"no entry named {nm!r}"
             cfg.setdefault("schedule", {})["entries"] = kept
             _save_cfg(cfg)
-            return f"removed '{nm}' — takes effect on daemon restart"
+            return f"removed '{nm}' — takes effect now (live scheduler; no restart needed)"
         raise Exception(f"unknown tool: {name}")
 
 

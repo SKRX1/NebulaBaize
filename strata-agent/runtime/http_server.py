@@ -955,6 +955,13 @@ class GatewayState:
         self._mon_io_cap = 16384        # truncated input/output cap for the lightweight record
         self.api_requests = collections.deque(maxlen=100)
         self.status_lock = threading.Lock()
+        # Fusion gate between the scheduler host thread and live interactive turns.
+        # `_active` counts concurrent agent turns (each interactive request, no cap);
+        # `_idle` is set when `_active` reaches 0. A scheduled job blocks on `_idle.wait()`
+        # so it queues behind interactive work (the chosen default) and never overlaps it.
+        self._active = 0
+        self._idle = threading.Event()
+        self._idle.set()
 
     def ctx_window(self, entry=None):
         """ONE denominator for the whole gateway: a per-model DECLARED window > explicit env
@@ -1201,6 +1208,21 @@ class GatewayState:
         self._empty_streak.pop(session_id, None)
 
     # ── Stream cancellation registry ─────────────────────────────────────────────
+    # -- Interactive-busy gate (fusion: scheduler queues behind live turns) --
+    def begin_interaction(self) -> None:
+        """Mark one live agent turn as started. Never blocks (interactive has priority)."""
+        with self.lock:
+            self._active += 1
+            self._idle.clear()
+
+    def end_interaction(self) -> None:
+        """Mark a live agent turn as finished; when the last one ends, release the gate so
+        any scheduled job queued on _idle.wait() can proceed."""
+        with self.lock:
+            self._active = max(0, self._active - 1)
+            if self._active == 0:
+                self._idle.set()
+
     def register_stream(self, stream_id: Optional[str]):
         """Create a cancel Event for a stream. If stream_id is None, returns an unregistered
         local Event (still usable for disconnect detection, just not addressable by /api/chat/stop)."""
@@ -2580,6 +2602,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         vision_degraded = False      # [VISION-DEGRADE] one text-占位 resend budget when upstream rejects an image
         vision_retry = False         # set by the inner consumer to trigger that single resend
         try:
+            # Fusion: mark the agent busy for the whole turn (paired with
+            # end_interaction in this try's finally) so the scheduler host queues.
+            self.state.begin_interaction()
             for rnd in range(1, self.state.max_rounds + 1):
                 turn_no[0] = rnd
                 if cancel.is_set():
@@ -3032,6 +3057,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 pass
             if stop_id:
                 self.state.unregister_stream(stop_id)
+            self.state.end_interaction()
 
     def _llm_stream(self, messages, tools, cancel=None, stall_s=None, max_tokens=None,
                     reasoning_effort=None, reasoning_budget=None, sampling=None):

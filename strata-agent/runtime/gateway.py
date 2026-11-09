@@ -664,6 +664,35 @@ def main(argv=None) -> int:
 
                       f"({len(executor.tools)} tools) even if the upstream has none.", file=sys.stderr)
 
+            # Fusion (option A): run the scheduler as a background thread fused with
+            # the interactive agent. SchedulerHost hot-reloads schedule.entries every
+            # tick (so panel add/remove take effect WITHOUT a daemon restart) and queues
+            # each fired task behind live interactive turns (gw_state._idle gate), so a
+            # scheduled job never overlaps a chat turn. run_task drives the real agent.
+            import threading as _th
+            from scheduler_host import SchedulerHost
+
+            def _sched_run_task(name, task):
+                print(f"  [sched-fire] {name}: {task[:120]}", file=sys.stderr)
+                agent.run(task, history=[])  # fresh context per scheduled run
+
+            def _sched_load():
+                try:
+                    return (load_yaml_or_json(args.config).get("schedule") or {}).get("entries") or []
+                except Exception:
+                    return []
+
+            _sched_stop = _th.Event()
+            _sched_host = SchedulerHost(
+                load_entries=_sched_load, run_task=_sched_run_task,
+                state_path=os.path.join(ROOT, "data", "schedule_state.json"),
+                stop_event=_sched_stop, idle_gate=gw_state._idle,
+            )
+            _th.Thread(target=_sched_host.run, name="scheduler-host", daemon=True).start()
+            _n = len(_sched_load())
+            print(f"[gateway] scheduler host started (fused with serve; hot reload + "
+                  f"busy-queue); {_n} entr(y/ies) loaded", file=sys.stderr)
+
             run_server(gw_state, port=args.port)
 
             return 0

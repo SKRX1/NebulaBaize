@@ -76,3 +76,5 @@ tools/ 目录有临时脚本清理机制（_*.py 跑完即被送回收站）：�
 写全量语义合并脚本时守卫只禁"源行被多簇重复使用"，"缺失索引"是合法的原样保留行不得当错误 ABORT
 用 io.open(path, 'r', encoding='utf-8') 读含 CRLF 的文件会触发 universal-newlines（\r\n→\n），使后续 '\r\n' in raw 行尾探测恒为 False、写回全变 LF，对 index=CRLF 的文件造成 git diff 全文虚高——落地脚本须二进制读(rb)保留原行尾，或显式 newline='' 关闭转换
 判断 git index 真实行尾：i/crlf|i/lf 表 git 规范化存储按该值写回；i/-text 表 git 按字节原样存(不规范化)，工作树 w/crlf 即 index 真为 CRLF 字节；行尾污染恢复法 git checkout HEAD -- <file> + 二进制读 + 精确插行(新行用原文件行尾)，勿在 CRLF/LF 间反复猜
+调度器融合 serve：纯 stdlib Scheduler 核心循环(run/due)零改动，新增 runtime/scheduler_host.py 做包装层（每tick磁盘reload实现热重载、idle_gate.wait实现busy排队、分片睡眠实现可中断），靠注入 clock/sleep/load_entries/run_task 离线测
+交互忙闸用 GatewayState._active 计数 + _idle Event：begin_interaction 在 _agent_stream 顶层try首行、end_interaction 在同try的finally，严格配对防 setup 抛异常泄漏 _active

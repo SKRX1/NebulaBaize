@@ -370,6 +370,7 @@ SUITES = [
     "tests/test_e2e.py",
 
     "tests/test_daemon.py",
+    "tests/test_scheduler_host.py",   # 2026-11 fusion gate A: scheduler host hot-reload + busy-queue (offline)
 
     "tests/test_corpus.py",
 
