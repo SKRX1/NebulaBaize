@@ -16,6 +16,7 @@
 | 能力 | 控件 / 函数 | 版本与契约 | 锚点 commit | 守护测试 |
 |------|-------------|-----------|-------------|----------|
 | 合并预算保留比例滑条 | `#s-memreserve` / `_memCompactReservePct()` `memCompactChunkTokens()` | v1：clamp `[5,50]`，默认 `25`；喂 AUTO chunk 预算公式 `reserve=max(4096, 窗口×比例)`，`budget=min(12000,max(2000,窗口−注入−reserve))`；pinned chunk>0 时滑条禁用置灰并绕过 | `2c222db` | `tests/test_mem_reserve_wiring.mjs`（预算契约）+ `tests/test_reserve_linkage.mjs`（拖滑条联动 + 禁用联动） |
+| 断流/截断轮「继续」按钮可见性 + 网关文案 | `updateAssistant()` 按钮 gate (app.js L3929) | v1：按钮 `hidden = !((m.limit \|\| m.canContinue \|\| m.truncated) && !streaming)`——断流转录走 `markTruncatedIfCut()` 设的 `m.truncated`（不置 canContinue），必须纳入此 gate，否则截断轮「继续」按钮被永久隐藏、无法续跑；续跑链路 `continueTask()→send()` 早已就绪。i18n `chat.notice.gateway_down` 中英两版：bat 名 = `星云智能体.bat`(工作区根)，看门狗自动重启 8099，文案改为「看门狗会自动重启，稍候点继续；迟迟未恢复再双击 bat」 | `d90af59` | `tests/test_conn_cut_resume.mjs`（C8：断流轮按钮可见 + 干净轮隐藏 differential + 点击触发 `send()`，真实 app.js 栈，消息挂进 `#chat` 委托容器） |
 
 ## 联动契约速查（reserve 滑条）
 
