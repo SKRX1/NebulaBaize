@@ -110,6 +110,13 @@ MUTATIONS = [
         "        return True\n",
         "test_run_task_exception_records_ok_false_and_survives",
     ),
+    (
+        "D-i",
+        os.path.join("runtime", "scheduler_host.py"),
+        "    if not base:\n",
+        "    if True:  # MUTATION: ignore the entry base_url -> always boot client\n",
+        "test_schedule_route_follows_selected_model",
+    ),
 ]
 
 
@@ -180,7 +187,7 @@ def main() -> int:
         print("SCHEDULER-HOST-DIFFERENTIAL: RED (%d problem(s))" % len(problems))
         return 1
     print("SCHEDULER-HOST-DIFFERENTIAL: ALL GREEN (live tree green; each of %d mutations "
-          "turns its real host lock red -> host-e/f/g/h are load-bearing, not decorative)"
+          "turns its real host lock red -> host-e/f/g/h/i are load-bearing, not decorative)"
           % len(MUTATIONS))
     return 0
 

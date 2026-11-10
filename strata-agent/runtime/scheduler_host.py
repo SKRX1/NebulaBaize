@@ -36,6 +36,32 @@ from scheduler import ScheduleEntry, Scheduler
 DEFAULT_SLICE_S = 5.0
 
 
+def resolve_schedule_route(selected_id, entry_lookup, default_base_url,
+                           default_model, default_api_key=None):
+    """Decide which endpoint a SCHEDULED run should hit -- the SAME source of truth chat
+    uses (model_registry.selected), so scheduler and chat never split into two models.
+
+    Mirrors http_server._route_model: an entry carrying a real base_url routes to it; an
+    empty base_url means "this gateway's own upstream" (the 8080 engine), so we fall back
+    to the boot-time default. entry_lookup(id) -> entry dict | None is injected (production
+    passes a model_registry-backed lookup; tests pass a dict) so the loop stays offline /
+    deterministic. Returns (base_url, model, api_key) for the client that will run the task.
+    """
+    entry = None
+    try:
+        entry = entry_lookup(selected_id) if selected_id else None
+    except Exception:                                  # a broken registry must not kill a run
+        entry = None
+    base = str((entry or {}).get("base_url") or "").strip().rstrip("/")
+    if not base:
+        # empty base_url = the gateway's own upstream (8080): use the boot default (today's
+        # behaviour) -- nothing to rewrite, exactly like _route_model returning None.
+        return default_base_url, default_model, default_api_key
+    model = str((entry or {}).get("model") or "").strip() or default_model
+    key = str((entry or {}).get("api_key") or "").strip() or default_api_key
+    return base, model, key
+
+
 def entries_fingerprint(entries: list[dict]) -> tuple:
     """Stable signature of a schedule entry list, for cheap change detection.
 

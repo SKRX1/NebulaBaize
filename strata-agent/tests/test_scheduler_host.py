@@ -14,7 +14,7 @@ three behaviours the fusion added on top of the pure-stdlib Scheduler:
 
 Run from the strata-agent folder:  python tests/test_scheduler_host.py
 
-LOCK CHEAT-SHEET (host-a..h, added 2026-11-09 so a future edit can locate a lock fast):
+LOCK CHEAT-SHEET (host-a..i, added 2026-11-09 so a future edit can locate a lock fast):
 
   lock    production invariant it locks                                falsify mutation
   ------  -----------------------------------------------------------  -----------------------
@@ -29,8 +29,10 @@ LOCK CHEAT-SHEET (host-a..h, added 2026-11-09 so a future edit can locate a lock
   host-g  hot-reload DELETE direction: a removed entry stops firing       differential D-g
   host-h  a failing run_task records last_run.ok=false, is isolated, and   differential D-h
           the loop survives (the failing entry reschedules next tick)
+  host-i  a scheduled run routes to the selected model's own base_url      differential D-i
+          (chat's single source of truth); no base_url -> boot client (8080)
 
-  Boundary, honestly stated: host-e/f/g/h carry a falsifiable production-branch mutation in
+  Boundary, honestly stated: host-e/f/g/h/i carry a falsifiable production-branch mutation in
   tests/test_scheduler_host_differential.py (each mutation is the EXACT historical/shipped bug
   and MUST turn its lock red -- proving the lock is load-bearing, not a vacuous green).
   host-a/b/c/d are BASELINE behaviour locks (the thing under test IS the injected layer / a
@@ -50,7 +52,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "runtime"))
 
-from scheduler_host import SchedulerHost, entries_fingerprint, build_entries  # noqa: E402
+from scheduler_host import SchedulerHost, entries_fingerprint, build_entries, resolve_schedule_route  # noqa: E402
 
 
 class FakeClock:
@@ -468,6 +470,52 @@ def events_names(events):
     """Names carried by schedule-error events (helper for host-h)."""
     return [ev.get("name") for ev in events if ev.get("type") == "schedule-error"]
 
+def test_schedule_route_follows_selected_model():
+    """host-i: a SCHEDULED run routes to model_registry.selected's base_url when it has one
+    (so the scheduler lands on the SAME model chat uses), and falls back to the boot client
+    when the picked entry has no base_url (the "8080 is this gateway itself" case). This is
+    the pure function the gateway wires into _sched_run_task; DI lookup, deterministic, no
+    registry file touched.
+
+    It locks the fix for the reported bug: with 8080 DOWN and a custom model selected (47831),
+    a fired job must go to 47831, not to the dead boot client (8080) -- which is why a fired
+    scheduled task used to record ok=false (the write path reached a dead upstream).
+    """
+    lookup = {
+        "sel-47831": {"id": "sel-47831", "base_url": "http://127.0.0.1:47831/v1",
+                       "model": "swift-iq3_s", "api_key": ""},
+        "sel-local": {"id": "sel-local", "base_url": "", "model": "swift-1.5-iq3_s"},
+    }
+
+    def entry_lookup(sid):
+        return lookup.get(sid)
+
+    boot_base, boot_model, boot_key = "http://127.0.0.1:8080/v1", "strata", None
+
+    # (1) a picked model that lives at its own base_url -> route to it (the 47831 case)
+    base, model, key = resolve_schedule_route("sel-47831", entry_lookup,
+                                              boot_base, boot_model, boot_key)
+    assert base == "http://127.0.0.1:47831/v1", f"did not route to the selected base_url: {base}"
+    assert model == "swift-iq3_s", f"did not carry the selected model: {model}"
+
+    # (2) entry with an empty base_url -> fall back to the boot default (the 8080-self path)
+    b2, m2, k2 = resolve_schedule_route("sel-local", entry_lookup,
+                                        boot_base, boot_model, "BOOTKEY")
+    assert (b2, m2, k2) == (boot_base, boot_model, "BOOTKEY"), \
+        f"empty base_url must fall back to the boot client: {(b2, m2, k2)}"
+
+    # (3) selected id not in the registry -> fall back to the boot default (never crash)
+    b3, m3, k3 = resolve_schedule_route("ghost", entry_lookup, boot_base, boot_model, None)
+    assert (b3, m3) == (boot_base, boot_model), f"unknown id must fall back: {(b3, m3)}"
+
+    # (4) a lookup that RAISES (broken registry) -> fall back, must not kill the run
+    def boom(_):
+        raise RuntimeError("registry blew up")
+    b4, m4, _ = resolve_schedule_route("sel-47831", boom, boot_base, boot_model, None)
+    assert (b4, m4) == (boot_base, boot_model), f"a raising lookup must fall back, not raise: {(b4, m4)}"
+
+    print(f"host-i OK: selected-with-base_url routes to it ({base}/{model}); empty base_url, "
+          f"unknown id, and a raising lookup all fall back to the boot client")
 
 def main() -> int:
     test_fire_via_callback()
@@ -478,6 +526,7 @@ def main() -> int:
     test_busy_queue_delays_last_run_until_idle()
     test_removed_entry_stops_firing_after_reload()
     test_run_task_exception_records_ok_false_and_survives()
+    test_schedule_route_follows_selected_model()
     print("SCHEDULER HOST FUSION GATE OK")
     return 0
 

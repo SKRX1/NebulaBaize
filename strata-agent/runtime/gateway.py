@@ -670,11 +670,53 @@ def main(argv=None) -> int:
             # each fired task behind live interactive turns (gw_state._idle gate), so a
             # scheduled job never overlaps a chat turn. run_task drives the real agent.
             import threading as _th
-            from scheduler_host import SchedulerHost
+            from scheduler_host import SchedulerHost, resolve_schedule_route
+
+            def _sched_model_lookup(selected_id):
+                # the SAME source of truth chat routes by (model_registry.selected) -- so a
+                # scheduled job lands on whatever model the user picked, not the boot client.
+                try:
+                    import sys as _s
+                    sd = os.path.join(ROOT, "serve")
+                    if sd not in _s.path:
+                        _s.path.insert(0, sd)
+                    import model_registry as _mr
+                    doc = _mr.load()
+                    return _mr.find(doc, selected_id)
+                except Exception:
+                    return None
 
             def _sched_run_task(name, task):
                 print(f"  [sched-fire] {name}: {task[:120]}", file=sys.stderr)
-                agent.run(task, history=[])  # fresh context per scheduled run
+                # Route through model_registry.selected (chat's source of truth): when the
+                # picked model lives at its own base_url (e.g. 47831) the run goes there; an
+                # empty base_url means the boot upstream (8080) -> use the original client.
+                try:
+                    import model_registry as _mr
+                    _sel = (_mr.load() or {}).get("selected")
+                except Exception:
+                    _sel = None
+                base, model, key = resolve_schedule_route(
+                    _sel, _sched_model_lookup, args.url, args.model, args.api_key)
+                if base == args.url and model == args.model and (key or None) == (args.api_key or None):
+                    agent.run(task, history=[])  # boot client (today's path) -- nothing to route
+                    return
+                from llm_client import StrataClient as _SC
+                routed = _SC(base_url=base, model=model, effort=args.think, api_key=key)
+                # planner holds its OWN client ref, so both must see the routed one. Anchor
+                # proof (do not 'simplify' to agent.client only -- that would miss the planner):
+                #   (line numbers are as-of-2026-11-09; anchor by symbol, not the number)
+#   runtime/loop.py:AgentLoop.__init__ L67 builds self.planner = Planner(client, [])
+                #   runtime/planner.py:Planner.__init__ L26 does self.client = client and plan() then
+                #     calls self.client.chat(...) -- i.e. the planner chats through ITS OWN ref,
+                #     so re-pointing only agent.client would leave planner on the boot client.
+                # The idle-gate serialises this swap (no live interactive turn races it).
+                _saved_agent, _saved_planner = agent.client, agent.planner.client
+                agent.client = agent.planner.client = routed
+                try:
+                    agent.run(task, history=[])  # fresh context per scheduled run
+                finally:
+                    agent.client, agent.planner.client = _saved_agent, _saved_planner
 
             def _sched_load():
                 try:
