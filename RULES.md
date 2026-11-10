@@ -83,3 +83,8 @@ jsdom 契约测试里 app.js 顶层 let/const（如 mcpInfo/t/编辑态）跨 wi
 本前端加顶部标签页必须三处同步：index.html tab按钮+view section配对(aria-controls/labelledBy)、app.js showTab 顶部 whitelist 数组、showTab 可见性 for-of 数组——test_nav_tabs_level.mjs 的 L4 会锁死三集一致，漏任一处即红
 扫描 git 跟踪文件中的中文字符串时，PowerShell 逐文件 Select-String 会因 git 中文文件名八进制转义而报 PathNotFound，应改用 Python 对 git ls-files -z 的字节级扫描（tools/_q_* 探针系列）
 全套回归跑 strata-agent\tools\run_tests.py（约190项含post-green钩子）；工作区根 tools\run_all_tests.py 的 ROOT 硬编码指向旧路径 E:\WorkBuddy\...，输出 TOTAL 0 属假绿不可采信
+创建定时任务时（凡我代拟任务名/任务内容），name 与 task 语言跟随主人本轮指令的主体语言（中文→中文、English→英文、其他语言→对应语言，混合取主体）；前端弹窗手填天然满足无需改码；编辑/重命名保持原语言，主人主动换才换；schedule 链路已验证 Unicode 安全（后端无字符集校验、前端 esc+dataset，中文任务名有活样本在跑）
+定时任务的 task 字段是实际执行的 shell 命令（不可翻译，翻译即执行失败）；"按语言创建任务"的约定只落在显示名 name 上——中文名/英文名按主人指令语言，task 命令本体保持可执行原样
+app.js 里被 updateAssistant 等 boot 期函数调用的新函数，禁止用顶层 const/let 承载（TDZ 会让 jsdom 测试崩），改 function 声明+惰性 window 缓存
+commit 前先跑 git diff --ignore-cr-at-eol --stat 甄别"换行符假象 vs 真改动"，仓库 LF→CRLF 入库会让全文件 diff 虚高到数万行
+跨进程传中文路径进 PowerShell 易被代码页吞，改走"写 ps1 脚本文件 + -File 执行 + $MyInvocation 自定位目录"
