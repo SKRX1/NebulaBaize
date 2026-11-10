@@ -81,3 +81,5 @@ tools/ 目录有临时脚本清理机制（_*.py 跑完即被送回收站）：�
 python 锚点编辑脚本：锚点字符串里出现 JS 字面 `\n`（如 `split("\n")`）时，Python 普通字符串会把 `\n` 解析成真换行导致 count=0——含反斜杠的锚点/new 块统一用 raw string（r'''...'''），raw 下 `\n` 即字面反斜杠n
 jsdom 契约测试里 app.js 顶层 let/const（如 mcpInfo/t/编辑态）跨 win.eval 不可见（每个 eval 独立作用域）——所有 realm-internal 状态必须在同一个 boot eval 里用闭包暴露到 window.__api
 本前端加顶部标签页必须三处同步：index.html tab按钮+view section配对(aria-controls/labelledBy)、app.js showTab 顶部 whitelist 数组、showTab 可见性 for-of 数组——test_nav_tabs_level.mjs 的 L4 会锁死三集一致，漏任一处即红
+扫描 git 跟踪文件中的中文字符串时，PowerShell 逐文件 Select-String 会因 git 中文文件名八进制转义而报 PathNotFound，应改用 Python 对 git ls-files -z 的字节级扫描（tools/_q_* 探针系列）
+全套回归跑 strata-agent\tools\run_tests.py（约190项含post-green钩子）；工作区根 tools\run_all_tests.py 的 ROOT 硬编码指向旧路径 E:\WorkBuddy\...，输出 TOTAL 0 属假绿不可采信
