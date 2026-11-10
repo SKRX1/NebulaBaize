@@ -10049,8 +10049,11 @@ function mountArchiveCard(el, m) {
     `${icon("folder", "st-icon st-icon--xs")}<span>${esc(t("chat.archive.expand"))}</span></button>` +
     `<div class="arc-hist__note">${esc(t("chat.archive.note"))}</div>` +
     `<pre class="arc-hist__body" hidden></pre>`;
-  bubble.appendChild(card);
+  var firstKid = bubble.firstChild;
+  if (firstKid) bubble.insertBefore(card, firstKid);
+  else bubble.appendChild(card);
   var io = _arcIO(); if (io) io.observe(card);           // scroll-top auto-load
+  loadArchiveSeg(card);   // eager load
 }
 async function loadArchiveSeg(card) {
   var body = card && card.querySelector(".arc-hist__body"); if (!body) return;

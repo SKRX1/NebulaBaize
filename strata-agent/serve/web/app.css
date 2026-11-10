@@ -1388,7 +1388,7 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .sched-manage-list .sched-row .st-btn--icon { visibility: visible; }
 .sched-manage-list .sched-row .st-btn--icon:hover { color: var(--st-accent); }
 /* ---- plan-A on-demand archived-history card (pure display layer) ---- */
-.arc-hist { margin-top: 10px; border: 0.5px solid var(--st-border-3, #e3e6ea);
+.arc-hist { margin-bottom: 10px; border: 0.5px solid var(--st-border-3, #e3e6ea);
   border-radius: var(--st-r-md); background: var(--st-surface-2, #f6f8fa); overflow: hidden; }
 .arc-hist__head { width: 100%; text-align: left; display: flex; align-items: center; gap: 6px;
   background: none; border: 0; cursor: pointer; }
