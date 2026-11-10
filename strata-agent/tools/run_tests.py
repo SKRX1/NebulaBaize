@@ -138,6 +138,7 @@ SUITES = [
         "tests/test_autoresume_floor.mjs",   # 2026-11 plan-A: main-chain auto-resume must not fuse-and-hand-back after only a couple of resumes due to a stray TOO-SMALL drawer value (the root cause of the reported "ran 2 then handed back"). Added AUTO_RESUME_FLOOR=12; runtime cap and SAVE source both honour it -- below-floor falls back to the default, a manual raise at/above the floor still wins. Load-bearing single-variable differential: dirty 2 -> cap 24, right-at-floor 12 honoured, above-floor 30 honoured.
 
     "tests/test_auto_memory.mjs",
+    "tests/test_autorules_dynamic.mjs",   # DYNAMIC gate: default-ON rules direct-write no-draft + switch-off->draft + decoupled from master
 
     "tests/test_mem_expand_all.mjs",   # 2026-10-26: A+C landing - memExpandAll real-fn differential (expand reveals loaded body / fold hides all)
 
