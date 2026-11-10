@@ -2351,7 +2351,9 @@ function snapSent(src, to, limit) {
   return to;
 }
 function answerSpec(m) {
-  const text = m.text || "", reas = m.reasoning || "", tools = m.tools || [], spec = [];
+  // content-only messages (the compaction summary block is {role:system, content:...} with no .text): fall back to
+  // content so the bubble is not blank. Assistant turns always have .text and are unaffected.
+  const text = m.text || m.content || "", reas = m.reasoning || "", tools = m.tools || [], spec = [];
   let tp = 0, rp = 0;
   const think = (end, k) => { if (end > rp) spec.push({slot: `th${k}`, think: reas.slice(rp, end)}); rp = end; };
   const md = (end, k) => { if (end > tp) spec.push({slot: `md${k}`, src: text.slice(tp, end)}); tp = end; };
@@ -7773,12 +7775,12 @@ async function streamAssistant() {
     const dropped = withoutPair.slice(0, withoutPair.length - tail.length);
     let archivePointer = "";
     let whitelistKeep = "";
-    if (settings.archiveOn && dropped.length && activeSession() && activeSession().workspace) {
-      const abase = activeSession().workspace.replace(/\/$/, "");
+    if (settings.archiveOn && dropped.length && activeSession()) {
+      const abase = (activeSession().workspace || "").replace(/\/$/, "");
       const aid = "ar_" + Math.random().toString(36).slice(2, 14);
       const blob = dropped.map((d) => `${d.role}: ${(typeof d.content === "string" ? d.content : JSON.stringify(d.content))}`).join("\n\n");
       try {
-        await fsWrite(`${abase}/.strata-archive/${aid}.md`, blob);
+        await fsWrite(`${abase ? abase + "/" : ""}.strata-archive/${aid}.md`, blob);
         archivePointer = `\n\n[archived verbatim: full text of the ${dropped.length} dropped messages is in .strata-archive/${aid}.md \u2014 read it back if needed]`;
         // whitelist: the last N decision/task-state lines stay resident in the summary block
         const keep = [];
