@@ -9321,10 +9321,48 @@ function schedResetForm() {
   schedEditing = null;
   $("sched-name").value = ""; $("sched-task").value = ""; $("sched-value").value = "";
   $("sched-mode").value = "every_minutes";
+  $("sched-workspace").value = ""; $("sched-perm").value = "auto"; $("sched-model").value = "";
+  schedFillSelectors();
   schedApplyLabel();
 }
 function schedApplyLabel() {
   $("sched-apply").textContent = t(schedEditing ? "sched.apply.update" : "sched.apply");
+}
+// Trigger mode -> arg key (the modal's #sched-mode values). Integer keys are parsed,
+// the rest stay strings; the panel sends exactly one trigger per add/update.
+const SCHED_TRIGGER_KEYS = ["every_minutes", "every_hours", "daily_at", "weekly_at",
+  "monthly_at", "yearly_at", "at"];
+const SCHED_INT_KEYS = ["every_minutes", "every_hours"];
+// value-field placeholder per mode, kept in sync with the change-hook below
+const SCHED_PH = {every_minutes: "30", every_hours: "6", daily_at: "09:00",
+  weekly_at: "5:09:00", monthly_at: "15 02:00", yearly_at: "03-15 08:00",
+  at: "2026-10-20T09:00"};
+function schedTriggerVal() {
+  const mode = $("sched-mode").value;
+  const raw = $("sched-value").value.trim();
+  return SCHED_INT_KEYS.includes(mode) ? parseInt(raw, 10) : raw;
+}
+// Populate the workspace + model dropdowns from the app's own registries (the sidebar
+// workspace list and modelsDoc). First option = inherit / follow, so an untouched form
+// sends no override and today's behaviour is preserved byte-for-byte.
+function schedFillSelectors(sel) {
+  sel = sel || {};
+  const wsSel = $("sched-workspace"), mdSel = $("sched-model");
+  if (!wsSel || !mdSel) return;
+  wsSel.innerHTML = `<option value="">${esc(t("sched.workspace.default"))}</option>` +
+    (workspaces || []).map((w) => `<option value="${esc(w.path)}">${esc(wsLabel(w.path))}</option>`).join("");
+  mdSel.innerHTML = `<option value="">${esc(t("sched.model.follow"))}</option>` +
+    (((modelsDoc && modelsDoc.models) || []).map((m) =>
+      `<option value="${esc(m.id)}">${esc(m.name || m.id)}</option>`).join(""));
+  // the edit form may carry a value the registries no longer list (unregistered workspace,
+  // model removed from the list, registries not loaded yet) -- keep it visible, do not blank.
+  if (sel.workspace && ![...wsSel.options].some((o) => o.value === sel.workspace)) {
+    wsSel.insertAdjacentHTML("beforeend", `<option value="${esc(sel.workspace)}">${esc(wsLabel(sel.workspace))} *</option>`);
+  }
+  if (sel.model && ![...mdSel.options].some((o) => o.value === sel.model)) {
+    mdSel.insertAdjacentHTML("beforeend", `<option value="${esc(sel.model)}">${esc(sel.model)} *</option>`);
+  }
+  wsSel.value = sel.workspace || ""; mdSel.value = sel.model || "";
 }
 // Render the SCHEDULE tab's main management list (#sched-view-list). Named renderSchedule
 // so the language-switch hook (typeof renderSchedule === "function") repaints it too.
@@ -9335,12 +9373,24 @@ async function renderSchedule() {
   try {
     const entries = await schedEntries();
     if (!entries.length) { box.innerHTML = '<div class="sched-row muted">' + t("sched.none") + '</div>'; return; }
-    box.innerHTML = entries.map((e) => `<div class="sched-row">` +
+    box.innerHTML = entries.map((e) => {
+      const sep = "[/\\\\]+";
+      const badges = [];
+      if (e.roots && e.roots.length) {
+        const leaf = String(e.roots[0]).replace(new RegExp("[\\\\/]+$"), "").split(new RegExp(sep)).filter(Boolean).pop();
+        badges.push("📁 " + esc(leaf || e.roots[0]));
+      }
+      if (e.approval && e.approval !== "auto") badges.push("🔐 " + esc(e.approval));
+      if (e.model) badges.push("🤖 " + esc(e.model));
+      const mid = " \u00b7 ";
+      const badge = badges.length ? `<span class="muted small" title="${esc(badges.join(mid))}">${esc(badges.join(mid))}</span>` : "";
+      return `<div class="sched-row">` +
       `<span class="sched-row__name" title="${esc(e.task || "")}">${esc(e.name)}</span>` +
-      `<span class="sched-row__trigger">${esc(e.trigger)}</span>` +
+      `<span class="sched-row__trigger">${esc(e.trigger)}</span>` + badge +
       `<span class="sched-row__next">${esc(e.next)}</span>` +
       `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-edit="${esc(e.name)}" aria-label="${esc(t("sched.edit"))}" title="${esc(t("sched.edit"))}">${icon("edit")}</button>` +
-      `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-del="${esc(e.name)}" aria-label="${esc(t("attach.remove"))}" title="${esc(t("attach.remove"))}">${icon("trash")}</button></div>`).join("");
+      `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-del="${esc(e.name)}" aria-label="${esc(t("attach.remove"))}" title="${esc(t("attach.remove"))}">${icon("trash")}</button></div>`;
+    }).join("");
   } catch (e) { box.innerHTML = '<div class="sched-row muted">' + t("sched.loadfailed") + '</div>'; }
 }
 // Load the entry into the form for editing; null = create mode.
@@ -9357,10 +9407,14 @@ async function openSchedModal(name) {
     if (!e) return;
     $("sched-name").value = e.name || "";
     $("sched-task").value = e.task || "";
-    const modeMap = {every_minutes: "every_minutes", every_hours: "every_hours", daily_at: "daily_at", at: "at"};
+    const modeMap = {every_minutes: "every_minutes", every_hours: "every_hours", daily_at: "daily_at", at: "at", weekly_at: "weekly_at", monthly_at: "monthly_at", yearly_at: "yearly_at"};
     const parts = (e.trigger || "").split(" ");
     $("sched-mode").value = modeMap[parts[0]] || "every_minutes";
-    $("sched-value").value = (parts[1] || "").replace(/\s*\(one-shot\)$/, "");
+    // the trigger label is "<key> <value>" -- strip the key token, keep the value; for
+    // "monthly_at 15 02:00" the value itself holds a space, so strip only the FIRST token
+    $("sched-value").value = (e.trigger || "").replace(/^\S+\s+/, "").replace(/\s*\(one-shot\)$/, "");
+    schedFillSelectors({workspace: (e.roots && e.roots[0]) || "", model: e.model || ""});
+    $("sched-perm").value = e.approval || "auto";
     $("sched-name").focus();
   } catch (e) { /* leave blank */ }
 }
@@ -9410,19 +9464,23 @@ $("sched-apply").onclick = async () => {
   const value = $("sched-value").value.trim();
   if (!name || !task || !value) { toast("warn", t("toast.fillall.title"), t("toast.fillall.msg")); return; }
   const args = {name, task};
-  if (mode === "every_minutes") args.every_minutes = parseInt(value, 10);
-  else if (mode === "every_hours") args.every_hours = parseInt(value, 10);
-  else if (mode === "daily_at") args.daily_at = value;
-  else if (mode === "at") args.at = value;
+  args[mode] = SCHED_INT_KEYS.includes(mode) ? parseInt(value, 10) : value;
+  // execution overrides -- create mode only sends what the form actually holds (empty =
+  // default). The update branch always sends the FULL form state so an emptied select
+  // clears back to the default via the "-" sentinel the server tool documents.
+  const wsVal = $("sched-workspace").value, permVal = $("sched-perm").value, mdVal = $("sched-model").value;
+  if (wsVal) args.roots = [wsVal];
+  if (permVal !== "auto") args.approval = permVal;
+  if (mdVal) args.model = mdVal;
   try {
     let msg;
     if (schedEditing) {
       // update mode: locate by original name, carry the (possibly renamed) new values
       const upd = {name: schedEditing, new_name: name, task: task};
-      if (mode === "every_minutes") upd.every_minutes = parseInt(value, 10);
-      else if (mode === "every_hours") upd.every_hours = parseInt(value, 10);
-      else if (mode === "daily_at") upd.daily_at = value;
-      else if (mode === "at") upd.at = value;
+      upd[mode] = SCHED_INT_KEYS.includes(mode) ? parseInt(value, 10) : value;
+      upd.roots = wsVal ? [wsVal] : "-";
+      upd.approval = permVal || "auto";
+      upd.model = mdVal || "-";
       msg = await mcpText("schedule", "update", upd) || "Updated";
       toast("success", t("sched.updated.toast"), msg);
     } else {
@@ -9442,8 +9500,7 @@ schedApplyLabel();
 
 // Trigger placeholder updates on mode change
 $("sched-mode").addEventListener("change", () => {
-  const ph = {every_minutes: "30", every_hours: "6", daily_at: "09:00", at: "2026-10-20T09:00"};
-  $("sched-value").placeholder = ph[$("sched-mode").value] || "";
+  $("sched-value").placeholder = SCHED_PH[$("sched-mode").value] || "";
 });
 
 // Load schedule panel on startup (after MCP info is available). The Schedule TAB list is

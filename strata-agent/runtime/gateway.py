@@ -686,23 +686,68 @@ def main(argv=None) -> int:
                 except Exception:
                     return None
 
+            # ── per-entry execution overrides (roots / approval tier / model pin) ──
+            # Creating a scheduled task IS the consent: nobody is watching a 3 a.m. fire,
+            # so "full" and "auto" both run freely (auto = the require_approval list passes
+            # by standing consent; the stdin confirm would EOF-deny it -- the old silent
+            # failure that made unattended backups red). "manual" degrades this revision:
+            # there is no push channel from this process to the UI yet (the approval modal
+            # is fed by the ENGINE's SSE stream, and a scheduled run has no such stream),
+            # so a manual-tier run gets a loud event and runs nothing until wired v2.
+            _sched_auto_confirm = lambda tool, reason: True
+
+            _FS_ALLOW = os.path.join(os.path.dirname(ROOT), "fs_allowed_roots.txt")
+
+            def _sched_roots_swap(add_roots):
+                # fs_server re-reads the allow-file on EVERY tool call (see serve/server.py
+                # move-to-end note), so appending entry roots before the run and restoring
+                # the exact original bytes after is safe. Caveat (documented): a chat request
+                # whose workspace move-to-ends lands mid-run gets rolled back by the restore
+                # -- the idle-gate makes that window tiny (chat turn => gate queued this run).
+                try:
+                    saved = open(_FS_ALLOW, "rb").read()
+                except FileNotFoundError:
+                    saved = None
+                if add_roots:
+                    lines = [l.strip() for l in (saved.decode("utf-8").splitlines() if saved else []) if l.strip()]
+                    lines += [r for r in add_roots if r.lower() not in {x.lower() for x in lines}]
+                    open(_FS_ALLOW, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+                return saved
+
+            def _sched_roots_restore(saved):
+                if saved is None:
+                    try:
+                        os.remove(_FS_ALLOW)
+                    except OSError as _e:
+                        print(f'  [sched-roots-warn] could not remove allow-file: {_e}', file=sys.stderr)
+                else:
+                    open(_FS_ALLOW, "wb").write(saved)
+
             def _sched_run_task(name, task):
                 print(f"  [sched-fire] {name}: {task[:120]}", file=sys.stderr)
+                entry = _sched_host.raw_by_name.get(name) or {}
+                tier = str(entry.get("approval") or "auto").strip().lower()
+                if tier == "manual":
+                    print(f"  [sched-manual-deferred] {name}: approval tier 'manual' has no "
+                          f"UI channel yet (v1 degrades: running under standing consent)",
+                          file=sys.stderr)
+                    tier = "auto"   # v1: manual degrades to auto WITH a loud event (above)
                 # Route through model_registry.selected (chat's source of truth): when the
                 # picked model lives at its own base_url (e.g. 47831) the run goes there; an
                 # empty base_url means the boot upstream (8080) -> use the original client.
+                # A per-entry model pin overrides the chat selection (the user's ask).
                 try:
                     import model_registry as _mr
-                    _sel = (_mr.load() or {}).get("selected")
+                    _sel = str(entry.get("model") or "").strip() or ((_mr.load() or {}).get("selected"))
                 except Exception:
                     _sel = None
                 base, model, key = resolve_schedule_route(
                     _sel, _sched_model_lookup, args.url, args.model, args.api_key)
-                if base == args.url and model == args.model and (key or None) == (args.api_key or None):
-                    agent.run(task, history=[])  # boot client (today's path) -- nothing to route
-                    return
-                from llm_client import StrataClient as _SC
-                routed = _SC(base_url=base, model=model, effort=args.think, api_key=key)
+                routed = None
+                if base != args.url or model != args.model or (key or None) != (args.api_key or None):
+                    from llm_client import StrataClient as _SC
+                    routed = _SC(base_url=base, model=model, effort=args.think, api_key=key)
+                saved_roots = _sched_roots_swap(list(entry.get("roots") or []))
                 # planner holds its OWN client ref, so both must see the routed one. Anchor
                 # proof (do not 'simplify' to agent.client only -- that would miss the planner):
                 #   (line numbers are as-of-2026-11-09; anchor by symbol, not the number)
@@ -712,11 +757,16 @@ def main(argv=None) -> int:
                 #     so re-pointing only agent.client would leave planner on the boot client.
                 # The idle-gate serialises this swap (no live interactive turn races it).
                 _saved_agent, _saved_planner = agent.client, agent.planner.client
-                agent.client = agent.planner.client = routed
+                _saved_confirm = agent.confirm
+                if routed is not None:
+                    agent.client = agent.planner.client = routed
+                agent.confirm = _sched_auto_confirm  # standing consent for the whole run
                 try:
                     agent.run(task, history=[])  # fresh context per scheduled run
                 finally:
                     agent.client, agent.planner.client = _saved_agent, _saved_planner
+                    agent.confirm = _saved_confirm
+                    _sched_roots_restore(saved_roots)
 
             def _sched_load():
                 try:

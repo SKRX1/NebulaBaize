@@ -67,6 +67,31 @@ check("modal #sched-modal no longer embeds a list (form-only)", !/id="sched-list
 check("index.html has the #sched-view-list container (on the tab, not the modal)",
   /id="sched-view-list"/.test(html));
 
+// --- 8a) static locks: 7 triggers + 3 new selects + helpers + i18n both packs ---------
+for (const k of ["weekly_at", "monthly_at", "yearly_at"]) {
+  check("index.html trigger select has a " + k + " option",
+    html.includes('value="' + k + '" data-i18n="sched.' + k + '"'));
+}
+for (const id of ["sched-workspace", "sched-perm", "sched-model"]) {
+  check("index.html form has select #" + id, new RegExp('id="' + id + '"').test(html));
+}
+check("perm select carries the three tiers (auto/full/manual)",
+  /value="auto"/.test(html) && /value="full"/.test(html) && /value="manual"/.test(html));
+check("app.js SCHED_PH covers all 7 modes",
+  /const SCHED_PH = \{[\s\S]*?every_minutes[\s\S]*?weekly_at[\s\S]*?monthly_at[\s\S]*?yearly_at[\s\S]*?\};/.test(src));
+check("app.js defines schedFillSelectors wired into openSchedModal",
+  /function schedFillSelectors\(/.test(src) && /schedFillSelectors\(\{workspace:/.test(src));
+check("app.js update branch sends the full override state (dash sentinel clears)",
+  /upd\.roots = wsVal \? \[wsVal\] : "-"/.test(src) && /upd\.model = mdVal \|\| "-"/.test(src));
+const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
+check("i18n carries the new keys in BOTH packs",
+  ["sched.weekly_at", "sched.monthly_at", "sched.yearly_at", "sched.workspace",
+   "sched.perm", "sched.perm.auto", "sched.perm.full", "sched.perm.manual",
+   "sched.model", "sched.model.follow"].every((k) => i18nSrc.split('"' + k + '":').length === 3));
+check("renderSchedule builds an override badge (roots/approval/model)",
+  /const badges = \[\]/.test(src) && /e\.approval !== "auto"/.test(src) && /esc\(e\.model\)/.test(src));
+
+
 // --- 4) openSchedModal still defined and called; update tool called ----------------
 for (const name of ["openSchedModal", "schedResetForm", "schedApplyLabel"]) {
   check(`app.js DEFINES function ${name}`, new RegExp(`function\\s+${name}\\s*\\(`).test(src));
@@ -121,8 +146,10 @@ for (const name of ["openSchedModal", "renderSchedule", "schedResetForm", "sched
   const STUB = JSON.stringify({name: "probe-job", trigger: "daily_at 09:00", next: "today/tmr 09:00",
     task: "do the thing", last_run: {ts: 1, ok: true}, consumed: false});
   win.fetch = async (url, opts) => {
+    console.log('SECS5:', String(url));
     if (url === "mcp/call") {
-      return { ok: true, status: 200, json: async () => ({ ok: true, text: STUB }) };
+      console.log("S8-DBG stub resolves:", String(win.__stub8 || STUB).slice(0, 60));
+      return { ok: true, status: 200, json: async () => ({ ok: true, text: win.__stub8 || STUB }) };
     }
     return { ok: true, status: 200, json: async () => ({}) };
   };
@@ -196,6 +223,31 @@ for (const name of ["openSchedModal", "renderSchedule", "schedResetForm", "sched
   const wPlain = bootWithQuery("");
   await new Promise((r) => setTimeout(r, 30));
   check("no query keeps the modal closed (the hook is the only opener)", wPlain.__boot.modal().hidden === true);
+
+  // --- 8b) behaviour lock: an entry WITH overrides renders badge chips, and the edit
+  // form round-trips trigger + the three override selects. Uses the MAIN realm's boot
+  // stub, which honours win.__stub8 (see the boot stub above).
+  const STUB8 = JSON.stringify({name: "probe-badge", trigger: "weekly_at 5:09:30",
+    next: "weekly 5:09:30", task: "badge probe", last_run: null, consumed: false,
+    roots: ["C:/test-root"], approval: "full", model: "swift-iq3_s"});
+  win.__stub8 = STUB8;
+  api.setTools(1);   // boot's async loadMcp may have reset it to 0 -- renderSchedule would silently bail
+  console.log("S8 SET, read back:", String(win.__stub8).slice(0, 60));
+  await api.renderSchedule();
+  await new Promise((r) => setTimeout(r, 10)); // let the async stub round-trip settle before asserting
+  check("badge row renders name + workspace leaf + tier + model",
+    /probe-badge/.test(api.list().innerHTML) && /test-root/.test(api.list().innerHTML)
+    && /full/.test(api.list().innerHTML) && /swift-iq3_s/.test(api.list().innerHTML));
+  await api.openSchedModal("probe-badge");
+  check("edit form round-trips the new trigger (mode=weekly_at, value=5:09:30)",
+    api.modeField().value === "weekly_at" && api.valueField().value === "5:09:30");
+  check("edit form round-trips the overrides (perm=full, model pinned)",
+    win.document.getElementById("sched-perm").value === "full"
+    && win.document.getElementById("sched-model").value === "swift-iq3_s");
+  check("edit form workspace select carries the entry root",
+    win.document.getElementById("sched-workspace").value === "C:/test-root");
+  win.__stub8 = null;
+
 
   console.log("\nREGRESSION: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
   process.exit(FAILURES.length ? 1 : 0);

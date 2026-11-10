@@ -80,6 +80,15 @@ def entries_fingerprint(entries: list[dict]) -> tuple:
             e.get("every_hours"),
             e.get("daily_at"),
             e.get("at"),
+            e.get("weekly_at"),
+            e.get("monthly_at"),
+            e.get("yearly_at"),
+            # execution-side overrides ride in the fingerprint too: an approval/model/roots
+            # edit alone must trigger the rebuild, or the running host keeps the stale one.
+            # (roots is a list -> freeze to a sorted tuple so the row stays hash-comparable)
+            tuple(sorted(str(x) for x in (e.get("roots") or []))),
+            e.get("approval"),
+            e.get("model"),
         ))
     return tuple(sorted(rows))
 
@@ -97,6 +106,9 @@ def build_entries(entries_cfg: list[dict]) -> list[ScheduleEntry]:
             every_hours=ec.get("every_hours"),
             daily_at=ec.get("daily_at"),
             at=ec.get("at"),
+            weekly_at=ec.get("weekly_at"),
+            monthly_at=ec.get("monthly_at"),
+            yearly_at=ec.get("yearly_at"),
         ))
     return out
 
@@ -134,6 +146,10 @@ class SchedulerHost:
         self.slice_s = max(0.01, float(slice_s))
         self.max_iter = max_iter
         self._fp = None
+        # name -> raw config dict, refreshed on every rebuild (same moment _fp changes).
+        # The production run_task consumer looks up per-entry overrides (roots/approval/
+        # model) HERE; the (name, task) callback signature itself stays untouched.
+        self.raw_by_name: dict[str, dict] = {}
         self.sched: Scheduler | None = None
         self.fires = 0
         self.reloads = 0
@@ -178,6 +194,8 @@ class SchedulerHost:
             return
         # Rebuild: a fresh Scheduler reloads the persisted one-shot state, so consumed
         # one-shots stay consumed across a reload (no double-fire on a panel edit).
+        self.raw_by_name = {str(e.get("name", "job")): e for e in entries_cfg
+                            if isinstance(e, dict)}
         self.sched = Scheduler(build_entries(entries_cfg), self._gated_run,
                                clock=self._clock, sleep=None,
                                state_path=self.state_path, on_event=self.on_event)

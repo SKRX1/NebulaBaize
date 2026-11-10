@@ -1102,10 +1102,29 @@
           <option value="every_minutes" data-i18n="sched.every_minutes">Every N minutes</option>
           <option value="every_hours" data-i18n="sched.every_hours">Every N hours</option>
           <option value="daily_at" data-i18n="sched.daily_at">Daily at HH:MM</option>
+          <option value="weekly_at" data-i18n="sched.weekly_at">Weekly (D:HH:MM)</option>
+          <option value="monthly_at" data-i18n="sched.monthly_at">Monthly (DD HH:MM)</option>
+          <option value="yearly_at" data-i18n="sched.yearly_at">Yearly (MM-DD HH:MM)</option>
           <option value="at" data-i18n="sched.at">One-shot at date/time</option>
         </select>
         <input class="st-input" id="sched-value" type="text" placeholder="30" spellcheck="false" autocomplete="off">
       </div>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-workspace" data-i18n="sched.workspace">Workspace</label>
+      <select class="st-input" id="sched-workspace"></select>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-perm" data-i18n="sched.perm">Access</label>
+      <select class="st-input" id="sched-perm">
+        <option value="auto" data-i18n="sched.perm.auto">Auto-review (consent given at creation)</option>
+        <option value="full" data-i18n="sched.perm.full">Full access</option>
+        <option value="manual" data-i18n="sched.perm.manual">Manual approval</option>
+      </select>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-model" data-i18n="sched.model">Model</label>
+      <select class="st-input" id="sched-model"></select>
     </div>
     <div class="st-modal__actions">
       <span class="spacer"></span>

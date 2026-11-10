@@ -9,7 +9,14 @@ on Windows Task Scheduler / cron).
 Each schedule entry declares WHAT to run and WHEN it fires (pick one):
   every_minutes / every_hours   interval-based recurring
   daily_at: "HH:MM"             time-of-day recurring
+  weekly_at: "D:HH:MM"          weekly, D = day-of-week (0=Sun..6=Sat), local tz
+  monthly_at: "DD HH:MM"        monthly, DD = day-of-month (1-31; a month without
+                                that day fires on its LAST day -- e.g. 31 -> Feb end)
+  yearly_at: "MM-DD HH:MM"      yearly on a fixed month/day
   at: "YYYY-MM-DDTHH:MM"        one-shot (fires once, then removed)
+  (execution-side overrides, all optional, consumed by the host NOT this timing
+   layer: roots = per-run workspace roots; approval = full/review/manual;
+   model = pin a model for this entry; empty model = follow chat selection)
 
 Production hardening (this revision):
   - One-shot persistence: consumed one-shot names are recorded to a state file so a
@@ -33,9 +40,41 @@ import os
 import time
 
 
+import calendar
+
+
+def _parse_dom_hm(spec):
+    # "DD HH:MM" -> (day, hour, minute). Raises ValueError on malformed input.
+    dd_part, hm = spec.strip().split(" ", 1)
+    hh, mm = (int(x) for x in hm.split(":"))
+    return int(dd_part), hh, mm
+
+
+def _parse_mm_dd_hm(spec):
+    # "MM-DD HH:MM" -> (month, day, hour, minute). Raises ValueError on malformed input.
+    md, hm = spec.strip().split(" ", 1)
+    mon, dd = (int(x) for x in md.split("-"))
+    hh, mm = (int(x) for x in hm.split(":"))
+    return mon, dd, hh, mm
+
+
+def _dom_fire(reference, day, hour, minute):
+    """The `day`-th at HH:MM in the month of `reference`; if that month has fewer days,
+    clamp to its LAST day (design choice: a monthly-31 backup still fires in February)."""
+    last = calendar.monthrange(reference.year, reference.month)[1]
+    d = min(day, last)
+    return reference.replace(day=d, hour=hour, minute=minute, second=0, microsecond=0)
+
+
+def _safe_dt(year, month, day, hour, minute):
+    """Naive local datetime (raises ValueError on impossible dates like 2026-02-30)."""
+    return _dt.datetime(year, month, day, hour, minute)
+
+
 class ScheduleEntry:
     def __init__(self, name, task, every_minutes=None, every_hours=None,
-                 daily_at=None, at=None, clock=None):
+                 daily_at=None, at=None, weekly_at=None, monthly_at=None,
+                 yearly_at=None, clock=None):
         self.name = name
         self.task = task
         self.every_s = None
@@ -44,6 +83,9 @@ class ScheduleEntry:
         if every_hours is not None:
             self.every_s = float(every_hours) * 3600
         self.daily_at = daily_at          # "HH:MM"
+        self.weekly_at = weekly_at        # "D:HH:MM", D=0(Sun)..6(Sat), local tz
+        self.monthly_at = monthly_at      # "DD HH:MM", DD=1-31 (short months -> last day)
+        self.yearly_at = yearly_at        # "MM-DD HH:MM"
         self.at = at                       # one-shot ISO datetime
         self.oneshot = at is not None
         self.dead = False
@@ -63,6 +105,35 @@ class ScheduleEntry:
             fire = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
             if fire.timestamp() <= now_ts:
                 fire = fire + _dt.timedelta(days=1)
+            return fire.timestamp()
+        if self.weekly_at is not None:
+            # "D:HH:MM" -- D = day-of-week, 0=Sunday..6=Saturday (cron convention,
+            # matches isoweekday()%7). Local tz, same clock as daily_at above.
+            dpart, hm = self.weekly_at.split(":", 1)
+            dow = int(dpart) % 7
+            hh, mm = (int(x) for x in hm.split(":"))
+            days_ahead = (dow - (now.isoweekday() % 7)) % 7
+            fire = (now + _dt.timedelta(days=days_ahead)).replace(
+                hour=hh, minute=mm, second=0, microsecond=0)
+            if fire.timestamp() <= now_ts:
+                fire = fire + _dt.timedelta(days=7)
+            return fire.timestamp()
+        if self.monthly_at is not None:
+            # "DD HH:MM" -- day-of-month; a month without that day fires on its LAST
+            # day (the approved design choice: backup-on-Feb-28 beats skipping).
+            dd, hh, mm = _parse_dom_hm(self.monthly_at)
+            fire = _dom_fire(now, dd, hh, mm)
+            if fire.timestamp() <= now_ts:
+                nxt_y, nxt_m = now.year + (now.month // 12), now.month % 12 + 1
+                fire = _dom_fire(_dt.datetime(nxt_y, nxt_m, 1, hh, mm), dd, hh, mm)
+            return fire.timestamp()
+        if self.yearly_at is not None:
+            # "MM-DD HH:MM" -- yearly on a fixed month/day (an impossible date like
+            # 02-30 raises at parse time, which the panel tool surfaces).
+            mon, dd, hh, mm = _parse_mm_dd_hm(self.yearly_at)
+            fire = _safe_dt(now.year, mon, dd, hh, mm)
+            if fire.timestamp() <= now_ts:
+                fire = _safe_dt(now.year + 1, mon, dd, hh, mm)
             return fire.timestamp()
         if self.every_s is not None:
             return now_ts + self.every_s

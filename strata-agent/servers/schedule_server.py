@@ -75,6 +75,12 @@ def _next_fire(entry: dict) -> str:
             return fire.strftime("today/tmr %H:%M").split(" ")[0] + " " + fire.strftime("%H:%M")
         except Exception:
             return entry["daily_at"]
+    if entry.get("weekly_at"):
+        return "weekly " + str(entry["weekly_at"])
+    if entry.get("monthly_at"):
+        return "monthly " + str(entry["monthly_at"])
+    if entry.get("yearly_at"):
+        return "yearly " + str(entry["yearly_at"])
     mins = entry.get("every_minutes")
     hours = entry.get("every_hours")
     if mins is not None:
@@ -89,6 +95,12 @@ def _trigger_label(entry: dict) -> str:
         return f"at {entry['at']}"
     if entry.get("daily_at"):
         return f"daily_at {entry['daily_at']}"
+    if entry.get("weekly_at"):
+        return f"weekly_at {entry['weekly_at']}"
+    if entry.get("monthly_at"):
+        return f"monthly_at {entry['monthly_at']}"
+    if entry.get("yearly_at"):
+        return f"yearly_at {entry['yearly_at']}"
     if entry.get("every_minutes") is not None:
         return f"every_minutes {entry['every_minutes']}"
     if entry.get("every_hours") is not None:
@@ -96,8 +108,48 @@ def _trigger_label(entry: dict) -> str:
     return "—"
 
 
-TRIGGER_KEYS = ("every_minutes", "every_hours", "daily_at", "at")
+TRIGGER_KEYS = ("every_minutes", "every_hours", "daily_at", "at",
+                "weekly_at", "monthly_at", "yearly_at")
 INT_TRIGGER_KEYS = ("every_minutes", "every_hours")
+
+# Format validators for the new time-spec triggers. Each returns None when the value is
+# acceptable, else a human-readable complaint the tool surfaces verbatim. Parse rules are
+# mirrored in runtime/scheduler.py (_parse_dom_hm/_parse_mm_dd_hm) -- keep in lockstep.
+def _check_spec(key, val):
+    import scheduler as _sched  # runtime/ is on sys.path above
+    try:
+        if key == "weekly_at":
+            dpart, hm = str(val).strip().split(":", 1)
+            int(dpart)
+            hh, mm = (int(x) for x in hm.split(":"))
+            assert 0 <= int(dpart) <= 6 and 0 <= hh <= 23 and 0 <= mm <= 59
+        elif key == "monthly_at":
+            dd, hh, mm = _sched._parse_dom_hm(str(val))
+            assert 1 <= dd <= 31 and 0 <= hh <= 23 and 0 <= mm <= 59
+        elif key == "yearly_at":
+            mon, dd, hh, mm = _sched._parse_mm_dd_hm(str(val))
+            assert 1 <= mon <= 12 and 1 <= dd <= 31 and 0 <= hh <= 23 and 0 <= mm <= 59
+    except Exception:
+        want = {"weekly_at": "D:HH:MM (0=Sun..6)", "monthly_at": "DD HH:MM",
+                "yearly_at": "MM-DD HH:MM"}[key]
+        return f"bad {key} value {val!r}, expected {want}"
+    return None
+
+
+APPROVAL_LEVELS = ("full", "review", "manual")
+
+
+def _check_overrides(args):
+    """Validate the optional per-entry execution overrides; returns complaint or None."""
+    if args.get("approval") not in (None, "") and args["approval"] not in APPROVAL_LEVELS:
+        return f"approval must be one of {APPROVAL_LEVELS}"
+    roots = args.get("roots")
+    if roots not in (None, "") and not (isinstance(roots, list) and all(isinstance(r, str) and r.strip() for r in roots)):
+        return "roots must be a list of path strings"
+    model = args.get("model")
+    if model not in (None, "") and not isinstance(model, str):
+        return "model must be a string (a model id from the model list, empty = follow chat)"
+    return None
 
 
 class ScheduleServer(McpServerBase):
@@ -105,17 +157,27 @@ class ScheduleServer(McpServerBase):
     tools = [
         {"name": "list", "description": "List the daemon's schedule entries (name, trigger, next fire) for the panel",
          "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "add", "description": "Add a schedule entry (takes effect immediately in --serve mode; on daemon restart in bare --daemon mode): name, task, and exactly one of every_minutes/every_hours/daily_at/at",
+        {"name": "add", "description": "Add a schedule entry (takes effect immediately in --serve mode; on daemon restart in bare --daemon mode): name, task, and exactly one of every_minutes/every_hours/daily_at/weekly_at/monthly_at/yearly_at/at, plus optional roots (list), approval (full/review/manual), model (empty = follow chat selection)",
          "inputSchema": {"type": "object", "properties": {
             "name": {"type": "string"}, "task": {"type": "string"},
             "every_minutes": {"type": "integer"}, "every_hours": {"type": "integer"},
-            "daily_at": {"type": "string"}, "at": {"type": "string"}},
+            "daily_at": {"type": "string"}, "at": {"type": "string"},
+            "weekly_at": {"type": "string"}, "monthly_at": {"type": "string"},
+            "yearly_at": {"type": "string"},
+            "roots": {"type": "array", "items": {"type": "string"}},
+            "approval": {"type": "string", "enum": ["full", "review", "manual"]},
+            "model": {"type": "string"}},
             "required": ["name", "task"]}},
-        {"name": "update", "description": "Update a schedule entry by name (destructive when renaming; takes effect immediately in --serve mode): name locates the entry; optional new_name, task, and at most one of every_minutes/every_hours/daily_at/at (a provided trigger REPLACES the entry's whole trigger)",
+        {"name": "update", "description": "Update a schedule entry by name (destructive when renaming; takes effect immediately in --serve mode): name locates the entry; optional new_name, task, at most one trigger (a provided trigger REPLACES the entry's whole trigger), and optional roots/approval/model (provide a value to CHANGE it, provide the sentinel \"-\" to CLEAR it back to the default)",
          "inputSchema": {"type": "object", "properties": {
             "name": {"type": "string"}, "new_name": {"type": "string"}, "task": {"type": "string"},
             "every_minutes": {"type": "integer"}, "every_hours": {"type": "integer"},
-            "daily_at": {"type": "string"}, "at": {"type": "string"}},
+            "daily_at": {"type": "string"}, "at": {"type": "string"},
+            "weekly_at": {"type": "string"}, "monthly_at": {"type": "string"},
+            "yearly_at": {"type": "string"},
+            "roots": {"type": "array", "items": {"type": "string"}},
+            "approval": {"type": "string", "enum": ["full", "review", "manual"]},
+            "model": {"type": "string"}},
             "required": ["name"]}},
         {"name": "remove", "description": "Remove a schedule entry by name (destructive: takes effect immediately in --serve mode)",
          "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}},
@@ -135,7 +197,9 @@ class ScheduleServer(McpServerBase):
                 out.append(json.dumps({
                     "name": e.get("name", ""), "trigger": _trigger_label(e),
                     "next": _next_fire(e), "task": (e.get("task") or "")[:80],
-                    "last_run": lr, "consumed": e.get("name", "") in state.get("consumed_oneshots", [])},
+                    "last_run": lr, "consumed": e.get("name", "") in state.get("consumed_oneshots", []),
+                    "roots": e.get("roots") or [], "approval": e.get("approval") or "review",
+                    "model": e.get("model") or ""},
                     ensure_ascii=False))
             return "\n".join(out)
         if name == "add":
@@ -146,10 +210,24 @@ class ScheduleServer(McpServerBase):
             # exactly one trigger must be present (mirror scheduler semantics)
             trig = {k: args[k] for k in TRIGGER_KEYS if args.get(k) not in (None, "")}
             if len(trig) != 1:
-                return "provide exactly one of: every_minutes, every_hours, daily_at, at"
+                return "provide exactly one of: every_minutes, every_hours, daily_at, at, weekly_at, monthly_at, yearly_at"
+            for k, v in trig.items():
+                if k not in INT_TRIGGER_KEYS:
+                    bad = _check_spec(k, v)
+                    if bad:
+                        return bad
+            bad = _check_overrides(args)
+            if bad:
+                return bad
             if any(e.get("name") == nm for e in entries):
                 return f"an entry named {nm!r} already exists"
             entry = {"name": nm, "task": task, **trig}
+            if args.get("roots"):
+                entry["roots"] = [str(r).strip() for r in args["roots"]]
+            if args.get("approval"):
+                entry["approval"] = str(args["approval"]).strip()
+            if (args.get("model") or "").strip():
+                entry["model"] = str(args["model"]).strip()
             entries.append(entry)
             cfg.setdefault("schedule", {})["entries"] = entries
             _save_cfg(cfg)
@@ -162,10 +240,11 @@ class ScheduleServer(McpServerBase):
             new_name = (args.get("new_name") or "").strip()
             new_task = (args.get("task") or "").strip()
             trig_present = [k for k in TRIGGER_KEYS if args.get(k) not in (None, "")]
-            if not new_name and not new_task and not trig_present:
-                return "nothing to update (provide new_name, task, or a trigger field)"
+            override_present = [k for k in ("roots", "approval", "model") if args.get(k) is not None]
+            if not new_name and not new_task and not trig_present and not override_present:
+                return "nothing to update (provide new_name, task, a trigger field, or an override)"
             if len(trig_present) > 1:
-                return "provide at most one of: every_minutes, every_hours, daily_at, at"
+                return "provide at most one of: every_minutes, every_hours, daily_at, at, weekly_at, monthly_at, yearly_at"
             if new_name and new_name != nm and any(e.get("name") == new_name for e in entries):
                 return f"an entry named {new_name!r} already exists"
             # apply task
@@ -178,6 +257,33 @@ class ScheduleServer(McpServerBase):
                     entry.pop(tk, None)
                 val = args[k]
                 entry[k] = int(val) if k in INT_TRIGGER_KEYS else str(val).strip()
+            # apply execution overrides: provide a value to CHANGE, provide "-" to CLEAR
+            # back to default. An absent key leaves the existing value alone -- the panel
+            # sends the full form state on every save, so this only guards manual calls.
+            for k in ("approval", "model"):
+                if args.get(k) is not None:
+                    v = str(args[k]).strip()
+                    if v == "-":
+                        entry.pop(k, None)
+                    else:
+                        entry[k] = v
+            if args.get("roots") is not None:
+                r = args["roots"]
+                if r == "-":
+                    entry.pop("roots", None)
+                elif isinstance(r, list):
+                    if r:
+                        entry["roots"] = [str(x).strip() for x in r]
+                    else:
+                        entry.pop("roots", None)
+            bad = _check_overrides({k: entry[k] for k in ("roots", "approval", "model") if k in entry})
+            if bad:
+                return bad
+            for k in trig_present:
+                if k not in INT_TRIGGER_KEYS:
+                    bad = _check_spec(k, args[k])
+                    if bad:
+                        return bad
             # apply rename + migrate persisted state (last_run / consumed) so history follows the new name
             if new_name and new_name != nm:
                 state = _load_state()
