@@ -99,7 +99,7 @@
   "schedule": {
     "entries": [
       {
-        "name": "daily-git-bundle-backup",
+        "name": "每日代码备份",
         "task": "cd /d \"E:\\星云\\星云智能体\\strata-agent\" && python tools\\backup-bundle.py --keep 14",
         "daily_at": "03:30"
       }
