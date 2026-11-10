@@ -179,7 +179,7 @@ setTheme(document.documentElement.dataset.theme || "dark", false);
 let tab = "chat";
 let inspectorOpen = store.get("inspector.open", true);   // declared early: applyInspector() runs before this line's original spot
 function showTab(name) {
-  tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug"].includes(name) ? name : "chat";
+  tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "schedule"].includes(name) ? name : "chat";
   // the left sidebar (task list) shows on chat / spark / debug; every other tab lets
   // the view take the full width. The class is added for the full-width tabs (never
   // removed by default), so a JS-less first paint still shows the sidebar — fail
@@ -187,7 +187,7 @@ function showTab(name) {
   // class in CSS:630 on purpose — a visible sidebar should ship with its resize handle.
   document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark" && tab !== "debug");
   for (const b of document.querySelectorAll(".st-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
-  for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug"]) $(`view-${v}`).hidden = v !== tab;
+  for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "schedule"]) $(`view-${v}`).hidden = v !== tab;
   if (tab === "images") $("img-prompt").focus();
   if (location.hash.slice(1) !== tab) history.replaceState(null, "", tab === "chat" ? location.pathname : `#${tab}`);
   if (tab === "chat") $("input").focus();
@@ -197,6 +197,7 @@ function showTab(name) {
   if (tab === "memory") { renderMemory(); applyMemSubTab(); }
   if (tab === "debug") { renderDebug(); renderGatewayDebug(); renderBugBox(); renderRecycle(); applyDebugSubTab(); }
   if (tab === "spark") renderSpark();
+  if (tab === "schedule") renderSchedule();
   if (lastMetrics) render(lastMetrics);
   applyInspector();
   if (tab === "chat" || tab === "spark") renderInspector();
@@ -9277,17 +9278,31 @@ $("img-form").onsubmit = async (ev) => {
 };
 
 // ------------------------------------------------------------------ P3-2: Schedule panel
+// schedule/list answers with one JSON object per line. The MCP proxy (mcpCall) parses a
+// SINGLE-line answer straight into an object and a MULTI-line answer into {text}, so we go
+// through mcpCall and normalise all three shapes here -- a lone entry must render too
+// (the old split-on-\n path lost single-entry lists). Returns [] for none.
+async function schedEntries() {
+  const d = await mcpCall("schedule", "list", {});
+  if (!d || typeof d !== "object") return [];
+  if (d.name != null) return [d];
+  const s = String(d.text == null ? "" : d.text);
+  if (!s || s === "no schedule entries") return [];
+  return s.split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+}
 async function loadSchedule() {
-  if (!mcpInfo.tools) return;
+  if (!mcpInfo.tools) {
+    // loadMcp is async at startup; mcpInfo.tools may still be 0 when this first runs.
+    // Retry once shortly instead of silently leaving the panel empty (the old race).
+    if (!loadSchedule._retry) {
+      loadSchedule._retry = setTimeout(() => { loadSchedule._retry = null; loadSchedule(); }, 1500);
+    }
+    return;
+  }
   const list = $("schedule-list");
   try {
     // schedule/list answers with one JSON object per line (or "no schedule entries")
-    const text = await mcpText("schedule", "list", {});
-    if (!text || text === "no schedule entries") {
-      list.innerHTML = '<div class="sched-row muted">' + t("sched.none") + '</div>';
-      return;
-    }
-    const entries = text.split("\n").filter(Boolean).map((line) => { try { return JSON.parse(line); } catch (e) { return null; } }).filter(Boolean);
+    const entries = await schedEntries();
     if (!entries.length) { list.innerHTML = '<div class="sched-row muted">' + t("sched.none") + '</div>'; return; }
     list.innerHTML = entries.map((e) => `<div class="sched-row">` +
       `<span class="sched-row__name" title="${esc(e.task || "")}">${esc(e.name)}</span>` +
@@ -9298,8 +9313,58 @@ async function loadSchedule() {
   } catch (e) { list.innerHTML = '<div class="sched-row muted">' + t("sched.loadfailed") + '</div>'; }
 }
 
+// Editing state: the original name of the entry being edited (null = create mode).
+let schedEditing = null;
+function schedResetForm() {
+  schedEditing = null;
+  $("sched-name").value = ""; $("sched-task").value = ""; $("sched-value").value = "";
+  $("sched-mode").value = "every_minutes";
+  schedApplyLabel();
+}
+function schedApplyLabel() {
+  $("sched-apply").textContent = t(schedEditing ? "sched.apply.update" : "sched.apply");
+}
+// Render the SCHEDULE tab's main management list (#sched-view-list). Named renderSchedule
+// so the language-switch hook (typeof renderSchedule === "function") repaints it too.
+async function renderSchedule() {
+  if (!mcpInfo.tools) return;
+  const box = $("sched-view-list");
+  if (!box) return;
+  try {
+    const entries = await schedEntries();
+    if (!entries.length) { box.innerHTML = '<div class="sched-row muted">' + t("sched.none") + '</div>'; return; }
+    box.innerHTML = entries.map((e) => `<div class="sched-row">` +
+      `<span class="sched-row__name" title="${esc(e.task || "")}">${esc(e.name)}</span>` +
+      `<span class="sched-row__trigger">${esc(e.trigger)}</span>` +
+      `<span class="sched-row__next">${esc(e.next)}</span>` +
+      `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-edit="${esc(e.name)}" aria-label="${esc(t("sched.edit"))}" title="${esc(t("sched.edit"))}">${icon("edit")}</button>` +
+      `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-del="${esc(e.name)}" aria-label="${esc(t("attach.remove"))}" title="${esc(t("attach.remove"))}">${icon("trash")}</button></div>`).join("");
+  } catch (e) { box.innerHTML = '<div class="sched-row muted">' + t("sched.loadfailed") + '</div>'; }
+}
+// Load the entry into the form for editing; null = create mode.
+// Open the create/edit form. The list lives on the Schedule TAB now, so this modal is
+// form-only; after a submit we refresh both the tab list and the sidebar quick-view.
+async function openSchedModal(name) {
+  $("sched-modal").hidden = false;
+  schedResetForm();
+  if (!name) { $("sched-name").focus(); return; }
+  schedEditing = name;
+  schedApplyLabel();
+  try {
+    const e = (await schedEntries()).find((x) => x.name === name);
+    if (!e) return;
+    $("sched-name").value = e.name || "";
+    $("sched-task").value = e.task || "";
+    const modeMap = {every_minutes: "every_minutes", every_hours: "every_hours", daily_at: "daily_at", at: "at"};
+    const parts = (e.trigger || "").split(" ");
+    $("sched-mode").value = modeMap[parts[0]] || "every_minutes";
+    $("sched-value").value = (parts[1] || "").replace(/\s*\(one-shot\)$/, "");
+    $("sched-name").focus();
+  } catch (e) { /* leave blank */ }
+}
 $("schedule-panel").addEventListener("click", async (e) => {
   const del = e.target.closest("[data-sched-del]");
+  const ed  = e.target.closest("[data-sched-edit]");
   if (del) {
     const nm = del.dataset.schedDel;
     if (!confirm(t("sched.del.confirm", {nm}))) return;
@@ -9307,10 +9372,31 @@ $("schedule-panel").addEventListener("click", async (e) => {
       await mcpCall("schedule", "remove", {name: nm});   // throws when the tool fails
       loadSchedule();
     } catch (e2) { toast("error", t("toast.removefailed.title"), e2.message, 4000); }
+  } else if (ed) {
+    await openSchedModal(ed.dataset.schedEdit);
+  } else if (e.target.closest("#schedule-add")) {
+    // the + button has its own onclick (new-schedule modal); do not double-fire here
+  } else if (e.target.closest(".kb-panel__head")) {
+    await showTab("schedule");   // clicking the panel title jumps to the schedule tab
   }
 });
 
-$("schedule-add").onclick = () => { $("sched-modal").hidden = false; $("sched-name").focus(); };
+$("sched-view-list").addEventListener("click", async (e) => {
+  const del = e.target.closest("[data-sched-del]");
+  const ed  = e.target.closest("[data-sched-edit]");
+  if (del) {
+    const nm = del.dataset.schedDel;
+    if (!confirm(t("sched.del.confirm", {nm}))) return;
+    try { await mcpCall("schedule", "remove", {name: nm}); await renderSchedule(); loadSchedule(); }
+    catch (e2) { toast("error", t("toast.removefailed.title"), e2.message, 4000); }
+  } else if (ed) {
+    await openSchedModal(ed.dataset.schedEdit);
+  }
+});
+// + New inside the Schedule tab (the modal is the create/edit form).
+if ($("schedule-new")) $("schedule-new").onclick = () => { openSchedModal(null); };
+
+$("schedule-add").onclick = () => { openSchedModal(null); };
 $("sched-close").onclick = () => { $("sched-modal").hidden = true; };
 $("sched-modal").addEventListener("click", (e) => { if (e.target.id === "sched-modal") $("sched-modal").hidden = true; });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("sched-modal").hidden) $("sched-modal").hidden = true; });
@@ -9327,13 +9413,30 @@ $("sched-apply").onclick = async () => {
   else if (mode === "daily_at") args.daily_at = value;
   else if (mode === "at") args.at = value;
   try {
-    const msg = await mcpText("schedule", "add", args) || "Added";
-    toast("success", t("toast.schedadded.title"), msg);
+    let msg;
+    if (schedEditing) {
+      // update mode: locate by original name, carry the (possibly renamed) new values
+      const upd = {name: schedEditing, new_name: name, task: task};
+      if (mode === "every_minutes") upd.every_minutes = parseInt(value, 10);
+      else if (mode === "every_hours") upd.every_hours = parseInt(value, 10);
+      else if (mode === "daily_at") upd.daily_at = value;
+      else if (mode === "at") upd.at = value;
+      msg = await mcpText("schedule", "update", upd) || "Updated";
+      toast("success", t("sched.updated.toast"), msg);
+    } else {
+      msg = await mcpText("schedule", "add", args) || "Added";
+      toast("success", t("toast.schedadded.title"), msg);
+    }
     $("sched-modal").hidden = true;
-    $("sched-name").value = ""; $("sched-task").value = ""; $("sched-value").value = "";
-    loadSchedule();
+    schedResetForm();
+    loadSchedule();          // sidebar quick-view
+    renderSchedule();        // Schedule tab main list
   } catch (e2) { toast("error", t("toast.addfailed.title"), e2.message, 4000); }
 };
+
+// Initialize the apply-button label so edit/create mode renders correctly after a language
+// switch (the button carries data-i18n=sched.apply; JS overrides textContent in edit mode).
+schedApplyLabel();
 
 // Trigger placeholder updates on mode change
 $("sched-mode").addEventListener("change", () => {
@@ -9341,7 +9444,8 @@ $("sched-mode").addEventListener("change", () => {
   $("sched-value").placeholder = ph[$("sched-mode").value] || "";
 });
 
-// Load schedule panel on startup (after MCP info is available)
+// Load schedule panel on startup (after MCP info is available). The Schedule TAB list is
+// rendered lazily by showTab; this seeds the sidebar quick-view only.
 loadSchedule();
 
 // ================================================================== P4-3: Right-click context menu on messages & tool blocks
