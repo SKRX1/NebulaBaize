@@ -10024,11 +10024,17 @@ function _arcIO() {
     for (var i = 0; i < entries.length; i++) {
       if (entries[i].isIntersecting) {
         var host = entries[i].target.closest(".arc-hist");
-        if (host) loadArchiveSeg(host);
+        if (host) { loadArchiveSeg(host); autoExpandCard(host); }
       }
     }
-  }, { root: $("chat") || null, threshold: 0 });
+  }, { root: $("chat-scroll") || null, threshold: 0 });
   return window.__arcIO;
+}
+function autoExpandCard(card) {
+  var body = card && card.querySelector(".arc-hist__body"); if (!body) return;
+  var btn = card.querySelector("[data-arc-expand]");
+  body.hidden = false;
+  if (btn) btn.querySelector("span").textContent = t("chat.archive.collapse");
 }
 function mountArchiveCard(el, m) {
   if (el.classList.contains("st-msg--user")) return;
