@@ -93,6 +93,7 @@ SUITES = [
     "tests/test_stream_intel.mjs",
 
     "tests/test_paste_contract.mjs",   # 2026-10-24: paste/mixed-image helpers must be DEFINED and RUN (locks the "only a call site, no definition" ReferenceError bug)
+    "tests/test_schedule_contract.mjs",   # 2026-11: schedule management window (plan B) -- locks the loadSchedule startup-race fix + the single-entry render path + the edit/update helpers (must be DEFINED and RUN)
 
     "tests/test_inline_flow.mjs",   # 2026-10-31: mixed text+image bubble keeps the typed layout (inlineFlow: single line in -> one line out)
 

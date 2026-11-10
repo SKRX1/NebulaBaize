@@ -1,8 +1,15 @@
-/* Static + jsdom lock (2026-10-30): the 8 top-bar tabs and their 8 view panels must stay
- * SAME-LEVEL siblings, with the aria pairing intact, so a future tab addition cannot ship
- * un-paired. A static tag-stack parse can be fooled when the HTML parser un-nests a button
- * inside a button -- jsdom's REAL parse is what settles the level question, so the lock
- * boots index.html and walks parentElement chains.
+/* Static + jsdom lock (2026-10-30): the top-bar tabs and their view panels (count grows as
+ * tabs are added -- do NOT hard-code 8; this test is count-agnostic) must stay SAME-LEVEL
+ * siblings, with the aria pairing intact, so a future tab addition cannot ship un-paired.
+ * A static tag-stack parse can be fooled when the HTML parser un-nests a button inside a
+ * button -- jsdom's REAL parse is what settles the level question, so the lock boots
+ * index.html and walks parentElement chains.
+ * ADDING A TOP TAB = THREE PLACES THAT MUST MOVE TOGETHER (2026-11 rule, schedule tab taught
+ * this the hard way): (1) index.html tab button data-tab, (2) index.html view panel id + the
+ * aria-controls/aria-labelledby pair, (3) app.js showTab whitelist. Miss the whitelist and the
+ * tab silently bounces back to chat -- L4 below locks all three sets agreeing. NOTE: showTab
+ * ALSO has a visibility for-of array (the 4th load-bearing place, NOT directly locked by L4);
+ * if a tab is whitelisted but missing there its view stays hidden on the default-hidden markup.
  * Contract:
  *   L1  every .st-tab button is a DIRECT child of nav[role=tablist] (count >= 8, all paired)
  *   L2  every view panel is a DIRECT child of <main>

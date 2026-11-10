@@ -28,6 +28,7 @@
       "tab.monitor": "监控",
       "tab.tools": "工具",
       "tab.about": "关于",
+      "tab.schedule": "定时任务",
       /* ── Notes (便签) ── */
       "tab.spark": "便签",
       "spark.subtitle": "AI 忙时随手记下亮点想法，等它空闲时按需推给它执行。",
@@ -90,7 +91,7 @@
       "side.noworkspace": "未设置工作区",
       "side.schedule": "定时任务",
       "side.sched.add": "新建定时任务",
-      "side.sched.note": "增删操作在调度守护进程重启后生效。",
+      "side.sched.note": "增删改即时生效（运行中的调度服务会实时重载）。",
       /* sidebar tree: workspace (parent) → tasks (children) */
       "side.more": "更多操作",
       "side.renamews": "重命名空间",
@@ -605,7 +606,7 @@
 
       /* ── Schedule modal ── */
       "sched.title": "新建定时任务",
-      "sched.desc": "定时执行的任务。在调度守护进程重启后生效。",
+      "sched.desc": "定时执行的任务。运行中的调度服务会即时加载。",
       "sched.name": "名称",
       "sched.name.ph": "每日报告",
       "sched.task": "任务内容（要执行什么）",
@@ -616,6 +617,9 @@
       "sched.daily_at": "每天 HH:MM",
       "sched.at": "指定日期时间执行一次",
       "sched.apply": "添加定时任务",
+      "sched.apply.update": "保存修改",
+      "sched.edit": "编辑/重命名",
+      "sched.updated.toast": "定时任务已更新",
 
       /* ── Approval modal ── */
       "appr.title": "需要确认",
@@ -1216,7 +1220,7 @@
       "toast.ingest.fail": "摄入失败：{name}",
       /* ── 确认框 ── */
       "mem.kb.del.source.confirm": "从知识库删除源文件「{src}」？",
-      "sched.del.confirm": "删除定时任务「{nm}」？重启守护进程后生效。",
+      "sched.del.confirm": "删除定时任务「{nm}」？此操作立即生效。",
       "mcp.err.toolcall": "工具调用失败",
     },
 
@@ -1228,6 +1232,7 @@
       "tab.monitor": "Monitor",
       "tab.tools": "Tools",
       "tab.about": "About",
+      "tab.schedule": "Schedule",
       /* ── Notes (便签) ── */
       "tab.spark": "Notes",
       "spark.subtitle": "Jot down bright ideas while the AI is busy; push them to it when it's idle.",
@@ -1290,7 +1295,7 @@
       "side.noworkspace": "No workspace",
       "side.schedule": "Schedule",
       "side.sched.add": "New schedule",
-      "side.sched.note": "Add / remove take effect when the scheduler daemon restarts.",
+      "side.sched.note": "Add / edit / remove take effect immediately (the running scheduler live-reloads).",
       /* sidebar tree: workspace (parent) → tasks (children) */
       "side.more": "More actions",
       "side.renamews": "Rename workspace",
@@ -1775,7 +1780,7 @@
 
       /* ── Schedule modal ── */
       "sched.title": "New schedule",
-      "sched.desc": "A task the agent runs on a schedule. Takes effect when the scheduler daemon restarts.",
+      "sched.desc": "A task the agent runs on a schedule. The running scheduler loads it immediately.",
       "sched.name": "Name",
       "sched.name.ph": "daily report",
       "sched.task": "Task (what to run)",
@@ -1786,6 +1791,9 @@
       "sched.daily_at": "Daily at HH:MM",
       "sched.at": "One-shot at date/time",
       "sched.apply": "Add schedule",
+      "sched.apply.update": "Save changes",
+      "sched.edit": "Edit / rename",
+      "sched.updated.toast": "Schedule updated",
 
       /* ── Approval modal ── */
       "appr.title": "Approval Required",
@@ -2383,7 +2391,7 @@
       "toast.ingest.msg": "File processed",
       "toast.ingest.fail": "Ingest failed: {name}",
       "mem.kb.del.source.confirm": "Delete source \"{src}\" from knowledge base?",
-      "sched.del.confirm": "Remove schedule \"{nm}\"? Takes effect on daemon restart.",
+      "sched.del.confirm": "Remove schedule \"{nm}\"? This takes effect immediately.",
       "mcp.err.toolcall": "the tool call failed",
     },
   };

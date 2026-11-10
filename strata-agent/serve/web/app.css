@@ -1368,3 +1368,11 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .recycle-chips { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .recycle-chips .spark-toolbar__check { font-size: 12px; }
 #recycle-bin .mem-kb-item{content-visibility:auto;contain-intrinsic-size:auto 32px}
+
+/* Schedule management window list: action buttons always visible (unlike the sidebar
+ * quick-view where they appear on hover). Its own column layout fits two icon buttons. */
+.sched-manage-list { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 12px;
+  max-height: 38vh; overflow-y: auto; }
+.sched-manage-list .sched-row { grid-template-columns: minmax(0,1fr) 92px 84px 26px 26px; }
+.sched-manage-list .sched-row .st-btn--icon { visibility: visible; }
+.sched-manage-list .sched-row .st-btn--icon:hover { color: var(--st-accent); }

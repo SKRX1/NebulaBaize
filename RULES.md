@@ -78,3 +78,6 @@ tools/ 目录有临时脚本清理机制（_*.py 跑完即被送回收站）：�
 判断 git index 真实行尾：i/crlf|i/lf 表 git 规范化存储按该值写回；i/-text 表 git 按字节原样存(不规范化)，工作树 w/crlf 即 index 真为 CRLF 字节；行尾污染恢复法 git checkout HEAD -- <file> + 二进制读 + 精确插行(新行用原文件行尾)，勿在 CRLF/LF 间反复猜
 调度器融合 serve：纯 stdlib Scheduler 核心循环(run/due)零改动，新增 runtime/scheduler_host.py 做包装层（每tick磁盘reload实现热重载、idle_gate.wait实现busy排队、分片睡眠实现可中断），靠注入 clock/sleep/load_entries/run_task 离线测
 交互忙闸用 GatewayState._active 计数 + _idle Event：begin_interaction 在 _agent_stream 顶层try首行、end_interaction 在同try的finally，严格配对防 setup 抛异常泄漏 _active
+python 锚点编辑脚本：锚点字符串里出现 JS 字面 `\n`（如 `split("\n")`）时，Python 普通字符串会把 `\n` 解析成真换行导致 count=0——含反斜杠的锚点/new 块统一用 raw string（r'''...'''），raw 下 `\n` 即字面反斜杠n
+jsdom 契约测试里 app.js 顶层 let/const（如 mcpInfo/t/编辑态）跨 win.eval 不可见（每个 eval 独立作用域）——所有 realm-internal 状态必须在同一个 boot eval 里用闭包暴露到 window.__api
+本前端加顶部标签页必须三处同步：index.html tab按钮+view section配对(aria-controls/labelledBy)、app.js showTab 顶部 whitelist 数组、showTab 可见性 for-of 数组——test_nav_tabs_level.mjs 的 L4 会锁死三集一致，漏任一处即红

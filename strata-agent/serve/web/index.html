@@ -82,6 +82,8 @@
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-layers"/></svg><span data-i18n="tab.tools">Tools</span></button>
     <button class="st-tab" role="tab" id="tab-btn-memory" aria-controls="view-memory" aria-selected="false" data-tab="memory">
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-bookmark"/></svg><span data-i18n="tab.memory">Memory</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-schedule" aria-controls="view-schedule" aria-selected="false" data-tab="schedule">
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-clock"/></svg><span data-i18n="tab.schedule">Schedule</span></button>
     <button class="st-tab" role="tab" id="tab-btn-monitor" aria-controls="view-monitor" aria-selected="false" data-tab="monitor">
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-activity"/></svg><span data-i18n="tab.monitor">Monitor</span></button>
     <button class="st-tab" role="tab" id="tab-btn-about" aria-controls="view-about" aria-selected="false" data-tab="about">
@@ -632,6 +634,17 @@
   </section>
 
   <!-- ============================ About ============================ -->
+  <section class="view view--schedule view--scroll" id="view-schedule" role="tabpanel" aria-labelledby="tab-btn-schedule" hidden>
+    <div class="st-card">
+      <div class="adm-head">
+        <span class="card-title" data-i18n="side.schedule">Schedule</span>
+        <button class="st-btn st-btn--secondary adm-mini" id="schedule-new" title="New schedule" data-i18n-attr="title:side.sched.add">
+          + New</button>
+      </div>
+      <p class="muted small" data-i18n="side.sched.note"></p>
+      <div id="sched-view-list"></div>
+    </div>
+  </section>
   <section class="view view--about view--scroll" id="view-about" role="tabpanel" aria-labelledby="tab-btn-about" hidden>
     <div class="about">
       <div class="st-card">
