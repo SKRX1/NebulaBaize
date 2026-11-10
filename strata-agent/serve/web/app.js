@@ -5150,6 +5150,29 @@ async function renderArchiveManager() {
       '<pre class="mem-src-body" hidden></pre></div>';
   }).join("");
 }
+// plan-B+: when archiveOn is switched OFF (on save), sweep the cold-archive *.md
+// to the Windows Recycle Bin (recoverable) behind a confirm, then refresh the panel.
+async function archiveOnOffSweep() {
+  const s0 = activeSession();
+  const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
+  if (!ws) return;
+  const dir = ws + "/.strata-archive";
+  let files = [];
+  try {
+    const raw = await mcpTxt("filesystem", "list", { path: dir });
+    files = raw.split("\n").map((x) => x.trim()).filter(Boolean).filter((f) => /^ar_[a-z0-9]+\.md$/i.test(f));
+  } catch (e) { files = []; }
+  if (!files.length) { renderArchiveManager(); return; }
+  if (!confirm(t("drawer.archive.off.confirm", { n: String(files.length) }))) {
+    renderArchiveManager(); return;
+  }
+  const paths = files.map((f) => dir + "/" + f);
+  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
+  const j = await r.json();
+  if (j && j.error) { toast("error", t("recycle.err"), esc(j.error.message || ""), 4000); }
+  else { toast("success", (j && j.trashed && j.trashed.length) ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"), "", 2500); }
+  renderArchiveManager();
+}
 $("archive-mgr-refresh").onclick = () => renderArchiveManager();
 $("archive-mgr-list").addEventListener("click", async (e) => {
   const view = e.target.closest("[data-arc-view]");
@@ -9012,6 +9035,7 @@ $("s-apply").onclick = async () => {
   const _tm = normThink(sel && sel.dataset.v) || "high";
   const _ts = activeSession();
   if (_ts) { _ts.thinking = _tm; saveSessions(); renderSessions(); }
+  const _oldArchiveOn = settings.archiveOn;   // plan-B+: the value BEFORE this save
   settings = {thinking: _tm, temperature: +$("s-temp").value, top_p: +$("s-topp").value,
               top_k: +$("s-topk").value, max: $("s-max").value.trim(), maxCeiling: $("s-ceiling").value.trim(), seed: $("s-seed").value.trim(),
               thinkBudget: $("s-thinkbudget").value.trim(), answerFloor: $("s-answerfloor").value.trim(),
@@ -9040,6 +9064,8 @@ $("s-apply").onclick = async () => {
               designLang: $("s-designlang").value || "auto",
               persona: $("s-persona").value.trim()};
   store.set("sampling", settings);
+  // plan-B+: turning archiveOff on SAVE -> sweep existing cold archives to Recycle Bin.
+  if (_oldArchiveOn && settings.archiveOn === false) { archiveOnOffSweep(); }
   const share = $("s-share").getAttribute("aria-checked") === "true";
   openDrawer(false);
   if (share || sharedOn) {
