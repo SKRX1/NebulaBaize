@@ -9239,9 +9239,11 @@ if (_bugDrawerEl && !_bugDrawerEl._bugWired) {
 setBusy(false);
 renderChat();
 const startQuestion = new URLSearchParams(location.search).get("q");   // /?q=... starts a chat (a shortcut)
+const startModal = new URLSearchParams(location.search).get("modal");   // read BEFORE the replaceState below blanks location.search
 if (startQuestion) history.replaceState(null, "", location.pathname + location.hash);
 loadHealth().then(loadMcp).then(() => { if (startQuestion) { ceSetText($("input"), startQuestion); send(); } });
 showTab(location.hash.slice(1) || "chat");
+if (startModal === "sched") setTimeout(() => openSchedModal(null), 0);   // ?modal=sched deep-links the create modal (headless-screenshot reachable; deferred one task = after top-level let/const are initialized, TDZ)
 poll();
 
 // ------------------------------------------------------------------ images (POST /v1/images/generations)

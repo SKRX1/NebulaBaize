@@ -175,6 +175,28 @@ for (const name of ["openSchedModal", "renderSchedule", "schedResetForm", "sched
   await idle();
   check("click on the title jumps to the schedule tab", api.getTab() === "schedule");
 
+  // --- 7) ?modal=sched deep-link hook (2026-11): the create modal must be reachable by URL ---
+  // Why: the headless screenshot tool renders a page by URL only (no click), so the modal
+  // state was pixel-unreachable. A boot whose URL carries ?modal=sched must open the modal
+  // on load; a boot without it must NOT. Two clean full boots (query is fixed at construct).
+  function bootWithQuery(query) {
+    const d = new JSDOM(html, { url: "http://127.0.0.1/" + (query || ""), runScripts: "outside-only" });
+    const w = d.window;
+    w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+    if (typeof w.requestAnimationFrame !== "function") w.requestAnimationFrame = (cb) => setTimeout(() => cb(0), 0);
+    w.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
+    if (!w.document.getElementById("toasts")) { const td = w.document.createElement("div"); td.id = "toasts"; w.document.body.appendChild(td); }   // mirror the main boot (startup seg needs it)
+    w.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
+    w.eval(src + "\n;window.__boot = { modal: () => document.getElementById(\"sched-modal\") };");
+    return w;
+  }
+  const wHook = bootWithQuery("?modal=sched");
+  await new Promise((r) => setTimeout(r, 30));
+  check("?modal=sched opens the create modal on load", wHook.__boot.modal().hidden === false);
+  const wPlain = bootWithQuery("");
+  await new Promise((r) => setTimeout(r, 30));
+  check("no query keeps the modal closed (the hook is the only opener)", wPlain.__boot.modal().hidden === true);
+
   console.log("\nREGRESSION: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
   process.exit(FAILURES.length ? 1 : 0);
 })();
