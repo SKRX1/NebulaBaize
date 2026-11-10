@@ -3938,6 +3938,7 @@ function updateAssistant(el, m, streaming) {
   el.querySelector(".meta-text").textContent = m.meta || (streaming ? "" : m.stopped ? t("stat.stopped") : "");
   el.querySelector("[data-msg-copy]").hidden = streaming || !m.text;
   syncFoldBtn(el);
+  mountArchiveCard(el, m);   // plan-A: DOM-only on-demand archived-history card (never touches messages[]/wire)
   if (busy && busy.msg === m) followStream(el, m);        // keep the growing thought / answer in view
 }
 // A finished turn folds itself: every thought is reduced to its one-line summary. This button is the way back
@@ -4205,6 +4206,8 @@ $("chat").addEventListener("click", (e) => {
   // --- Continue: resume a task that hit the MCP tool-round limit ---
   const cont = e.target.closest('[data-action="continue"]');
   if (cont) { continueTask(cont); return; }
+  const ac = e.target.closest("[data-arc-expand]");   // plan-A archive card head toggle
+  if (ac) { toggleArchiveCard(ac.closest(".arc-hist")); return; }
   // --- Next-step chips: click TOGGLES the selection (click again to unselect) ---
   const ns = e.target.closest(".next-step");
   if (ns) {
@@ -10006,3 +10009,60 @@ function migrateSparkDataPid() {
   return changed;
 }
 try { migrateSparkDataPid(); } catch (e) { /* localStorage read failed: skip migration this boot */ }
+
+// ---- plan-A on-demand archived-history card (pure display layer) ----
+// Data is already lossless in .strata-archive/<id>.md (see the compaction rebuild); this is only the
+// render path: extract the pointer from the summary text, show a DOM-only card, and read the body back
+// via fsRead on click / auto at scroll-top. NOTHING is pushed onto messages[] or the wire payload.
+// NO top-level const/let here -- mountArchiveCard is called from updateAssistant which runs during
+// boot before module-level bindings are initialized (TDZ crash seen in jsdom tests). Use function
+// declarations (hoisted) and a lazy IO stored on window.
+function _arcIO() {
+  if (typeof IntersectionObserver === "undefined") return null;
+  if (window.__arcIO) return window.__arcIO;
+  window.__arcIO = new IntersectionObserver(function (entries) {
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i].isIntersecting) {
+        var host = entries[i].target.closest(".arc-hist");
+        if (host) loadArchiveSeg(host);
+      }
+    }
+  }, { root: $("chat") || null, threshold: 0 });
+  return window.__arcIO;
+}
+function mountArchiveCard(el, m) {
+  if (el.classList.contains("st-msg--user")) return;
+  var hay = (m && (m.text || m.content)) || "";
+  var mm = hay.match(/\.strata-archive\/([A-Za-z0-9_]+)\.md/);
+  if (!mm) return;
+  var bubble = el.querySelector(".st-bubble"); if (!bubble) return;
+  if (bubble.querySelector(".arc-hist")) return;        // already mounted (repaint-safe, in-place)
+  var card = document.createElement("div");
+  card.className = "arc-hist"; card.dataset.aid = mm[1];
+  card.innerHTML = `<button class="st-btn st-btn--ghost st-btn--sm arc-hist__head" data-arc-expand>` +
+    `${icon("folder", "st-icon st-icon--xs")}<span>${esc(t("chat.archive.expand"))}</span></button>` +
+    `<div class="arc-hist__note">${esc(t("chat.archive.note"))}</div>` +
+    `<pre class="arc-hist__body" hidden></pre>`;
+  bubble.appendChild(card);
+  var io = _arcIO(); if (io) io.observe(card);           // scroll-top auto-load
+}
+async function loadArchiveSeg(card) {
+  var body = card && card.querySelector(".arc-hist__body"); if (!body) return;
+  if (body.dataset.loaded) return;                       // idempotent: never refetch a loaded segment
+  body.dataset.loaded = "loading";
+  body.hidden = false;
+  body.textContent = t("drawer.archive.loading");
+  var ws = activeSession() ? activeSession().workspace.replace(/\/$/, "") : "";
+  var path = (ws ? ws + "/" : "") + ".strata-archive/" + card.dataset.aid + ".md";
+  var res = await fsRead(path);
+  if (!res) { var fb = (ws ? ws + "/" : "") + ".strata-archive/.trash/" + card.dataset.aid + ".md"; res = await fsRead(fb); }
+  body.textContent = res || t("drawer.archive.unloaded");
+  body.dataset.loaded = "1";
+}
+async function toggleArchiveCard(card) {
+  if (!card) return;
+  var body = card.querySelector(".arc-hist__body"); if (!body) return;
+  var btn = card.querySelector("[data-arc-expand]");
+  if (body.hidden) { await loadArchiveSeg(card); body.hidden = false; if (btn) btn.querySelector("span").textContent = t("chat.archive.collapse"); }
+  else { body.hidden = true; if (btn) btn.querySelector("span").textContent = t("chat.archive.expand"); }
+}

@@ -6124,7 +6124,7 @@ def make_handler(svc: Service):
             out = []
             def add(f, reason):
                 name = f.name
-                wl = name in self.RECYCLE_WHITELIST or ".strata-memory" in str(f)
+                wl = name in self.RECYCLE_WHITELIST or ".strata-memory" in str(f) or ".strata-archive" in str(f)
                 try:
                     st = f.stat()
                 except Exception:
