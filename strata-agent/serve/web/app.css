@@ -1034,6 +1034,17 @@ body.side-collapsed .kb-panel { display: none !important; }
 .sched-row .st-btn--icon { width: 22px; height: 22px; border-radius: 50%; visibility: hidden; flex: none; padding: 0; }
 .sched-row:hover .st-btn--icon { visibility: visible; }
 .sched-row .st-btn--icon .st-icon { width: 13px; height: 13px; }
+
+/* Narrow-sidebar-only two-line layout: name owns the full first row.
+   The 5-col grid above squeezes the 1fr name column to 0 in a 260px sidebar;
+   here name spans both columns and trigger/next/status/button share row 2. */
+#schedule-list .sched-row { grid-template-columns: 1fr auto auto auto;
+  grid-template-areas: "name name name name" "trigger next status btn"; }
+#schedule-list .sched-row__name { grid-area: name; }
+#schedule-list .sched-row__trigger { grid-area: trigger; }
+#schedule-list .sched-row__next { grid-area: next; }
+#schedule-list .sched-row__status { grid-area: status; }
+#schedule-list .sched-row .st-btn--icon { grid-area: btn; }
 #schedule-add { visibility: visible; }
 #schedule-panel { gap: 4px; display: flex; }
 #schedule-panel .kb-panel__head { padding-bottom: 2px; }
