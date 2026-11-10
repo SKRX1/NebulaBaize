@@ -168,6 +168,7 @@ SUITES = [
     "tests/test_recycle_sel_size.mjs",   # 2026-10-30: select-size line (data-size carry, KB/MB adaptive, " . " separator, three-state selall, selall-click refreshes count+size); differential pure-logic, pure-ASCII probes
 
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
+    "tests/test_arc_scrolltop_autoexpand.mjs",   # 2026-11-11: scroll-top auto-expand static lock (root=#chat-scroll load-bearing+hit calls autoExpandCard+reverse differential proves the lock is not decorative)
 
     "tests/test_compose_steps.mjs",   # 2026-10-24: click a suggestion = a decision, not a question (exec prefix + hold confirm branch)
 
