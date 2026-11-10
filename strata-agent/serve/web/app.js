@@ -2908,7 +2908,12 @@ function continueTask(btn) {
     compactConversation(true);
     return;
   }
-  ceSetText($("input"), "继续完成刚才被工具轮数上限截断的任务：接着把剩下的工作做完（不要重复已经做的部分）。");
+  // Resume command must name the REAL reason this turn stopped (not a hardcoded one) --
+  // a gateway-restart stop must not be told it was a tool-round limit. Key is built from the
+  // live cause on m and falls back to the neutral chat.resume.cmd when no specific reason is
+  // recorded (a missing key returns its own name via t(), so the fallback is the neutral path).
+  const resumeReason = m && m.notice && m.notice.code ? m.notice.code : (m && m.gatewayDown ? "gateway_down" : (m && m.truncated ? "truncated" : ""));
+  ceSetText($("input"), t(resumeReason ? "chat.resume.cmd." + resumeReason : "chat.resume.cmd"));
   send();
 }
 

@@ -134,7 +134,7 @@ console.log("\n=== C: i18n keys present in BOTH zh and en blocks + B hard-constr
 
   // Language-agnostic: identify each chat.resume.cmd line by its CONTENT features (not by ASCII/non-ASCII),
   // because the en text legitimately contains an em dash and apostrophes (non-ASCII too). This is the honest lock.
-  const cmdLines = i18.split(/\r?\n/).filter(l => l.includes('chat.resume.cmd'));
+  const cmdLines = i18.split(/\r?\n/).filter(l => l.includes('"chat.resume.cmd":'));  // exact main key; the .<reason> siblings are excluded
   check("there are exactly two chat.resume.cmd entries (zh + en)", cmdLines.length === 2, "count="+cmdLines.length);
 
   // zh one must carry the CJK plan self-check; en one must carry the re-check phrase. Both read from disk truth.
