@@ -1138,7 +1138,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
+                  autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
@@ -4589,6 +4589,12 @@ async function undoAutoMemory(store, scope, added, base, group) {
 //   autoMemory ON  -> straight into the store file (undoable, audited, capped).
 //   autoMemory OFF -> stage a draft for human approval (RULES -> banner; knowledge/experience -> draft file).
 let pendingDrafts = { knowledge: [], experience: [] };   // rules keeps its own `pendingDraft`
+// Plan-A: per-store auto-write gate. RULES uses its own default-ON switch
+// (autoRulesMemory); knowledge/experience stay behind the master autoMemory toggle.
+function autoWriteOn(store) {
+  return store === "rules" ? (settings.autoRulesMemory !== false)
+                            : !!settings.autoMemory;
+}
 async function maybeProposeMemory(m) {
   const s = activeSession();
   if (!s || !s.workspace || !mcpInfo.tools) return;
@@ -4603,7 +4609,7 @@ async function maybeProposeMemory(m) {
     const fresh = entries.filter((e) => !have.has(e));
     if (!fresh.length) continue;                       // nothing new to propose
 
-    if (settings.autoMemory) {
+    if (autoWriteOn(store)) {
       const lineCount = approved.split("\n").map((l) => l.trim()).filter(Boolean).length;
       if (lineCount <= cfg.maxLines) {
         const picked = fresh.filter((e) => e.length <= cfg.maxChars).slice(0, cfg.maxPerTurn);
@@ -8914,6 +8920,7 @@ function loadDrawer(s = settings) {
   $("s-recall").setAttribute("aria-checked", String(s.recall !== false));
   $("s-autolearn").setAttribute("aria-checked", String(!!s.autolearn));
   $("s-automemory").setAttribute("aria-checked", String(!!s.autoMemory));
+  $("s-autorules").setAttribute("aria-checked", String(s.autoRulesMemory !== false));
   $("s-memcompact").setAttribute("aria-checked", String(!!s.memCompactLLM));
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
@@ -9008,6 +9015,7 @@ $("s-share").onclick = () => $("s-share").setAttribute("aria-checked", String($(
 $("s-recall").onclick = () => $("s-recall").setAttribute("aria-checked", String($("s-recall").getAttribute("aria-checked") !== "true"));
 $("s-autolearn").onclick = () => $("s-autolearn").setAttribute("aria-checked", String($("s-autolearn").getAttribute("aria-checked") !== "true"));
 $("s-automemory").onclick = () => $("s-automemory").setAttribute("aria-checked", String($("s-automemory").getAttribute("aria-checked") !== "true"));
+$("s-autorules").onclick = () => $("s-autorules").setAttribute("aria-checked", String($("s-autorules").getAttribute("aria-checked") !== "true"));
 $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked", String($("s-memcompact").getAttribute("aria-checked") !== "true"));
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
 $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", String($("s-archiveon").getAttribute("aria-checked") !== "true"));
@@ -9045,6 +9053,7 @@ $("s-apply").onclick = async () => {
               recall: $("s-recall").getAttribute("aria-checked") === "true",
               autolearn: $("s-autolearn").getAttribute("aria-checked") === "true",
               autoMemory: $("s-automemory").getAttribute("aria-checked") === "true",
+              autoRulesMemory: $("s-autorules").getAttribute("aria-checked") === "true",
               memCompactLLM: $("s-memcompact").getAttribute("aria-checked") === "true",
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",
               autosteps: $("s-autosteps").getAttribute("aria-checked") === "true",

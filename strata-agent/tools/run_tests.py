@@ -386,6 +386,7 @@ SUITES = [
     "tools/_semantic_summarizer_gate.py",   # live-gate: LLM semantic summarizer >= keyword on decision survival (self-skips if upstream down)
 
     "tools/_archive_gate.py",   # deterministic gate: archive write/read zero-loss + whitelist N=3 + default-on (locks the recoverable-archive design)
+    "tools/_autorules_gate.py",  # locks default-ON per-store rules switch + routing + i18n parity (differential-proved)
 
     "tests/test_ctx_denominator.py",   # 2026-10: the gateway denominator == the engine's real n_ctx (no 128K-vs-256K split)
 

@@ -371,7 +371,7 @@ console.log("\n=== H2: workspace rules tier (propose -> draft -> approve) ===");
 
   // H2c: maybeProposeMemory stages a draft via filesystem (autoMemory OFF -> no auto-apply)
   api.setSessions([{ id: "s1", workspace: "/tmp/proj" }]); api.setActiveId("s1"); api.setMcpTools(2);
-  api.setPendingDraft([]); api.setSettings({ autoMemory: false });
+  api.setPendingDraft([]); api.setSettings({ autoMemory: false, autoRulesMemory: false });
   const c3 = { calls: [] };
   win.fetch = async (url, o) => {
     const u = String(url);

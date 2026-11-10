@@ -91,3 +91,5 @@ commit 前先跑 git diff --ignore-cr-at-eol --stat 甄别"换行符假象 vs �
 杀「本会话祖先链」内的进程(gateway/watchdog)不能用同步 shell,会触发 self-suicide guard;须写成 detached 脚本(Start-Process Bypass)跑完写盘报告,再单独读报告
 Start-Process 没有 -ExecutionPolicy 参数,须经 -ArgumentList 逐项传给被启动进程(如 '-NoProfile','-ExecutionPolicy','Bypass','-File',脚本路径)
 重启链脚本放 tools/ 下、运行时用 netstat+CIM 发现 PID(绝不硬编码快照 PID)、ASCII-only 输出写盘报告
+前端唯一权威源是 serve/web/app.js(部署到 Strata-main 已退役,该目录本机不存在),改完硬刷新浏览器即生效,无需额外部署
+i18n 门禁真实脚本是 tests/test_i18n.mjs(node 单跑),不是 tools/test_i18n.js;强制 en/zh 键数一致,新增 key 必须两字典各加一个

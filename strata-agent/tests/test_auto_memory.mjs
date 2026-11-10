@@ -114,6 +114,7 @@ function setup(storeFiles = {}, rules = "") {
   resetDisk(storeFiles);
   api.setSessions([{ id: "s1", workspace: WS }]); api.setActiveId("s1"); api.setMcpTools(2);
   api.setWorkspaceRules(rules); api.setPendingDraft([]);
+  api.setSettings({ ...api.DEFAULTS });   // reset settings to factory default each section (kills cross-section leakage)
 }
 
 // ================================================================ 1. default OFF + prompt truth
@@ -137,7 +138,7 @@ console.log("\n=== 1. default OFF and truthful prompts for all three stores ==="
 console.log("\n=== 2. OFF: proposals stage as drafts, store files untouched ===");
 for (const [fence, store] of [[RULES, "rules"], [KNOW, "knowledge"], [EXP, "experience"]]) {
   setup({ [fileOf(store)]: "existing-line" }, store === "rules" ? "existing-line" : "");
-  api.setSettings({ autoMemory: false });
+  api.setSettings({ autoMemory: false, autoRulesMemory: false });
   await api.maybeProposeMemory(PROPOSE(fence, ["item-one", "item-two"]));
 
   if (store === "rules") {
