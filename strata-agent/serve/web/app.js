@@ -10037,7 +10037,7 @@ function autoExpandCard(card) {
   if (btn) btn.querySelector("span").textContent = t("chat.archive.collapse");
 }
 function mountArchiveCard(el, m) {
-  if (el.classList.contains("st-msg--user")) return;
+  if (!el.classList.contains("st-msg--system")) return;   // only the compaction-summary block mounts a card; tail answers that merely REPEAT the path must not (triple-card fix)
   var hay = (m && (m.text || m.content)) || "";
   var mm = hay.match(/\.strata-archive\/([A-Za-z0-9_]+)\.md/);
   if (!mm) return;

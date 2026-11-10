@@ -169,6 +169,7 @@ SUITES = [
 
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_arc_scrolltop_autoexpand.mjs",   # 2026-11-11: scroll-top auto-expand static lock (root=#chat-scroll load-bearing+hit calls autoExpandCard+reverse differential proves the lock is not decorative)
+    "tests/test_arc_card_single_mount.mjs",   # 2026-11-11: single-card mount static lock (gate keeps ONLY st-msg--system compaction-summary; reverse differential proves it is not decorative -> triple-card fix)
 
     "tests/test_compose_steps.mjs",   # 2026-10-24: click a suggestion = a decision, not a question (exec prefix + hold confirm branch)
 
@@ -198,8 +199,10 @@ SUITES = [
 
     "tests/test_nebula.mjs",
 
-    "tests/test_compact_resume.js",
-
+    "tests/test_compact_resume.js",
+
+
+
     "tests/test_compact_resume_owner.js",  # 2026-11-08: failed compaction keeps resume snapshot (C1) + finalize honors pendingCompactOwner (C2 differential)
 
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)
