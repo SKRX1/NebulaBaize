@@ -93,3 +93,4 @@ Start-Process 没有 -ExecutionPolicy 参数,须经 -ArgumentList 逐项传给�
 重启链脚本放 tools/ 下、运行时用 netstat+CIM 发现 PID(绝不硬编码快照 PID)、ASCII-only 输出写盘报告
 前端唯一权威源是 serve/web/app.js(部署到 Strata-main 已退役,该目录本机不存在),改完硬刷新浏览器即生效,无需额外部署
 i18n 门禁真实脚本是 tests/test_i18n.mjs(node 单跑),不是 tools/test_i18n.js;强制 en/zh 键数一致,新增 key 必须两字典各加一个
+browser__sim 纯沙箱跑大型前端 app.js 会中途崩(缺真 DOM 上下文,顶层 const/let 探针 ReferenceError),只能验 DOM 接线/默认态;行为级契约实测须用 jsdom harness(可 mock fetch 完整跑 propose),二者分工勿混用
