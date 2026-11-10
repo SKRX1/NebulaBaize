@@ -13,6 +13,34 @@ three behaviours the fusion added on top of the pure-stdlib Scheduler:
      turn and never overlaps it.
 
 Run from the strata-agent folder:  python tests/test_scheduler_host.py
+
+LOCK CHEAT-SHEET (host-a..h, added 2026-11-09 so a future edit can locate a lock fast):
+
+  lock    production invariant it locks                                falsify mutation
+  ------  -----------------------------------------------------------  -----------------------
+  host-a  timing loop fires a DUE entry through the run_task callback   (baseline, no mutation)
+  host-b  hot-reload ADD direction: a NEW entry is picked up, no restart  differential D-g keeps
+  host-c  the fired task consults the idle gate BEFORE run_task (order)   this lock GREEN
+  host-d  fingerprint: stable on equal, sensitive on change, order-normalised  (pure fn, no mut)
+  host-e  a NEAR-term panel add lands WITHIN a slice while asleep to a    differential D-e
+          far next_fire (_sleep_to returns to run() top every slice)
+  host-f  busy-queue DEFERS last_run until idle (Scheduler.due records     differential D-f
+          last_run only AFTER _safe_run -> gate.wait -> run_task returns)
+  host-g  hot-reload DELETE direction: a removed entry stops firing       differential D-g
+  host-h  a failing run_task records last_run.ok=false, is isolated, and   differential D-h
+          the loop survives (the failing entry reschedules next tick)
+
+  Boundary, honestly stated: host-e/f/g/h carry a falsifiable production-branch mutation in
+  tests/test_scheduler_host_differential.py (each mutation is the EXACT historical/shipped bug
+  and MUST turn its lock red -- proving the lock is load-bearing, not a vacuous green).
+  host-a/b/c/d are BASELINE behaviour locks (the thing under test IS the injected layer / a
+  pure function), so they have no separate mutation; host-b and host-c are the differential
+  gate's CONTROL-GREEN locks -- mutation D-g is written precisely so it breaks ONLY host-g
+  while host-b stays green, which is exactly what proves D-g is a single-behaviour mutation.
+
+  Falsify-recipe for a NEW fusion layer: copy tools/_diff_gate_template.py, fill
+  MUTATIONS/TEST/MIRROR, keep output ASCII, register the COPY in run_tests.py SUITES.
+
 """
 from __future__ import annotations
 
