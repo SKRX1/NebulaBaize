@@ -12,8 +12,9 @@ green; any non-zero exit fails the contract. Pure stdlib.
 
 Run from the strata-agent folder:
 
-    python tools/run_tests.py            # FULL tier: everything incl slow suites (the CI contract, default)
-    python tools/run_tests.py --quick    # FAST tier (~30s): pure-logic only, skips the 19 measured-slow suites
+    python tools/run_tests.py            # FAST tier (~30s, pure-logic) = the DAILY default
+    python tools/run_tests.py --full     # FULL tier: everything incl slow suites + post-green rollback (run before release)
+    python tools/run_tests.py --quick    # (also valid) force the fast tier explicitly -- this is the default
 
 """
 
@@ -483,11 +484,11 @@ def main(argv=None) -> int:
     import argparse
     _ap = argparse.ArgumentParser(description="Regression suite runner (plan-C tiered)")
     _ap.add_argument("--quick", action="store_true",
-                     help="fast tier: pure-logic tests only, skip measured-slow suites")
+                     help="fast tier: pure-logic only (the DAILY default)")
     _ap.add_argument("--full", action="store_true",
-                     help="full tier: everything including slow suites (CI contract, the default)")
+                     help="full tier: everything incl slow suites + post-green rollback (run before release)")
     _a = _ap.parse_args(argv)
-    _mode = "quick" if (_a.quick and not _a.full) else "full"
+    _mode = "full" if _a.full else "quick"
     _suites = SUITES_QUICK if _mode == "quick" else SUITES
     print("[tier] %s  (%d suites)" % (_mode, len(_suites)))
 
