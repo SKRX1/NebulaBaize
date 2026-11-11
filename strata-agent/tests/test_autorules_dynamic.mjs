@@ -161,5 +161,22 @@ console.log("\n=== 4. the s-autorules DOM switch reflects the saved value and it
   check("clicking again turns it back on", sw.getAttribute("aria-checked") === "true");
 }
 
+// ================================================= 5. the switch is LIVE on CLICK alone (no Apply)
+console.log("\n=== 5. the s-autorules switch writes settings + persists on CLICK alone ===");
+{
+  setup({ [fileOf("rules")]: "" }, "");
+  check("baseline DEFAULT settings.autoRulesMemory is true", api.getSettings().autoRulesMemory === true);
+  const sw = doc.getElementById("s-autorules");
+  api.loadDrawer({ ...api.DEFAULTS });            // reflect default (ON) into the DOM
+  sw.onclick();                                  // click to OFF -- must write settings + persist WITHOUT Apply
+  check("click alone (no Apply) flips settings.autoRulesMemory to false", api.getSettings().autoRulesMemory === false, String(api.getSettings().autoRulesMemory));
+  check("click alone (no Apply) persisted false to localStorage", JSON.parse(win.localStorage.getItem("strata.sampling") || "{}").autoRulesMemory === false);
+  sw.onclick();                                  // click back ON
+  check("click back (no Apply) flips settings.autoRulesMemory to true", api.getSettings().autoRulesMemory === true, String(api.getSettings().autoRulesMemory));
+  await api.maybeProposeMemory(PROPOSE(RULES, ["live-flip-writes"]));   // settings now ON (flipped by click) -> must direct-write, no draft
+  check("LOAD-BEARING: after the live click the proposal lands in RULES.md directly (no draft)", /live-flip-writes/.test(disk(fileOf("rules"))), JSON.stringify(disk(fileOf("rules"))));
+  check("LOAD-BEARING: the live-click path wrote NO RULES.draft.md", writes(WS + "/RULES.draft.md").length === 0);
+}
+
 console.log("\n" + (FAILURES.length ? "AUTORULES-DYNAMIC: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "AUTORULES-DYNAMIC: ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);

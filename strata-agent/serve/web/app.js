@@ -9025,7 +9025,7 @@ $("s-share").onclick = () => $("s-share").setAttribute("aria-checked", String($(
 $("s-recall").onclick = () => $("s-recall").setAttribute("aria-checked", String($("s-recall").getAttribute("aria-checked") !== "true"));
 $("s-autolearn").onclick = () => $("s-autolearn").setAttribute("aria-checked", String($("s-autolearn").getAttribute("aria-checked") !== "true"));
 $("s-automemory").onclick = () => $("s-automemory").setAttribute("aria-checked", String($("s-automemory").getAttribute("aria-checked") !== "true"));
-$("s-autorules").onclick = () => $("s-autorules").setAttribute("aria-checked", String($("s-autorules").getAttribute("aria-checked") !== "true"));
+$("s-autorules").onclick = () => { const on = $("s-autorules").getAttribute("aria-checked") !== "true"; $("s-autorules").setAttribute("aria-checked", String(on)); settings.autoRulesMemory = on; store.set("sampling", settings); };
 $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked", String($("s-memcompact").getAttribute("aria-checked") !== "true"));
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
 $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", String($("s-archiveon").getAttribute("aria-checked") !== "true"));
