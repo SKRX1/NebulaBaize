@@ -292,6 +292,7 @@ SUITES = [
 
     "tests/test_spark_image_only_save.mjs",   # 2026-11-03: a spark note with ONLY images (no text) now SAVES -- root cause: save handler derives text via sparkHtmlToText(html), which returns "" for a pure-image body, so addSpark's old guard "if(!text) return false" rejected it; fix hoists sanitizeHtml above the guard and widens accept to text-non-empty OR sanitized-HTML-carries-an-img-with-a-surviving-src; dangerous javascript:/blob: pure-image stays REJECTED (XSS net intact); differential proves a TRULY empty text is saved by the helper branch
     "tests/test_paste_pending_gate.mjs",   # 2026-11: a send/confirmEdit fired the INSTANT you paste must not read the body as empty and bail -- paste lands DOM+array via pendingPastes gate, send/confirmEdit await it BEFORE the empty-guard (differential: paste-no-text+instant-send lands an image WITH the await, sends NOTHING without it = load-bearing)
+    "tests/test_paste_multipaste_race.mjs",   # 2026-11-11: paste 2+ images lands ALL not just the first — FileReader onloads fire CONCURRENTLY, shared caret collides, the 2nd chip lands OUTSIDE composer and reconcileArray drops it. Fix serializes when files.length>1 (single stays non-blocking). Load-bearing single-variable differential (serialize flips kept 1->2) + static locks.
 
     # These three guard "which directory do relative paths resolve against". They existed
 

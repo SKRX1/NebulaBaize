@@ -6276,6 +6276,13 @@ async function pasteImageToRich(e, editable) {
   }
   if (!files.length) return;
   e.preventDefault();
+  // 2026-11-11: multi-paste caret/selection race fix. With 2+ images the per-file onload callbacks
+  // fire CONCURRENTLY and each runs an execCommand/insertHTML + caret move; concurrent caret writes
+  // collide, so the 2nd chip can land outside the composer and reconcileArray later drops it (only
+  // 1 image sent). Single image has no sibling to collide with, so keep the proven NON-BLOCKING path
+  // (test_paste_pending_gate locks it). For 2+, serialize: await each file's DOM+array landing before
+  // the next read starts, so the caret is stable at every insert. pendingPastes gate stays for send().
+  const _serialize = files.length > 1;
   for (const f of files) {
     const reader = new FileReader();
     // Register the gate BEFORE the async read starts: at send time pendingPastes is already
@@ -6284,6 +6291,7 @@ async function pasteImageToRich(e, editable) {
     const _gate = new Promise((res) => { reader._landResolve = res; });
     pendingPastes.add(_gate);
     _gate.then(() => pendingPastes.delete(_gate));
+    const _land = new Promise((res) => { reader._landFullResolve = res; });
     reader.onload = async () => {
         // A1: land the DOM node + the array entry SYNCHRONOUSLY, right when the local FileReader
         // result is ready and BEFORE any network upload, so a send/re-generate that fires the instant
@@ -6312,6 +6320,7 @@ async function pasteImageToRich(e, editable) {
         else { editAttachments.push(entry); renderEditAttachments(); }
         autosize(editable);
         if (reader._landResolve) reader._landResolve();   // DOM + array are real now -> the paste gate is safe to send on
+        if (reader._landFullResolve) reader._landFullResolve();   // 2026-11-11: release the multi-paste serialize gate
         // best-effort: upgrade the stored base64 to a server ref in the BACKGROUND (never blocks the
         // paste). The DOM node + array entry already exist, so send is race-free either way.
         if (modelAcceptsImages()) {
@@ -6325,8 +6334,9 @@ async function pasteImageToRich(e, editable) {
             }
           } catch (e) { /* offline: keep the base64 data URL as the source */ }
         }
-    };
+      };
     reader.readAsDataURL(f);
+    if (_serialize) await _land;   // 2026-11-11: multi-only — next file starts once this one's DOM+array landed
   }
 }
 
@@ -6334,7 +6344,7 @@ function bindSparks() {
   // dblclick on inline thumbnails in contenteditable inputs -> lightbox
   document.addEventListener("dblclick", (e) => {
     const img = e.target;
-    if (img.tagName === "IMG" && (img.closest(".ce-input")||(img.classList&&img.classList.contains("inline-ce-img")&&img.closest("[data-bugtoggle]")))) {
+    if (img.tagName === "IMG" && (img.closest(".ce-input")||(img.classList&&img.classList.contains("donate-qr"))||(img.classList&&img.classList.contains("inline-ce-img")&&img.closest("[data-bugtoggle]")))) {
       openImageView(img.src, img.alt || "image");
     }
   });
