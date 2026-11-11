@@ -768,6 +768,23 @@ def main(argv=None) -> int:
                     agent.confirm = _saved_confirm
                     _sched_roots_restore(saved_roots)
 
+            def _sched_audit_event(e):
+                # 调度事件落审计 (2026-11-11): schedule-error 过去被默认空 lambda 静默吞掉
+                # (构造 SchedulerHost 时没传 on_event -> 回落 scheduler 默认 no-op lambda),
+                # 失败原因事后无从查起. 这里把每条调度事件写入 audit JSONL, 并对
+                # schedule-error 向 stderr 吼一行, 让调度执行的失败原因可见且可审计.
+                try:
+                    audit.event(str(e.get("type", "schedule-event")), extra=e)
+                except Exception as _ae:
+                    # the whole point of this wiring is "a failure must be VISIBLE" -- so a
+                    # failure to write the audit line is itself surfaced, never silently eaten
+                    # (test_code_hygiene flags an except body that is only pass/continue).
+                    print(f"  [sched-audit-warn] could not log event {e.get('type')}: {_ae}",
+                          file=sys.stderr)
+                if str(e.get("type", "")) == "schedule-error":
+                    print(f"  [sched-error] {e.get('name')}: {e.get('error')}",
+                          file=sys.stderr)
+
             def _sched_load():
                 try:
                     return (load_yaml_or_json(args.config).get("schedule") or {}).get("entries") or []
@@ -779,6 +796,7 @@ def main(argv=None) -> int:
                 load_entries=_sched_load, run_task=_sched_run_task,
                 state_path=os.path.join(ROOT, "data", "schedule_state.json"),
                 stop_event=_sched_stop, idle_gate=gw_state._idle,
+                on_event=_sched_audit_event,
             )
             _th.Thread(target=_sched_host.run, name="scheduler-host", daemon=True).start()
             _n = len(_sched_load())

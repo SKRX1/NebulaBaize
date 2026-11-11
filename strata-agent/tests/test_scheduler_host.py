@@ -517,6 +517,66 @@ def test_schedule_route_follows_selected_model():
     print(f"host-i OK: selected-with-base_url routes to it ({base}/{model}); empty base_url, "
           f"unknown id, and a raising lookup all fall back to the boot client")
 
+def test_schedule_error_event_reaches_the_consumer():
+    """host-j: a schedule-error must reach the injected on_event (not be silently swallowed).
+
+    This is the production-wiring lock for the 2026-11-11 fix. The bug: the serve path built
+    SchedulerHost WITHOUT passing on_event, so the inner Scheduler fell back to its default
+    no-op lambda and a fired task's exception (schedule-error) was dropped with NO audit and
+    NO UI -- "why did it fail" was unrecoverable. host-h already proves the Scheduler EMITS
+    the event when on_event is injected; this lock proves the WIRING (the production consumer
+    is actually handed a callback that receives it).
+
+    Two layers:
+      1. STATIC: gateway.py's SchedulerHost construction must pass on_event=, and the named
+         callback must call audit.event(...) and branch on schedule-error. (Reading the exact
+         shipped source -- a regression that drops the wiring turns this red.)
+      2. DYNAMIC: drive the host with a run_task that RAISES and a recording on_event; assert
+         the schedule-error event is delivered to the consumer with the failing task's name.
+    """
+    import json
+    import tempfile
+    import datetime as _dt
+
+    # ---- layer 1: static wiring lock on the shipped gateway source ----
+    gpath = os.path.join(ROOT, "runtime", "gateway.py")
+    gsrc = open(gpath, "rb").read().decode("utf-8", "replace")
+    assert "on_event=_sched_audit_event" in gsrc, (
+        "serve SchedulerHost must pass on_event=_sched_audit_event (the 2026-11-11 wiring fix "
+        "was dropped -- schedule-error would be silently swallowed again)")
+    # the named callback must actually route events somewhere durable, and specifically handle
+    # schedule-error (else the wiring would be cosmetic).
+    w = gsrc.index("def _sched_audit_event")
+    body = gsrc[w:w + 900]
+    assert "audit.event(" in body, "_sched_audit_event must call audit.event(...)"
+    assert "schedule-error" in body, "_sched_audit_event must branch on schedule-error"
+
+    # ---- layer 2: dynamic end-to-end -- a failing task's event reaches the consumer ----
+    clock = FakeClock()
+    received = []
+
+    def load():
+        return [{"name": "boom-job", "task": "BOOM", "every_minutes": 1}]
+
+    def run_task(name, task):
+        raise RuntimeError("simulated agent-turn failure")
+
+    host = SchedulerHost(load_entries=load, run_task=run_task,
+                         clock=clock, sleep=clock.sleep, on_event=received.append)
+    host._ensure_scheduler()
+    host.sched.entries[0].next_fire = clock() - 1
+    fired = host.sched.due()
+
+    assert fired == ["boom-job"], f"setup: job did not fire: {fired}"
+    errs = [ev for ev in received if ev.get("type") == "schedule-error"]
+    assert errs, f"schedule-error never reached the consumer (received={[e.get('type') for e in received]})"
+    assert errs[0].get("name") == "boom-job", f"event carries the wrong name: {errs[0]}"
+    assert "simulated agent-turn failure" in str(errs[0].get("error", "")), \
+        f"event lost the exception detail: {errs[0]}"
+    print(f"host-j OK: schedule-error reaches the injected consumer "
+          f"(static wiring lock GREEN + dynamic delivery name={errs[0]['name']!r})")
+
+
 def main() -> int:
     test_fire_via_callback()
     test_hot_reload_picks_up_new_entry()
@@ -527,6 +587,7 @@ def main() -> int:
     test_removed_entry_stops_firing_after_reload()
     test_run_task_exception_records_ok_false_and_survives()
     test_schedule_route_follows_selected_model()
+    test_schedule_error_event_reaches_the_consumer()
     print("SCHEDULER HOST FUSION GATE OK")
     return 0
 
