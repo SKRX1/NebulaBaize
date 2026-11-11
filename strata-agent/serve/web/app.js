@@ -6980,12 +6980,12 @@ async function testModelForm() {
   // Four seconds, not twenty: an engine that was just started or closed has to show up while the
   // human is still looking at the composer, without anyone clicking the chip to "refresh" it.
   // Cheap enough - the server caches its TCP + /v1/models probe for 3s and only visible tabs ask.
-  setInterval(() => { pollModels(); refreshIdleTimeout(); }, POLL_MS);
+  setInterval(() => { pollModels(); refreshIdleTimeout(); loadSchedule(); }, POLL_MS);
   // Coming back to the tab must be instant rather than "up to one tick later".
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") { pollModels(); refreshIdleTimeout(); }
+    if (document.visibilityState === "visible") { pollModels(); refreshIdleTimeout(); loadSchedule(); }
   });
-  window.addEventListener("focus", () => { pollModels(); refreshIdleTimeout(); });
+  window.addEventListener("focus", () => { pollModels(); refreshIdleTimeout(); loadSchedule(); });
   loadHwChip();   // hardware chip: host core count is server-side, pull once at boot (low frequency)
 })();
 document.addEventListener("strata:langchange", () => {
@@ -9464,6 +9464,7 @@ function initSessionStream() {
     streamSource.onmessage = (e) => {
       try {
         const obj = JSON.parse(e.data);
+        if (obj["schedule-changed"]) { loadSchedule(); return; }
         const sessName = obj.session_name || 'schedule';
         let sess = sessions.find(s => s.title === sessName || s.title === '\u23F0 ' + sessName);
         if (!sess) {

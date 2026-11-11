@@ -96,6 +96,7 @@ SUITES = [
 
     "tests/test_paste_contract.mjs",   # 2026-10-24: paste/mixed-image helpers must be DEFINED and RUN (locks the "only a call site, no definition" ReferenceError bug)
     "tests/test_schedule_contract.mjs",   # 2026-11: schedule management window (plan B) -- locks the loadSchedule startup-race fix + the single-entry render path + the edit/update helpers (must be DEFINED and RUN)
+    "tests/test_schedule_autorefresh.mjs",   # 2026-11: agent-tool schedule edit -> auto-refresh panel (A+B): POLL_MS/focus/visibilitychange loadSchedule + SSE schedule-changed; static + jsdom behaviour locks
     "tests/test_session_stream.mjs",   # 2026-11-11: session_stream 方案A 拼接纯函数 assembleStreamBubbles — multiple seq chunks -> ONE bubble in seq order, done from LAST, multi-session stays separate; static lock DEFINES+CALLS + jsdom behaviour.
     "tests/test_session_stream_b1.py",  # B1 offline diff: broadcaster fan-out+full-skip+unsubscribe, llm_client on_delta callback (content-only, differential no-cb), planner passthrough
 

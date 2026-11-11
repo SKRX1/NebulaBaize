@@ -843,6 +843,8 @@ def main(argv=None) -> int:
                     # (test_code_hygiene flags an except body that is only pass/continue).
                     print(f"  [sched-audit-warn] could not log event {e.get('type')}: {_ae}",
                           file=sys.stderr)
+                if str(e.get("type", "")) == "schedule-reload":
+                    gw_state.broadcast_stream({"schedule-changed": True})
                 if str(e.get("type", "")) == "schedule-error":
                     print(f"  [sched-error] {e.get('name')}: {e.get('error')}",
                           file=sys.stderr)
