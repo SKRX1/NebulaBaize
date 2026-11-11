@@ -1,4 +1,4 @@
-/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
+﻿/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
    shadows come only from the kit's tokens. */
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -490,6 +490,18 @@ main { flex: 1; min-height: 0; display: flex; }
 .facts dd code { font: 400 13px var(--st-font-mono); }
 .facts .st-btn--icon { width: 28px; height: 28px; }
 .facts .st-btn--icon .st-icon { width: 16px; height: 16px; }
+/* ── Donate page (reuses .about/.st-card/.muted) ── */
+.donate-hero__title { margin: 0; font-size: var(--st-fs-lg); font-weight: var(--st-fw-bold); color: var(--st-ink); }
+.donate-hero__story { margin: 0; line-height: 1.7; color: var(--st-ink-soft); }
+.donate-cards { display: flex; flex-wrap: wrap; gap: var(--st-s-5); }
+.donate-card { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: var(--st-s-3); }
+.donate-qr-wrap { display: flex; justify-content: center; align-items: center; background: #fff; border-radius: var(--st-r-md); padding: var(--st-s-4); }
+.donate-qr { width: 240px; height: 240px; object-fit: contain; image-rendering: auto; }
+.donate-addr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-s-2); }
+.donate-addr code { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font: 400 12px var(--st-font-mono); color: var(--st-ink-soft); }
+.donate-warn { margin: 0; color: var(--st-warn, #b45309); font-size: var(--st-fs-sm); line-height: 1.6; }
+.donate-thanks { text-align: center; }
+.donate-signature { font-weight: var(--st-fw-bold); color: var(--st-ink); }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--st-s-4); font-size: var(--st-fs-sm);
               font-weight: var(--st-fw-medium); color: var(--st-ink-soft); }
 .toggle-row .st-toggle { flex: none; }   /* a long label must not squeeze the switch */
@@ -597,6 +609,8 @@ main { flex: 1; min-height: 0; display: flex; }
   .monitor, .about { padding: var(--st-s-4); }
   .facts { grid-template-columns: 1fr; gap: 2px; }
   .facts dd { margin-bottom: var(--st-s-2); }
+  .donate-cards { flex-direction: column; }
+  .donate-card { flex: 1 1 auto; }
 }
 /* disabled buttons (e.g. "压缩对话" before any context is loaded) read as inert, not broken */
 .st-btn:disabled, .st-btn[disabled] { opacity: .45; cursor: not-allowed; pointer-events: none; }

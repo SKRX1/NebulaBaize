@@ -88,6 +88,8 @@
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-activity"/></svg><span data-i18n="tab.monitor">Monitor</span></button>
     <button class="st-tab" role="tab" id="tab-btn-about" aria-controls="view-about" aria-selected="false" data-tab="about">
       <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-info"/></svg><span data-i18n="tab.about">About</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-donate" aria-controls="view-donate" aria-selected="false" data-tab="donate">
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-heart"/></svg><span data-i18n="tab.donate">捐助</span></button>
   </nav>
   <span class="st-header__spacer"></span>
   <span class="st-pill" id="pill" data-state="idle" role="status" aria-live="polite">
@@ -699,6 +701,34 @@
         <div class="req-head"><span class="card-title" data-i18n="about.ilog">中断日志</span><span class="muted small" id="ilog-file"></span></div>
         <p class="muted small" data-i18n="about.ilog.desc">每次回合非正常结束（连接被截断、可恢复停止、报错、手动停止）都会记录时间与当时所处阶段：思考中 / 回答中 / 哪个工具正在跑。用于判断到底是引擎静默、某个工具卡住，还是网络断开。</p>
         <div class="ilog-list" id="ilog-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view view--donate view--scroll" id="view-donate" role="tabpanel" aria-labelledby="tab-btn-donate" hidden>
+    <div class="about donate">
+      <div class="st-card donate-hero">
+        <h2 class="donate-hero__title" data-i18n="donate.hero.title">This app is completely free and lives on the donations of its users</h2>
+        <p class="donate-hero__story" data-i18n="donate.hero.story"></p>
+        <p class="donate-hero__cta muted" data-i18n="donate.hero.cta"></p>
+      </div>
+      <div class="donate-cards">
+        <div class="st-card donate-card">
+          <span class="card-title" data-i18n="donate.alipay.title">Alipay (recommended)</span>
+          <p class="muted" data-i18n="donate.alipay.desc"></p>
+          <div class="donate-qr-wrap"><img class="donate-qr" id="donate-qr-alipay" src="web/img/donate-alipay.png" alt="Alipay QR code" loading="lazy"></div>
+        </div>
+        <div class="st-card donate-card">
+          <span class="card-title" data-i18n="donate.usdc.title">USDC (Arbitrum One)</span>
+          <p class="muted" data-i18n="donate.usdc.desc"></p>
+          <div class="donate-qr-wrap"><img class="donate-qr" id="donate-qr-usdc" src="web/img/donate-usdc.png" alt="USDC deposit QR code" loading="lazy"></div>
+          <div class="donate-addr"><code id="donate-usdc-addr">0xE6E51D58649020df831439A95c52a411E9B1Bc80</code><button class="st-btn st-btn--secondary st-btn--sm" id="donate-copy-btn" type="button" data-i18n-attr="title:donate.copy" data-copy="0xE6E51D58649020df831439A95c52a411E9B1Bc80"><svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-copy"/></svg><span data-i18n="donate.copy">复制地址</span></button></div>
+          <p class="donate-warn" data-i18n="donate.usdc.warn"></p>
+        </div>
+      </div>
+      <div class="st-card donate-thanks">
+        <p data-i18n="donate.thanks"></p>
+        <p class="donate-signature" data-i18n="donate.signature"></p>
       </div>
     </div>
   </section>

@@ -179,7 +179,7 @@ setTheme(document.documentElement.dataset.theme || "dark", false);
 let tab = "chat";
 let inspectorOpen = store.get("inspector.open", true);   // declared early: applyInspector() runs before this line's original spot
 function showTab(name) {
-  tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "schedule"].includes(name) ? name : "chat";
+  tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "donate", "schedule"].includes(name) ? name : "chat";
   // the left sidebar (task list) shows on chat / spark / debug; every other tab lets
   // the view take the full width. The class is added for the full-width tabs (never
   // removed by default), so a JS-less first paint still shows the sidebar — fail
@@ -187,7 +187,7 @@ function showTab(name) {
   // class in CSS:630 on purpose — a visible sidebar should ship with its resize handle.
   document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark" && tab !== "debug");
   for (const b of document.querySelectorAll(".st-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
-  for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "schedule"]) $(`view-${v}`).hidden = v !== tab;
+  for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "donate", "schedule"]) $(`view-${v}`).hidden = v !== tab;
   if (tab === "images") $("img-prompt").focus();
   if (location.hash.slice(1) !== tab) history.replaceState(null, "", tab === "chat" ? location.pathname : `#${tab}`);
   if (tab === "chat") $("input").focus();
