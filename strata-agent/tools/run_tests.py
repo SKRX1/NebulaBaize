@@ -140,6 +140,7 @@ SUITES = [
     "tests/test_auto_memory.mjs",
     "tests/test_autorules_dynamic.mjs",   # DYNAMIC gate: default-ON rules direct-write no-draft + switch-off->draft + decoupled from master
     "tests/test_autorules_i18n_jsdom.mjs",   # 2026-11-11: jsdom behaviour gate — i18n zh-CN renders s-autorules label/hint/DOM + propose end-to-end (default-ON direct-write vs switch-off draft)
+    "tests/test_setdefault_button_jsdom.mjs",   # 2026-11-11: jsdom behaviour gate for the new s-setdefault button (confirm -> loadDrawer(DEFAULTS) -> auto-apply writes localStorage; cancel does not write)
 
     "tests/test_mem_expand_all.mjs",   # 2026-10-26: A+C landing - memExpandAll real-fn differential (expand reveals loaded body / fold hides all)
 
