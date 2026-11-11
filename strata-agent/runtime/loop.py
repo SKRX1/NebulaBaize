@@ -65,7 +65,12 @@ class AgentLoop:
         self.client = client
         self.executor = executor
         self.planner = Planner(client, [])
-        self.max_rounds = max_rounds
+        # CLI --max-rounds defaults to None; AgentLoop must fall back to its own
+        # default (32) here, otherwise run() evaluates range(1, None + 1) ->
+        # "unsupported operand type(s) for +: NoneType and int" on the FIRST round
+        # (this is what made every scheduled agent-turn run red). The interactive/HTTP
+        # paths escaped it only because http_server int()s gw_state.max_rounds separately.
+        self.max_rounds = max_rounds if max_rounds is not None else 32
         self.on_event = on_event or (lambda e: None)
         # policy + memory layers (optional; loop degrades gracefully when None)
         self.approval = approval

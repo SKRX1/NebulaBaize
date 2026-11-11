@@ -340,6 +340,7 @@ SUITES = [
     "tests/test_hallucinated_resume.py",   # 2026-10-25: http_server-chain plan-action resume; registers an already-green test this refactor touches (was orphaned)
 
     "tests/test_loop_finalize_resume.py",  # 2026-10-25: loop.py finalize-branch resume (the 8099 agent chain), driven through the real AgentLoop + shared toolcall_parse discriminators
+    "tests/test_loop_none_maxrounds.py",  # 2026-11-11: loop.py run() opens range(1, max_rounds+1) and must tolerate None -- the scheduled agent-turn crash (dynamic + static + differential lock)
 
     "tests/test_turn_budget.py",
 
