@@ -58,7 +58,7 @@ class ScriptedClient:
         self._turns = list(turns)
         self.calls = 0
 
-    def chat(self, messages, tools=None, effort=None):
+    def chat(self, messages, tools=None, effort=None, on_delta=None):
         i = self.calls
         self.calls += 1
         return self._turns[i]

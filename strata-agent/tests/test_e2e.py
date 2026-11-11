@@ -56,7 +56,7 @@ class ScriptedPlanner:
         self._steps = list(steps)
         self.tools = []  # executor exposes real tools; planner is bypassed here
 
-    def plan(self, messages, effort=None):
+    def plan(self, messages, effort=None, on_delta=None):
         if not self._steps:
             return NextAction(thinking="t", actions=[], final_answer="done", usage=None)
         actions, final = self._steps.pop(0)

@@ -46,7 +46,7 @@ class FakePlanner:
         self._scripted = list(scripted)
         self.tools = []
 
-    def plan(self, messages, effort=None):
+    def plan(self, messages, effort=None, on_delta=None):
         from planner import NextAction
         if not self._scripted:
             return NextAction(thinking="t", actions=[], final_answer="done")
@@ -115,7 +115,7 @@ def main() -> int:
     class RecordingPlanner:
         tools = []
         def __init__(self): self.seen = []
-        def plan(self, messages, effort=None):
+        def plan(self, messages, effort=None, on_delta=None):
             self.seen.append(list(messages))
             from planner import NextAction
             return NextAction(thinking="t", actions=[], final_answer="done")
@@ -165,7 +165,7 @@ def main() -> int:
 
     class RP2:
         tools = []
-        def plan(self, messages, effort=None):
+        def plan(self, messages, effort=None, on_delta=None):
             seen.append(list(messages))
             from planner import NextAction
             return NextAction(thinking="t", actions=[], final_answer="done")
@@ -187,7 +187,7 @@ def main() -> int:
 
     class RP3:
         tools = []
-        def plan(self, messages, effort=None):
+        def plan(self, messages, effort=None, on_delta=None):
             from planner import NextAction
             return NextAction(thinking="t", actions=[], final_answer="the answer")
     loop.planner = RP3()
@@ -520,7 +520,7 @@ def main() -> int:
     from audit import AuditLog as AL20
     class NeverDonePlanner:
         tools = []
-        def plan(self, messages, effort=None):
+        def plan(self, messages, effort=None, on_delta=None):
             from planner import NextAction
             # always emit an action (a benign executor call), never a final answer
             return NextAction(thinking="keep going",

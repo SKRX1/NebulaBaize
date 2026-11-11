@@ -12,7 +12,8 @@ green; any non-zero exit fails the contract. Pure stdlib.
 
 Run from the strata-agent folder:
 
-    python tools/run_tests.py
+    python tools/run_tests.py            # FULL tier: everything incl slow suites (the CI contract, default)
+    python tools/run_tests.py --quick    # FAST tier (~30s): pure-logic only, skips the 19 measured-slow suites
 
 """
 
@@ -417,6 +418,35 @@ SUITES = [
 
 
 
+# Tiered split (2026-11-12 plan-C): the CI contract default stays FULL.
+# --quick runs the pure-logic tier only (skip the measured-slow suites below),
+# giving a ~10s wall instead of ~60s. The slow list is DATA-DRIVEN (measured
+# per-suite wall on this machine 2026-11-12, threshold >=3.0s), not name-guessed.
+SLOW_SUITES = [
+    "tests/test_gateway_http.py",
+    "tests/test_auto_resume.mjs",
+    "tools/_semantic_summarizer_gate.py",
+    "tests/test_daemon.py",
+    "tests/test_compact_overflow_quiet.mjs",
+    "tests/test_soak_live.py",
+    "tests/test_browser.py",
+    "tests/test_self_suicide_guard.py",
+    "tests/test_shell_timeout.py",
+    "tests/test_closeout_pixel.py",
+    "tests/test_chunked_compact.mjs",
+    "tests/test_paste_pending_gate.mjs",
+    "tests/test_model_forward.py",
+    "tests/test_hidden_paint.mjs",
+    "tests/test_mem_chunk_compact.mjs",
+    "tests/test_startup_selfcheck.py",
+    "tests/test_model_probe.mjs",
+    "tests/test_stale_tab.mjs",
+    "tests/test_empty_round_e2e.py",
+]
+_SLOWSET = set(SLOW_SUITES)
+SUITES_QUICK = [s for s in SUITES if s not in _SLOWSET]
+
+
 def run_suite(rel: str) -> tuple[bool, str]:
 
     """Return (passed, summary_line). Exit code 0 == green (skip counts as green)."""
@@ -449,7 +479,17 @@ def run_suite(rel: str) -> tuple[bool, str]:
 
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+    _ap = argparse.ArgumentParser(description="Regression suite runner (plan-C tiered)")
+    _ap.add_argument("--quick", action="store_true",
+                     help="fast tier: pure-logic tests only, skip measured-slow suites")
+    _ap.add_argument("--full", action="store_true",
+                     help="full tier: everything including slow suites (CI contract, the default)")
+    _a = _ap.parse_args(argv)
+    _mode = "quick" if (_a.quick and not _a.full) else "full"
+    _suites = SUITES_QUICK if _mode == "quick" else SUITES
+    print("[tier] %s  (%d suites)" % (_mode, len(_suites)))
 
     # 2026-10-27: run the suites concurrently (bounded pool, results kept by index so
 
@@ -467,11 +507,11 @@ def main() -> int:
 
         workers = _probe_compute("tests")   # floor(cores*0.6) cap16; STRATA_TESTS_WORKERS env override wins (probe handles it)
 
-    results = [None] * len(SUITES)
+    results = [None] * len(_suites)
 
     if workers <= 1:
 
-        for i, s in enumerate(SUITES):
+        for i, s in enumerate(_suites):
 
             ok, line = run_suite(s)
 
@@ -481,13 +521,13 @@ def main() -> int:
 
         with ThreadPoolExecutor(max_workers=workers) as ex:
 
-            futs = {ex.submit(run_suite, s): i for i, s in enumerate(SUITES)}
+            futs = {ex.submit(run_suite, s): i for i, s in enumerate(_suites)}
 
             for fut in as_completed(futs):
 
                 ok, line = fut.result()
 
-                results[futs[fut]] = (SUITES[futs[fut]], ok, line)
+                results[futs[fut]] = (_suites[futs[fut]], ok, line)
 
     for s, ok, line in results:
 
@@ -513,8 +553,7 @@ def main() -> int:
 
     # loop's live check; a failure here turns the run red.
 
-    if all_ok:
-
+    if all_ok and _mode == "full":
         rv = os.path.join(ROOT, "tools", "_rollback_verify.py")
 
         try:
