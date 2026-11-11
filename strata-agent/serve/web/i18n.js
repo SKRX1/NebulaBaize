@@ -1267,7 +1267,7 @@
       "sched.deliver": "执行结果去向",
       "sched.deliver.audit": "仅面板状态栏",
       "sched.deliver.summary": "写入会话气泡（跑完回填）",
-      "sched.deliver.stream": "流式写入会话气泡（待实现）",
+      "sched.deliver.stream": "流式写入会话气泡",
       "mcp.err.toolcall": "工具调用失败",
     },
 
@@ -2485,7 +2485,7 @@
       "sched.deliver": "Deliver result to",
       "sched.deliver.audit": "Panel status only",
       "sched.deliver.summary": "Write to session bubble (on completion)",
-      "sched.deliver.stream": "Stream to session bubble (pending)",
+      "sched.deliver.stream": "Stream to session bubble",
       "mcp.err.toolcall": "the tool call failed",
     },
   };

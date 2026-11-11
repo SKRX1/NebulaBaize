@@ -775,9 +775,10 @@ def main(argv=None) -> int:
                 # the gateway broadcaster so every content delta fans out live. The scheduler
                 # is single-threaded + idle-gated, so this per-run swap cannot race a chat turn.
                 _pre_deliver = str((entry or {}).get("deliver") or "").strip().lower()
+                _sched_ws = ((list(entry.get("roots") or [])) or [""])[0]
                 if _pre_deliver == "session_stream":
-                    agent.on_token = lambda d, _n=name: gw_state.broadcast_stream(
-                        {"session_name": _n, "text": d, "done": False})
+                    agent.on_token = lambda d, _n=name, _w=_sched_ws: gw_state.broadcast_stream(
+                        {"session_name": _n, "workspace": _w, "text": d, "done": False})
                 try:
                     result = agent.run(task, history=[])  # fresh context per scheduled run
                 finally:
@@ -794,7 +795,7 @@ def main(argv=None) -> int:
                     # disconnect-resume fallback (a client that reconnects mid-run only
                     # sees this one message). session_stream no longer touches the outbox.
                     try:
-                        gw_state.broadcast_stream({"session_name": name,
+                        gw_state.broadcast_stream({"session_name": name, "workspace": _sched_ws,
                                                    "text": _sched_extract_answer(result),
                                                    "done": True, "ok": True, "final": True})
                     except Exception as _be:
@@ -823,7 +824,7 @@ def main(argv=None) -> int:
                         else:
                             _txt = _sched_extract_answer(result)
                             _out = {"session_name": name, "ts": _sched_time.time(),
-                                  "text": _txt, "entry": name, "ok": True, "done": True}
+                                  "text": _txt, "entry": name, "workspace": _sched_ws, "ok": True, "done": True}
                             with open(_outbox, "a", encoding="utf-8") as _f:
                                 _f.write(json.dumps(_out, ensure_ascii=False) + "\n")
                     except Exception as _oe:

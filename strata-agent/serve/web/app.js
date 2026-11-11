@@ -9406,6 +9406,7 @@ function assembleStreamBubbles(entries) {
     const last = arr[arr.length - 1];
     out.push({
       session_name: key,
+      workspace: (last && last.workspace) || (arr.find((x) => x && x.workspace) || {}).workspace || "",
       text: arr.map((x) => (x && x.text) ? x.text : "").join("\n"),
       ok: !!last.ok,
       done: !!last.done,
@@ -9427,7 +9428,7 @@ async function pollSessionOutbox() {
       const sessName = e.session_name || e.entry || "schedule";
       let sess = sessions.find(s => s.title === sessName || s.title === "\u23F0 " + sessName);
       if (!sess) {
-        sess = { id: newSessionId(), title: "\u23F0 " + sessName, workspace: "", messages: [],
+        sess = { id: newSessionId(), title: "\u23F0 " + sessName, workspace: e.workspace || "", messages: [],
                  createdAt: Date.now(), updatedAt: Date.now() };
         sessions.push(sess);
       }
@@ -9466,7 +9467,7 @@ function initSessionStream() {
         const sessName = obj.session_name || 'schedule';
         let sess = sessions.find(s => s.title === sessName || s.title === '\u23F0 ' + sessName);
         if (!sess) {
-          sess = { id: newSessionId(), title: '\u23F0 ' + sessName, workspace: '', messages: [],
+          sess = { id: newSessionId(), title: '\u23F0 ' + sessName, workspace: obj.workspace || '', messages: [],
                    createdAt: Date.now(), updatedAt: Date.now() };
           sessions.push(sess);
           renderSessions();
