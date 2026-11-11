@@ -80,7 +80,8 @@ class StrataClient:
         return h
 
     def chat(self, messages: list[dict], tools: list[dict] | None = None,
-             stream: bool = True, effort: str | None = None) -> AssistantTurn:
+             stream: bool = True, effort: str | None = None,
+             on_delta=None) -> AssistantTurn:
         """Send a chat completion, return a normalized AssistantTurn.
 
         Cache note: keep `messages` append-only so Strata's prompt cache hits;
@@ -107,9 +108,9 @@ class StrataClient:
             with self._open(req) as r:
                 data = json.loads(r.read().decode("utf-8", "replace"))
             return _turn_from_response(data)
-        return self._stream(req)
+        return self._stream(req, on_delta=on_delta)
 
-    def _stream(self, req) -> AssistantTurn:
+    def _stream(self, req, on_delta=None) -> AssistantTurn:
         turn = AssistantTurn()
         with self._open(req) as r:
             for raw in r:
@@ -127,6 +128,8 @@ class StrataClient:
                     turn.reasoning += d["reasoning_content"]
                 if d.get("content"):
                     turn.content += d["content"]
+                    if on_delta:
+                        on_delta(d["content"])
                 for tc in d.get("tool_calls", []) or []:
                     _merge_tool_call(turn, tc)
         return turn

@@ -962,6 +962,36 @@ class GatewayState:
         self._active = 0
         self._idle = threading.Event()
         self._idle.set()
+        # B1 session_stream broadcaster: scheduler-thread token deltas fan out to
+        # every live /api/session-stream subscriber (one queue each). A slow/stalled
+        # client whose queue fills is skipped, so broadcast NEVER blocks the scheduler.
+        self._subscribers = []
+        self._subscribers_lock = threading.Lock()
+
+    def subscribe_stream(self) -> "queue.Queue":
+        q = queue.Queue(maxsize=1000)
+        with self._subscribers_lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe_stream(self, q) -> None:
+        with self._subscribers_lock:
+            try:
+                self._subscribers.remove(q)
+            except ValueError:
+                print("  [session-stream] unsubscribe: queue already gone", file=sys.stderr)
+
+    def broadcast_stream(self, obj) -> None:
+        """Push one event to every subscriber; drop for a subscriber whose queue is
+        full so a stalled client can never block the scheduler thread."""
+        with self._subscribers_lock:
+            subs = list(self._subscribers)
+        for q in subs:
+            try:
+                q.put_nowait(obj)
+            except queue.Full:
+                print(f"  [session-stream] subscriber queue full, dropped event "
+                      f"{obj.get('session_name')}", file=sys.stderr)
 
     def ctx_window(self, entry=None):
         """ONE denominator for the whole gateway: a per-model DECLARED window > explicit env
@@ -1579,6 +1609,36 @@ class GatewayHandler(BaseHTTPRequestHandler):
             base = base[:-3].rstrip("/")
         return base
 
+    def _api_session_stream(self):
+        """GET /api/session-stream — SSE long connection for scheduler token streaming
+        (B1). This handler runs on its OWN connection thread (ThreadingHTTPServer), so it
+        holds the socket open and forwards broadcaster events until the client leaves.
+        Only meaningful in direct/serve mode where the scheduler lives in THIS process."""
+        q = self.state.subscribe_stream()
+        try:
+            self.send_response(200)
+            self._cors()
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            self.wfile.write(b"data: " + json.dumps({"stream_open": True}, ensure_ascii=False).encode("utf-8") + b"\n\n")
+            self.wfile.flush()
+            while True:
+                try:
+                    obj = q.get(timeout=15.0)
+                except queue.Empty:
+                    # SSE comment keepalive — ignored by every client, proves link alive
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    continue
+                self.wfile.write(b"data: " + json.dumps(obj, ensure_ascii=False).encode("utf-8") + b"\n\n")
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError) as e:
+            print(f"  [session-stream] client gone: {type(e).__name__}", file=sys.stderr)
+        finally:
+            self.state.unsubscribe_stream(q)
+
     def _api_session_outbox(self, method):
         """GET /api/session-outbox — return pending outbox entries (consume-once) and clear file."""
         outbox_path = os.path.join(ROOT, "data", "session_outbox.jsonl")
@@ -1685,6 +1745,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return True
         if path.rstrip("/") == "/api/session-outbox":
             self._api_session_outbox(method)
+            return True
+        if path.rstrip("/") == "/api/session-stream":
+            self._api_session_stream()
             return True
         if path.rstrip("/") == "/api/requests":
             # Step2-A: the streaming-debug suite reads the per-chunk timeline here. Served

@@ -107,6 +107,10 @@ class AgentLoop:
         # skills_loader.load_skills_meta(). Degrades to no-op when empty/None.
         self.skill_meta = skill_meta or {}
         self._skills_helpers = None  # lazy import of skills_loader helpers
+        # B1 session_stream: optional token-level callback (delta str) -> None.
+        # The scheduler run temporarily points this at the gateway broadcaster;
+        # the interactive path leaves it None (planner passes it through, guarded).
+        self.on_token = None
         self._tools = []
         self._tools_ready = False
 
@@ -262,7 +266,7 @@ class AgentLoop:
             # at the head => maximum cache hit.
             view = ([{"role": "system", "content": self.system_prompt}] if self.system_prompt else []) + messages
             _t0 = self._clock()
-            action = self.planner.plan(view, effort=effort)
+            action = self.planner.plan(view, effort=effort, on_delta=self.on_token)
             if self.audit is not None:
                 self.audit.note_round()
                 self.audit.note_llm(action.usage)

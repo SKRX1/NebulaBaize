@@ -771,15 +771,39 @@ def main(argv=None) -> int:
                 if routed is not None:
                     agent.client = agent.planner.client = routed
                 agent.confirm = _sched_auto_confirm  # standing consent for the whole run
+                # B1 session_stream: for streaming runs, point the loop's token callback at
+                # the gateway broadcaster so every content delta fans out live. The scheduler
+                # is single-threaded + idle-gated, so this per-run swap cannot race a chat turn.
+                _pre_deliver = str((entry or {}).get("deliver") or "").strip().lower()
+                if _pre_deliver == "session_stream":
+                    agent.on_token = lambda d, _n=name: gw_state.broadcast_stream(
+                        {"session_name": _n, "text": d, "done": False})
                 try:
                     result = agent.run(task, history=[])  # fresh context per scheduled run
                 finally:
                     agent.client, agent.planner.client = _saved_agent, _saved_planner
                     agent.confirm = _saved_confirm
+                    agent.on_token = None
                     _sched_roots_restore(saved_roots)
-                # --- deliver=session_summary: write result to session_outbox ---
+                # --- B1: for a streamed run, emit the DONE marker over the broadcaster
+                #     (the live deltas were already pushed token-by-token via on_token).
                 _deliver = str((entry or {}).get("deliver") or "").strip().lower()
-                if _deliver in ("session_summary", "session_stream"):
+                if _deliver == "session_stream":
+                    # B1: the whole streamed text was already pushed token-by-token over
+                    # the broadcaster. The final DONE marker carries the FULL answer as a
+                    # disconnect-resume fallback (a client that reconnects mid-run only
+                    # sees this one message). session_stream no longer touches the outbox.
+                    try:
+                        gw_state.broadcast_stream({"session_name": name,
+                                                   "text": _sched_extract_answer(result),
+                                                   "done": True, "ok": True, "final": True})
+                    except Exception as _be:
+                        print(f"  [sched-stream-warn] {name}: {_be}", file=sys.stderr)
+                # --- deliver=session_summary: write result to session_outbox ---
+                # (session_stream is handled by the broadcaster above, not the outbox,
+                #  so it is excluded here to avoid double-injection via the front-end
+                #  EventSource.)
+                if _deliver == "session_summary":
                     try:
                         _outbox = os.path.join(ROOT, "data", "session_outbox.jsonl")
                         if _deliver == "session_stream":

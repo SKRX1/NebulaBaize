@@ -9451,6 +9451,60 @@ async function pollSessionOutbox() {
 }
 setInterval(pollSessionOutbox, POLL_MS);
 
+// ─── B1 session_stream: EventSource live listener (scheduler token deltas) ───
+// The backend scheduler broadcasts token deltas to /api/session-stream subscribers;
+// each message carries {session_name, text, done, ok}. The handler appends to the
+// matching session bubble (or creates it if this is the first token), triggers re-render,
+// and on done=true stops the cursor (streaming=false) and saves.
+let streamSource = null;
+function initSessionStream() {
+  try {
+    streamSource = new EventSource('/api/session-stream');
+    streamSource.onmessage = (e) => {
+      try {
+        const obj = JSON.parse(e.data);
+        const sessName = obj.session_name || 'schedule';
+        let sess = sessions.find(s => s.title === sessName || s.title === '\u23F0 ' + sessName);
+        if (!sess) {
+          sess = { id: newSessionId(), title: '\u23F0 ' + sessName, workspace: '', messages: [],
+                   createdAt: Date.now(), updatedAt: Date.now() };
+          sessions.push(sess);
+          renderSessions();
+        }
+        // Find or create a streaming bubble for live append
+        let bubble = sess.messages.find(m => m.role === 'assistant' && m.streaming === true);
+        if (!bubble) {
+          bubble = { role: 'assistant', text: obj.text || '', images: [], files: [],
+                     time: (obj.ts || Date.now() / 1000) * 1000,
+                     notice: { code: 'schedule', message: sessName },
+                     streaming: !obj.done };
+          sess.messages.push(bubble);
+        } else if (obj.done) {
+          bubble.text = obj.text || bubble.text;   // final: overwrite (resume-safe, no dup online)
+        } else {
+          bubble.text += obj.text || '';
+        }
+        if (obj.done) {
+          bubble.streaming = false;
+          sess.updatedAt = Date.now();
+          saveSessions();
+        }
+        renderSessions();
+        if (sess.id === activeId) renderChat();
+      } catch (err) { /* malformed JSON or missing field: skip this event */ }
+    };
+    streamSource.addEventListener('error', () => {
+      // EventSource auto-reconnects, so a transient drop is fine; log for debugging
+      if (streamSource && streamSource.readyState === EventSource.CLOSED) {
+        console.warn('[session-stream] closed, will retry on next poll');
+      }
+    });
+  } catch (e) {
+    console.warn('[session-stream] EventSource unsupported:', e);
+  }
+}
+initSessionStream();
+
 // Editing state: the original name of the entry being edited (null = create mode).
 let schedEditing = null;
 function schedResetForm() {

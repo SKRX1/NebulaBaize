@@ -26,8 +26,10 @@ class Planner:
         self.client = client
         self.tools = tools
 
-    def plan(self, messages: list[dict], effort: str | None = None) -> NextAction:
-        turn = self.client.chat(messages, tools=self.tools, effort=effort)
+    def plan(self, messages: list[dict], effort: str | None = None,
+               on_delta=None) -> NextAction:
+        turn = self.client.chat(messages, tools=self.tools, effort=effort,
+                                on_delta=on_delta)
         actions = [{"id": c["id"], "name": c["name"], "arguments": _parse_args(c["arguments"])}
                    for c in turn.tool_calls if c.get("name")]
         return NextAction(thinking=turn.reasoning, actions=actions,
