@@ -1,11 +1,13 @@
-/* jsdom 行为门禁 — 实测采样抽屉新增按钮 s-setdefault「设为默认值」端到端
-   语义（与用户拍板一致）：点击 = 弹确认 → 把抽屉所有控件刷成 DEFAULTS → 立即触发「应用」写盘。
-   写盘走 store.set → localStorage("strata.sampling")，故断言读 localStorage 而非 fetch。
+/* jsdom 行为门禁 — 实测采样抽屉按钮「设为默认值」s-setdefault 端到端（语义修正 2026-11-11）
+   用户拍板（纠正后）：s-setdefault = 把【当前界面上】这套设置应用并保存为默认值（立即生效）；
+   与现有 s-reset（恢复出厂默认 DEFAULTS）不同 —— s-setdefault 保留你已改的值、未动的项不变，
+   只是「把当前界面这套值 apply 下去」。等价于「确认 → 直接调用 s-apply」。
 
-   A) 按钮存在 + data-i18n=drawer.setdefault + 双字典中文 label「设为默认值」。
-   B) 端到端：先 setSettings 出一个偏离默认值（temperature=0.2）并 loadDrawer→
-      点 s-setdefault（确认=接受）→ 控件刷回 DEFAULTS 且 localStorage["strata.sampling"].temperature=1。
-   C) 确认取消（防误点）：偏离值仍在、点完 localStorage 不被刷成默认。
+   A) 按钮存在 + 双字典中文 label「设为默认值」+ 三个按钮都有 title 悬浮提示（data-i18n-attr）。
+   B) 端到端：抽屉先偏离默认（temperature=0.2, top_k=7）→ 点 s-setdefault（确认=接受）→
+      控件【保留当前值不刷回 DEFAULTS】且 localStorage["strata.sampling"] 写入当前界面值。
+   C) 确认取消（防误点）→ 不写盘、值保留。
+   D) 三按钮 title 悬浮提示：i18n 应用后 title 属性非空且为对应语言。
 
    Run: node tests/test_setdefault_button_jsdom.mjs
 */
@@ -60,41 +62,52 @@ win.fetch = async (url, o) => {
 };
 
 win.eval(i18nSrc);
+win.i18n.applyI18n();   // push static data-i18n-attr (title=) into the DOM so gate D can read it
 win.eval(appCode);
 
 const api = win.__api;
 api.setSessions([{ id: "s1", workspace: "/mock/ws" }]); api.setActiveId("s1"); api.setMcpTools(2);
 const LS = () => { try { return JSON.parse(win.localStorage.getItem("strata.sampling") || "{}"); } catch (e) { return {}; } };
 
-console.log("\n=== A. 按钮存在 + 中文 label ===");
+console.log("\n=== A. 按钮存在 + 中文 label + 三按钮 title 提示存在 ===");
 const btn = api.$("s-setdefault");
 check("s-setdefault 存在于 DOM", !!btn);
-check("data-i18n=drawer.setdefault", btn && btn.getAttribute("data-i18n") === "drawer.setdefault");
 check("中文 label = 设为默认值", win.i18n.t("drawer.setdefault") === "\u8bbe\u4e3a\u9ed8\u8ba4\u503c", JSON.stringify(win.i18n.t("drawer.setdefault")));
-check("确认文案含中文（非乱码）", /[\u4e00-\u9fff]/.test(win.i18n.t("drawer.setdefault.confirm")));
+check("三个按钮都挂 data-i18n-attr title", ["s-reset", "s-setdefault", "s-apply"].every((id) => /title:/.test(String(api.$(id).getAttribute("data-i18n-attr") || ""))));
 
-console.log("\n=== B. 端到端：偏离值 → 点按钮（确认=接受）→ 刷回默认 + 立即写盘 ===");
+console.log("\n=== B. 端到端：偏离当前值 → 点按钮（确认=接受）→ 保留当前值写盘（不刷回出厂默认） ===");
 {
   CONFIRM_ANSWER = true;
-  api.setSettings({ temperature: 0.2 });
+  api.setSettings({ temperature: 0.2, top_k: 7 });
   api.loadDrawer(api.getSettings());
-  check("前置：控件显示偏离值 0.2", Number(api.$("s-temp").value) === 0.2, "field=" + api.$("s-temp").value);
+  check("前置：控件显示当前值 temperature=0.2", Number(api.$("s-temp").value) === 0.2, "field=" + api.$("s-temp").value);
+  check("前置：控件显示当前值 top_k=7", Number(api.$("s-topk").value) === 7, "field=" + api.$("s-topk").value);
   await api.$("s-setdefault").onclick();
+  // 语义核心：控件【不被刷回出厂默认】(出厂 temperature=1/top_k=20)，而是保留当前界面值 0.2/99
+  check("点完控件保留当前值 temperature=0.2（未刷回出厂默认1）", Number(api.$("s-temp").value) === 0.2, "field=" + api.$("s-temp").value);
+  check("点完控件保留当前值 top_k=7（未刷回出厂默认20）", Number(api.$("s-topk").value) === 7, "field=" + api.$("s-topk").value);
   const saved = LS();
-  check("点完控件刷回 DEFAULTS（temperature=1）", Number(api.$("s-temp").value) === 1, "field=" + api.$("s-temp").value);
-  check("点完 localStorage 已写盘且 temperature 回默认 1", Number(saved.temperature) === 1, JSON.stringify(saved).slice(0, 160));
+  check("点完 localStorage 写入当前界面值 temperature=0.2", Number(saved.temperature) === 0.2, JSON.stringify(saved).slice(0, 160));
+  check("点完 localStorage 写入当前界面值 top_k=7", Number(saved.top_k) === 7, JSON.stringify(saved).slice(0, 160));
 }
 
-console.log("\n=== C. 确认取消（防误点）→ 不刷默认、不写盘 ===");
+console.log("\n=== C. 确认取消（防误点）→ 不写盘 ===");
 {
+  win.localStorage.setItem("strata.sampling", JSON.stringify({ temperature: 0.5 }));
   CONFIRM_ANSWER = false;
-  win.localStorage.setItem("strata.sampling", JSON.stringify({ temperature: 0.3 }));
-  api.setSettings({ temperature: 0.3 });
+  api.setSettings({ temperature: 0.6 });
   api.loadDrawer(api.getSettings());
   await api.$("s-setdefault").onclick();
-  check("确认取消后控件仍保留偏离值 0.3（未被刷）", Number(api.$("s-temp").value) === 0.3, "field=" + api.$("s-temp").value);
-  check("确认取消后 localStorage 仍是 0.3（未写默认）", Number(LS().temperature) === 0.3, JSON.stringify(LS()));
+  check("确认取消后 localStorage 仍为旧值 0.5（未写入 0.6）", Number(LS().temperature) === 0.5, JSON.stringify(LS()));
   CONFIRM_ANSWER = true;
+}
+
+console.log("\n=== D. 三按钮 title 悬浮提示经 i18n 落地（非空、为中文） ===");
+{
+  for (const id of ["s-reset", "s-setdefault", "s-apply"]) {
+    const t = api.$(id).getAttribute("title") || "";
+    check(id + ' 的 title 悬浮提示已应用且含中文', /[\u4e00-\u9fff]/.test(t), JSON.stringify(t));
+  }
 }
 
 console.log("\n" + (FAILURES.length ? "SETDEFAULT-BUTTON: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "SETDEFAULT-BUTTON: ALL GREEN"));

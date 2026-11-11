@@ -9026,7 +9026,7 @@ $("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", Strin
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
 $("s-reset").onclick = () => loadDrawer(DEFAULTS);
-$("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } loadDrawer(DEFAULTS); await $("s-apply").onclick(); };
+$("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); };  // apply the CURRENT on-screen settings as the saved default (does NOT reset untouched fields to factory defaults)
 // "Pin this seed": one click turns the last random seed into the fixed one (field + saved settings),
 // so the next turn replays the same sampling. Clearing the field afterwards goes back to random.
 $("seed-lock").onclick = () => {
