@@ -716,7 +716,7 @@
         <div class="st-card donate-card">
           <span class="card-title" data-i18n="donate.alipay.title">Alipay (recommended)</span>
           <p class="muted" data-i18n="donate.alipay.desc"></p>
-          <div class="donate-qr-wrap"><img class="donate-qr" id="donate-qr-alipay" src="web/img/donate-alipay.png" alt="Alipay QR code" loading="lazy"></div>
+          <div class="donate-qr-wrap"><img class="donate-qr" id="donate-qr-alipay" src="web/img/donate-alipay.jpg" alt="Alipay QR code" loading="lazy"></div>
         </div>
         <div class="st-card donate-card">
           <span class="card-title" data-i18n="donate.usdc.title">USDC (Arbitrum One)</span>
@@ -933,9 +933,9 @@
                 data-i18n-attr="placeholder:drawer.persona.ph"></textarea>
     </div>
     <div class="drawer-actions">
-      <button class="st-btn st-btn--secondary" id="s-reset" type="button" data-i18n="drawer.reset" data-i18n-attr="title:drawer.reset.tip">Reset</button>
-      <button class="st-btn st-btn--secondary" id="s-setdefault" type="button" data-i18n="drawer.setdefault" data-i18n-attr="title:drawer.setdefault.tip">Set to default</button>
       <button class="st-btn st-btn--primary" id="s-apply" type="button" data-i18n="drawer.apply" data-i18n-attr="title:drawer.apply.tip">Apply</button>
+      <button class="st-btn st-btn--secondary" id="s-setdefault" type="button" data-i18n="drawer.setdefault" data-i18n-attr="title:drawer.setdefault.tip">Set to default</button>
+      <button class="st-btn st-btn--secondary" id="s-reset" type="button" data-i18n="drawer.reset" data-i18n-attr="title:drawer.reset.tip">Reset</button>
     </div>
   </div>
 </aside>
@@ -1158,6 +1158,14 @@
     <div class="ws-field">
       <label class="st-label" for="sched-model" data-i18n="sched.model">Model</label>
       <select class="st-input" id="sched-model"></select>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-deliver" data-i18n="sched.deliver">Deliver</label>
+      <select class="st-input" id="sched-deliver">
+        <option value="" data-i18n="sched.deliver.audit">Audit only</option>
+        <option value="session_summary" data-i18n="sched.deliver.summary">Session summary</option>
+        <option value="session_stream" data-i18n="sched.deliver.stream">Session stream</option>
+      </select>
     </div>
     <div class="st-modal__actions">
       <span class="spacer"></span>

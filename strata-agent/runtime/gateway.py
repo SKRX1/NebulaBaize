@@ -723,6 +723,16 @@ def main(argv=None) -> int:
                 else:
                     open(_FS_ALLOW, "wb").write(saved)
 
+            import time as _sched_time
+            def _sched_extract_answer(result):
+                """Extract the last assistant text from agent.run() return (list of messages)."""
+                if not result:
+                    return "(no output)"
+                for m in reversed(result):
+                    if m.get("role") == "assistant" and m.get("content"):
+                        return m["content"]
+                return "(no final answer)"
+
             def _sched_run_task(name, task):
                 print(f"  [sched-fire] {name}: {task[:120]}", file=sys.stderr)
                 entry = _sched_host.raw_by_name.get(name) or {}
@@ -762,11 +772,38 @@ def main(argv=None) -> int:
                     agent.client = agent.planner.client = routed
                 agent.confirm = _sched_auto_confirm  # standing consent for the whole run
                 try:
-                    agent.run(task, history=[])  # fresh context per scheduled run
+                    result = agent.run(task, history=[])  # fresh context per scheduled run
                 finally:
                     agent.client, agent.planner.client = _saved_agent, _saved_planner
                     agent.confirm = _saved_confirm
                     _sched_roots_restore(saved_roots)
+                # --- deliver=session_summary: write result to session_outbox ---
+                _deliver = str((entry or {}).get("deliver") or "").strip().lower()
+                if _deliver in ("session_summary", "session_stream"):
+                    try:
+                        _outbox = os.path.join(ROOT, "data", "session_outbox.jsonl")
+                        if _deliver == "session_stream":
+                            # method A: one append per assistant message (seq ordered),
+                            # last one flagged done=true so the front-end stops the cursor
+                            _chunks = [m for m in (result or [])
+                                       if m.get("role") == "assistant" and m.get("content")]
+                            if not _chunks:
+                                _chunks = [{"content": "(no final answer)"}]
+                            with open(_outbox, "a", encoding="utf-8") as _f:
+                                for _seq, _m in enumerate(_chunks):
+                                    _last = (_seq == len(_chunks) - 1)
+                                    _out = {"session_name": name, "ts": _sched_time.time(),
+                                          "text": _m.get("content", ""), "entry": name,
+                                          "ok": True, "seq": _seq, "done": bool(_last)}
+                                    _f.write(json.dumps(_out, ensure_ascii=False) + "\n")
+                        else:
+                            _txt = _sched_extract_answer(result)
+                            _out = {"session_name": name, "ts": _sched_time.time(),
+                                  "text": _txt, "entry": name, "ok": True, "done": True}
+                            with open(_outbox, "a", encoding="utf-8") as _f:
+                                _f.write(json.dumps(_out, ensure_ascii=False) + "\n")
+                    except Exception as _oe:
+                        print(f"  [sched-outbox-warn] {name}: {_oe}", file=sys.stderr)
 
             def _sched_audit_event(e):
                 # 调度事件落审计 (2026-11-11): schedule-error 过去被默认空 lambda 静默吞掉

@@ -89,6 +89,7 @@ def entries_fingerprint(entries: list[dict]) -> tuple:
             tuple(sorted(str(x) for x in (e.get("roots") or []))),
             e.get("approval"),
             e.get("model"),
+            e.get("deliver"),
         ))
     return tuple(sorted(rows))
 

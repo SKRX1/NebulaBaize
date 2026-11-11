@@ -101,7 +101,30 @@
       {
         "name": "每日代码备份",
         "task": "cd /d \"E:\\星云\\星云智能体\\strata-agent\" && python tools\\backup-bundle.py --keep 14",
-        "daily_at": "03:30"
+        "daily_at": "03:30",
+        "approval": "full",
+        "roots": [
+          "E:\\星云\\星云智能体"
+        ]
+      },
+      {
+        "name": "自动备份测试·3",
+        "task": "cd /d \"E:\\星云\\星云智能体\\strata-agent\" && python tools\\backup-bundle.py --keep 14",
+        "roots": [
+          "E:\\星云\\星云智能体"
+        ],
+        "approval": "full",
+        "at": "2026-11-11T16:32:00"
+      },
+      {
+        "name": "test-deliver-session",
+        "task": "echo deliver_test_ok",
+        "roots": [
+          "E:\\星云\\星云智能体"
+        ],
+        "approval": "full",
+        "deliver": "session_summary",
+        "every_hours": 6
       }
     ]
   },

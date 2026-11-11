@@ -2168,7 +2168,7 @@ function msgEl(m, i) {
       `<button class="st-btn st-btn--icon" data-msg-copy aria-label="${esc(t("ctx.copy.answer"))}" title="${esc(t("ctx.copy.answer"))}">${icon("copy")}</button>` +
       `<button class="st-btn st-btn--icon" data-action="regen" aria-label="${esc(t("ctx.regen"))}" title="${esc(t("ctx.regen"))}">${icon("regenerate")}</button>` +
       `<button class="st-btn st-btn--icon st-btn--danger" data-action="delete" aria-label="${esc(t("ctx.delete"))}" title="${esc(t("ctx.delete"))}">${icon("trash")}</button></div>`;
-    updateAssistant(el, m, false);
+    updateAssistant(el, m, !!m.streaming);
   }
   return el;
 }
@@ -9340,6 +9340,19 @@ $("img-form").onsubmit = async (ev) => {
 // SINGLE-line answer straight into an object and a MULTI-line answer into {text}, so we go
 // through mcpCall and normalise all three shapes here -- a lone entry must render too
 // (the old split-on-\n path lost single-entry lists). Returns [] for none.
+// Shared: render the per-row run-status span (mark + last-run time). Both the
+// Schedule tab list and the sidebar quick-view call this, so the two views stay
+// visually identical. last_run = {ts: epoch-seconds, ok: bool}; null = never ran.
+function schedStatusSpan(e) {
+  const lr = e.last_run;
+  if (!lr) return `<span class="sched-row__status">–</span>`;
+  const cls = lr.ok ? " ok" : " fail";
+  const mark = lr.ok ? "✓" : "✗";
+  const time = new Date(lr.ts * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"});
+  const lbl = t("sched.last_run");
+  return `<span class="sched-row__status${cls}" title="${lbl} ${time}">${mark} ${time}</span>`;
+}
+
 async function schedEntries() {
   const d = await mcpCall("schedule", "list", {});
   if (!d || typeof d !== "object") return [];
@@ -9366,10 +9379,77 @@ async function loadSchedule() {
       `<span class="sched-row__name" title="${esc(e.task || "")}">${esc(e.name)}</span>` +
       `<span class="sched-row__trigger">${esc(e.trigger)}</span>` +
       `<span class="sched-row__next">${esc(e.next)}</span>` +
-      `<span class="sched-row__status${e.last_run ? (e.last_run.ok ? " ok" : " fail") : ""}">${e.last_run ? (e.last_run.ok ? "✓" : "✗") : "–"}</span>` +
+      `${schedStatusSpan(e)}` +
       `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-del="${esc(e.name)}" aria-label="${esc(t("attach.remove"))}" title="${esc(t("attach.remove"))}">${icon("trash")}</button></div>`).join("");
   } catch (e) { list.innerHTML = '<div class="sched-row muted">' + t("sched.loadfailed") + '</div>'; }
 }
+
+// --- Session outbox poll: inject delivered results into the matching dedicated session ---
+// Pure: group session-stream entries by session, concat by seq order. A single entry is
+// passed through unchanged (backward compatible with summary's no-seq format). Multiple
+// entries are sorted by seq, texts joined with \n. ok/done come from the LAST entry (the one
+// flagged done=true by the backend). Contract-testable: feed multiple seq entries, assert the
+// assembled text order. The poll layer applies the OK/FAIL prefix on display, so this stays a
+// clean text assembler.
+function assembleStreamBubbles(entries) {
+  if (!Array.isArray(entries) || !entries.length) return [];
+  const bySession = new Map();
+  for (const e of entries) {
+    const key = e.session_name || e.entry || "schedule";
+    if (!bySession.has(key)) bySession.set(key, []);
+    bySession.get(key).push(e);
+  }
+  const out = [];
+  for (const [key, arr] of bySession) {
+    if (arr.length === 1) { out.push({ session_name: key, ...arr[0] }); continue; }
+    arr.sort((a, b) => (a.seq == null ? 0 : a.seq) - (b.seq == null ? 0 : b.seq));
+    const last = arr[arr.length - 1];
+    out.push({
+      session_name: key,
+      text: arr.map((x) => (x && x.text) ? x.text : "").join("\n"),
+      ok: !!last.ok,
+      done: !!last.done,
+      chunks: arr.length,
+    });
+  }
+  return out;
+}
+
+async function pollSessionOutbox() {
+  try {
+    const r = await fetch("/api/session-outbox");
+    if (!r.ok) return;
+    const data = await r.json();
+    const entries = (data.entries || []);
+    if (!entries.length) return;
+    const assembled = assembleStreamBubbles(entries);
+    for (const e of assembled) {
+      const sessName = e.session_name || e.entry || "schedule";
+      let sess = sessions.find(s => s.title === sessName || s.title === "\u23F0 " + sessName);
+      if (!sess) {
+        sess = { id: newSessionId(), title: "\u23F0 " + sessName, workspace: "", messages: [],
+                 createdAt: Date.now(), updatedAt: Date.now() };
+        sessions.push(sess);
+      }
+      // Inject assistant message bubble
+      const bubble = { role: "assistant", text: (e.ok ? "\u2705 " : "\u274C ") + (e.text || ""),
+                       images: [], files: [], time: (e.ts || Date.now() / 1000) * 1000,
+                       notice: { code: "schedule", message: sessName },
+                       streaming: (e.done === false) };
+      sess.messages.push(bubble);
+      sess.updatedAt = Date.now();
+    }
+    saveSessions();
+    renderSessions();
+    // Re-render if the active session was affected
+    for (const e of entries) {
+      const sessName = e.session_name || e.entry || "schedule";
+      const sess = sessions.find(s => s.title === sessName || s.title === "\u23F0 " + sessName);
+      if (sess && sess.id === activeId) { renderChat(); break; }
+    }
+  } catch (e) { /* silent: poll failure is non-critical */ }
+}
+setInterval(pollSessionOutbox, POLL_MS);
 
 // Editing state: the original name of the entry being edited (null = create mode).
 let schedEditing = null;
@@ -9377,7 +9457,7 @@ function schedResetForm() {
   schedEditing = null;
   $("sched-name").value = ""; $("sched-task").value = ""; $("sched-value").value = "";
   $("sched-mode").value = "every_minutes";
-  $("sched-workspace").value = ""; $("sched-perm").value = "auto"; $("sched-model").value = "";
+  $("sched-workspace").value = ""; $("sched-perm").value = "auto"; $("sched-model").value = ""; $("sched-deliver").value = "";
   schedFillSelectors();
   schedApplyLabel();
 }
@@ -9444,6 +9524,7 @@ async function renderSchedule() {
       `<span class="sched-row__name" title="${esc(e.task || "")}">${esc(e.name)}</span>` +
       `<span class="sched-row__trigger">${esc(e.trigger)}</span>` + badge +
       `<span class="sched-row__next">${esc(e.next)}</span>` +
+      `${schedStatusSpan(e)}` +
       `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-edit="${esc(e.name)}" aria-label="${esc(t("sched.edit"))}" title="${esc(t("sched.edit"))}">${icon("edit")}</button>` +
       `<button class="st-btn st-btn--icon st-btn--icon-sm" data-sched-del="${esc(e.name)}" aria-label="${esc(t("attach.remove"))}" title="${esc(t("attach.remove"))}">${icon("trash")}</button></div>`;
     }).join("");
@@ -9470,6 +9551,7 @@ async function openSchedModal(name) {
     // "monthly_at 15 02:00" the value itself holds a space, so strip only the FIRST token
     $("sched-value").value = (e.trigger || "").replace(/^\S+\s+/, "").replace(/\s*\(one-shot\)$/, "");
     schedFillSelectors({workspace: (e.roots && e.roots[0]) || "", model: e.model || ""});
+    $("sched-deliver").value = e.deliver || "";
     $("sched-perm").value = e.approval || "auto";
     $("sched-name").focus();
   } catch (e) { /* leave blank */ }
@@ -9528,6 +9610,8 @@ $("sched-apply").onclick = async () => {
   if (wsVal) args.roots = [wsVal];
   if (permVal !== "auto") args.approval = permVal;
   if (mdVal) args.model = mdVal;
+  const deliverVal = $("sched-deliver").value;
+  if (deliverVal) args.deliver = deliverVal;
   try {
     let msg;
     if (schedEditing) {
@@ -9537,6 +9621,7 @@ $("sched-apply").onclick = async () => {
       upd.roots = wsVal ? [wsVal] : "-";
       upd.approval = permVal || "auto";
       upd.model = mdVal || "-";
+      upd.deliver = deliverVal || "-";
       msg = await mcpText("schedule", "update", upd) || "Updated";
       toast("success", t("sched.updated.toast"), msg);
     } else {

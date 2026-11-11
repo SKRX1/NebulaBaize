@@ -1579,6 +1579,29 @@ class GatewayHandler(BaseHTTPRequestHandler):
             base = base[:-3].rstrip("/")
         return base
 
+    def _api_session_outbox(self, method):
+        """GET /api/session-outbox — return pending outbox entries (consume-once) and clear file."""
+        outbox_path = os.path.join(ROOT, "data", "session_outbox.jsonl")
+        if method not in (None, "GET"):
+            self._json(405, {"error": {"type": "method_not_allowed"}})
+            return
+        entries = []
+        if os.path.isfile(outbox_path):
+            try:
+                lines = open(outbox_path, encoding="utf-8").read().splitlines()
+                for l in lines:
+                    if l.strip():
+                        try:
+                            entries.append(json.loads(l))
+                        except json.JSONDecodeError:
+                            print(f"  [outbox-warn] bad json line", file=sys.stderr)
+                            continue
+                if entries:
+                    open(outbox_path, "w", encoding="utf-8").close()
+            except OSError as e:
+                print(f"  [outbox-warn] {e}", file=sys.stderr)
+        self._json(200, {"entries": entries})
+
     def _api_monitor(self, method):
         """GET /api/monitor -> the SELECTED model's own engine-side context occupancy.
 
@@ -1659,6 +1682,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return True
         if path.rstrip("/") == "/api/monitor":
             self._api_monitor(method)
+            return True
+        if path.rstrip("/") == "/api/session-outbox":
+            self._api_session_outbox(method)
             return True
         if path.rstrip("/") == "/api/requests":
             # Step2-A: the streaming-debug suite reads the per-chunk timeline here. Served

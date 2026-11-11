@@ -166,7 +166,8 @@ class ScheduleServer(McpServerBase):
             "yearly_at": {"type": "string"},
             "roots": {"type": "array", "items": {"type": "string"}},
             "approval": {"type": "string", "enum": ["full", "review", "manual"]},
-            "model": {"type": "string"}},
+            "model": {"type": "string"},
+            "deliver": {"type": "string", "enum": ["audit", "session_summary", "session_stream"]}},
             "required": ["name", "task"]}},
         {"name": "update", "description": "Update a schedule entry by name (destructive when renaming; takes effect immediately in --serve mode): name locates the entry; optional new_name, task, at most one trigger (a provided trigger REPLACES the entry's whole trigger), and optional roots/approval/model (provide a value to CHANGE it, provide the sentinel \"-\" to CLEAR it back to the default)",
          "inputSchema": {"type": "object", "properties": {
@@ -177,7 +178,8 @@ class ScheduleServer(McpServerBase):
             "yearly_at": {"type": "string"},
             "roots": {"type": "array", "items": {"type": "string"}},
             "approval": {"type": "string", "enum": ["full", "review", "manual"]},
-            "model": {"type": "string"}},
+            "model": {"type": "string"},
+            "deliver": {"type": "string", "enum": ["audit", "session_summary", "session_stream"]}},
             "required": ["name"]}},
         {"name": "remove", "description": "Remove a schedule entry by name (destructive: takes effect immediately in --serve mode)",
          "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}},
@@ -199,7 +201,7 @@ class ScheduleServer(McpServerBase):
                     "next": _next_fire(e), "task": (e.get("task") or "")[:80],
                     "last_run": lr, "consumed": e.get("name", "") in state.get("consumed_oneshots", []),
                     "roots": e.get("roots") or [], "approval": e.get("approval") or "review",
-                    "model": e.get("model") or ""},
+                    "model": e.get("model") or "", "deliver": e.get("deliver") or ""},
                     ensure_ascii=False))
             return "\n".join(out)
         if name == "add":
@@ -228,6 +230,8 @@ class ScheduleServer(McpServerBase):
                 entry["approval"] = str(args["approval"]).strip()
             if (args.get("model") or "").strip():
                 entry["model"] = str(args["model"]).strip()
+            if args.get("deliver"):
+                entry["deliver"] = str(args["deliver"]).strip()
             entries.append(entry)
             cfg.setdefault("schedule", {})["entries"] = entries
             _save_cfg(cfg)
@@ -240,7 +244,7 @@ class ScheduleServer(McpServerBase):
             new_name = (args.get("new_name") or "").strip()
             new_task = (args.get("task") or "").strip()
             trig_present = [k for k in TRIGGER_KEYS if args.get(k) not in (None, "")]
-            override_present = [k for k in ("roots", "approval", "model") if args.get(k) is not None]
+            override_present = [k for k in ("roots", "approval", "model", "deliver") if args.get(k) is not None]
             if not new_name and not new_task and not trig_present and not override_present:
                 return "nothing to update (provide new_name, task, a trigger field, or an override)"
             if len(trig_present) > 1:
@@ -260,7 +264,7 @@ class ScheduleServer(McpServerBase):
             # apply execution overrides: provide a value to CHANGE, provide "-" to CLEAR
             # back to default. An absent key leaves the existing value alone -- the panel
             # sends the full form state on every save, so this only guards manual calls.
-            for k in ("approval", "model"):
+            for k in ("approval", "model", "deliver"):
                 if args.get(k) is not None:
                     v = str(args[k]).strip()
                     if v == "-":

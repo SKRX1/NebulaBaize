@@ -94,3 +94,12 @@ Start-Process 没有 -ExecutionPolicy 参数,须经 -ArgumentList 逐项传给�
 前端唯一权威源是 serve/web/app.js(部署到 Strata-main 已退役,该目录本机不存在),改完硬刷新浏览器即生效,无需额外部署
 i18n 门禁真实脚本是 tests/test_i18n.mjs(node 单跑),不是 tools/test_i18n.js;强制 en/zh 键数一致,新增 key 必须两字典各加一个
 browser__sim 纯沙箱跑大型前端 app.js 会中途崩(缺真 DOM 上下文,顶层 const/let 探针 ReferenceError),只能验 DOM 接线/默认态;行为级契约实测须用 jsdom harness(可 mock fetch 完整跑 propose),二者分工勿混用
+聊天消息里用户贴的图(模型能看到)不会自动落盘到 workspace/temp;agent 要用 PIL 按主色+尺寸从磁盘候选里读图核对确认是哪张,不能仅凭文件名或时间猜,更无法凭"看到"就导出成文件。
+serve/web/img/ 下图片被根 .gitignore 第19行 *.png 全仓忽略,属运行时资源——图片改动不进 git,靠 tools\_deploy_mirror.py 同步到部署镜像(脚本会一并镜像 img 子目录)。
+捐助页收款码图片真实落点在 serve/web/img/（用户手动放置文件），文件名即引用名 donate-alipay.jpg（支付宝是jpg）/donate-usdc.png（USDC是png）；引用扩展名须与真实文件实际格式一致，零转码保真，不靠肉眼重绘。
+聊天消息里用户贴的图对模型可见但不落盘，agent 无法凭"看到"导出文件；只有用户作为附件/手动放入磁盘的文件才能被脚本读取复制。
+给某元素加"双击放大"时复用项目现成 lightbox（#img-modal + openImageView，全局 dblclick 监听在 app.js bindSparks 内），把目标 class 加入该监听的 IMG 判定分支即可，勿造新轮子；同时给它加 cursor:zoom-in 提示。
+run_tests 的绿门禁 = tools/run_tests.py 的 SUITES 列表（每行一个测试，.mjs/.js 用 node 跑、.py 用 python，exit 0=绿）；新测试登记时按文件真实换行风格插入，纯侦察脚本（_grep_/_dump_/_find_/_resolve_）写一次即用完。
+真实 DOM 竞态类 bug 若 jsdom 复现不了机制（如共享 caret/insertHTML），用「忠实建模竞态的确定性差分 + 静态锁防漂移」固化，单变量翻转须 load-bearing（fix 结果严格优于 control），这是 codebase 既有 test_safety_pad_gate 的写法。
+code_hygiene 护栏抓到的新增 silent-except-swallow，优先「真处理」(给 except 体加可见动作)而非 --bless 抬基线；--bless 仅用于确认要保留的既有豁免
+在 runtime/http_server.py 等受 hygiene 守卫的文件里新增 except 块时，body 不能只有 pass/continue（会被 test_code_hygiene 计入 silent swallow 回归），必须带一行日志（print 到 stderr 或调用 audit）。

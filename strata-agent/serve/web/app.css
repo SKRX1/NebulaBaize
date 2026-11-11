@@ -491,17 +491,24 @@ main { flex: 1; min-height: 0; display: flex; }
 .facts .st-btn--icon { width: 28px; height: 28px; }
 .facts .st-btn--icon .st-icon { width: 16px; height: 16px; }
 /* ── Donate page (reuses .about/.st-card/.muted) ── */
-.donate-hero__title { margin: 0; font-size: var(--st-fs-lg); font-weight: var(--st-fw-bold); color: var(--st-ink); }
+.donate-hero__title { margin: 0; font-size: var(--st-fs-lg); font-weight: var(--st-fw-bold); color: var(--st-accent-text); }
 .donate-hero__story { margin: 0; line-height: 1.7; color: var(--st-ink-soft); }
 .donate-cards { display: flex; flex-wrap: wrap; gap: var(--st-s-5); }
-.donate-card { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: var(--st-s-3); }
+.donate-card { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: var(--st-s-3); transition: transform var(--st-dur) var(--st-ease), box-shadow var(--st-dur) var(--st-ease); }
 .donate-qr-wrap { display: flex; justify-content: center; align-items: center; background: #fff; border-radius: var(--st-r-md); padding: var(--st-s-4); }
-.donate-qr { width: 240px; height: 240px; object-fit: contain; image-rendering: auto; }
+.donate-qr { width: 240px; height: 240px; object-fit: contain; image-rendering: auto; cursor: zoom-in; }
 .donate-addr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-s-2); }
 .donate-addr code { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font: 400 12px var(--st-font-mono); color: var(--st-ink-soft); }
 .donate-warn { margin: 0; color: var(--st-warn, #b45309); font-size: var(--st-fs-sm); line-height: 1.6; }
-.donate-thanks { text-align: center; }
-.donate-signature { font-weight: var(--st-fw-bold); color: var(--st-ink); }
+.donate-thanks { text-align: center; position: relative; padding-top: var(--st-s-8); }
+.donate-thanks::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 1px; background: linear-gradient(90deg, transparent, var(--st-line), transparent); }
+.donate-signature { font-weight: var(--st-fw-bold); color: var(--st-accent-text); letter-spacing: 2px; }
+.donate-card:hover { transform: translateY(-2px); box-shadow: var(--st-sh-bar); }
+
+@keyframes donate-fade-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.donate-hero { animation: donate-fade-in 400ms var(--st-ease) both; }
+@media (prefers-reduced-motion: reduce) { .donate-hero { animation: none; } .donate-card:hover { transform: none; } }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--st-s-4); font-size: var(--st-fs-sm);
               font-weight: var(--st-fw-medium); color: var(--st-ink-soft); }
 .toggle-row .st-toggle { flex: none; }   /* a long label must not squeeze the switch */
@@ -1399,6 +1406,15 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .sched-manage-list { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 12px;
   max-height: 38vh; overflow-y: auto; }
 .sched-manage-list .sched-row { grid-template-columns: minmax(0,1fr) 92px 84px 26px 26px; }
+/* 2026-11: main schedule list rows add a last-run status column (shared
+   schedStatusSpan). Use flex so the optional badge span never misaligns the
+   row; name takes remaining space, trigger/next/status size to content, buttons fixed. */
+#sched-view-list .sched-row { display: flex; gap: 8px; }
+#sched-view-list .sched-row__name { flex: 1 1 auto; }
+#sched-view-list .sched-row__trigger { flex: 0 0 auto; max-width: 90px; }
+#sched-view-list .sched-row__next { flex: 0 0 auto; max-width: 92px; }
+#sched-view-list .sched-row__status { flex: 0 0 auto; }
+#sched-view-list .sched-row .st-btn--icon { flex: 0 0 auto; }
 .sched-manage-list .sched-row .st-btn--icon { visibility: visible; }
 .sched-manage-list .sched-row .st-btn--icon:hover { color: var(--st-accent); }
 /* ---- plan-A on-demand archived-history card (pure display layer) ---- */
