@@ -447,6 +447,16 @@ SLOW_SUITES = [
 _SLOWSET = set(SLOW_SUITES)
 SUITES_QUICK = [s for s in SUITES if s not in _SLOWSET]
 
+# Isolation lane (2026-11-12): timing-sensitive suites that CPU contention can flake
+# under the 7-worker pool. They run ONE AT A TIME after the pool drains, so a normal
+# --full run stays honest green instead of throwing a spurious red on contention.
+# Membership is a MEASURED flake (test_self_suicide_guard flakes under contention,
+# runs 16/16 green solo) -- not name-guessing.
+SERIAL_ONLY = [
+    "tests/test_self_suicide_guard.py",   # LIVE process-tree/CIM-walk probe: flakes under CPU contention
+]
+_SERIALSET = set(SERIAL_ONLY)
+
 
 def run_suite(rel: str) -> tuple[bool, str]:
 
@@ -520,15 +530,27 @@ def main(argv=None) -> int:
 
     else:
 
+        parallel_idx = [i for i, s in enumerate(_suites) if s not in _SERIALSET]
+
         with ThreadPoolExecutor(max_workers=workers) as ex:
 
-            futs = {ex.submit(run_suite, s): i for i, s in enumerate(_suites)}
+            futs = {ex.submit(run_suite, _suites[i]): i for i in parallel_idx}
 
             for fut in as_completed(futs):
 
                 ok, line = fut.result()
 
                 results[futs[fut]] = (_suites[futs[fut]], ok, line)
+
+        # isolation lane: SERIAL_ONLY suites run one at a time AFTER the pool
+
+        # drains; land results on their ORIGINAL index so printed order is unchanged.
+
+        for i, s in enumerate(_suites):
+
+            if s in _SERIALSET:
+
+                results[i] = (s,) + run_suite(s)
 
     for s, ok, line in results:
 
