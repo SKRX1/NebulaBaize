@@ -87,6 +87,7 @@ patches/
 # root scratch tooling + shell-redirect garbage (ROOT-anchored, never sub-trees)
 /tools/
 /nul
+/_out.txt
 /new
 /Date.now()
 /,n.count('{s}'))

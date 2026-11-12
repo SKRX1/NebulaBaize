@@ -909,6 +909,9 @@
     <div class="toggle-row" id="s-sparkfreeze-row"><label class="st-label" for="s-sparkfreeze"><span data-i18n="drawer.sparkfreeze">压缩前保留柱数（sparkline 冻结）</span> <output id="o-sparkfreeze">10</output></label>
       <input class="st-slider" type="range" id="s-sparkfreeze" min="0" max="50" step="1" value="10">
       <div class="muted small" data-i18n="drawer.sparkfreeze.hint">每次压缩后 sparkline 保留压缩前最近多少根柱（虚线分隔当前段）。默认 10，设 0 = 不保留</div></div>
+    <div class="toggle-row" id="s-sparkmax-row"><label class="st-label" for="s-sparkmax"><span data-i18n="drawer.sparkmax">柱状图显示上限（含冻结+当前段）</span> <output id="o-sparkmax">24</output></label>
+      <input class="st-slider" type="range" id="s-sparkmax" min="6" max="60" step="1" value="24">
+      <div class="muted small" data-i18n="drawer.sparkmax.hint">sparkline 总共最多显示多少根柱（冻结段+当前段）。达上限后最左柱平滑滚出；默认 24</div></div>
       <div class="toggle-row" id="s-speeddrop-row"><label class="st-label" for="s-speeddrop"><span data-i18n="drawer.speeddrop">速度提前触发降幅</span> <output id="o-speeddrop">50%</output></label>
         <input class="st-slider" type="range" id="s-speeddrop" min="5" max="80" step="5" value="50">
         <div class="muted small" data-i18n="drawer.speeddrop.hint">仅在阈值滑条=自动时生效：解码速度较安静期基线下降达此百分比即提前压缩；左端灵敏，右滑迟钝</div></div>

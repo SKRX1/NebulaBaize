@@ -1189,7 +1189,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -3363,8 +3363,9 @@ function ctxSpark(arr, sepAfter) {
   // Plan C (2026-11-13): overall display cap = frozen segment + current segment. Past the
   // cap the oldest bar rolls off the LEFT (smooth rolling window, not a hard reset); the
   // dashed sepAfter divider re-indexes for the window. At/below the cap = show all (unchanged).
-  if (arr.length > SPARK_MAX_BARS) {
-    const dropped = arr.length - SPARK_MAX_BARS;
+  const maxBars = (typeof settings !== "undefined" && +settings.sparkMaxBars >= 1) ? +settings.sparkMaxBars : SPARK_MAX_BARS;
+  if (arr.length > maxBars) {
+    const dropped = arr.length - maxBars;
     arr = arr.slice(dropped);
     if (typeof sepAfter === "number" && sepAfter >= 0) sepAfter -= dropped;
   }
@@ -9087,6 +9088,7 @@ function loadDrawer(s = settings) {
   $("s-targetpct").value = s.compactTarget || 25;
   $("s-precondmax").value = (+s.precondenseMax >= 1) ? +s.precondenseMax : 2;
   $("s-sparkfreeze").value = (+s.sparkFreezeN >= 0) ? +s.sparkFreezeN : 10;
+  $("s-sparkmax").value = (+s.sparkMaxBars >= 1) ? +s.sparkMaxBars : 24;
   var mc = (+s.memCompactChunkTokens || 0);
   $("s-memchunk").value = (mc > 0 && mc <= 12000) ? mc : 0;
   $("o-memchunk").textContent = mc > 0 ? String(mc) : "auto";
@@ -9155,6 +9157,7 @@ function outputs() {
   $("o-targetpct").textContent = (+(+$("s-targetpct").value) || 25) + "%";
   $("o-precondmax").textContent = (+(+$("s-precondmax").value) || 2);
   $("o-sparkfreeze").textContent = (+$("s-sparkfreeze").value >= 0 ? +$("s-sparkfreeze").value : 10);
+  $("o-sparkmax").textContent = (+$("s-sparkmax").value >= 1 ? +$("s-sparkmax").value : 24);
   $("o-speeddrop").textContent = sd + "%";
   $("s-speeddrop").disabled = !settings.autocompact || settings.compactPct > 0;
   var mcV = +$("s-memchunk").value;
@@ -9226,6 +9229,7 @@ $("s-apply").onclick = async () => {
               compactTarget: +$("s-targetpct").value,
               precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,
               sparkFreezeN: +($("s-sparkfreeze").value || 10),
+              sparkMaxBars: (+($("s-sparkmax").value) >= 1) ? +(+$("s-sparkmax").value) : 24,
               memCompactChunkTokens: Math.min(12000, Math.max(0, +($("s-memchunk").value) || 0)),
               memCompactReservePct: Math.min(50, Math.max(5, +($("s-memreserve").value) || 25)),
               autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default
