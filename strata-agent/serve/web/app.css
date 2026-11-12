@@ -1514,7 +1514,7 @@ audio.md-media { height: 38px; }
 .nebula .neb-p.wu-shui { fill: var(--wu-shui); }
 .nebula .neb-core { fill: var(--wu-eye); }
 /* —— 空态中央·白泽神兽大图（方案A：端坐金色星云+五行星尘环绕）——
-.chat-empty .baize-hero { width: 168px; height: auto; display: block; margin: 0 auto var(--st-s-5); }
+.chat-empty .baize-hero { width: 120px; height: auto; display: block; margin: 0 auto var(--st-s-5); }
 .chat-empty .bz-halo  { fill: url(#bzHalo); transform-box: fill-box; transform-origin: center;
   animation: brand-breathe 6s var(--st-ease) infinite; }
 .chat-empty .bz-swirl { transform-box: fill-box; transform-origin: center;
@@ -1532,7 +1532,7 @@ audio.md-media { height: 38px; }
 @keyframes bz-breathe { 0%,100% { opacity:.92; transform: scale(1); } 50% { opacity:1; transform: scale(1.05); } }
 @keyframes bz-glow { 0%,100% { opacity:.78; } 50% { opacity:1; } }
 /* 白泽神兽动效（颜色全 inline，此处只留动画/光晕）
-.chat-empty .baize-hero { width: 168px; height: auto; display: block; margin: 0 auto var(--st-s-5); }
+.chat-empty .baize-hero { width: 120px; height: auto; display: block; margin: 0 auto var(--st-s-5); }
 .chat-empty .bz-halo  { transform-box: fill-box; transform-origin: center; animation: brand-breathe 6s var(--st-ease) infinite; }
 .chat-empty .bz-swirl { transform-box: fill-box; transform-origin: center; animation: brand-spin 44s linear infinite; }
 .chat-empty .bz-dust  { transform-box: fill-box; transform-origin: center; animation: brand-spin 26s linear infinite reverse; }
