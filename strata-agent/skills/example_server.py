@@ -11,7 +11,7 @@ from _mcp_base import McpServerBase  # noqa: E402
 class ExampleServer(McpServerBase):
     name = "example-server"
     tools = [
-        {"name": "hello", "description": "Return a greeting from the example skill",
+        {"name": "hello", "description": "返回一句来自示例技能的问候",
          "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}}},
     ]
 
