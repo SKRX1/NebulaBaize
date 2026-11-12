@@ -313,6 +313,7 @@ _ALLOWED_EXT = {
     # 图片
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".avif", ".ico", ".svg",
     ".tif", ".tiff", ".heic", ".heif", ".jp2", ".apng",
+    ".ani",   # 动画光标(RIFF ACON)：浏览器多半打不开但命名/嗅探要认得
     # 文档
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".md",
     ".csv", ".rtf", ".epub", ".mobi", ".odt", ".ods", ".odp",
@@ -349,12 +350,17 @@ _SNIFF_FAMILY = {
     ".xz":   {".xz"},
     ".7z":   {".7z"},
     ".rar":  {".rar"},
+    # RIFF 族补全（2026-11）：除 WEBP/WAVE 外加 AVI(form "AVI ")/ANI(form "ACON")
+    ".avi":  {".avi"},
+    ".ani":  {".ani"},
 }
 _ISOBRAND_HEIC = {b"heic", b"heix", b"mif1", b"heim", b"heif", b"hevc", b"avif"}
 _ISOBRAND_MOV  = {b"qt  "}
 # 嗅探器只对「能一锤定音」的签名返回；容器族返回族代表，由 _reconcile_ext 决定要不要改
 _RIFF_WEBP = 8
 _RIFF_WAVE = 8
+_RIFF_AVI  = 8   # RIFF form-type 固定在偏移8(RIFF+4字节size+form-type)
+_RIFF_ACON = 8   # ANI 动画光标的 form-type 是 "ACON"(非 ANI)
 _FTYP_OFF  = 4
 _FTYP_BRAND = 8
 
@@ -407,6 +413,10 @@ def _sniff_ext(data):
         return ".webp", _SNIFF_FAMILY[".webp"]
     if data[:4] == b"RIFF" and data[_RIFF_WAVE:_RIFF_WAVE+4] == b"WAVE":
         return ".wav", _SNIFF_FAMILY[".wav"]
+    if data[:4] == b"RIFF" and data[_RIFF_AVI:_RIFF_AVI+4] == b"AVI ":
+        return ".avi", _SNIFF_FAMILY[".avi"]
+    if data[:4] == b"RIFF" and data[_RIFF_ACON:_RIFF_ACON+4] == b"ACON":
+        return ".ani", _SNIFF_FAMILY[".ani"]
     if data[:2] == b"\x1f\x8b":   # gzip magic 是 2 字节（曾误配 [:4] 永假）
         return ".gz", _SNIFF_FAMILY[".gz"]
     if data[:3] == b"BZh":

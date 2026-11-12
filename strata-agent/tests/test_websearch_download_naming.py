@@ -32,6 +32,8 @@ Assertions (ASCII-matched only; Chinese is display, not a match target, per hous
        M17 BMFF other brand (isom) -> .mp4   (the ISO-BMFF catch-all branch)
   M18 zip magic + name .docx -> stays .docx  (intra-container-family: NO collateral)
   M19 TIFF magic + name .tiff -> stays .tiff (alias inside family: NO collateral)
+  M20 RIFF form-type "AVI " -> .avi   (RIFF family variant, added 2026-11)
+  M21 RIFF form-type "ACON" -> .ani   (animated cursor; form is ACON not ANI)
 
 Run: python tests/test_websearch_download_naming.py
 """
@@ -150,6 +152,8 @@ sniff("M17 ISO-BMFF other brand -> .mp4",  b"\x00\x00\x00\x18ftypisom", "f.mp4")
 # intra-family = NO collateral (the load-bearing safety design):
 sniff("M18 zip magic + .docx stays .docx",  b"PK\x03\x04", "f.docx", carrier="f.docx")
 sniff("M19 TIFF magic + .tiff stays .tiff", b"II*\x00", "f.tiff",   carrier="f.tiff")
+sniff("M20 RIFF-AVI form -> .avi",             b"RIFF\x00\x00\x00\x00AVI ", "f.avi")
+sniff("M21 RIFF-ACON form -> .ani",            b"RIFF\x00\x00\x00\x00ACON", "f.ani")
 
 print("\n" + ("WEBSEARCH-DOWNLOAD-NAMING: ALL PASSED" if not FAILURES
               else "WEBSEARCH-DOWNLOAD-NAMING: SOME FAILED " + str(FAILURES)))
