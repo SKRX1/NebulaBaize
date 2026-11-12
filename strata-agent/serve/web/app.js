@@ -4649,6 +4649,7 @@ function autoWriteOn(store) {
                             : !!settings.autoMemory;
 }
 async function maybeProposeMemory(m) {
+  try {
   const s = activeSession();
   if (!s || !s.workspace || !mcpInfo.tools) return;
   const base = s.workspace.replace(/\/$/, "");
@@ -4738,6 +4739,7 @@ async function maybeProposeMemory(m) {
     }
     toast("ok", t("mem.auto.proposed"), t("mem.auto.proposed.n", {n: fresh.length, s: cfg.title}), 6000);
   }
+  } catch (e) { /* fire-and-forget 契约：网络/网关瞬断静默，与同族一致，绝不上报 */ }
 }
 // Load drafts for all three stores (rules uses its globals; knowledge/experience from disk).
 async function loadPendingDrafts(ws) {
