@@ -407,7 +407,7 @@ def _sniff_ext(data):
         return ".webp", _SNIFF_FAMILY[".webp"]
     if data[:4] == b"RIFF" and data[_RIFF_WAVE:_RIFF_WAVE+4] == b"WAVE":
         return ".wav", _SNIFF_FAMILY[".wav"]
-    if data[:4] == b"\x1f\x8b":
+    if data[:2] == b"\x1f\x8b":   # gzip magic 是 2 字节（曾误配 [:4] 永假）
         return ".gz", _SNIFF_FAMILY[".gz"]
     if data[:3] == b"BZh":
         return ".bz2", _SNIFF_FAMILY[".bz2"]

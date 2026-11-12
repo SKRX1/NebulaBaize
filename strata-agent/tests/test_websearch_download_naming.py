@@ -24,6 +24,14 @@ Assertions (ASCII-matched only; Chinese is display, not a match target, per hous
   M1  name .png + data PNG magic       -> stays .png (sniff agrees, no change)
   M2  name .jpg + data PNG magic        -> corrected to .png (cross-family fix)
   M3  name .heic + data TIFF magic      -> corrected to .tif (cross-family fix)
+  M4-M17 sniff-table coverage, ONE assertion per magic (carrier name is .bin, which
+       lives in NO sniff family -- so only the sniffer can move the extension):
+       M4 JPEG  M5 GIF  M6 BMP  M7 PDF  M8 TIFF(big-endian branch)  M9 RIFF-WEBP
+       M10 RIFF-WAVE  M11 gz(bug-exposed: 2-byte magic once mis-wired to [:4], FIXED)
+       M12 bz2  M13 7z  M14 rar  M15 zip-container  M16 BMFF-mov
+       M17 BMFF other brand (isom) -> .mp4   (the ISO-BMFF catch-all branch)
+  M18 zip magic + name .docx -> stays .docx  (intra-container-family: NO collateral)
+  M19 TIFF magic + name .tiff -> stays .tiff (alias inside family: NO collateral)
 
 Run: python tests/test_websearch_download_naming.py
 """
@@ -114,6 +122,34 @@ _TIFF_MAGIC = b"II*\x00" + b"\x00" * 32
 check("M3 .heic + TIFF magic corrected to .tif", 
       _saved_name({"url": "http://x/pic/767d.png", "query": "q", "name": "photo.heic"},
                   data=_TIFF_MAGIC) == "photo.tif")
+
+# ── M4-M19 sniff-table coverage: one assertion per magic. Carrier default is .bin
+# (in NO sniff family), so ONLY the sniffer can move the extension -- the assertion
+# exercises _sniff_ext/_reconcile_ext, not the naming logic. M18/M19 override the
+# carrier to their own family so they lock the NO-COLLATERAL intra-family rule.
+# Padded so every magic clears the 16-byte sniff floor and the 12-byte BMFF window.
+def sniff(label, magic, expect, carrier="f.bin"):
+    got = _saved_name({"url": "http://x/f/x.bin", "query": "q", "name": carrier},
+                      data=magic + b"\x00" * 32)
+    check(label, got == expect, "got=" + a(got))
+
+sniff("M4 JPEG magic -> .jpg",             b"\xff\xd8\xff\xe0", "f.jpg")
+sniff("M5 GIF magic -> .gif",              b"GIF89a", "f.gif")
+sniff("M6 BMP magic -> .bmp",              b"BM", "f.bmp")
+sniff("M7 PDF magic -> .pdf",              b"%PDF-", "f.pdf")
+sniff("M8 TIFF big-endian branch -> .tif", b"MM\x00*", "f.tif")   # M3 locked the LE branch
+sniff("M9 RIFF-WEBP -> .webp",             b"RIFF\x00\x00\x00\x00WEBP", "f.webp")
+sniff("M10 RIFF-WAVE -> .wav",             b"RIFF\x00\x00\x00\x00WAVE", "f.wav")
+sniff("M11 gzip -> .gz",                   b"\x1f\x8b\x08", "f.gz")
+sniff("M12 bzip2 -> .bz2",                 b"BZh9", "f.bz2")
+sniff("M13 7z -> .7z",                     b"7z\xbc\xaf\x27\x1c", "f.7z")
+sniff("M14 rar v5 -> .rar",                b"Rar!\x1a\x07\x01\x1d", "f.rar")
+sniff("M15 zip container -> .zip",         b"PK\x03\x04", "f.zip")
+sniff("M16 ISO-BMFF qt brand -> .mov",     b"\x00\x00\x00\x18ftypqt  ", "f.mov")
+sniff("M17 ISO-BMFF other brand -> .mp4",  b"\x00\x00\x00\x18ftypisom", "f.mp4")
+# intra-family = NO collateral (the load-bearing safety design):
+sniff("M18 zip magic + .docx stays .docx",  b"PK\x03\x04", "f.docx", carrier="f.docx")
+sniff("M19 TIFF magic + .tiff stays .tiff", b"II*\x00", "f.tiff",   carrier="f.tiff")
 
 print("\n" + ("WEBSEARCH-DOWNLOAD-NAMING: ALL PASSED" if not FAILURES
               else "WEBSEARCH-DOWNLOAD-NAMING: SOME FAILED " + str(FAILURES)))
