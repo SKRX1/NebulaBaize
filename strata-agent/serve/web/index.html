@@ -906,6 +906,9 @@
     <div class="toggle-row" id="s-precondmax-row"><label class="st-label" for="s-precondmax"><span data-i18n="drawer.precondmax">压缩重试上限（防死循环）</span> <output id="o-precondmax">2</output></label>
       <input class="st-slider" type="range" id="s-precondmax" min="1" max="5" step="1" value="2">
       <div class="muted small" data-i18n="drawer.precondmax.hint">连续分段压缩仍装不下时，最多重试几次后停止并告警（防压缩死循环）。默认 2</div></div>
+    <div class="toggle-row" id="s-sparkfreeze-row"><label class="st-label" for="s-sparkfreeze"><span data-i18n="drawer.sparkfreeze">压缩前保留柱数（sparkline 冻结）</span> <output id="o-sparkfreeze">10</output></label>
+      <input class="st-slider" type="range" id="s-sparkfreeze" min="0" max="50" step="1" value="10">
+      <div class="muted small" data-i18n="drawer.sparkfreeze.hint">每次压缩后 sparkline 保留压缩前最近多少根柱（虚线分隔当前段）。默认 10，设 0 = 不保留</div></div>
       <div class="toggle-row" id="s-speeddrop-row"><label class="st-label" for="s-speeddrop"><span data-i18n="drawer.speeddrop">速度提前触发降幅</span> <output id="o-speeddrop">50%</output></label>
         <input class="st-slider" type="range" id="s-speeddrop" min="5" max="80" step="5" value="50">
         <div class="muted small" data-i18n="drawer.speeddrop.hint">仅在阈值滑条=自动时生效：解码速度较安静期基线下降达此百分比即提前压缩；左端灵敏，右滑迟钝</div></div>

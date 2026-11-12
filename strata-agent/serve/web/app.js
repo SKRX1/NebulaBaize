@@ -1189,7 +1189,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -3349,7 +3349,14 @@ function buildCtxArr(msgs) {
   return out;
 }
 // Plan A default (approved 2026-11-13): bars kept from before each compaction cut.
-const SPARK_FREEZE_N = 10;
+const SPARK_FREEZE_N = 10;   // fallback default; settings.sparkFreezeN (drawer slider) overrides
+// Keep the last N occupancy bars from before a compaction cut. settings.sparkFreezeN drives N;
+// 0 means keep none (the documented meaning) -- guarded because arr.slice(-0) === the WHOLE array.
+function sparkFreezeSlice(msgs) {
+  const n = (typeof settings !== "undefined" && +settings.sparkFreezeN >= 0) ? +settings.sparkFreezeN : SPARK_FREEZE_N;
+  const arr = buildCtxArr(msgs);
+  return n <= 0 ? [] : arr.slice(-n);
+}
 function ctxSpark(arr, sepAfter) {
   if (!arr.length) return "";
   // D11: per-turn context occupancy as a bar chart. Each turn is a discrete event, so a bar
@@ -3781,7 +3788,7 @@ async function precondenseAndCompact(auto) {
     // Plan A: the chunked fold is where the bulk stats vanish (original is the full pre-fold
     // transcript). Freeze the recent bars from `original` so the sparkline survives the fold.
     if (!sparkFrozenThisEpisode) {
-      const frozenBars = buildCtxArr(original).slice(-SPARK_FREEZE_N);
+      const frozenBars = sparkFreezeSlice(original);
       if (frozenBars.length) { const _s = activeSession(); if (_s) _s.sparkHistory = ((_s.sparkHistory) || []).concat(frozenBars); sparkFrozenThisEpisode = true; }
     }
     messages = [{role: "system", content: "【对话压缩摘要·分段预压缩】\n" + carry}, ...tail];
@@ -7945,7 +7952,7 @@ async function streamAssistant() {
     // Plan A: freeze the visible sparkline before the rebuild throws away these messages and
     // with them their stats — without this the chart resets to empty on every compaction.
     if (!sparkFrozenThisEpisode) {   // Plan A: chunked path already froze if it ran; skip the double
-      const frozenBars = buildCtxArr(messages).slice(-SPARK_FREEZE_N);
+      const frozenBars = sparkFreezeSlice(messages);
       if (frozenBars.length) { const _s = activeSession(); if (_s) _s.sparkHistory = ((_s.sparkHistory) || []).concat(frozenBars); }
     }
     messages = [{role: "system", content: `【对话压缩摘要】\n${summary}${archivePointer}${whitelistKeep ? ("\n\n[kept resident \u2014 recent decisions/task-state]\n" + whitelistKeep) : ""}`}, ...tail];
@@ -9070,6 +9077,7 @@ function loadDrawer(s = settings) {
   $("s-speeddrop").value = s.speedDropPct || 50;
   $("s-targetpct").value = s.compactTarget || 25;
   $("s-precondmax").value = (+s.precondenseMax >= 1) ? +s.precondenseMax : 2;
+  $("s-sparkfreeze").value = (+s.sparkFreezeN >= 0) ? +s.sparkFreezeN : 10;
   var mc = (+s.memCompactChunkTokens || 0);
   $("s-memchunk").value = (mc > 0 && mc <= 12000) ? mc : 0;
   $("o-memchunk").textContent = mc > 0 ? String(mc) : "auto";
@@ -9137,6 +9145,7 @@ function outputs() {
   const sd = +$("s-speeddrop").value;
   $("o-targetpct").textContent = (+(+$("s-targetpct").value) || 25) + "%";
   $("o-precondmax").textContent = (+(+$("s-precondmax").value) || 2);
+  $("o-sparkfreeze").textContent = (+$("s-sparkfreeze").value >= 0 ? +$("s-sparkfreeze").value : 10);
   $("o-speeddrop").textContent = sd + "%";
   $("s-speeddrop").disabled = !settings.autocompact || settings.compactPct > 0;
   var mcV = +$("s-memchunk").value;
@@ -9146,7 +9155,7 @@ function outputs() {
   $("s-memreserve").disabled = mcV > 0;   // reserve only feeds the AUTO budget; a pinned chunk bypasses it   // pinned threshold = pure window rule, speed channel sleeps
 }
 for (const b of $("s-thinking").children) b.onclick = () => { for (const x of $("s-thinking").children) x.setAttribute("aria-checked", String(x === b)); outputs(); };
-for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-memchunk", "s-memreserve"]) $(id).oninput = outputs;
+for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-sparkfreeze", "s-memchunk", "s-memreserve"]) $(id).oninput = outputs;
 $("s-show").onclick = () => $("s-show").setAttribute("aria-checked", String($("s-show").getAttribute("aria-checked") !== "true"));
 $("s-esp").onclick = () => $("s-esp").setAttribute("aria-checked", String($("s-esp").getAttribute("aria-checked") !== "true"));
 $("s-mcp").onclick = () => $("s-mcp").setAttribute("aria-checked", String($("s-mcp").getAttribute("aria-checked") !== "true"));
@@ -9207,6 +9216,7 @@ $("s-apply").onclick = async () => {
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
               precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,
+              sparkFreezeN: +($("s-sparkfreeze").value || 10),
               memCompactChunkTokens: Math.min(12000, Math.max(0, +($("s-memchunk").value) || 0)),
               memCompactReservePct: Math.min(50, Math.max(5, +($("s-memreserve").value) || 25)),
               autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default

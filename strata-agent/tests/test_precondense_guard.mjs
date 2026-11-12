@@ -98,6 +98,9 @@ async function makeScope(seedMessages, opts = {}) {
     const ceSetText = (el, txt) => { if (el) el.textContent = txt; };
     const autosize = () => {};
     const SPARK_FREEZE_N = 10;            // Plan A mirror: sparkline freeze count
+    // Plan A mirror (2026-11-13): the call site now routes through sparkFreezeSlice(); stub it.
+    // settings has no sparkFreezeN here -> +NaN >= 0 is false -> falls back to SPARK_FREEZE_N (behaviour unchanged).
+    const sparkFreezeSlice = (msgs) => { const n = (+settings.sparkFreezeN >= 0) ? +settings.sparkFreezeN : SPARK_FREEZE_N; const arr = buildCtxArr(msgs); return n <= 0 ? [] : arr.slice(-n); };
     let sparkFrozenThisEpisode = false;   // Plan A guard: freeze once per episode
     const activeSession = () => null;     // seed msgs carry no stats -> buildCtxArr empty -> this never runs
     const send = () => { calls.finalSend++; };
