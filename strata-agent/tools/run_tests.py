@@ -408,6 +408,8 @@ SUITES = [
 
     "tests/test_vision_degrade.py",  # 2026-10-31: [VISION-DEGRADE] pure-helper grab: image->text placeholder + narrow vision-failure predicate (pos/neg differential)
 
+    "tests/test_websearch_download_naming.py",   # 2026-11: download naming priority name>query(keeps language)>url-basename + ext whitelist/sanitize; calls the REAL _call_download with fetch/GC stubbed (no network)
+
     "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)
     "tools/_mirror_rehearse_gate.py",   # 2026-11-09 mirror-rehearse: the cross-drive mirror runs the SAME clone rehearsal against the F-side bundle; this gate drives rehearse_from_bundle() through a LOAD-BEARING differential (POS good bundle -> red 0; NEG wrong head/count/tags -> red>0; NEG missing bundle -> clone-fail branch) WITHOUT touching the real F: drive (rehearses a temp bundle, CI-safe)
 
