@@ -405,6 +405,7 @@ SUITES = [
     "tools/_autorules_gate.py",  # locks default-ON per-store rules switch + routing + i18n parity (differential-proved)
 
     "tests/test_ctx_denominator.py",   # 2026-10: the gateway denominator == the engine's real n_ctx (no 128K-vs-256K split)
+    "tests/test_ctxspark_bars.mjs",   # 2026-11 bar-chart guardrail: ctxSpark draws one <rect> PER TURN (not a polyline), every coord round-aligned to the pixel grid, width auto-shrinks with count, last bar highlighted, tier colours are the 3 existing tokens only. Real app.js jsdom-boot, differential proves the locks are load-bearing.
 
     "tests/test_resident_retry.py",   # 2026-10-24: resident-contention vs true-overflow split (quiet retry, budget is one)
 

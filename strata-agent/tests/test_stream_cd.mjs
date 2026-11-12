@@ -7,7 +7,8 @@
  *   C9  fetchWithRetry retries transient failures (network / 5xx / 429) with backoff, but
  *       never retries 4xx (e.g. 401) or an aborted request.
  *   C10 the unclosed-code-fence fallback renders the trailing fence as a <pre> code block.
- *   D11 the inspector session-stats card sums input/output tokens + turns and draws a sparkline.
+ *   D11 the inspector session-stats card sums input/output tokens + turns and draws a context
+ *       trend as a BAR CHART (one <rect> per turn — each turn is a discrete event).
  *   D12 output speed is split from reasoning: when the engine reports reasoning_tokens we show
  *       an "Output" speed and a separate "Think" speed instead of one blended figure.
  *
@@ -209,7 +210,7 @@ console.log("\n=== D12 + D11: output/thinking speed split + session stats ===");
   check("D11 input tokens summed (5000 + 2000 = 7.0k)", sin && /7\.0k/.test(sin.textContent), sin && sin.textContent);
   check("D11 output tokens summed (300 + 300 = 600)", sout && sout.textContent === "600", sout && sout.textContent);
   check("D11 turn count = 2", stn && stn.textContent === "2", stn && stn.textContent);
-  check("D11 sparkline drawn (polyline)", spark && /polyline/.test(spark.innerHTML), spark && spark.innerHTML.slice(0, 40));
+  check("D11 context trend drawn as bar chart (per-turn <rect>)", spark && /<rect /.test(spark.innerHTML) && !/polyline/.test(spark.innerHTML), spark && spark.innerHTML.slice(0, 60));
 }
 
 console.log();

@@ -3342,14 +3342,24 @@ function extractPlan(text) {
 // D11: a tiny inline sparkline of per-turn context usage (%) drawn into an SVG.
 function ctxSpark(arr) {
   if (!arr.length) return "";
-  const w = 100, h = 24, n = arr.length;
-  const x = (i) => n === 1 ? w / 2 : (i / (n - 1)) * w;
-  const y = (v) => h - (Math.min(100, v) / 100) * (h - 3) - 1.5;
-  const last = arr[arr.length - 1];
-  const tone = last >= 90 ? "var(--st-danger)" : last >= 75 ? "var(--st-warn)" : "var(--st-accent)";
-  const pts = arr.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-  return `<polyline fill="none" stroke="${tone}" stroke-width="1.5" points="${pts}"/>` +
-         `<circle cx="${x(n - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="1.8" fill="${tone}"/>`;
+  // D11: per-turn context occupancy as a bar chart. Each turn is a discrete event, so a bar
+  // per turn is the honest encoding (a connecting line implies phantom interpolation).
+  // Geometry guard: every coordinate is round-aligned to the pixel grid (design charter sec 2)
+  // -- without it a ~40px sparkline blurs. Colours reuse the existing tier tokens (no neon).
+  const w = 100, h = 40, n = arr.length;
+  const tone = (v) => v >= 90 ? "var(--st-danger)" : v >= 75 ? "var(--st-warn)" : "var(--st-accent)";
+  const unit = w / n;                 // slot width per turn
+  const gap = unit * 0.3;             // 30% gap so narrow bars never merge into a blob
+  const usable = h - 1;               // 1px top breathing room; baseline at h
+  const bar = (i, v, last) => {
+    const x = Math.round(i * unit + gap / 2);
+    const bw = Math.max(1, Math.round(unit - gap));        // never thinner than 1px
+    const bh = Math.max(1, Math.round((Math.min(100, v) / 100) * usable));
+    const fill = tone(v);
+    const stroke = last ? ` stroke="${fill}" stroke-width="0.5"` : "";   // highlight current
+    return `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" fill="${fill}"${stroke}/>`;
+  };
+  return arr.map((v, i) => bar(i, v, i === n - 1)).join("");
 }
 function renderInspector() {
   const ins = $("inspector");

@@ -721,7 +721,7 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 .ins-stat__v { font-size: var(--st-fs-md); font-weight: var(--st-fw-bold); font-variant-numeric: tabular-nums;
                color: var(--st-ink); line-height: 1.1; }
 .ins-stat__k { font-size: var(--st-fs-xs); color: var(--st-ink-muted); }
-.ins-spark { width: 100%; height: 24px; display: block; margin-top: 2px; }
+.ins-spark { width: 100%; height: 40px; display: block; margin-top: 2px; }
 /* ---------------- workspace tree: a workspace owns the tasks started inside it ---------------- */
 .st-ws { display: flex; flex-direction: column; }
 .st-ws__head { position: relative; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 3px;
