@@ -137,3 +137,5 @@ strata-agent/tests/_spark_ids.txt
 !node_modules/
 !package.json
 !package-lock.json
+# runtime drift: proc-info snapshot written by daemon
+strata-agent/proc_info.json
