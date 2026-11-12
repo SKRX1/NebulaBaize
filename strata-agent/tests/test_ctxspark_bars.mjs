@@ -104,6 +104,38 @@ check("no colour token outside the 3 semantic tiers", parse(hl).every((r) => ["a
 console.log("\n=== 6. empty input -> empty string (no ghost bar) ===");
 check("ctxSpark([]) === empty", ctxSpark([]) === "");
 
+// ---- 7. Plan C rolling-window cap (frozen + current). Three differential locks. ----
+// Helper: parse the dashed divider x back out (null when no divider is drawn).
+function parseLine(htmlStr) {
+  const m = htmlStr.match(/<line x1="(\d+)"[^>]*stroke-dasharray/g);
+  return m ? [...htmlStr.matchAll(/<line x1="(\d+)"/g)].map((z) => +z[1]) : [];
+}
+console.log("\n=== 7. rolling-window cap: <=cap show all / past cap roll leftmost / sep re-indexes ===");
+// LOCK 7a: at the cap show ALL (no truncation). 24 points -> 24 bars.
+const cap24 = parse(ctxSpark(Array.from({ length: 24 }, (_, i) => 30 + (i % 40))));
+check("7a at-cap (24 pts) shows all 24 bars (no roll-off yet)", cap24.length === 24, "n=" + cap24.length);
+// LOCK 7b: past the cap the LEFTMOST rolls off (smooth rolling window, not a reset).
+// Build 30 pts whose FIRST 6 are danger (>=90) and rest are accent (<75). At <=cap all show.
+// Put 6 danger + 18 accent = 24 -> all 6 danger survive (baseline, on-window).
+const b24 = [90,90,90,90,90,90, 50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50];
+const tiers24 = parse(ctxSpark(b24)).map((r) => tier(r.fill));
+check("7b-baseline 24 pts keep all 6 danger on the left", tiers24.slice(0, 6).every((x) => x === "danger"), tiers24.slice(0, 6).join(","));
+// Now 30 pts: same 6 danger (the LEFTMOST 6) + 24 accent. Past cap -> leftmost 6 roll off ->
+// the 6 danger must be GONE (window is pure accent). Differential: 24-baseline keeps them, 30 does not.
+const b30 = [90,90,90,90,90,90, 50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50];
+const p30 = parse(ctxSpark(b30));
+const tiers30 = p30.map((r) => tier(r.fill));
+check("7b window caps at 24 bars (6 rolled off)", p30.length === 24, "n=" + p30.length);
+check("7b the LEFTMOST 6 (danger) rolled off -> window is pure accent", tiers30.every((x) => x === "accent"), tiers30.filter((x) => x === "danger").length + " danger left");
+// LOCK 7c: the dashed divider re-indexes for the window. 30 pts, sepAfter=10 (frozen block =
+// leftmost 11). Window drops 6 -> sepAfter must shift to 4 -> divider x = round((4+1)*100/24)=21.
+// A NO-reindex build would keep sepAfter=10 -> x = round(11*100/24)=46. The two differ -> differential.
+const c30 = Array.from({ length: 30 }, (_, i) => 50);
+const sepWin = parseLine(ctxSpark(c30, 10));
+check("7c divider present in the windowed render", sepWin.length === 1, JSON.stringify(sepWin));
+check("7c divider re-indexed to window slot (x=21), not kept at old x=46", sepWin[0] === 21, "x=" + sepWin[0]);
+// Differential negative: no-reindex (sepAfter unchanged) would land on 46 -> prove the predicate bites.
+check("7c if sepAfter were NOT re-indexed the x would differ (46) -> lock is load-bearing", sepWin[0] !== 46, "x=" + sepWin[0]);
 console.log();
 if (FAILURES.length) {
   console.log(`FAILED (${FAILURES.length}):`);

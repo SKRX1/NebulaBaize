@@ -3350,6 +3350,7 @@ function buildCtxArr(msgs) {
 }
 // Plan A default (approved 2026-11-13): bars kept from before each compaction cut.
 const SPARK_FREEZE_N = 10;   // fallback default; settings.sparkFreezeN (drawer slider) overrides
+const SPARK_MAX_BARS = 24; // overall window cap (frozen + current); left bars roll off past this. Read by ctxSpark.
 // Keep the last N occupancy bars from before a compaction cut. settings.sparkFreezeN drives N;
 // 0 means keep none (the documented meaning) -- guarded because arr.slice(-0) === the WHOLE array.
 function sparkFreezeSlice(msgs) {
@@ -3359,6 +3360,14 @@ function sparkFreezeSlice(msgs) {
 }
 function ctxSpark(arr, sepAfter) {
   if (!arr.length) return "";
+  // Plan C (2026-11-13): overall display cap = frozen segment + current segment. Past the
+  // cap the oldest bar rolls off the LEFT (smooth rolling window, not a hard reset); the
+  // dashed sepAfter divider re-indexes for the window. At/below the cap = show all (unchanged).
+  if (arr.length > SPARK_MAX_BARS) {
+    const dropped = arr.length - SPARK_MAX_BARS;
+    arr = arr.slice(dropped);
+    if (typeof sepAfter === "number" && sepAfter >= 0) sepAfter -= dropped;
+  }
   // D11: per-turn context occupancy as a bar chart. Each turn is a discrete event, so a bar
   // per turn is the honest encoding (a connecting line implies phantom interpolation).
   // Geometry guard: every coordinate is round-aligned to the pixel grid (design charter sec 2)
