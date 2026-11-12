@@ -181,7 +181,9 @@ class WebSearchServer(McpServerBase):
          "inputSchema": {"type": "object",
                          "properties": {"url": {"type": "string"},
                                         "name": {"type": "string",
-                                                   "description": "optional output filename (with extension); inferred from the URL if omitted"}},
+                                                   "description": "optional output filename (with extension)"},
+                                        "query": {"type": "string",
+                                                   "description": "the search query that produced this URL; if no name is given the file is named after this (original language, sanitized)"}},
                          "required": ["url"]}},
     ]
 
@@ -397,6 +399,10 @@ def _call_download(args):
     if not url.lower().startswith(("http://", "https://")):
         raise Exception("download needs an http(s) URL")
     name = (args.get("name") or "").strip()
+    if not name:
+        # 命名优先级：显式 name > 本次搜索词(原样语言，清洗非法字符) > URL basename。
+        # 用户要"输入什么语言的文字就用什么语言命名"——搜索词即真相源，故未传 name 时优先用 query。
+        name = (args.get("query") or "").strip()
     if not name:
         name = os.path.basename(urllib.parse.urlparse(url).path)
     name = _sanitize_name(name)
