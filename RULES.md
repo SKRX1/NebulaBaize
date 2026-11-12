@@ -103,3 +103,9 @@ run_tests 的绿门禁 = tools/run_tests.py 的 SUITES 列表（每行一个测�
 真实 DOM 竞态类 bug 若 jsdom 复现不了机制（如共享 caret/insertHTML），用「忠实建模竞态的确定性差分 + 静态锁防漂移」固化，单变量翻转须 load-bearing（fix 结果严格优于 control），这是 codebase 既有 test_safety_pad_gate 的写法。
 code_hygiene 护栏抓到的新增 silent-except-swallow，优先「真处理」(给 except 体加可见动作)而非 --bless 抬基线；--bless 仅用于确认要保留的既有豁免
 在 runtime/http_server.py 等受 hygiene 守卫的文件里新增 except 块时，body 不能只有 pass/continue（会被 test_code_hygiene 计入 silent swallow 回归），必须带一行日志（print 到 stderr 或调用 audit）。
+多文件 commit 前只 git add 本轮目标文件，用 git status 甄别工作区无关漂移（如 config/*.json 运行态漂移），不裹入本次 commit
+git add 后先查 git diff --cached --numstat 确认入库行数无 CRLF 翻转虚高，再 commit
+新增门禁测试必须显式登记进 strata-agent/tools/run_tests.py 的 SUITES 列表（硬编码，不登记就不跑），并在行尾注释写明它锁什么
+前端 CSS 新样式只用 var(--st-*) token，禁止硬编码颜色，保证暗/亮双主题免维护
+全项目 app.js 保持零 inline handler（onerror=/onclick=），破损/降级路径一律走纯 CSS
+像素 fixture 必须内嵌真实 index.html 骨架（不能裸 body 只有 #chat）——app.js 在 $("theme-btn").onclick 拿 null 即崩，连带顶层 const/let（esc/inline/messages）全没初始化，探针撞 TDZ；纯沙箱跑大型 app.js 同理只能验 DOM 接线，行为级须 jsdom（runScripts:outside-only + win.eval 暴露 __api）
