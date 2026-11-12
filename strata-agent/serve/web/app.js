@@ -3340,7 +3340,17 @@ function extractPlan(text) {
   return {text: out.trim(), items};
 }
 // D11: a tiny inline sparkline of per-turn context usage (%) drawn into an SVG.
-function ctxSpark(arr) {
+// The per-turn occupancy series, derived from message stats. Shared by renderInspector and the
+// compaction freeze below so "what the chart shows" and "what gets frozen" can never drift apart.
+function buildCtxArr(msgs) {
+  const out = [];
+  for (const mm of msgs) if (mm.role === "assistant" && mm.stats && mm.stats.ctxMax)
+    out.push(Math.round(100 * (mm.stats.ctxUsed || 0) / mm.stats.ctxMax));
+  return out;
+}
+// Plan A default (approved 2026-11-13): bars kept from before each compaction cut.
+const SPARK_FREEZE_N = 10;
+function ctxSpark(arr, sepAfter) {
   if (!arr.length) return "";
   // D11: per-turn context occupancy as a bar chart. Each turn is a discrete event, so a bar
   // per turn is the honest encoding (a connecting line implies phantom interpolation).
@@ -3359,7 +3369,14 @@ function ctxSpark(arr) {
     const stroke = last ? ` stroke="${fill}" stroke-width="0.5"` : "";   // highlight current
     return `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" fill="${fill}"${stroke}/>`;
   };
-  return arr.map((v, i) => bar(i, v, i === n - 1)).join("");
+  const bars = arr.map((v, i) => bar(i, v, i === n - 1)).join("");
+  // Plan A (2026-11-13): sepAfter = index of the last frozen (pre-compaction) bar; a dashed
+  // vertical divider there marks where the compression cut the timeline. No marker without it.
+  if (typeof sepAfter === "number" && sepAfter >= 0 && sepAfter < n) {
+    const sx = Math.round((sepAfter + 1) * unit);            // grid-aligned like every coord here
+    return `<line x1="${sx}" y1="1" x2="${sx}" y2="${h}" stroke="var(--st-ink-muted)" stroke-width="0.5" stroke-dasharray="2 2"/>` + bars;
+  }
+  return bars;
 }
 function renderInspector() {
   const ins = $("inspector");
@@ -3517,7 +3534,13 @@ function renderInspector() {
   if (so && so.textContent !== ov) so.textContent = ov;
   if (stn && stn.textContent !== tv) stn.textContent = tv;
   const spark = $("ins-sess-spark");
-  if (spark) { const sh = ctxSpark(ctxArr); if (spark.innerHTML !== sh) spark.innerHTML = sh; }
+  if (spark) {
+    // Plan A: frozen pre-compaction bars lead the strip, divider right after them.
+    const frozen = ((activeSession() || {}).sparkHistory) || [];
+    const shown = frozen.length ? frozen.concat(ctxArr) : ctxArr;
+    const sh = ctxSpark(shown, frozen.length ? frozen.length - 1 : -1);
+    if (spark.innerHTML !== sh) spark.innerHTML = sh;
+  }
 }
 function applyInspector() { const ins = $("inspector"); if (ins) ins.hidden = (tab !== "chat" && tab !== "spark") || !inspectorOpen; layoutHandles(); }
 // The context readout is a per-turn value, so it must be re-derived when the user switches tasks —
@@ -3565,6 +3588,10 @@ let chunkedCompacting = false;   // true while the pre-condense loop runs (block
 // unbounded recursion that compacted 20+ times in a row. Two folds are plenty: the second runs on
 // the summary+tail (far smaller). Past the cap we stop and surface a self-rescue warning.
 let precondenseDepth = 0;
+// Plan A (2026-11-13): true once this compaction episode has frozen the sparkline. The chunked
+// fold claims it first (it sees the full original transcript); the later single-shot hook then
+// skips so the same bars are never frozen twice. Survives the send() between fold and hook.
+let sparkFrozenThisEpisode = false;
 const PRECONDENSE_MAX = 2;   // default re-entry cap; settings.precondenseMax (drawer slider) overrides it
 function precondenseCap() { const v = +settings.precondenseMax; return v >= 1 ? v : PRECONDENSE_MAX; }
 
@@ -3751,6 +3778,12 @@ async function precondenseAndCompact(auto) {
       if (tail.length && ((haveMin && acc + c > tailBudget) || (c > tailBudget && tail.length >= 1))) break;
       tail.unshift(original[i]); acc += c;
     }
+    // Plan A: the chunked fold is where the bulk stats vanish (original is the full pre-fold
+    // transcript). Freeze the recent bars from `original` so the sparkline survives the fold.
+    if (!sparkFrozenThisEpisode) {
+      const frozenBars = buildCtxArr(original).slice(-SPARK_FREEZE_N);
+      if (frozenBars.length) { const _s = activeSession(); if (_s) _s.sparkHistory = ((_s.sparkHistory) || []).concat(frozenBars); sparkFrozenThisEpisode = true; }
+    }
     messages = [{role: "system", content: "【对话压缩摘要·分段预压缩】\n" + carry}, ...tail];
     saveChat(); renderChat();
   } catch (e) {
@@ -3771,6 +3804,7 @@ async function precondenseAndCompact(auto) {
 }
 
 function compactConversation(auto = false) {
+  sparkFrozenThisEpisode = false;   // Plan A: a fresh episode may freeze once -- arm it
   if (busy || chunkedCompacting) return;
   if (!auto) precondenseDepth = 0;   // A: a fresh manual compact restarts the fold budget from zero
   if (!auto && !confirm(t("insp.compact.confirm"))) return;
@@ -7907,6 +7941,12 @@ async function streamAssistant() {
         }
         whitelistKeep = keep.slice(-ARCHIVE_WHITELIST_N).join("\n");
       } catch (e) { /* archive failed -> degrade to the old lossy rebuild, never block compact */ }
+    }
+    // Plan A: freeze the visible sparkline before the rebuild throws away these messages and
+    // with them their stats — without this the chart resets to empty on every compaction.
+    if (!sparkFrozenThisEpisode) {   // Plan A: chunked path already froze if it ran; skip the double
+      const frozenBars = buildCtxArr(messages).slice(-SPARK_FREEZE_N);
+      if (frozenBars.length) { const _s = activeSession(); if (_s) _s.sparkHistory = ((_s.sparkHistory) || []).concat(frozenBars); }
     }
     messages = [{role: "system", content: `【对话压缩摘要】\n${summary}${archivePointer}${whitelistKeep ? ("\n\n[kept resident \u2014 recent decisions/task-state]\n" + whitelistKeep) : ""}`}, ...tail];
     // the old occupancy described a conversation that no longer exists: show "–" until the next turn

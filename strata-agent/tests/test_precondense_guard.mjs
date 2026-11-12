@@ -59,6 +59,7 @@ const GRABS = {
   taskResumeSnapshot: grab("taskResumeSnapshot"),
   precondenseAndCompact: grab("precondenseAndCompact"),
   compactConversation: grab("compactConversation"),
+  buildCtxArr: grab("buildCtxArr"),
 };
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
@@ -96,9 +97,13 @@ async function makeScope(seedMessages, opts = {}) {
     const ceText = (el) => (el && (el.textContent || el.value)) || "";
     const ceSetText = (el, txt) => { if (el) el.textContent = txt; };
     const autosize = () => {};
+    const SPARK_FREEZE_N = 10;            // Plan A mirror: sparkline freeze count
+    let sparkFrozenThisEpisode = false;   // Plan A guard: freeze once per episode
+    const activeSession = () => null;     // seed msgs carry no stats -> buildCtxArr empty -> this never runs
     const send = () => { calls.finalSend++; };
     const llmSummarize = async () => { calls.summarise.push(1); return "summary " + calls.summarise.length; };
     const compactReqBudgetChars = ${GRABS.compactReqBudgetChars};
+    const buildCtxArr = ${GRABS.buildCtxArr};
     const renderMsgForCompact = ${GRABS.renderMsgForCompact};
     const splitForCompact = ${GRABS.splitForCompact};
     const taskResumeSnapshot = ${GRABS.taskResumeSnapshot};
