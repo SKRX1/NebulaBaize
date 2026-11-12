@@ -52,7 +52,7 @@ from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Iterator, Protocol
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -5412,8 +5412,12 @@ def make_handler(svc: Service):
             if path.startswith("/data/uploads/"):
                 # uploaded chat images, persisted under data/ so they survive a reload: the
                 # browser keeps only a light reference and the bytes live on disk here.
-                name = path[len("/data/uploads/"):]
-                if "/" in name or "\\" in name or not name:
+                # 2026-11-12 fix: the browser sends CJK filenames percent-encoded, so unquote
+                # before matching disk; and allow ONE extra path segment (search/) for images
+                # the websearch tool stages there. Still reject .. / absolute / backslash.
+                name = unquote(path[len("/data/uploads/"):])
+                segs = name.split("/")
+                if not name or "\\" in name or any(s == ".." or s == "" for s in segs) or len(segs) > 2:
                     self._json(404, {"error": {"message": "not found"}})
                     return
                 ext = os.path.splitext(name)[1].lower()

@@ -1509,8 +1509,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
     # ─── Static file serving ───────────────────────────────────────────────────────
     def _serve_static(self, path: str):
-        # Strip leading slash for path resolution
-        clean = path.split("?")[0].lstrip("/")
+        # Strip leading slash for path resolution. 2026-11-12: unquote first so a
+        # CJK filename the browser sends percent-encoded matches the real name on disk.
+        clean = unquote(path.split("?")[0]).lstrip("/")
 
         # Route map
         if clean in ("", "index.html"):
