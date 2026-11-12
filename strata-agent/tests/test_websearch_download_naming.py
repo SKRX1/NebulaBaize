@@ -17,8 +17,10 @@ Assertions (ASCII-matched only; Chinese is display, not a match target, per hous
   C3  neither name nor query         -> falls back to the URL basename
   C4  non-ASCII query                -> native script PRESERVED (asserted via ord>127)
   C5  query has no ext + url .pdf    -> whitelisted ext appended (.pdf)
-  C6  query has no ext + url .xyz(not wl) -> falls to .bin (whitelist miss)
+  C6  query no ext + url .xyz(not in wl, shape-valid) -> kept as .xyz (A+B: table
+      no longer gates it; "browser can download can download")
   C7  Windows-illegal chars in name  -> sanitize strips them (< > : " | ? * \ /)
+  C8  truly extension-less url + no name ext -> .bin (the ONLY real fallback)
 
 Run: python tests/test_websearch_download_naming.py
 """
@@ -79,9 +81,13 @@ check("C4b native-script name still got the ext", n4.endswith(".png"), "got=" + 
 check("C5 whitelisted ext appended (.pdf)",
       _saved_name({"url": "http://x/f/doc.pdf", "query": "note"}) == "note.pdf")
 
-# C6 query has no ext + non-whitelist url ext -> .bin
-check("C6 non-whitelist ext falls to .bin",
-      _saved_name({"url": "http://x/f/data.xyz", "query": "note"}) == "note.bin")
+# C6 url ext NOT in the (A) whitelist but shape-valid -> kept as-is (B: not gated)
+check("C6 non-whitelist ext kept as-is (B: table no longer gates)",
+      _saved_name({"url": "http://x/f/data.xyz", "query": "note"}) == "note.xyz")
+
+# C8 truly extension-less (no dot in url path, name has no ext) -> .bin (real fallback)
+check("C8 extension-less url + no name ext -> .bin",
+      _saved_name({"url": "http://x/f/noext", "query": "note"}) == "note.bin")
 
 # C7 sanitize strips Windows-illegal chars from the chosen name
 n7 = _saved_name({"url": "http://x/img/9.png", "query": 'a<b>c'})          # -> a_b_c.png

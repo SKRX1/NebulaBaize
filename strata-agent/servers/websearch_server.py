@@ -306,8 +306,24 @@ class WebSearchServer(McpServerBase):
 # ── 下载落盘通道（决策卡 A）：抓 URL 二进制落 data/uploads/search/，软上限送回收站 ──
 _UPLOADS_SUBDIR = os.path.join("data", "uploads", "search")
 _MAX_BYTES = 1024 * 1024 * 1024     # 软上限 1GB（活跃工作集，磁盘容得下）；超限把最旧文件送回收站
-_ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".avif",
-                ".ico", ".svg", ".mp4", ".webm", ".mp3", ".m4a", ".wav", ".pdf"}
+# 常见格式白名单（A：扩充，覆盖图片/文档/压缩包/音视频，含中文站常见类型）。
+# 注意：B 之后此表仅作「已知安全类型」参考——即便不在表内，只要 URL 扩展名形状合理
+# （纯字母数字 1~10）也原样落盘（见 _ext_from_url），实现「浏览器能下就能下」。
+_ALLOWED_EXT = {
+    # 图片
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".avif", ".ico", ".svg",
+    ".tif", ".tiff", ".heic", ".heif", ".jp2", ".apng",
+    # 文档
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".md",
+    ".csv", ".rtf", ".epub", ".mobi", ".odt", ".ods", ".odp",
+    # 压缩包
+    ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".zipx",
+    # 音视频
+    ".mp4", ".webm", ".mov", ".avi", ".mkv", ".mp3", ".m4a", ".m4v", ".wav",
+    ".flac", ".ogg", ".opus", ".aac", ".wmv", ".mpg", ".mpeg",
+}
+# 表外扩展名的形状下限：必须纯小写字母数字、长 1~10，否则才落 .bin（畸形/超长不认）。
+_EXT_SHAPE_RE = re.compile(r"^[a-z0-9]{1,10}$")
 _UA = "Mozilla/5.0"
 # 文件名清洗:去掉 Windows 非法字符与首尾杂质(保留扩展名)。反斜杠用双写保证源码合法。
 _BAD_NAME_CHARS = '<>:"/?*|\\'
@@ -320,8 +336,16 @@ def _cache_dir():
 
 def _ext_from_url(url):
     path = urllib.parse.urlparse(url).path
-    ext = os.path.splitext(path)[1].lower()
-    return ext if ext in _ALLOWED_EXT else ""
+    ext = os.path.splitext(path)[1].lower()   # 含点，如 ".xyz"
+    bare = ext[1:]
+    if not bare:
+        return ""
+    if ext in _ALLOWED_EXT:
+        return ext
+    # B「浏览器能下就能下」：表外但形状合理（纯字母数字 1~10）也原样落盘。
+    if _EXT_SHAPE_RE.match(bare):
+        return ext
+    return ""
 
 
 def _sanitize_name(name):
