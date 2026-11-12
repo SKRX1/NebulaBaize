@@ -17,9 +17,12 @@ executor 启动子进程时通过 _child_env() 叠加进 os.environ，本进程�
 """
 from __future__ import annotations
 
+import html as _htmlmod
+import json
 import os
 import re
 import sys
+import time
 import urllib.parse
 import urllib.request
 
@@ -45,6 +48,37 @@ def _parse_ddg(html: str):
 
 def _strip(s: str) -> str:
     return re.sub("<.*?>", "", s).strip()
+
+
+# Bing Images 的结果塞在 <a class="iusc" m="{...}"> 的 m 属性里：m 是 HTML 实体
+# 转义过的 JSON，字段 murl=原图直链 / t=标题 / purl=来源页。
+_IMG_M_RE = re.compile(r'class="iusc"[^>]*\bm="(.*?)"', re.S)
+
+
+def _parse_bing_images(html: str):
+    """解析 Bing Images 的 iusc 块；Bing 偶发返回无数据的精简壳页时返回空列表。"""
+    out = []
+    for blob in _IMG_M_RE.findall(html):
+        try:
+            data = json.loads(_htmlmod.unescape(blob))
+        except Exception:
+            print('[websearch] bad iusc json, skipped', file=sys.stderr)
+            continue
+        url = data.get('murl') or data.get('url') or ''
+        if not url:
+            continue
+        out.append((url, _strip(data.get('t') or ''), data.get('purl') or ''))
+    return out
+
+
+def _format_images(items, count=10):
+    out = []
+    for url, title, purl in items[:count]:
+        line = '- ' + (title or 'image') + '  ' + url
+        if purl:
+            line += '  (page: ' + purl + ')'
+        out.append(line)
+    return '\n'.join(out) if out else 'no results'
 
 
 # ── 代理环境变量读取（优先级见模块 docstring）──────────────────────────────
@@ -133,6 +167,13 @@ class WebSearchServer(McpServerBase):
         {"name": "search", "description": "Web search a query, return top results",
          "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}},
                          "required": ["query"]}},
+        {"name": "search_images",
+         "description": "Image search a query, return top image URLs (Bing Images)",
+         "inputSchema": {"type": "object",
+                         "properties": {"query": {"type": "string"},
+                                        "count": {"type": "integer",
+                                                  "description": "max results, default 10"}},
+                         "required": ["query"]}},
     ]
 
     def _fetch(self, url, proxy):
@@ -162,6 +203,8 @@ class WebSearchServer(McpServerBase):
         return "\n".join(out) if out else "no results"
 
     def call_tool(self, name, args):
+        if name == "search_images":
+            return self._call_images(args)
         if name != "search":
             raise Exception(f"unknown tool: {name}")
         q = urllib.parse.quote_plus(args.get("query", ""))
@@ -208,6 +251,44 @@ class WebSearchServer(McpServerBase):
                 raise Exception(f"proxy fallback failed: {last_err}")
 
         return "no results"
+
+    def _call_images(self, args):
+        q = urllib.parse.quote_plus(args.get("query", ""))
+        try:
+            count = max(1, min(int(args.get("count") or 10), 35))
+        except (TypeError, ValueError):
+            count = 10
+        proxy = _proxy_parts()
+
+        # 主路径：直连（实测可达，稳定态一趟即 35 条）。Bing 偶发返回无数据的
+        # 精简壳页（实测同查询同 UA 时而 35 时而 0），故空数据时重试一趟。
+        for attempt in range(1, 3):
+            hit = self._images_pass(q, count, proxy=None)
+            if hit:
+                return hit
+            if attempt < 2:
+                time.sleep(1.0)
+
+        # 回退路径：配了代理就走代理再试一趟
+        if proxy:
+            hit = self._images_pass(q, count, proxy)
+            if hit:
+                return hit
+
+        return "no results"
+
+    def _images_pass(self, q, count, proxy):
+        """跑一趟图片搜索（cn/www 两个 Bing 端点）；拿到数据返回字符串，否则 None。"""
+        for url in ("https://cn.bing.com/images/search?q=" + q,
+                    "https://www.bing.com/images/search?q=" + q):
+            try:
+                res = _format_images(_parse_bing_images(self._fetch(url, proxy=proxy)), count)
+                if res != "no results":
+                    return res
+            except Exception as e:
+                print(f"[websearch] images pass failed: {type(e).__name__}: {e}",
+                      file=sys.stderr)
+        return None
 
 
 if __name__ == "__main__":
