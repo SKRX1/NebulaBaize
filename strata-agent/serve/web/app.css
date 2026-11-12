@@ -223,8 +223,8 @@ main { flex: 1; min-height: 0; display: flex; }
         flex-direction: column; gap: var(--st-s-6); }
 .chat-empty { margin: 12vh auto 0; text-align: center; }
 .chat-empty__title { font-weight: var(--st-fw-black); font-size: var(--st-fs-display); line-height: var(--st-lh-tight);
-                     letter-spacing: -.02em; }
-.chat-empty__sub { margin-top: var(--st-s-3); color: var(--st-ink-muted); }
+                     letter-spacing: -.02em; color: var(--st-accent-text); }
+.chat-empty__sub { margin-top: var(--st-s-3); color: var(--st-yellow-text); }
 .st-msg { width: 100%; }
 .st-msg--assistant { align-self: flex-start; }
 .st-msg--assistant .st-bubble { width: 100%; }
