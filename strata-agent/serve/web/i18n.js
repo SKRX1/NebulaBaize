@@ -356,7 +356,7 @@
       "adm.new.skill.title": "新增技能",
       "adm.locked": "由技能「{name}」生成。请改为编辑或删除该技能——重新安装技能时，此处的改动会被覆盖。",
       "adm.name": "名称",
-      "adm.name.ph": "my-server",
+      "adm.name.ph": "例如：我的服务器",
       "adm.command": "命令",
       "adm.command.ph": "python 或 C:\\path\\to\\program.exe",
       "adm.args": "参数",
@@ -1279,6 +1279,7 @@
       "sched.deliver.summary": "写入会话气泡（跑完回填）",
       "sched.deliver.stream": "流式写入会话气泡",
       "mcp.err.toolcall": "工具调用失败",
+      "tag.builtin": "内置",
     },
 
     /* ═══════════════════════════════ English ═══════════════════════════════ */
@@ -2507,6 +2508,7 @@
       "sched.deliver.summary": "Write to session bubble (on completion)",
       "sched.deliver.stream": "Stream to session bubble",
       "mcp.err.toolcall": "the tool call failed",
+      "tag.builtin": "builtin",
     },
   };
 

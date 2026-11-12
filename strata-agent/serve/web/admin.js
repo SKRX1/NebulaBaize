@@ -138,7 +138,7 @@
                 data-kind="server" data-name="${esc(s.name)}">
           <span class="adm-item__head"><span class="adm-item__name">${esc(s.name)}</span>
           ${liveBadge(s.name)}
-          ${s.origin ? `<span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin)}</span>` : ""}</span>
+          ${s.origin ? `<span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin === "builtin" ? t("tag.builtin") : s.origin)}</span>` : ""}</span>
           ${toolsChips(s.name)}
         </button>`).join("")
       : `<p class="muted small">${esc(t("adm.none"))}</p>`;
@@ -275,7 +275,7 @@
     return `<div class="st-card adm-card">
       <div class="adm-head"><span class="card-title">${sel.isNew ? esc(t("adm.new.server.title")) : esc(sel.name)}</span>
         ${liveBadge(sel.name)}
-        <span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin)}</span></div>
+        <span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin === "builtin" ? t("tag.builtin") : s.origin)}</span></div>
       ${toolsChips(sel.name)}
       ${ro ? `<div class="adm-note adm-note--warn">${esc(t("adm.readonly.body", { why: readonlyWhy }))}</div>` : ""}
       ${locked ? `<div class="adm-note adm-note--warn">${esc(t("adm.locked", { name: s.skill || "" }))}</div>` : ""}
