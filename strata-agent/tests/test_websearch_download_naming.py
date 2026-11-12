@@ -21,6 +21,9 @@ Assertions (ASCII-matched only; Chinese is display, not a match target, per hous
       no longer gates it; "browser can download can download")
   C7  Windows-illegal chars in name  -> sanitize strips them (< > : " | ? * \ /)
   C8  truly extension-less url + no name ext -> .bin (the ONLY real fallback)
+  M1  name .png + data PNG magic       -> stays .png (sniff agrees, no change)
+  M2  name .jpg + data PNG magic        -> corrected to .png (cross-family fix)
+  M3  name .heic + data TIFF magic      -> corrected to .tif (cross-family fix)
 
 Run: python tests/test_websearch_download_naming.py
 """
@@ -47,9 +50,9 @@ def a(s):
     return s.encode("ascii", "backslashreplace").decode("ascii")
 
 
-def _saved_name(args):
+def _saved_name(args, data=b"X" * 64):
     """Call the real _call_download with network+GC stubbed; return the saved basename."""
-    W._fetch_bytes = lambda url: b"X" * 64          # no network
+    W._fetch_bytes = lambda url: data               # no network; default junk bytes
     W._gc = lambda d: None                          # no recycle side-effect
     W._cache_dir = lambda: _TMP                     # redirect out of the real cache
     msg = W._call_download(args)
@@ -92,6 +95,25 @@ check("C8 extension-less url + no name ext -> .bin",
 # C7 sanitize strips Windows-illegal chars from the chosen name
 n7 = _saved_name({"url": "http://x/img/9.png", "query": 'a<b>c'})          # -> a_b_c.png
 check("C7 sanitize strips illegal chars", n7 == "a_b_c.png", "got=" + n7)
+
+# M1 name .png, data=PNG magic -> stays .png (sniff agrees)
+# PNG magic: first 8 bytes of any valid PNG file, padded to 16+
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+check("M1 .png + PNG magic stays .png (sniff agrees)",
+      _saved_name({"url": "http://x/pic/767d.png", "query": "q", "name": "photo.png"},
+                  data=_PNG_MAGIC) == "photo.png")
+
+# M2 name .jpg, data=PNG magic -> corrected to .png (cross-family)
+check("M2 .jpg + PNG magic corrected to .png", 
+      _saved_name({"url": "http://x/pic/767d.png", "query": "q", "name": "photo.jpg"},
+                  data=_PNG_MAGIC) == "photo.png")
+
+# M3 name .heic, data=TIFF magic -> corrected to .tif (cross-family, house pain-point)
+# TIFF little-endian magic: II*\x00 + enough bytes to clear the 16-byte sniff floor
+_TIFF_MAGIC = b"II*\x00" + b"\x00" * 32
+check("M3 .heic + TIFF magic corrected to .tif", 
+      _saved_name({"url": "http://x/pic/767d.png", "query": "q", "name": "photo.heic"},
+                  data=_TIFF_MAGIC) == "photo.tif")
 
 print("\n" + ("WEBSEARCH-DOWNLOAD-NAMING: ALL PASSED" if not FAILURES
               else "WEBSEARCH-DOWNLOAD-NAMING: SOME FAILED " + str(FAILURES)))

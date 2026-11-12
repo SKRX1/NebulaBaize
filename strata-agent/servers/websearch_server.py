@@ -328,6 +328,36 @@ _UA = "Mozilla/5.0"
 # 文件名清洗:去掉 Windows 非法字符与首尾杂质(保留扩展名)。反斜杠用双写保证源码合法。
 _BAD_NAME_CHARS = '<>:"/?*|\\'
 
+# ── MIME 兜底嗅探（2026-11）：落盘扩展名与实际内容不符时自动纠正 ─────────────────
+# 容器族(office-zip/ISO-BMFF-mp4)嗅探器返回 family=全部族成员（含 canonical 本身），
+# 保证「族内不动、跨族才纠正」：docx 内容是 zip 不把 .docx 改成 .zip；名 .jpg 内容是 PNG 才修 .png。
+_SNIFF_FAMILY = {
+    ".png":  {".png"},
+    ".jpg":  {".jpg", ".jpeg"},
+    ".gif":  {".gif"},
+    ".webp": {".webp"},
+    ".bmp":  {".bmp"},
+    ".tif":  {".tif", ".tiff"},
+    ".pdf":  {".pdf"},
+    ".heic": {".heic", ".heif", ".avif"},
+    ".mov":  {".mov", ".m4v", ".m4a", ".mp4"},
+    ".wav":  {".wav"},
+    ".zip":  {".zip", ".zipx", ".docx", ".xlsx", ".pptx",
+                ".epub", ".odt", ".ods", ".odp"},
+    ".gz":   {".gz", ".tgz"},
+    ".bz2":  {".bz2"},
+    ".xz":   {".xz"},
+    ".7z":   {".7z"},
+    ".rar":  {".rar"},
+}
+_ISOBRAND_HEIC = {b"heic", b"heix", b"mif1", b"heim", b"heif", b"hevc", b"avif"}
+_ISOBRAND_MOV  = {b"qt  "}
+# 嗅探器只对「能一锤定音」的签名返回；容器族返回族代表，由 _reconcile_ext 决定要不要改
+_RIFF_WEBP = 8
+_RIFF_WAVE = 8
+_FTYP_OFF  = 4
+_FTYP_BRAND = 8
+
 
 def _cache_dir():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # servers/ -> ROOT
@@ -354,6 +384,60 @@ def _sanitize_name(name):
     for ch in _BAD_NAME_CHARS:
         name = name.replace(ch, "_")
     return name or "download"
+
+
+def _sniff_ext(data):
+    """嗅探真实类型，返回 (canonical_ext, family_set)；确信才返回，否则 (None, set())."""
+    if len(data) < 16:
+        return None, set()
+    # 单一签名——直接返回（无歧义）
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return ".png", _SNIFF_FAMILY[".png"]
+    if data[:3] == b"\xff\xd8\xff":
+        return ".jpg", _SNIFF_FAMILY[".jpg"]
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return ".gif", _SNIFF_FAMILY[".gif"]
+    if data[:2] == b"BM":
+        return ".bmp", _SNIFF_FAMILY[".bmp"]
+    if data[:5] == b"%PDF-":
+        return ".pdf", _SNIFF_FAMILY[".pdf"]
+    if data[:4] in (b"II*\x00", b"MM\x00*"):
+        return ".tif", _SNIFF_FAMILY[".tif"]
+    if data[:4] == b"RIFF" and data[_RIFF_WEBP:_RIFF_WEBP+4] == b"WEBP":
+        return ".webp", _SNIFF_FAMILY[".webp"]
+    if data[:4] == b"RIFF" and data[_RIFF_WAVE:_RIFF_WAVE+4] == b"WAVE":
+        return ".wav", _SNIFF_FAMILY[".wav"]
+    if data[:4] == b"\x1f\x8b":
+        return ".gz", _SNIFF_FAMILY[".gz"]
+    if data[:3] == b"BZh":
+        return ".bz2", _SNIFF_FAMILY[".bz2"]
+    if data[:6] == b"7z\xbc\xaf\x27\x1c":
+        return ".7z", _SNIFF_FAMILY[".7z"]
+    if data[:8] == b"Rar!\x1a\x07\x00" or data[:7] == b"Rar!\x1a\x07\x01":
+        return ".rar", _SNIFF_FAMILY[".rar"]
+    # 容器族：返回族代表，family 含全部族成员，reconcile 决定要不要跨族改
+    if data[:4] == b"PK\x03\x04":
+        return ".zip", _SNIFF_FAMILY[".zip"]
+    if len(data) >= 12 and data[_FTYP_OFF:_FTYP_OFF+4] == b"ftyp":
+        brand = data[_FTYP_BRAND:_FTYP_BRAND+4]
+        if brand in _ISOBRAND_HEIC:
+            return ".heic", _SNIFF_FAMILY[".heic"]
+        if brand in _ISOBRAND_MOV:
+            return ".mov", _SNIFF_FAMILY[".mov"]
+        return ".mp4", _SNIFF_FAMILY[".mov"]   # 其他 ISO-BMFF brand 归 mp4 族
+    return None, set()
+
+
+def _reconcile_ext(name, data):
+    """如果嗅探确信且现有扩展名不在 sniffed family 里，把扩展名改成 canonical。"""
+    canonical, family = _sniff_ext(data)
+    if not canonical:
+        return name   # 嗅不到，尊重命名（含 .bin）
+    current = os.path.splitext(name)[1].lower()
+    if current in family:
+        return name   # 族内（含相等），尊重原扩展名，绝不误伤
+    stem = os.path.splitext(name)[0]
+    return stem + canonical
 
 
 def _fetch_bytes(url):
@@ -440,6 +524,7 @@ def _call_download(args):
         raise Exception("fetch failed: %s: %s" % (type(e).__name__, e))
     if not data:
         raise Exception("download returned empty (socks proxy unavailable?)")
+    name = _reconcile_ext(name, data)   # MIME 兜底：嗅探确信且跨族才改扩展名
     path = os.path.join(d, name)
     with open(path, "wb") as fh:
         fh.write(data)
