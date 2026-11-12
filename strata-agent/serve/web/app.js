@@ -864,9 +864,9 @@ function inline(s) {
   s = esc(s)
     .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*\w])\*([^*\n]+)\*(?![*\w])/g, "$1<em>$2</em>")
-    .replace(/!\[([^\]\n]*)\]\((https?:\/\/[^)\s]+|data:image\/[^)\s]+)\)/g,
+    .replace(/!\[([^\]\n]*)\]\((https?:\/\/[^)\s]+|data:image\/[^)\s]+|\/data\/uploads\/[^)\s]+)\)/g,
              (_, alt, url) => mdImageTag(alt, url))
-    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+|data:(?:image|video|audio)\/[^)\s]+)\)/g,
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+|data:(?:image|video|audio)\/[^)\s]+|\/data\/uploads\/[^)\s]+)\)/g,
              (_, label, url) => mdEmbedOrLink(label, url));
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code class="inline">${esc(codes[+i])}</code>`);
 }

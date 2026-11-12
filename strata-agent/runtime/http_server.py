@@ -1521,6 +1521,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
             filepath = Path(WEB_DIR) / rel.lstrip("/")
         elif clean.startswith("fonts/"):
             filepath = Path(WEB_DIR) / clean
+        elif clean.startswith("data/uploads/"):
+            # search-download images land in ROOT/data/uploads (OUTSIDE the web root).
+            # Map the URL prefix to that real drop-point so the frontend can inline them.
+            rel = clean[len("data/uploads/"):]
+            filepath = Path(ROOT) / "data" / "uploads" / rel.lstrip("/")
         else:
             # Try as a direct file in WEB_DIR
             filepath = Path(WEB_DIR) / clean
@@ -1529,7 +1534,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         try:
             filepath = filepath.resolve()
             web_root = Path(WEB_DIR).resolve()
-            if not str(filepath).startswith(str(web_root)):
+            uploads_root = (Path(ROOT) / "data" / "uploads").resolve()
+            if not (str(filepath).startswith(str(web_root)) or str(filepath).startswith(str(uploads_root))):
                 self._json(403, {"error": {"type": "forbidden", "message": "path outside web root"}})
                 return
         except Exception:
