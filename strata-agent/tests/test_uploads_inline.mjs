@@ -37,6 +37,9 @@ const srv = fs.readFileSync(path.join(ROOT, "runtime", "http_server.py"), "utf8"
 console.log("=== 1: static source locks ===");
 
 // the byte form app.js carries inside its regex literals (escaped slashes)
+// LOCK DEPENDENCY: this byte-form lock assumes app.js keeps the ESCAPED-slash shape
+// (\/data\/uploads\/). If someone "cleans" the regex into an optional group like
+// (?:\/)?data\/uploads\/, the literal bytes change and THIS static lock breaks.
 const ESC = "\\/data\\/uploads\\/";   // == bytes: backslash slash data backslash slash uploads backslash slash
 
 // app.js chat-body inline(): BOTH the image replace and the link replace must carry the branch.
