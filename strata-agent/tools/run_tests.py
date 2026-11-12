@@ -214,6 +214,7 @@ SUITES = [
 
 
     "tests/test_compact_resume_owner.js",  # 2026-11-08: failed compaction keeps resume snapshot (C1) + finalize honors pendingCompactOwner (C2 differential)
+    "tests/test_compact_resume_guard.mjs",   # 2026-11: settings.compactResume gates the post-compact auto-resume (differential G1/G2)
 
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)
 
@@ -332,6 +333,8 @@ SUITES = [
 
     "tests/test_closeout_pixel.py",   # 2026-11-02: PIXEL-layer backstop for the B mechanism -- jsdom renders real DOM, REAL Edge reads a computed-style probe + PNG; A/C reminder visible, B control blank (differential, pixel truth not jsdom); writes tools/baseline/ anchor; skips if no renderable browser
 
+    "tests/test_visual_http_render.py",   # 2026-11-12: http:// REAL-RENDER pixel gate (fixes the file:// black-screenshot blindspot) -- serves a TEMP doc-root over http (so relative CSS CAN resolve), two BYTE-IDENTICAL fixture pages differing ONLY by directory: GOOD at doc-root paints (CSS var resolves), the SAME page under web/ goes BLACK (relative tokens.css -> web/web/ 404) + a link-stripped load-bearing control also black; pure-stdlib PNG pixel differential; writes tools/baseline/ anchors; skips if no renderable browser
+
     "tools/_sandbox_write_guard.py",   # 2026-11-02: static guard for the filesystem__write sandbox boundary -- alerts when a gate script writes an absolute path OUTSIDE the allowed roots THROUGH the tool layer (probe/temp must be script-self-written, in-root); differential POS/NEG load-bearing + ratchet baseline for known scratch; pure-stdlib, deterministic
 
     "tests/test_code_style.mjs",        # 2026-10-20: 代码块语法高亮 + 思考区围栏渲染成真代码卡片
@@ -436,6 +439,7 @@ SLOW_SUITES = [
     "tests/test_self_suicide_guard.py",
     "tests/test_shell_timeout.py",
     "tests/test_closeout_pixel.py",
+    "tests/test_visual_http_render.py",   # real Edge cold launch (http-served doc-root) -> slow tier
     "tests/test_chunked_compact.mjs",
     "tests/test_paste_pending_gate.mjs",
     "tests/test_model_forward.py",
