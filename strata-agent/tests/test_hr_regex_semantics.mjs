@@ -61,15 +61,23 @@ for (const [s, exp] of [
 console.log("\n=== non-Redos timing (all must stay well under 1ms; no exponential growth) ===");
 const tails = ["-", "- ".repeat(300), "- - -", "*".repeat(500), "_ _ _" + " ".repeat(400), "- --- - --- - ---"];
 let maxMs = 0;
+// best-of-N: take the FASTEST run per input. The fastest run reflects the real engine speed;
+// it is the jitter-tolerance band that stops an OS scheduler spike during a busy --full run
+// from producing a spurious red (the single-shot probe used to false-red under load).
+const RUNS = 7;
 for (const s of tails) {
-  const t0 = process.hrtime.bigint();
-  reFinal.test(s);
-  const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  let best = Infinity;
+  for (let r = 0; r < RUNS; r++) {
+    const t0 = process.hrtime.bigint();
+    reFinal.test(s);
+    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    if (ms < best) best = ms;
+  }
   const shortLabel = JSON.stringify(s.slice(0, 40)) + (s.length > 40 ? "..." : "");
-  console.log("  test(" + shortLabel + ") -> " + ms.toFixed(3) + " ms");
-  if (ms > maxMs) maxMs = ms;
+  console.log("  test(" + shortLabel + ") -> best " + best.toFixed(3) + " ms (of " + RUNS + ")");
+  if (best > maxMs) maxMs = best;
 }
-check("no candidate input crosses the ReDoS trip-wire (<5ms single-shot)", maxMs < 5, "max=" + maxMs.toFixed(3) + " ms");
+check("no candidate input crosses the ReDoS trip-wire (best-of-7 <5ms)", maxMs < 5, "bestMax=" + maxMs.toFixed(3) + " ms");
 
 console.log("");
 if (FAILURES.length) { console.log("FAILED (" + FAILURES.length + "): " + FAILURES.join(" | ")); process.exit(1); }
