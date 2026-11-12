@@ -164,25 +164,25 @@ class FsServer(McpServerBase):
     name = "filesystem"
     tools = [
         {"name": "read",
-         "description": "Read a text file inside an allowed root. 'path' must name a file "
-                        "(e.g. \"serve/web/app.js\"), not a folder.",
+         "description": "读取允许根目录内的文本文件。'path' 必须指向文件"
+                        "（例如 \"serve/web/app.js\"），不能是文件夹。",
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
         {"name": "write",
-         "description": "Write or append a text file inside an allowed root. 'path' must be a "
-                        "file path that includes the file NAME (e.g. \"serve/web/app.js\"), "
-                        "never a folder. Use mode='overwrite' (default) to replace the file, "
-                        "or mode='append' to add to its end (create it if it does not exist). "
-                        "For LARGE content split it into several calls with mode='append' "
-                        "(first call overwrite, the rest append) instead of one huge call that "
-                        "may exceed the per-turn output limit.",
+         "description": "在允许的根目录内写入或追加文本文件。'path' 必须是含"
+                        "文件名的完整路径（例如 \"serve/web/app.js\"），不能是文件夹。"
+                        "用 mode='overwrite'（默认）整体替换文件，"
+                        "或用 mode='append' 在文件末尾追加（不存在则创建）。"
+                        "内容很大时拆成多次调用并用 mode='append'"
+                        "（首次 overwrite，其余 append），不要塞进单次可能超出"
+                        "每轮输出上限的超大调用。",
          "inputSchema": {"type": "object", "properties": {
              "path": {"type": "string"},
              "content": {"type": "string"},
              "mode": {"type": "string", "enum": ["overwrite", "append"]}},
              "required": ["path", "content"]}},
-        {"name": "list", "description": "List files in a directory (relative to an allowed root)",
+        {"name": "list", "description": "列出目录内的文件（相对某个允许的根目录）",
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}}},
-        {"name": "delete", "description": "Delete a file inside an allowed root",
+        {"name": "delete", "description": "删除允许根目录内的一个文件",
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
     ]
 

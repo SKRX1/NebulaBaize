@@ -155,9 +155,9 @@ def _check_overrides(args):
 class ScheduleServer(McpServerBase):
     name = "schedule"
     tools = [
-        {"name": "list", "description": "List the daemon's schedule entries (name, trigger, next fire) for the panel",
+        {"name": "list", "description": "为面板列出守护进程的定时任务条目（名称、触发器、下次触发时间）",
          "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "add", "description": "Add a schedule entry (takes effect immediately in --serve mode; on daemon restart in bare --daemon mode): name, task, and exactly one of every_minutes/every_hours/daily_at/weekly_at/monthly_at/yearly_at/at, plus optional roots (list), approval (full/review/manual), model (empty = follow chat selection)",
+        {"name": "add", "description": "新增一条定时任务（在 --serve 模式下立即生效；在纯 --daemon 模式下于守护进程重启时生效）：name、task，以及 every_minutes/every_hours/daily_at/weekly_at/monthly_at/yearly_at/at 中恰好一个，外加可选 roots（列表）、approval（full/review/manual）、model（留空=跟随对话所选模型）",
          "inputSchema": {"type": "object", "properties": {
             "name": {"type": "string"}, "task": {"type": "string"},
             "every_minutes": {"type": "integer"}, "every_hours": {"type": "integer"},
@@ -169,7 +169,7 @@ class ScheduleServer(McpServerBase):
             "model": {"type": "string"},
             "deliver": {"type": "string", "enum": ["audit", "session_summary", "session_stream"]}},
             "required": ["name", "task"]}},
-        {"name": "update", "description": "Update a schedule entry by name (destructive when renaming; takes effect immediately in --serve mode): name locates the entry; optional new_name, task, at most one trigger (a provided trigger REPLACES the entry's whole trigger), and optional roots/approval/model (provide a value to CHANGE it, provide the sentinel \"-\" to CLEAR it back to the default)",
+        {"name": "update", "description": "按名称更新一条定时任务（改名时具破坏性；在 --serve 模式下立即生效）：name 用于定位条目；可选 new_name、task，至多一个触发器（所提供的触发器会替换该条目的整个触发器），以及可选 roots/approval/model（提供值即修改它，提供哨兵值 \"-\" 则清回默认）",
          "inputSchema": {"type": "object", "properties": {
             "name": {"type": "string"}, "new_name": {"type": "string"}, "task": {"type": "string"},
             "every_minutes": {"type": "integer"}, "every_hours": {"type": "integer"},
@@ -181,7 +181,7 @@ class ScheduleServer(McpServerBase):
             "model": {"type": "string"},
             "deliver": {"type": "string", "enum": ["audit", "session_summary", "session_stream"]}},
             "required": ["name"]}},
-        {"name": "remove", "description": "Remove a schedule entry by name (destructive: takes effect immediately in --serve mode)",
+        {"name": "remove", "description": "按名称删除一条定时任务（破坏性：在 --serve 模式下立即生效）",
          "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}},
     ]
 

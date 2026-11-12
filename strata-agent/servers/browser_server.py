@@ -493,32 +493,28 @@ def _format_sim(rep: dict, path: str) -> str:
 class BrowserServer(McpServerBase):
     name = "browser"
     tools = [
-        {"name": "render", "description": "Render a page in a headless browser and return the post-JS DOM",
+        {"name": "render", "description": "在无头浏览器中渲染一个页面并返回执行 JS 之后的 DOM",
          "inputSchema": {"type": "object", "properties": {"target": {"type": "string"}},
                          "required": ["target"]}},
-        {"name": "screenshot", "description": "Render a page and save a PNG screenshot",
+        {"name": "screenshot", "description": "渲染一个页面并保存为 PNG 截图",
          "inputSchema": {"type": "object", "properties":
                          {"target": {"type": "string"}, "out": {"type": "string"},
                           "window_size": {"type": "string"}},
                          "required": ["target"]}},
-        {"name": "console", "description": "Render a page and capture console output / JS errors",
+        {"name": "console", "description": "渲染一个页面并捕获 console 输出 / JS 错误",
          "inputSchema": {"type": "object", "properties": {"target": {"type": "string"}},
                          "required": ["target"]}},
         {"name": "sim",
          "description": (
-             "Run a LOCAL page's own JavaScript in a deterministic browser sandbox (no real "
-             "browser, no pixels) and read its state back. Steps N animation frames on a "
-             "virtual clock, optionally injects keyboard/pointer input, then evaluates probe "
-             "expressions -- so you can verify game/app LOGIC: does level 0 start, how many "
-             "bricks are alive, what is the score after 2s, does a click on #btn-start work. "
-             "Use this INSTEAD of writing your own Node DOM stub: the sandbox already "
-             "implements window/document/location/canvas-2d/audio/timers/localStorage/"
-             "observers, seeds Math.random for reproducible runs, and names exactly which "
-             "global is missing if the page needs something it does not have. Inline "
-             "handlers parsed from markup (onclick=...) run in the SAME realm as the "
-             "page scripts, so window/document references inside them are valid. "
-             "Combine with "
-             "browser__screenshot when you also need to see pixels."),
+             "在确定性浏览器沙箱中运行本地页面自身的 JavaScript（非真实浏览器、无像素）"
+             "并读回其状态。在虚拟时钟上跑 N 个动画帧，可选注入键盘/指针输入，"
+             "然后求值探针表达式——用于验证游戏/应用逻辑：第 0 关能否启动、还剩多少方块、"
+             "2 秒后得分多少、点击 #btn-start 是否生效。用这个替代你自己写的 Node DOM 桩："
+             "沙箱已实现 window/document/location/canvas-2d/audio/timers/localStorage/"
+             "observers，为可复现运行给 Math.random 播种，并在页面需要沙箱没有的全局时"
+             "精确点名是哪个。从标记解析出的内联处理器（onclick=...）与页面脚本运行在同一"
+             "realm，因此其中对 window/document 的引用有效。还需看像素时与 browser__screenshot"
+             "配合使用。"),
          "inputSchema": {"type": "object",
                          "properties": {
                              "page": {"type": "string",

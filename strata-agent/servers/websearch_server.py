@@ -203,20 +203,20 @@ def _build_opener(proxy_url: str | None):
 class WebSearchServer(McpServerBase):
     name = "websearch"
     tools = [
-        {"name": "search", "description": "Web search a query, return top results",
+        {"name": "search", "description": "对某关键词做网页搜索，返回最相关结果",
          "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}},
                          "required": ["query"]}},
         {"name": "search_images",
-         "description": "Image search a query, return top image URLs (Bing Images). "
-                          "CAUTION: a romanized/pinyin query that happens to be a registered brand gets hijacked by that brand "
-                          "(e.g. 'Baize' -> the BIAZE audio brand, not the legend). Prefer the native script, or append a context qualifier.",
+         "description": "对某关键词做图片搜索，返回最相关的图片 URL（Bing Images）。"
+                          "注意：恰好是已注册品牌(brand)的罗马字/拼音查询会被该品牌劫持"
+                          "（例如 'Baize' -> 音响品牌 BIAZE，而非神话神兽）。请优先用原语言文字，或追加限定词。",
          "inputSchema": {"type": "object",
                          "properties": {"query": {"type": "string"},
                                         "count": {"type": "integer",
                                                   "description": "max results, default 10"}},
                          "required": ["query"]}},
         {"name": "download",
-         "description": "Download an image/binary URL to data/uploads/search/ and return the saved local path (for inline display). Soft GC: when the cache dir exceeds MAX_BYTES it sends the OLDEST files to the Windows Recycle Bin (never a physical delete).",
+         "description": "把一个图片/二进制 URL 下载到 data/uploads/search/ 并返回保存的本地路径（供内嵌展示）。软回收：缓存目录超过 MAX_BYTES 时把最旧的文件送进 Windows 回收站（绝不物理删除）。",
          "inputSchema": {"type": "object",
                          "properties": {"url": {"type": "string"},
                                         "name": {"type": "string",

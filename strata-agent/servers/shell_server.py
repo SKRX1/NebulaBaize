@@ -268,10 +268,10 @@ class ShellServer(McpServerBase):
     tools = [
         {"name": "exec",
          "description": (
-             "Run a shell command and return stdout/stderr. The command is killed after "
-             f"`timeout` seconds (default {_TIMEOUT}, max {_MAX_TIMEOUT}); for a long task "
-             "(model call, build, install) pass a larger timeout instead of backgrounding "
-             "with `start /b` plus a `ping`/sleep wait, which never returns usable output."),
+             "运行一条 shell 命令并返回 stdout/stderr。命令在 `timeout` 秒后被杀死"
+             f"（默认 {_TIMEOUT}，最大 {_MAX_TIMEOUT}）；对于耗时较长的任务"
+             "（模型调用、构建、安装）请传入更大的 timeout，"
+             "而不是后台运行后 `ping`/sleep 等待，那样永远拿不到可用输出。"),
          "inputSchema": {"type": "object",
                          "properties": {
                              "command": {"type": "string"},

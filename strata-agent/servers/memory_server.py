@@ -16,7 +16,7 @@ DATA = os.environ.get("AGENT_DATA", os.path.join(os.path.dirname(os.path.dirname
 class MemoryServer(McpServerBase):
     name = "memory"
     tools = [
-        {"name": "recall", "description": "Search cross-conversation memory for a query",
+        {"name": "recall", "description": "按关键词检索跨会话记忆",
          "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
         # NOTE: "remember" / "store" (the raw semantic/episodic WRITE tools) are intentionally
         # NOT exposed to the model. They let the model write facts straight into data/semantic.db,
@@ -24,13 +24,13 @@ class MemoryServer(McpServerBase):
         # experience via the ```propose-* fences) AND ignoring the autoMemory toggle. Autolearn
         # still feeds semantic.db through fsWrite + ingest; recall still reads it. Removing the
         # direct write tools is what makes the designed auto-deposition actually fire.
-        {"name": "ingest", "description": "Learn a reference document: parse, chunk, and store under a source id so it can be retrieved later and deleted as a unit",
+        {"name": "ingest", "description": "学习一份参考文档：解析、切块并按来源 id 存储，以便日后检索并作为整体删除",
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
-        {"name": "forget", "description": "Delete every memory learned from a given source (the unit created by ingest), or a single item by id",
+        {"name": "forget", "description": "删除从某个来源学到的全部记忆（即 ingest 创建的那个单元），或按 id 删除单条",
          "inputSchema": {"type": "object", "properties": {"source": {"type": "string"}, "id": {"type": "integer"}}}},
-        {"name": "sources", "description": "List stored sources and their chunk counts so the user can decide what to delete",
+        {"name": "sources", "description": "列出已存储的各来源及其分块数量，便于用户决定删除哪些",
          "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "read_source", "description": "Return every chunk stored under a given source id, so the user can view what a learned document contains",
+        {"name": "read_source", "description": "返回在某个来源 id 下存储的全部分块，便于用户查看已学习文档的内容",
          "inputSchema": {"type": "object", "properties": {"source": {"type": "string"}}, "required": ["source"]}},
     ]
 
