@@ -1191,7 +1191,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
+                  autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
@@ -7905,6 +7905,11 @@ async function streamAssistant() {
           `${origLen} → ${messages.length} ${t("insp.compact.msgs")}`, auto ? 8000 : undefined);
     if (resumeSnapshot) {                             // auto-resume: the compact turn interrupted an unfinished task (auto or manual, approved 2026-10)
       const snap = resumeSnapshot; resumeSnapshot = null;   // one-shot: never resume twice
+      if (settings.compactResume === false) {         // drawer switch off -> no auto-resume here: the turn ends naturally,
+        resumeSnapshot = snap;                        // and the task waits for the human to press Continue (continueTask
+        toast("info", t("toast.compactresume.pause"), t("toast.compactresume.pausemsg"), 9000);   // re-arms the compact+resume)
+        return;
+      }
       ceSetText($("input"), t("chat.resume.cmd"));
       toast("ok", t("chat.resume.auto"),
             snap.leftItems ? t("chat.resume.left", {n: snap.leftItems}) : undefined, 6000);
@@ -9006,6 +9011,7 @@ function loadDrawer(s = settings) {
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
   if ($("s-autosteps-rec")) $("s-autosteps-rec").setAttribute("aria-checked", String(s.autostepsRec !== false));
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
+  $("s-compactresume").setAttribute("aria-checked", String(s.compactResume !== false));
   $("s-autofix").setAttribute("aria-checked", String(!!s.autofix));
   $("s-compactpct").value = s.compactPct || 0;
   $("s-compactpct-row").hidden = !s.autocompact;
@@ -9103,6 +9109,7 @@ $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", S
 $("s-autosteps").onclick = () => $("s-autosteps").setAttribute("aria-checked", String($("s-autosteps").getAttribute("aria-checked") !== "true"));
 $("s-autosteps-rec").onclick = () => { const on = $("s-autosteps-rec").getAttribute("aria-checked") !== "true"; $("s-autosteps-rec").setAttribute("aria-checked", String(on)); const pv = $("s-autosteps-rec").closest(".toggle-row").querySelector(".st-check__preview"); if (pv) pv.setAttribute("data-state", on ? "on" : "off"); };
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
+$("s-compactresume").onclick = () => $("s-compactresume").setAttribute("aria-checked", String($("s-compactresume").getAttribute("aria-checked") !== "true"));
 $("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", String($("s-autofix").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
@@ -9142,6 +9149,7 @@ $("s-apply").onclick = async () => {
               autosteps: $("s-autosteps").getAttribute("aria-checked") === "true",
               autostepsRec: $("s-autosteps-rec") ? $("s-autosteps-rec").getAttribute("aria-checked") === "true" : true,
               autoresume: $("s-autoresume").getAttribute("aria-checked") === "true",
+              compactResume: $("s-compactresume").getAttribute("aria-checked") === "true",
               autofix: $("s-autofix").getAttribute("aria-checked") === "true",
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,

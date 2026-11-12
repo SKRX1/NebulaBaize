@@ -103,6 +103,22 @@
     <!-- 星云 working mark: one green core + five specks orbiting it. Its state, not its words,
          answers "is she working?" — bright & fast = generating, dim & frozen = 静止. -->
     <svg class="nebula" id="pill-neb" data-state="idle" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="nebHalo" cx="50%" cy="50%" r="60%">
+          <stop offset="0" stop-color="#ffe9a8" stop-opacity="0"/>
+          <stop offset="0.55" stop-color="#ffe9a8" stop-opacity="0"/>
+          <stop offset="1" stop-color="#e39b0b" stop-opacity="0.85"/>
+        </radialGradient>
+        <linearGradient id="nebSwirl" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffe9a8"/>
+          <stop offset="1" stop-color="#ffe9a8" stop-opacity="0.55"/>
+        </linearGradient>
+      </defs>
+      <circle class="neb-halo" cx="12" cy="12" r="9.8"/>
+      <g class="neb-swirl">
+        <ellipse class="neb-arm" cx="12" cy="12" rx="9" ry="3.6"/>
+        <ellipse class="neb-arm neb-arm--2" cx="12" cy="12" rx="3.6" ry="9"/>
+      </g>
       <circle class="neb-ring" cx="12" cy="12" r="9.8"/>
       <g class="neb-orbit">
         <circle class="neb-p neb-p--hi wu-mu" cx="12" cy="2.6" r="1.5"/>
@@ -962,6 +978,8 @@
       <button class="st-toggle" id="s-autosteps" role="switch" aria-checked="false" aria-label="AI auto-drive suggestions"></button></div>
     <div class="toggle-row toggle-row--sub"><span><span data-i18n="drawer.autosteps.reconly">仅推荐项（默认只跑绿色）</span><br><span class="st-check__preview" data-state="on"><span data-i18n="drawer.autosteps.preview.on">开：仅推荐项</span><span data-i18n="drawer.autosteps.preview.off">关：推荐+普通项</span></span></span><button class="st-toggle" id="s-autosteps-rec" role="switch" aria-checked="true" aria-label="Recommended only" data-i18n-attr="aria-label:drawer.autosteps.reconly"></button></div>
     <div class="toggle-row toggle-row--sub"><div class="st-legend"><span data-i18n="drawer.autosteps.legend">下一步建议颜色即决定</span><ul class="st-legend__list"><li><i class="st-legend__dot st-legend__dot--rec"></i><span data-i18n="drawer.autosteps.legend.rec"></span></li><li><i class="st-legend__dot st-legend__dot--normal"></i><span data-i18n="drawer.autosteps.legend.normal"></span></li><li><i class="st-legend__dot st-legend__dot--hold"></i><span data-i18n="drawer.autosteps.legend.hold"></span></li><li><i class="st-legend__dot st-legend__dot--avoid"></i><span data-i18n="drawer.autosteps.legend.avoid"></span></li></ul></div></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.compactresume">压缩后自动续跑</span><br><span class="muted small" data-i18n="drawer.compactresume.hint">开启：压缩输出摘要后自动续跑被打断的未完成任务（3 秒内可撤销）；关闭：压缩后本轮自然收尾，等你点「继续」再续</span></span>
+      <button class="st-toggle" id="s-compactresume" role="switch" aria-checked="true" aria-label="Auto-resume after compaction"></button></div>
     <div class="toggle-row"><span><span data-i18n="drawer.autoresume">中断后自动续跑</span><br><span class="muted small" data-i18n="drawer.autoresume.hint">思考/工具途中被切断（掉线、看门狗、轮次上限）时自动接着做，无需手动点「继续」；连续 3 次仍中断则交回给你</span></span>
       <button class="st-toggle" id="s-autoresume" role="switch" aria-checked="true" aria-label="Auto-resume interrupted turns"></button></div>
     <div class="st-field">
