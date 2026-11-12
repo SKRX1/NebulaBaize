@@ -116,3 +116,4 @@ git add 后先查 git diff --cached --numstat 确认入库行数无 CRLF 翻转�
 改 run_tests.py 主回归登记新 suite 时：真浏览器冷启动类归 SLOW_SUITES 区（紧凑列表），SUITES 区每条之间留空行保持该区风格，改完必 py_compile + 单跑该 suite 验证调度认得它
 批量送 Windows 回收站的文件清单，引用扫描生成的清单/报告须排除扫描脚本自身(自污染)；"零引用"才入清理批，仅被历史日志快照(data/tool-log)提及的项按默认保留、不自动删
 git 提交"本轮任务产出"时只纳入本轮门禁/接线/清单闭环文件；别处工作线成果(如视觉源文件 app.css/app.js)与配置漂移(mcp_servers.json)一律不裹入，提交前用 git status --untracked-files=all 圈定、用 diff --stat 核对入库行数无 CRLF 虚高
+命令行给解释器/PowerShell 传含中文的路径或字符串易被代码页吞，统一用 UTF-8 脚本读改写、PowerShell 走 -EncodedCommand（base64 UTF-16LE）；本次改源码即用 UTF-8 补丁脚本精确替换+回读核验。
