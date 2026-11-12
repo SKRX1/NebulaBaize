@@ -27,6 +27,8 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import base64
+import subprocess
 from _mcp_base import McpServerBase
 
 
@@ -174,6 +176,13 @@ class WebSearchServer(McpServerBase):
                                         "count": {"type": "integer",
                                                   "description": "max results, default 10"}},
                          "required": ["query"]}},
+        {"name": "download",
+         "description": "Download an image/binary URL to data/uploads/search/ and return the saved local path (for inline display). Soft GC: when the cache dir exceeds MAX_BYTES it sends the OLDEST files to the Windows Recycle Bin (never a physical delete).",
+         "inputSchema": {"type": "object",
+                         "properties": {"url": {"type": "string"},
+                                        "name": {"type": "string",
+                                                   "description": "optional output filename (with extension); inferred from the URL if omitted"}},
+                         "required": ["url"]}},
     ]
 
     def _fetch(self, url, proxy):
@@ -203,6 +212,8 @@ class WebSearchServer(McpServerBase):
         return "\n".join(out) if out else "no results"
 
     def call_tool(self, name, args):
+        if name == "download":
+            return _call_download(args)
         if name == "search_images":
             return self._call_images(args)
         if name != "search":
@@ -289,6 +300,122 @@ class WebSearchServer(McpServerBase):
                 print(f"[websearch] images pass failed: {type(e).__name__}: {e}",
                       file=sys.stderr)
         return None
+
+# ── 下载落盘通道（决策卡 A）：抓 URL 二进制落 data/uploads/search/，软上限送回收站 ──
+_UPLOADS_SUBDIR = os.path.join("data", "uploads", "search")
+_MAX_BYTES = 1024 * 1024 * 1024     # 软上限 1GB（活跃工作集，磁盘容得下）；超限把最旧文件送回收站
+_ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".avif",
+                ".ico", ".svg", ".mp4", ".webm", ".mp3", ".m4a", ".wav", ".pdf"}
+_UA = "Mozilla/5.0"
+# 文件名清洗:去掉 Windows 非法字符与首尾杂质(保留扩展名)。反斜杠用双写保证源码合法。
+_BAD_NAME_CHARS = '<>:"/?*|\\'
+
+
+def _cache_dir():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # servers/ -> ROOT
+    return os.path.join(root, _UPLOADS_SUBDIR)
+
+
+def _ext_from_url(url):
+    path = urllib.parse.urlparse(url).path
+    ext = os.path.splitext(path)[1].lower()
+    return ext if ext in _ALLOWED_EXT else ""
+
+
+def _sanitize_name(name):
+    """落盘文件名去脏:去首尾空白、去掉 Windows 非法字符与测试里出现的尾括号。仅 ASCII 清洗,保留扩展名。"""
+    name = name.strip().strip(".").rstrip(")")
+    for ch in _BAD_NAME_CHARS:
+        name = name.replace(ch, "_")
+    return name or "download"
+
+
+def _fetch_bytes(url):
+    """按 URL 抓二进制 bytes（复用代理 scheme 分派）。
+
+    补 Referer + Accept：很多图床 CDN 检查 Referer 防盗链，裸 UA 直连会被 403。
+    """
+    host = urllib.parse.urlparse(url).scheme + "://" + urllib.parse.urlparse(url).netloc
+    req = urllib.request.Request(url, headers={
+        "User-Agent": _UA, "Referer": host + "/",
+        "Accept": "image/avif,image/webp,image/*,*/*;q=0.8"})
+    opener = _build_opener(_proxy_parts())
+    if opener is None:
+        return None
+    with opener.open(req, timeout=30) as r:
+        return r.read()
+
+
+def _recycle(path):
+    """把一个文件送 Windows 回收站（PowerShell Shell.Application COM，纯 stdlib）。
+
+    中文路径走 -EncodedCommand（base64 UTF-16LE）——绕开"命令行 argv 传中文进 PowerShell
+    被代码页吞"铁律坑。路径嵌进 PS 单引号串(单反斜杠是字面量),路径里的单引号按 PS 规则
+    转成两个。绝不物理删除。
+    """
+    dirn = os.path.dirname(path).replace("'", "''")
+    name = os.path.basename(path).replace("'", "''")
+    ps = ("$sh=New-Object -ComObject Shell.Application;"
+          "$rb=$sh.Namespace(10); $src=$sh.Namespace('" + dirn + "'); $it=$src.ParseName('" + name + "');"
+          "if($it){$rb.MoveHere($it.Path,0x114)}")   # 0x10 no-confirm|0x100 no-ui|0x4 new-decl
+    enc = base64.b64encode(ps.encode("utf-16-le")).decode("ascii")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-EncodedCommand", enc],
+                       capture_output=True, timeout=20, stdin=subprocess.DEVNULL)
+    except Exception as e:
+        print("[websearch] recycle failed: %s: %s" % (type(e).__name__, e), file=sys.stderr)
+
+
+def _gc(d):
+    """软上限 GC：目录总字节 > _MAX_BYTES 时，按 mtime 从最旧开始送回收站，直到回到上限下。"""
+    try:
+        items = []
+        for fn in os.listdir(d):
+            fp = os.path.join(d, fn)
+            if os.path.isfile(fp):
+                items.append((os.path.getmtime(fp), os.path.getsize(fp), fp))
+    except OSError:
+        return
+    total = sum(sz for _, sz, _ in items)
+    if total <= _MAX_BYTES:
+        return
+    for _, sz, fp in sorted(items):     # 最旧优先
+        if total <= _MAX_BYTES:
+            break
+        _recycle(fp)
+        for _ in range(8):              # COM 移动是异步的，短轮询等它落地（最多 2s）
+            if not os.path.exists(fp):
+                total -= sz
+                break
+            time.sleep(0.25)
+    print("[websearch] GC: cache was over %d bytes, recycled oldest to fit" % _MAX_BYTES,
+          file=sys.stderr)
+
+
+def _call_download(args):
+    url = (args.get("url") or "").strip()
+    if not url.lower().startswith(("http://", "https://")):
+        raise Exception("download needs an http(s) URL")
+    name = (args.get("name") or "").strip()
+    if not name:
+        name = os.path.basename(urllib.parse.urlparse(url).path)
+    name = _sanitize_name(name)
+    if not os.path.splitext(name)[1]:
+        name += _ext_from_url(url) or ".bin"
+    d = _cache_dir()
+    os.makedirs(d, exist_ok=True)
+    try:
+        data = _fetch_bytes(url)
+    except Exception as e:
+        raise Exception("fetch failed: %s: %s" % (type(e).__name__, e))
+    if not data:
+        raise Exception("download returned empty (socks proxy unavailable?)")
+    path = os.path.join(d, name)
+    with open(path, "wb") as fh:
+        fh.write(data)
+    _gc(d)                              # 写完即查上限，超了清最旧
+    return ("saved %s (%d bytes)" % (path, len(data)) +
+            "\n(inlined for the chat; reference this path to display it inline)")
 
 
 if __name__ == "__main__":
