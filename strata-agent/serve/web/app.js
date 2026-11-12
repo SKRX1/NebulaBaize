@@ -1189,7 +1189,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", persona: "",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, stepsFold: true,
                   autoresumeMax: 24, emptyRoundMax: 2};
@@ -5096,6 +5096,16 @@ async function maybeProposeDesign(m) {
   if (!d) return;
   const base = s.workspace.replace(/\/$/, "");
   pendingDesign = {title: d.title, body: d.body, file: designFileName(d.title), ws: base};
+  // Auto-save (default on): write straight to <ws>/.design/ and the banner becomes a receipt.
+  // The manual "Save design doc / Discard" buttons double as undo, so nothing is lost; a failed
+  // write (or the switch off) falls back to the old approve-first banner.
+  if (settings.designAuto !== false) {
+    try {
+      await fsWrite(`${base}/.design/${pendingDesign.file}`, d.body + "\n");
+      toast("ok", t("design.toast.autosaved"), `${base}/.design/${pendingDesign.file}`, 5000);
+      return;
+    } catch (e) { toast("warn", t("design.toast.autosavefail"), String(e.message || e), 6000); }
+  }
   renderDesignBanner();
   toast("ok", t("design.toast.proposed"), pendingDesign.file, 6000);
 }
@@ -9013,6 +9023,7 @@ function loadDrawer(s = settings) {
   $("s-cnthink").setAttribute("aria-checked", String(!!s.cnThink));
   $("s-stepsfold").setAttribute("aria-checked", String(s.stepsFold !== false));
   $("s-designlang").value = s.designLang || "auto";
+  $("s-designauto").setAttribute("aria-checked", String(s.designAuto !== false));
   $("s-persona").value = s.persona || "";
   renderSeedNote();               // "this turn used 823741" only shows while the field is empty
   outputs();
@@ -9095,6 +9106,7 @@ $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked",
 $("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", String($("s-autofix").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
+$("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
 $("s-reset").onclick = () => loadDrawer(DEFAULTS);
 $("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); };  // apply the CURRENT on-screen settings as the saved default (does NOT reset untouched fields to factory defaults)
 // "Pin this seed": one click turns the last random seed into the fixed one (field + saved settings),
@@ -9142,6 +9154,7 @@ $("s-apply").onclick = async () => {
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",
               stepsFold: $("s-stepsfold").getAttribute("aria-checked") === "true",
               designLang: $("s-designlang").value || "auto",
+              designAuto: $("s-designauto").getAttribute("aria-checked") === "true",
               persona: $("s-persona").value.trim()};
   store.set("sampling", settings);
   // plan-B+: turning archiveOff on SAVE -> sweep existing cold archives to Recycle Bin.

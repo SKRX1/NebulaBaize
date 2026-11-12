@@ -668,7 +668,14 @@ console.log("\n=== Design documents (.design/ folder) ===");
   const mDesign = { role: "assistant", text: "规划如下：\n\n```design\n# 登录功能设计\n\n## 目标\n做一个登录页\n\n## 任务分解\n- [ ] 写前端\n- [ ] 写后端\n```\n\n完成。\n" };
   await api.maybeProposeDesign(mDesign);
   check("maybeProposeDesign stages the design as pending", api.getPendingDesign() && api.getPendingDesign().title === "登录功能设计");
-  check("maybeProposeDesign writes nothing until approved", !dCalls.find((c) => c.server === "filesystem" && c.tool === "write" && /\.design\//.test(c.args.path)));
+  check("maybeProposeDesign auto-saves straight to .design/ when designAuto is on (default)",
+    !!dCalls.find((c) => c.server === "filesystem" && c.tool === "write" && /\.design\//.test(c.args.path)));
+  // switch off -> falls back to the approve-first banner with no write
+  api.setSettings({ designAuto: false }); api.setPendingDesign(null); dCalls.length = 0;
+  api.maybeProposeDesign(mDesign);
+  await sleep(10);
+  check("switch-off: propose stages pending without writing", api.getPendingDesign() !== null && !dCalls.length);
+  api.setSettings({ designAuto: true });
 
   api.setPendingDesign(null);
   await api.maybeProposeDesign({ role: "assistant", text: "没有设计块" });
