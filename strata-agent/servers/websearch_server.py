@@ -32,6 +32,15 @@ import subprocess
 from _mcp_base import McpServerBase
 
 
+# ── 搜索通道 UA：命令行工具 UA 触发 Bing 服务端渲染（SSR）──────────────────
+# 实测坐实（2026-11）：urllib 发 Mozilla/5.0（"能跑 JS 的现代浏览器"）抓 Bing，
+# Bing 返回 JS-only SPA 壳页（结果靠前端异步填，DOM 里 b_algo=0），urllib 不跑 JS
+# 所以解析器拿不到结果节点 → 表现为"中文查询被污染/无结果"。换成命令行工具 UA
+# (curl/...) 会让 Bing 返回 SSR 页（b_algo=10），中文查询直接命中真实结果。
+# 故搜索通道用 _SSR_UA；下载通道 _UA 保持浏览器 UA（图床 CDN 看 Referer 防盗链）。
+_SSR_UA = "curl/8.6.0"
+
+
 # ── 解析器：Bing 与 DuckDuckGo 各一套（HTML 结构不同）────────────────────────
 def _parse_bing(html: str):
     """Bing 结果：标题在 <h2><a href="http...">…</a></h2>，摘要在 b_caption / b_lineclamp。"""
@@ -71,6 +80,34 @@ def _parse_bing_images(html: str):
             continue
         out.append((url, _strip(data.get('t') or ''), data.get('purl') or ''))
     return out
+
+
+# ── 拼音/罗马字品牌词陷阱（实测坐实 2026-11）──────────────────────────────
+# Bing 把"白泽"的罗马字 Baize 当作品牌"毕亚兹(BIAZE)"(京东旗舰店)，搜图几乎只回
+# 该品牌店招图；同坑:同音/近形罗马字若恰是注册品牌，Bing 查询理解会优先品牌而非本义。
+# 这是 Bing 上游的查询理解行为(品牌词优先)，不是解析 bug。规避=用原语言词，或在罗马字
+# 后加语境限定词(如 "Baize legendary beast")把意图从品牌拉回本义。词典命中→结果里追加指引。
+# 键=触发品牌误读的罗马字(小写)，值=(原语言词, 误读品牌, 建议加在查询末尾的限定词)。
+_BRAND_TRAPS = {
+    "baize": ("\u767d\u6cfd", "BIAZE \u6bd5\u4e9a\u5179", "legendary beast"),
+}
+
+def _brand_trap_note(query):
+    """查询命中已知拼音/罗马字品牌陷阱→返回一行 ASCII 指引；否则 None。"""
+    toks = set(re.findall(r"[a-z]+", (query or "").lower()))
+    for tok, (native, brand, qualifier) in _BRAND_TRAPS.items():
+        if tok in toks:
+            return ("[websearch] brand-trap hit: '%s' -> Bing reads it as the brand "
+                    "%s, not the intended meaning. Re-search in the native script "
+                    "'%s', or append a qualifier like '%s %s'."
+                    % (tok, brand, native, tok.capitalize(), qualifier))
+    return None
+
+
+def _with_brand_note(args, result):
+    """若查询命中拼音品牌陷阱，把指引追加到结果末尾；否则原样返回。"""
+    note = _brand_trap_note(args.get("query", ""))
+    return (result + "\n" + note) if note else result
 
 
 def _format_images(items, count=10):
@@ -170,7 +207,9 @@ class WebSearchServer(McpServerBase):
          "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}},
                          "required": ["query"]}},
         {"name": "search_images",
-         "description": "Image search a query, return top image URLs (Bing Images)",
+         "description": "Image search a query, return top image URLs (Bing Images). "
+                          "CAUTION: a romanized/pinyin query that happens to be a registered brand gets hijacked by that brand "
+                          "(e.g. 'Baize' -> the BIAZE audio brand, not the legend). Prefer the native script, or append a context qualifier.",
          "inputSchema": {"type": "object",
                          "properties": {"query": {"type": "string"},
                                         "count": {"type": "integer",
@@ -189,7 +228,7 @@ class WebSearchServer(McpServerBase):
 
     def _fetch(self, url, proxy):
         """抓取一个 URL；proxy=None 直连，否则按 scheme 分派 opener（无全局污染）。"""
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": _SSR_UA})
         opener = _build_opener(proxy)
         if opener is None:
             # socks scheme 但 PySocks 不可用，跳过
@@ -278,7 +317,7 @@ class WebSearchServer(McpServerBase):
         for attempt in range(1, 3):
             hit = self._images_pass(q, count, proxy=None)
             if hit:
-                return hit
+                return _with_brand_note(args, hit)
             if attempt < 2:
                 time.sleep(1.0)
 
@@ -286,9 +325,9 @@ class WebSearchServer(McpServerBase):
         if proxy:
             hit = self._images_pass(q, count, proxy)
             if hit:
-                return hit
+                return _with_brand_note(args, hit)
 
-        return "no results"
+        return _with_brand_note(args, "no results")
 
     def _images_pass(self, q, count, proxy):
         """跑一趟图片搜索（cn/www 两个 Bing 端点）；拿到数据返回字符串，否则 None。"""
