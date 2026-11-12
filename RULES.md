@@ -109,3 +109,10 @@ git add 后先查 git diff --cached --numstat 确认入库行数无 CRLF 翻转�
 前端 CSS 新样式只用 var(--st-*) token，禁止硬编码颜色，保证暗/亮双主题免维护
 全项目 app.js 保持零 inline handler（onerror=/onclick=），破损/降级路径一律走纯 CSS
 像素 fixture 必须内嵌真实 index.html 骨架（不能裸 body 只有 #chat）——app.js 在 $("theme-btn").onclick 拿 null 即崩，连带顶层 const/let（esc/inline/messages）全没初始化，探针撞 TDZ；纯沙箱跑大型 app.js 同理只能验 DOM 接线，行为级须 jsdom（runScripts:outside-only + win.eval 暴露 __api）
+前端 CSS 布局改动用 Python 锚点脚本插入（先断言锚点唯一），保持文件原有换行风格（git ls-files --eol 查工作区风格），CSS 注释用 /* */
+前端行为冒烟：把探针拼进与 i18n.js+app.js 的同一次 win.eval 里执行，才能访问模块作用域的 let/const 顶层变量（jsdom runScripts:outside-only 下顶层声明不进 window）
+新增测试必须登记进 tools/run_tests.py 的清单并跑一次 python tools\run_tests.py 全套回归确认 ALL GREEN，再宣布完成。
+引用扫描生成清单/报告时，扫描脚本自身必须从引用结果中排除（脚本文件名列举了被扫目标会自污染），且脚手架脚本用完即删
+改 run_tests.py 主回归登记新 suite 时：真浏览器冷启动类归 SLOW_SUITES 区（紧凑列表），SUITES 区每条之间留空行保持该区风格，改完必 py_compile + 单跑该 suite 验证调度认得它
+批量送 Windows 回收站的文件清单，引用扫描生成的清单/报告须排除扫描脚本自身(自污染)；"零引用"才入清理批，仅被历史日志快照(data/tool-log)提及的项按默认保留、不自动删
+git 提交"本轮任务产出"时只纳入本轮门禁/接线/清单闭环文件；别处工作线成果(如视觉源文件 app.css/app.js)与配置漂移(mcp_servers.json)一律不裹入，提交前用 git status --untracked-files=all 圈定、用 diff --stat 核对入库行数无 CRLF 虚高
