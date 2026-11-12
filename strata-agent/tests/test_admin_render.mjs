@@ -172,6 +172,17 @@ const main = async () => {
   check("显示文本是原文而非 HTML",
     items()[1].querySelector(".adm-item__name").textContent === "<img src=x onerror=alert(1)>");
 
+  console.log("\n=== server rows show runtime tools (live overlay) ===");
+  {
+    const fsItem = [...items()].find((b) => b.dataset.name === "filesystem");
+    const shItem = items()[1];  // registry-only entry, no live overlay match -> no chips
+    check("row with tools gets the tools modifier class", !!fsItem && fsItem.classList.contains("adm-item--tools"));
+    check("row renders the tool count line", !!fsItem && /1 tools/.test(fsItem.textContent));
+    check("row renders tool chips", !!fsItem && [...fsItem.querySelectorAll(".chip")].some((c) => c.textContent === "read"));
+    check("chip title carries the description", !!fsItem && [...fsItem.querySelectorAll(".chip")].some((c) => c.getAttribute("title") === "read a file"));
+    check("row without tools stays a plain row", !!shItem && !shItem.classList.contains("adm-item--tools"));
+  }
+
   console.log("\n=== 空态 ===");
   check("未选中时显示引导文案", /Pick a server or skill/.test(doc.querySelector("#adm-detail").textContent));
 
@@ -185,6 +196,8 @@ const main = async () => {
   check("已有条目 name 只读", doc.getElementById("f-name").hasAttribute("readonly"));
   check("有保存/试连/删除按钮",
     !!doc.getElementById("f-save") && !!doc.getElementById("f-test") && !!doc.getElementById("f-del"));
+  check("detail shows runtime tool chips for the selected server",
+    [...doc.querySelectorAll("#adm-detail .chip")].some((c) => c.textContent === "read"));
 
   console.log("\n=== 试连 ===");
   doc.getElementById("f-test").click();

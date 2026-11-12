@@ -134,11 +134,12 @@
   function renderList() {
     $("adm-servers").innerHTML = servers.length
       ? servers.map((s) => `
-        <button class="adm-item${isSel("server", s.name) ? " is-sel" : ""}"
+        <button class="adm-item${isSel("server", s.name) ? " is-sel" : ""}${(live[s.name] && (live[s.name].tools || []).length) ? " adm-item--tools" : ""}"
                 data-kind="server" data-name="${esc(s.name)}">
-          <span class="adm-item__name">${esc(s.name)}</span>
+          <span class="adm-item__head"><span class="adm-item__name">${esc(s.name)}</span>
           ${liveBadge(s.name)}
-          ${s.origin ? `<span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin)}</span>` : ""}
+          ${s.origin ? `<span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin)}</span>` : ""}</span>
+          ${toolsChips(s.name)}
         </button>`).join("")
       : `<p class="muted small">${esc(t("adm.none"))}</p>`;
 
@@ -168,6 +169,18 @@
   }
 
   const isSel = (kind, name) => !!sel && sel.kind === kind && sel.name === name;
+
+  // Runtime tool chips for one server, straight from the GET mcp overlay (live[]).
+  // Zero extra requests: the overlay is already fetched on every refresh().
+  const toolChip = (tl) => `<span class="chip chip--t" title="${esc(tl.description || "")}">${esc(tl.tool || tl.name)}</span>`;
+
+  const toolsChips = (name) => {
+    const lv = live[name];
+    const tools = (lv && lv.tools) || [];
+    if (!tools.length) return "";
+    return `<span class="adm-item__tools"><span class="adm-item__tools-head">${esc(t("unit.tools", { n: tools.length }))}</span>` +
+      tools.map((tl) => toolChip(tl)).join("") + `</span>`;
+  };
 
   // ─── Right column ───────────────────────────────────────────────────────────
 
@@ -263,6 +276,7 @@
       <div class="adm-head"><span class="card-title">${sel.isNew ? esc(t("adm.new.server.title")) : esc(sel.name)}</span>
         ${liveBadge(sel.name)}
         <span class="adm-tag adm-tag--${esc(s.origin)}">${esc(s.origin)}</span></div>
+      ${toolsChips(sel.name)}
       ${ro ? `<div class="adm-note adm-note--warn">${esc(t("adm.readonly.body", { why: readonlyWhy }))}</div>` : ""}
       ${locked ? `<div class="adm-note adm-note--warn">${esc(t("adm.locked", { name: s.skill || "" }))}</div>` : ""}
       <div class="adm-form">
