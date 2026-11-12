@@ -143,11 +143,11 @@
       "side.time.month": "{n}个月前",
 
       /* ── Chat ── */
-      "chat.empty": "随便问点什么",
+      "chat.empty": "有什么我可以帮你的？",
       "chat.empty.sub": "模型就跑在这台电脑上，数据不会外传。",
       "chat.empty.sub.model": "{model} 就跑在这台电脑上，数据不会外传。",
       "chat.attach.images": "附加文本文件或图片（也可直接拖放到此处）",
-      "chat.placeholder": "随便问点什么…",
+      "chat.placeholder": "想让我帮你做点什么…",
       "chat.msg.label": "消息",
       "chat.attach": "附加文本文件（也可直接拖放到此处）",
       "chat.new": "新会话",
@@ -1404,11 +1404,11 @@
       "side.time.month": "{n} mo ago",
 
       /* ── Chat ── */
-      "chat.empty": "Ask anything",
+      "chat.empty": "How can I help?",
       "chat.empty.sub": "The model runs on this PC. Nothing leaves it.",
       "chat.empty.sub.model": "{model} runs on this PC. Nothing leaves it.",
       "chat.attach.images": "Attach a text file or a picture (or drop it here)",
-      "chat.placeholder": "Ask anything…",
+      "chat.placeholder": "Want me to help with something?",
       "chat.msg.label": "Message",
       "chat.attach": "Attach a text file (or drop it here)",
       "chat.new": "New chat",

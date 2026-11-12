@@ -1276,7 +1276,7 @@ function setSessionPerm(sid, perm) {
 function sessionTitle(s) {
   if (s.title) return s.title;
   const first = (s.messages || []).find((m) => m.role === "user");
-  return (first && first.text) ? first.text.slice(0, 60) : "New task";
+  return (first && first.text) ? first.text.slice(0, 60) : t("side.newtask");
 }
 // ---- workspace registry helpers ------------------------------------------------
 // Windows paths are case-insensitive and users paste them with or without a trailing slash, so
