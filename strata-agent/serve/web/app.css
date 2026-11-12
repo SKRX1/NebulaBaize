@@ -1133,6 +1133,11 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .adm-mini { padding: 2px 8px; font-size: var(--st-fs-xs); }
 
 .adm-list { display: flex; flex-direction: column; gap: 2px; }
+/* plan A: the server list scrolls inside its card so the skills and import cards
+   below it stay reachable on the first screen; the skills list gets a small cap
+   so a long one cannot push the import card down either. */
+#adm-servers { max-height: min(52vh, 560px); overflow-y: auto; }
+#adm-skills { max-height: 132px; overflow-y: auto; }
 .adm-item { display: flex; align-items: center; justify-content: space-between; gap: 8px;
             width: 100%; padding: 7px 9px; border: 0; border-radius: var(--st-r-sm);
             background: transparent; color: var(--st-ink); font: inherit; font-size: 13px;
