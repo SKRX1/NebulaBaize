@@ -9885,6 +9885,27 @@ $("chat").addEventListener("contextmenu", (e) => {
   const m = messages[i];
   if (!m) return;
   const items = [];
+  // --- Right-click a suggestion chip: copy THIS chip, the WHOLE block, and (if selected) the selection ---
+  // Mirrors the send-composition wording: a single item is the bare "label：detail", several items
+  // become a numbered "1. x\n2. y" batch. Reuses the app-wide openCtxMenu/copyText pipeline.
+  const nsChip = e.target.closest(".next-step");
+  if (nsChip && m.steps && m.steps.length) {
+    const s = m.steps[+nsChip.dataset.step];
+    if (s) {
+      const lineOf = (x) => x.detail ? `${x.label}：${x.detail}` : x.label;
+      const blockText = (list) => list.length === 1 ? lineOf(list[0])
+        : list.map((x, k) => `${k + 1}. ${lineOf(x)}`).join("\n");
+      // 1) copy THIS chip (its full text)
+      items.push({label: t("ctx.copy.step"), icon: "copy", run: () => copyText(lineOf(s))});
+      // 2) copy only the SELECTED chips (shown when any are selected), same numbering as the send-composition
+      const picked = (m.selSteps || []).map((k) => m.steps[k]).filter(Boolean);
+      if (picked.length) items.push({label: t("ctx.copy.steps", {n: picked.length}), icon: "copy", run: () => copyText(blockText(picked))});
+      // 3) copy the WHOLE block, in order — regardless of what is selected
+      items.push({label: t("ctx.copy.steps.all"), icon: "copy", run: () => copyText(blockText(m.steps))});
+      if (items.length) openCtxMenu(e.clientX, e.clientY, items);
+      return;
+    }
+  }
   const selTxt = (window.getSelection && window.getSelection().toString() || "").trim();
   if (selTxt) items.push({label: t("ctx.copy.selection"), icon: "copy", run: () => copyText(selTxt)});   // selection first: it is what the user highlighted
   const toolEl = e.target.closest(".tool-call");
