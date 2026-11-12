@@ -29,9 +29,9 @@
       "tab.tools": "工具",
       "tab.about": "关于",
       "tab.donate": "捐助",
-      "donate.hero.title": "「星云白泽」完全免费。如果它曾让你哪怕省了十分钟，这份免费就值得你留下一点心意。",
+      "donate.hero.title": "「星云白泽」完全免费。如果它替你在某些地方省过事、帮上过忙，你愿意的话，留一点心意，就是对我最大的支持。",
       "donate.hero.story": "为了做出「星云白泽」，我花了七个多月，用各种国产在线大模型推倒重来了三次——三次都失败了。最近两个月每天只睡三四个小时，就靠一张 2080Ti 22GB 加 80GB 内存，从最朴素的「星云」一点点磨到今天。它免费发布，面向所有人。",
-      "donate.hero.cta": "如果「星云白泽」帮到过你哪怕一点点——捐助是我把它继续做下去、更新下去唯一的依靠。金额不限。一杯咖啡的钱，对一个从零做到今天的我来说，就是莫大的鼓励。",
+      "donate.hero.cta": "如果「星云白泽」真的帮到了你——捐助是我把它继续做下去、更新下去唯一的依靠。金额不限。一杯咖啡的钱，对一个从零做到今天的我来说，就是莫大的鼓励。",
       "donate.alipay.title": "支付宝（推荐）",
       "donate.alipay.desc": "推荐使用支付宝 · 国内用户扫码最快、到账即时",
       "donate.usdc.title": "USDC (Arbitrum One)",
@@ -39,7 +39,7 @@
       "donate.usdc.warn": "该地址只接收 USDC (Arbitrum One) 资产，请勿转入其它币种网络的资产——转错链资产无法找回。",
       "donate.copy": "复制地址",
       "donate.copied": "已复制",
-      "donate.thanks": "你愿意留下的那一点，我收到了。剩下的路我继续走，你接着用就好。",
+      "donate.thanks": "谢谢每一位捐助支持的朋友。是你们的这份心意，让我能把它继续做下去。",
       "donate.signature": "—— 时空象容",
       "tab.schedule": "定时任务",
       /* ── Notes (便签) ── */
@@ -161,6 +161,8 @@
       "chat.proj.off": "速度预测：关",
       "chat.you": "我",
       "img.view": "查看图片（双击放大）",
+      "md.video.unsupported": "您的浏览器无法播放此视频。",
+      "md.audio.unsupported": "您的浏览器无法播放此音频。",
 
       /* ── Keyboard hints ── */
       "kbd.send": "发送",
@@ -1280,9 +1282,9 @@
       "tab.tools": "Tools",
       "tab.about": "About",
       "tab.donate": "Donate",
-      "donate.hero.title": "Nebula Baize is completely free. If it ever saved you even ten minutes, that freedom is worth a little something back.",
+      "donate.hero.title": "Nebula Baize is completely free. If it's ever saved you some trouble or helped you out, then if you'd like, a little something back is the greatest support you can give me.",
       "donate.hero.story": "Over seven months to build Nebula Baize. Rebuilt three times on domestic LLMs — all three failed. The last two months, three or four hours of sleep a day, one 2080Ti 22GB and 80GB of RAM. From the plainest “Nebula” to what it is today. Free, for everyone.",
-      "donate.hero.cta": "If Nebula Baize has helped you even a little — donations are the only thing that lets me keep going. No minimum. The price of a coffee means the world to someone who built this from scratch, alone.",
+      "donate.hero.cta": "If Nebula Baize has genuinely helped you — a donation is the only thing that lets me keep building and updating it. No minimum. The price of a coffee means the world to someone who built this from scratch.",
       "donate.alipay.title": "Alipay (recommended)",
       "donate.alipay.desc": "Recommended for domestic users · scan to pay, instant arrival",
       "donate.usdc.title": "USDC (Arbitrum One)",
@@ -1290,7 +1292,7 @@
       "donate.usdc.warn": "This address accepts USDC (Arbitrum One) only — do not send other coins or networks; assets sent to the wrong chain cannot be recovered.",
       "donate.copy": "Copy address",
       "donate.copied": "Copied",
-      "donate.thanks": "Whatever you choose to leave behind, I take it. I’ll keep walking the rest of the road — you just keep using it.",
+      "donate.thanks": "Thank you to everyone who donates. It’s your support that lets me keep this going.",
       "donate.signature": "— Shikong Xiangrong",
       "tab.schedule": "Schedule",
       /* ── Notes (便签) ── */
@@ -1412,6 +1414,8 @@
       "chat.proj.off": "Speed projection: off",
       "chat.you": "You",
       "img.view": "View image (double-click to enlarge)",
+      "md.video.unsupported": "Your browser cannot play this video.",
+      "md.audio.unsupported": "Your browser cannot play this audio.",
 
       /* ── Keyboard hints ── */
       "kbd.send": "send",

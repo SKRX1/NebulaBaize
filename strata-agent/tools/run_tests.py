@@ -89,6 +89,7 @@ SUITES = [
     "tests/test_i18n.mjs",
 
     "tests/test_spark.mjs",
+    "tests/test_md_media.mjs",   # 2026-11-11: body-typed inline media (image/video/audio/doc-card) - branch ORDER (image before link), extension probe must strip ?query/#hash, data: sniffed by MIME, animated gif/webp/apng stay on native <img>, plain link stays byte-for-byte, zero inline handlers
 
     "tests/test_admin_render.mjs",
 

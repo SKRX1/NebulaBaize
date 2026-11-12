@@ -864,8 +864,61 @@ function inline(s) {
   s = esc(s)
     .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*\w])\*([^*\n]+)\*(?![*\w])/g, "$1<em>$2</em>")
-    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    .replace(/!\[([^\]\n]*)\]\((https?:\/\/[^)\s]+|data:image\/[^)\s]+)\)/g,
+             (_, alt, url) => mdImageTag(alt, url))
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+|data:(?:image|video|audio)\/[^)\s]+)\)/g,
+             (_, label, url) => mdEmbedOrLink(label, url));
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code class="inline">${esc(codes[+i])}</code>`);
+}
+// Inline media in message text (2026-11-11). URL/label arrive already esc()-escaped, so putting
+// them straight into an attribute is the same contract the pre-existing link branch used.
+// ORDER MATTERS: the image branch must run BEFORE the link branch (standard Markdown priority),
+// or ![alt](url) would be swallowed as a link.
+const MD_EXT_IMG = new Set(["png", "jpg", "jpeg", "gif", "webp", "apng", "avif", "bmp", "svg"]);
+const MD_EXT_VIDEO = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
+const MD_EXT_AUDIO = new Set(["mp3", "wav", "ogg", "oga", "m4a", "flac", "aac"]);
+const MD_EXT_DOC = new Set(["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md",
+  "markdown", "rst", "json", "jsonl", "csv", "tsv", "xml", "yaml", "yml", "toml", "ini", "log",
+  "zip", "rar", "7z", "gz", "tar", "epub"]);   // TEXT_EXT + pdf, per design
+// data: URIs carry their type in the MIME half, NOT in an extension (and remote URLs carry it in a
+// ?query that the extension probe must strip first, e.g. x.png?x-bce-process=...).
+function mdKindOf(url) {
+  const d = /^data:([a-z0-9.+-]+)\/([a-z0-9.+-]+)/i.exec(url);
+  if (d) return d[1] === "image" ? "img" : (d[1] === "video" ? "video" : (d[1] === "audio" ? "audio" : "doc"));
+  const m = url.split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i);
+  const ext = m ? m[1].toLowerCase() : "";
+  if (MD_EXT_IMG.has(ext)) return "img";
+  if (MD_EXT_VIDEO.has(ext)) return "video";
+  if (MD_EXT_AUDIO.has(ext)) return "audio";
+  if (MD_EXT_DOC.has(ext)) return "doc";
+  return "link";
+}
+// animated GIF/WebP/APNG ride the native <img> animation for free - no extra code path.
+// No inline onerror here: the project ships with ZERO inline handlers (and no CSP), so the
+// broken-image fallback stays pure CSS (.md-broken) to keep that invariant.
+function mdImageTag(alt, url) {
+  return `<img class="md-img" src="${url}" alt="${alt}" loading="lazy">`;
+}
+// [name](url) dispatches on type: video / audio / image / document-card; a plain link is
+// byte-for-byte the old output (regression lock).
+function mdEmbedOrLink(label, url) {
+  const kind = mdKindOf(url);
+  if (kind === "img") return mdImageTag(label, url);
+  if (kind === "video") return `<video class="md-media" src="${url}" controls preload="metadata">${t("md.video.unsupported") || ""}</video>`;
+  if (kind === "audio") return `<audio class="md-media" src="${url}" controls preload="metadata">${t("md.audio.unsupported") || ""}</audio>`;
+  if (kind === "doc") return `<a class="md-card" href="${url}" target="_blank" rel="noopener noreferrer"><span class="md-card__ico">${icon("attach")}</span><span class="md-card__name">${label}</span><span class="md-card__act">${icon("download")}</span></a>`;
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+}
+// The media dispatch shared by the think area and tool-card bodies: esc + image branch +
+// link-dispatch branch, and NOTHING else (no bold/em/code). Rationale: these regions must
+// keep the source verbatim (gate lock) -- only real ![alt](url) / [name](url) media syntax
+// may render. For plain text / JSON / brackets the output is byte-identical to esc().
+function inlineMedia(s) {
+  return esc(s)
+    .replace(/!\[([^\]\n]*)\]\((https?:\/\/[^)\s]+|data:image\/[^)\s]+|\/data\/uploads\/[^)\s]+)\)/g,
+             (_, alt, url) => mdImageTag(alt, url))
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+|data:(?:image|video|audio)\/[^)\s]+|\/data\/uploads\/[^)\s]+)\)/g,
+             (_, label, url) => mdEmbedOrLink(label, url));
 }
 // ------------------------------------------------------------------ syntax highlight (tiny, no deps)
 // A single-pass tokeniser instead of pulling in highlight.js: the app ships offline and a 100 KB grammar
@@ -2213,7 +2266,7 @@ function toolBodyHtml(tool) {
     const lbl = tool.state === "running" ? t("tool.state.running")
           : tool.ok === false ? t("mon.state.error") : t("tool.result");
     body += `<div class="tool-call__label">${lbl}${tool.chars ? ` · ${t("tool.chars", {n: fmt(tool.chars)})}` : ""}` +
-            `${tool.skipreason ? " · " + t("tool.cut_argtrunc") : (tool.truncated ? ", " + t("tool.cut") : "")}</div><pre class="tool-call__pre">${esc(tool.result)}</pre>`;
+            `${tool.skipreason ? " · " + t("tool.cut_argtrunc") : (tool.truncated ? ", " + t("tool.cut") : "")}</div><pre class="tool-call__pre">${inlineMedia(tool.result)}</pre>`;
   }
   return body;
 }
@@ -2445,7 +2498,7 @@ function dedupeThink(src) {
 function thinkRich(src) {
   const txt = (s) => {
     const x = s.replace(/^\n+|\n+$/g, "");
-    return x.trim() ? `<div class="st-think__txt">${esc(x)}</div>` : "";
+    return x.trim() ? `<div class="st-think__txt">${inlineMedia(x)}</div>` : "";
   };
   let html = "", rest = String(src || "");
   for (;;) {
@@ -8201,6 +8254,13 @@ $("chat").addEventListener("dblclick", (e) => {
   const img = e.target.closest("img.msg-img, img.inline-msg-img");
   if (img) openImageView(img.src, img.alt);
 });
+// body-typed pictures open the viewer on a single click (they are not in a dense hover zone
+// like the composer thumbs, and this delegate matches ONLY md-img so it cannot double-fire
+// with the dblclick path above).
+$("chat").addEventListener("click", (e) => {
+  const img = e.target.closest("img.md-img");
+  if (img) openImageView(img.src, img.alt);
+});
 function onApproval(x) {
   // x = {id, tool, description} from SSE stream (strata_approval field)
   const item = {id: x.id, tool: x.tool || x.name, desc: x.description || ""};
@@ -9465,6 +9525,7 @@ function initSessionStream() {
       try {
         const obj = JSON.parse(e.data);
         if (obj["schedule-changed"]) { loadSchedule(); return; }
+        if (obj["stream_open"]) { return; }  // SSE 连接信令，非气泡；防误建幽灵会话
         const sessName = obj.session_name || 'schedule';
         let sess = sessions.find(s => s.title === sessName || s.title === '\u23F0 ' + sessName);
         if (!sess) {
