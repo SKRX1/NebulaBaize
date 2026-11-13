@@ -63,7 +63,9 @@ const injected = appCode + `
     if (autoDriveTimer) { clearTimeout(autoDriveTimer); autoDriveTimer = null; }
     showAutoDrivePill(false);
   },
-};`;
+};
+settings.hideavoid = false;  // test hygiene: pin render precondition (tier-LOGIC tests need display ON)
+`;
 win.eval(injected);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 

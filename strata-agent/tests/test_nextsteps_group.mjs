@@ -62,7 +62,8 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
 ;window.__api = { renderNextSteps, extractNextSteps, msgEl, dict: () => i18n._dict };
-;window.__setHideavoid = (v) => { settings.hideavoid = v; };`);
+;window.__setHideavoid = (v) => { settings.hideavoid = v; };
+;window.__initialHideavoid = settings.hideavoid;`);
 const api = win.__api;
 
 function renderSteps(steps, selSteps = []) {
@@ -192,6 +193,25 @@ console.log("\n=== 8: hideavoid toggle (default OFF = show; ON = hide the avoid 
   ;({ box } = renderSteps([{ label: "A", avoid: true }]));
   check("ON + only-avoid tier -> panel collapses (no blank bar)", !!box && box.hidden === true);
   win.__setHideavoid(false);
+}
+
+/* ═══ 9. hideavoid DEFAULT = ON (2026-11-13 flip): a fresh profile (no stored value) defaults to HIDING the not-recommended tier ═══ */
+/*  This locks the DEFAULT itself (section 8 drives it by explicit set, so a default drift would go uncaught).
+    Load-bearing differential: the same input renders WITH the avoid tier when the flag is OFF and WITHOUT it
+    when ON; the fresh-profile default is ON, so it renders WITHOUT. */
+console.log("\n=== 9: hideavoid default ON = the avoid tier is hidden by default (differential) ===");
+{
+  check("DEFAULT (fresh profile, no stored value) hideavoid === true", win.__initialHideavoid === true, String(win.__initialHideavoid));
+  const steps = [{ label: "R", recommended: true }, { label: "A", avoid: true }];
+  // ship default path (ON) -> avoid hidden
+  win.__setHideavoid(true);
+  let { box } = renderSteps(steps);
+  check("DEFAULT-ON: avoid tier NOT rendered (hidden)", !box.querySelector(".next-steps__group--avoid"));
+  check("DEFAULT-ON: recommended tier still renders (load-bearing: only the avoid tier is filtered)", !!box.querySelector(".next-steps__group--rec"));
+  // differential control (explicit OFF) -> avoid shows again
+  win.__setHideavoid(false);
+  ;({ box } = renderSteps(steps));
+  check("DIFFERENTIAL OFF: avoid tier renders again (the flag is load-bearing, not decorative)", !!box.querySelector(".next-steps__group--avoid"));
 }
 
 console.log("");

@@ -1194,7 +1194,7 @@ const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
-                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: false, autoVerifyFix: true};
+                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: true, autoVerifyFix: true};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
 // the model reply in English. cnThink appends a reasoning-language rule (off by default — forcing

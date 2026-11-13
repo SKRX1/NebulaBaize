@@ -56,7 +56,10 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
-;window.__api = { renderNextSteps, extractNextSteps, msgEl };`);
+;window.__api = { renderNextSteps, extractNextSteps, msgEl };
+  // test hygiene: pin the render precondition (these test the tier LOGIC, which needs display ON)
+settings.hideavoid = false;
+`);;
 const api = win.__api;
 
 // Full chain: model text -> extractNextSteps -> build m -> renderNextSteps -> count DOM chips.
