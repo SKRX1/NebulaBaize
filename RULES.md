@@ -126,3 +126,5 @@ pip 卸载无回收站语义（物理删除）；只有磁盘上的模型/临时
 带 data-i18n 的节点若要内嵌动态 span（计数/徽标），翻译文本必须放叶子 span，动态 span 作兄弟，否则语言切换时 t() 覆写 textContent 会抹掉子节点（i18n 测试第 3 项会 FAIL）
 改 app.js 生产行为后，必须补"运行时实测"（喂真实输入断言行为），不能只靠静态读实 + node --check 就宣布完成
 修一个前端渲染 bug 时，配套写一条 DOM-身份回归测试（断言关键节点跨多次 repaint 不被重建），并注册进 tools/run_tests.py 的 SUITES 清单，否则该修复不进回归网。
+async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在 await 之后使用前必须重新校验——await 期间全局可变状态（messages、分支、撤销栈）可能被并发改变致其越界
+对象字面量里 get xxx() 定义的成员必须按属性读取（d.current），绝不能写成 d.current()——getter 返回值是 truthy 的非函数对象，`d.current ? d.current()` 会过了 truthy 检查后对对象求值抛 "is not a function"
