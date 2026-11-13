@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="hdr.brand">星云</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="app.css">
+<script>
+  // the theme before the first paint: the saved choice, else dark (the app default)
+  try {
+    const t = localStorage.getItem("strata.theme") || "dark";
+    document.documentElement.dataset.theme = t;
+  } catch (e) {}
+  // set <html lang> early so fonts and screen readers pick the right locale.
+  // The dictionary itself loads later via i18n.js; this only avoids a reflow.
+  try {
+    const l = localStorage.getItem("strata.lang") || "zh";
+    document.documentElement.lang = (l === "zh" ? "zh-CN" : l);
+  } catch (e) {}
+  // restore saved sidebar widths before first paint so they don't animate from the default
+  try {
+    const lw = JSON.parse(localStorage.getItem("strata.side.w"));
+    const iw = JSON.parse(localStorage.getItem("strata.ins.w"));
+    if (typeof lw === "number" && lw > 0) document.documentElement.style.setProperty("--side-w", lw + "px");
+    if (typeof iw === "number" && iw > 0) document.documentElement.style.setProperty("--ins-w", iw + "px");
+  } catch (e) {}
+</script>
+</head>
+<body>
+<script>
+  // restore collapsed (rail) states before first paint so they don't animate open on load
+  try {
+    if (JSON.parse(localStorage.getItem("strata.side.collapsed"))) document.body.classList.add("side-collapsed");
+    if (JSON.parse(localStorage.getItem("strata.ins.collapsed"))) document.body.classList.add("ins-collapsed");
+  } catch (e) {}
+</script>
+<header class="st-header">
+  <div class="brand" title="星云白泽 · 作者: 时空象容 · AI: Swift1.5-Qwen3.8Flash-Q3S">
+    <svg class="brand-mark" viewBox="0 0 40 40" role="img" aria-label="金黄星云 · 发光核心 + 旋臂 + 星尘">
+      <defs>
+        <radialGradient id="brandCore" cx="50%" cy="45%" r="60%">
+          <stop id="brandCoreA" offset="0"/>
+          <stop id="brandCoreB" offset="1"/>
+        </radialGradient>
+        <radialGradient id="brandHalo" cx="50%" cy="45%" r="60%">
+          <stop offset="0"    stop-color="#ffe9a8" stop-opacity="0"/>
+          <stop offset="0.55" stop-color="#ffe9a8" stop-opacity="0"/>
+          <stop offset="1"    stop-color="#e39b0b" stop-opacity="0.85"/>
+        </radialGradient>
+        <linearGradient id="brandSwirl" x1="0" y1="0" x2="1" y2="1">
+          <stop id="brandSwirlA" offset="0"/>
+          <stop id="brandSwirlB" offset="1"/>
+        </linearGradient>
+      </defs>
+      <circle class="brand-halo" cx="20" cy="20" r="16"/>
+      <g class="brand-swirl">
+        <ellipse class="brand-arm" cx="20" cy="20" rx="15" ry="6"/>
+        <ellipse class="brand-arm brand-arm--2" cx="20" cy="20" rx="6" ry="15"/>
+      </g>
+      <circle class="brand-core" cx="20" cy="20" r="6.5"/>
+      <g class="brand-dust">
+        <circle class="brand-spark brand-spark--mu"   cx="20"   cy="3.5"  r="2.2"/>
+        <circle class="brand-spark brand-spark--huo"  cx="35.7" cy="14.8" r="2.0"/>
+        <circle class="brand-spark brand-spark--tu"   cx="30.3" cy="32.7" r="2.1"/>
+        <circle class="brand-spark brand-spark--jin"  cx="9.7"  cy="32.7" r="2.0"/>
+        <circle class="brand-spark brand-spark--shui" cx="4.3"  cy="14.8" r="2.2"/>
+      </g>
+    </svg>
+    <div class="brand-text">
+      <div class="brand-title">
+        <span class="brand-name" data-i18n="hdr.brand">星云白泽</span>
+      </div>
+      <div class="brand-sub"><span class="brand-author">作者:</span><span class="brand-author">时空象容</span><span class="brand-sep">·</span><span class="brand-ai">AI:</span><span class="brand-ai">Swift1.5-Qwen3.8Flash-Q3S</span></div>
+    </div>
+  </div>
+  <nav class="st-tabs" role="tablist" aria-label="Views" data-i18n-attr="aria-label:nav.views">
+    <button class="st-tab" role="tab" id="tab-btn-chat" aria-controls="view-chat" aria-selected="true" data-tab="chat">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chat"/></svg><span data-i18n="tab.chat">Chat</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-images" aria-controls="view-images" aria-selected="false" data-tab="images" hidden>
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-image"/></svg><span data-i18n="tab.images">Images</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-spark" aria-controls="view-spark" aria-selected="false" data-tab="spark">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-bolt"/></svg><span data-i18n="tab.spark">Sparks</span><span class="tab-badge" id="spark-tab-badge" hidden></span></button>
+    <button class="st-tab" role="tab" id="tab-btn-debug" aria-controls="view-debug" aria-selected="false" title="流式调试面板" data-tab="debug" data-i18n-attr="title:debug.title">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-tool"/></svg><span data-i18n="debug.title">Debug</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-tools" aria-controls="view-tools" aria-selected="false" data-tab="tools">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-layers"/></svg><span data-i18n="tab.tools">Tools</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-memory" aria-controls="view-memory" aria-selected="false" data-tab="memory">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-bookmark"/></svg><span data-i18n="tab.memory">Memory</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-schedule" aria-controls="view-schedule" aria-selected="false" data-tab="schedule">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-clock"/></svg><span data-i18n="tab.schedule">Schedule</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-monitor" aria-controls="view-monitor" aria-selected="false" data-tab="monitor">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-activity"/></svg><span data-i18n="tab.monitor">Monitor</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-about" aria-controls="view-about" aria-selected="false" data-tab="about">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-info"/></svg><span data-i18n="tab.about">About</span></button>
+    <button class="st-tab" role="tab" id="tab-btn-donate" aria-controls="view-donate" aria-selected="false" data-tab="donate">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-heart"/></svg><span data-i18n="tab.donate">捐助</span></button>
+  </nav>
+  <span class="st-header__spacer"></span>
+  <span class="st-pill" id="pill" data-state="idle" role="status" aria-live="polite">
+    <!-- 星云 working mark: one green core + five specks orbiting it. Its state, not its words,
+         answers "is she working?" — bright & fast = generating, dim & frozen = 静止. -->
+    <svg class="nebula" id="pill-neb" data-state="idle" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="nebHalo" cx="50%" cy="50%" r="60%">
+          <stop offset="0" stop-color="#ffe9a8" stop-opacity="0"/>
+          <stop offset="0.55" stop-color="#ffe9a8" stop-opacity="0"/>
+          <stop offset="1" stop-color="#e39b0b" stop-opacity="0.85"/>
+        </radialGradient>
+        <linearGradient id="nebSwirl" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffe9a8"/>
+          <stop offset="1" stop-color="#ffe9a8" stop-opacity="0.55"/>
+        </linearGradient>
+      </defs>
+      <circle class="neb-halo" cx="12" cy="12" r="9.8"/>
+      <g class="neb-swirl">
+        <ellipse class="neb-arm" cx="12" cy="12" rx="9" ry="3.6"/>
+        <ellipse class="neb-arm neb-arm--2" cx="12" cy="12" rx="3.6" ry="9"/>
+      </g>
+      <circle class="neb-ring" cx="12" cy="12" r="9.8"/>
+      <g class="neb-orbit">
+        <circle class="neb-p neb-p--hi wu-mu" cx="12" cy="2.6" r="1.5"/>
+        <circle class="neb-p wu-huo" cx="20.6" cy="14.8" r="1.2"/>
+        <circle class="neb-p neb-p--hi wu-tu" cx="4.8" cy="18" r="1.7"/>
+        <circle class="neb-p wu-jin" cx="18.2" cy="5.6" r="1.05"/>
+        <circle class="neb-p wu-shui" cx="3.2" cy="8.6" r="1.15"/>
+      </g>
+      <circle class="neb-core" cx="12" cy="12" r="5.4"/>
+      <g class="neb-prop">
+        <g class="p-search"><circle class="p-ring" cx="19.4" cy="5.2" r="2"/><line class="p-handle" x1="20.8" y1="6.6" x2="22.6" y2="8.4"/></g>
+        <g class="p-code"><path class="p-pen" d="M17.4 3.2 l3.2 0 -1.6 3.4 z"/></g>
+        <g class="p-shell"><circle class="p-cog" cx="19" cy="5" r="1.9"/></g>
+        <g class="p-image"><path class="p-star" d="M19 1.6 l.8 1.7 1.9 .2 -1.4 1.3 .4 1.9 -1.7 -.9 -1.7 .9 .4 -1.9 -1.4 -1.3 1.9 -.2 z"/></g>
+        <path class="p-sweat" d="M17.6 6.6 q-1.1 1.7 0 2.6 q1.1 -.9 0 -2.6 z"/>
+        <path class="p-spark" d="M12 1.2 l.55 1.3 1.4 .2 -1 1 .25 1.4 -1.2 -.75 -1.2 .75 .25 -1.4 -1 -1 1.4 -.2 z"/>
+      </g>
+    </svg>
+    <span id="pill-text" data-i18n="hdr.connecting">Connecting&hellip;</span></span>
+  <button class="st-btn st-btn--icon st-btn--lang" id="lang-btn" title="Switch language" aria-label="Switch language">EN</button>
+  <button class="st-btn st-btn--icon" id="theme-btn" title="Light / dark" aria-label="Switch between light and dark"
+          data-i18n-attr="title:hdr.theme,aria-label:hdr.theme">
+    <svg class="st-icon"><use id="theme-icon" href="sprite.svg#i-moon"/></svg></button>
+  <button class="st-btn st-btn--icon" id="inspector-toggle" title="任务面板（上下文 / 进度 / 文件 / 测试）" aria-label="任务面板"
+          data-i18n-attr="title:hdr.inspector,aria-label:hdr.inspector">
+    <svg class="st-icon"><use href="sprite.svg#i-panel"/></svg></button>
+</header>
+
+<main>
+  <!-- ============================ Chat ============================ -->
+  <aside class="st-sidebar" id="sidebar" aria-label="Tasks" data-i18n-attr="aria-label:side.tasks">
+    <div class="st-sidebar__head">
+      <button class="st-btn st-btn--primary st-btn--icon" id="new-task-btn" title="New task" aria-label="New task"
+              data-i18n-attr="title:side.newtask,aria-label:side.newtask">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-plus"/></svg></button>
+      <button class="st-btn st-btn--icon st-btn--icon-sm" id="sidebar-collapse" title="Collapse sidebar" aria-label="Collapse sidebar"
+              data-i18n-attr="title:side.collapse,aria-label:side.collapse">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button>
+    </div>
+    <!-- batch bar: only visible while a batch selection is active (task menu → 批量操作) -->
+    <div class="st-batch" id="batch-bar" hidden>
+      <span class="st-batch__count" id="batch-count">0</span>
+      <button class="st-btn" data-batch="all" data-i18n="side.batch.all">全选</button>
+      <button class="st-btn" data-batch="pin" data-i18n="side.batch.pin">置顶</button>
+      <button class="st-btn" data-batch="unpin" data-i18n="side.batch.unpin">取消置顶</button>
+      <button class="st-btn st-batch__danger" data-batch="del" data-i18n="side.batch.del">删除</button>
+      <select class="st-input st-batch__move" id="batch-move" aria-label="Move to workspace" data-i18n-attr="aria-label:side.batch.move"></select>
+      <button class="st-btn" data-batch="done" data-i18n="side.batch.done">完成</button>
+    </div>
+    <nav class="st-sidebar__list" id="session-list" aria-label="Tasks" data-i18n-attr="aria-label:side.tasks"></nav>
+    <div class="kb-panel" id="kb-panel">
+      <div class="kb-panel__head">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-bookmark"/></svg><span data-i18n="side.kb">Knowledge Base</span></div>
+      <div class="kb-panel__list" id="kb-list"></div>
+    </div>
+    <button class="st-btn st-btn--secondary st-sidebar__workspace" id="workspace-btn" title="Workspace" aria-label="Workspace"
+            data-i18n-attr="title:side.workspace,aria-label:side.workspace">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-folder"/></svg><span id="workspace-name" data-i18n="side.noworkspace">No workspace</span></button>
+    <div class="kb-panel" id="schedule-panel">
+      <div class="kb-panel__head">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-clock"/></svg><span data-i18n="side.schedule">Schedule</span>
+        <button class="st-btn st-btn--icon st-btn--icon-sm" id="schedule-add" title="New schedule" aria-label="New schedule" style="margin-left:auto"
+                data-i18n-attr="title:side.sched.add,aria-label:side.sched.add">
+          <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-plus"/></svg></button></div>
+      <div class="sched-note" data-i18n="side.sched.note">Add / remove take effect when the scheduler daemon restarts.</div>
+      <div class="kb-panel__list" id="schedule-list"></div>
+    </div>
+  </aside>
+  <div class="rh" id="rh-left" data-side="left" role="separator" aria-orientation="vertical" aria-label="调整侧栏宽度" data-i18n-attr="title:side.resize"></div>
+  <section class="view view--chat" id="view-chat" role="tabpanel" aria-labelledby="tab-btn-chat">
+    <div class="chat-scroll" id="chat-scroll">
+      <div class="chat" id="chat">
+        <div class="chat-empty" id="chat-empty">
+                    <img class="baize-hero" src="img/baize_01.jpg" alt="白泽神兽" role="img">
+          <div class="chat-empty__title" data-i18n="chat.empty">Ask anything</div>
+          <div class="chat-empty__sub" id="chat-empty-sub" data-i18n="chat.empty.sub">The model runs on this PC. Nothing leaves it.</div>
+        </div>
+      </div>
+    </div>
+    <button class="scroll-latest" id="scroll-latest" hidden type="button"
+            title="回到底部" aria-label="回到底部" data-i18n-attr="title:chat.scrolllatest,aria-label:chat.scrolllatest">
+      <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg>
+    </button>
+    <div class="rules-draft-banner" id="rules-draft-banner" hidden>
+      <div class="rules-draft-banner__bar">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-info"/></svg>
+        <button type="button" class="rules-draft-banner__txt" id="rules-draft-peek" aria-expanded="false">
+          <b id="rules-draft-title"></b> <span data-i18n="rules.banner.sub">待你审批后才会生效</span>
+          <span class="rd-chev" aria-hidden="true">▾</span>
+        </button>
+        <button type="button" class="st-btn st-btn--primary st-btn--sm" id="rules-draft-merge" data-i18n="rules.banner.merge">合并到 RULES.md</button>
+        <button type="button" class="st-btn st-btn--ghost st-btn--sm" id="rules-draft-discard" data-i18n="rules.banner.discard">丢弃</button>
+      </div>
+      <div class="rules-draft-banner__body" id="rules-draft-body" hidden></div>
+    </div>
+    <div class="rules-draft-banner design-draft-banner" id="design-draft-banner" hidden>
+      <div class="rules-draft-banner__bar">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-bookmark"/></svg>
+        <button type="button" class="rules-draft-banner__txt" id="design-draft-peek" aria-expanded="false">
+          <b id="design-draft-title"></b> <span data-i18n="design.banner.sub">将保存到工作空间 .design/ 文件夹</span>
+          <span class="rd-chev" aria-hidden="true">▾</span>
+        </button>
+        <button type="button" class="st-btn st-btn--primary st-btn--sm" id="design-draft-save" data-i18n="design.banner.save">保存设计文档</button>
+        <button type="button" class="st-btn st-btn--ghost st-btn--sm" id="design-draft-discard" data-i18n="design.banner.discard">丢弃</button>
+      </div>
+      <div class="rules-draft-banner__body" id="design-draft-body" hidden>
+        <pre class="rd-pre" id="design-draft-pre"></pre>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="spark-strip" id="spark-strip" hidden>
+        <textarea id="spark-strip-input" class="st-input st-textarea" rows="2" data-i18n-attr="placeholder:spark.strip.ph"></textarea>
+        <div class="spark-strip__bar">
+          <span class="spacer"></span>
+          <button type="button" class="st-btn st-btn--secondary" id="spark-strip-save" data-i18n="spark.strip.save">Save note</button>
+        </div>
+      </div>
+      <form class="st-composer" id="composer">
+        <div class="slash-menu" id="slash-menu"></div>
+        <div class="attachments" id="attachments" hidden></div>
+        <div id="input" class="ce-input" contenteditable="true" role="textbox" aria-multiline="true"
+             data-i18n-attr="aria-label:chat.msg.label,data-placeholder:chat.placeholder"
+             data-placeholder="Ask anything…"></div>
+        <div class="st-composer__bar">
+          <button type="button" class="st-btn st-btn--icon" id="attach-btn" title="Attach a text file (or drop it here)" aria-label="Attach a file"
+                  data-i18n-attr="title:chat.attach,aria-label:chat.attach">
+            <svg class="st-icon"><use href="sprite.svg#i-attach"/></svg></button>
+          <input type="file" id="file" multiple hidden>
+          <button type="button" class="st-btn st-btn--icon" id="new-btn" title="New chat" aria-label="New chat"
+                  data-i18n-attr="title:chat.new,aria-label:chat.new">
+            <svg class="st-icon"><use href="sprite.svg#i-new-chat"/></svg></button>
+          <button type="button" class="st-btn st-btn--icon" id="export-btn" title="Save this chat as Markdown" aria-label="Save this chat"
+                  data-i18n-attr="title:chat.export,aria-label:chat.export">
+            <svg class="st-icon"><use href="sprite.svg#i-download"/></svg></button>
+          <button type="button" class="st-btn st-btn--icon" id="design-btn" title="生成设计文档到工作空间 .design/" aria-label="生成设计文档"
+                  data-i18n-attr="title:design.btn.title,aria-label:design.btn.title">
+            <svg class="st-icon"><use href="sprite.svg#i-bookmark"/></svg></button>
+          <button type="button" class="st-btn st-btn--icon" id="sampling-btn" title="Sampling and thinking" aria-label="Sampling and thinking"
+                  data-i18n-attr="title:chat.sampling,aria-label:chat.sampling">
+            <svg class="st-icon"><use href="sprite.svg#i-settings"/></svg></button>
+          <select class="st-perm-select" id="perm-select" title="本工作空间的模型权限（可随时切换）" aria-label="模型权限">
+            <option value="full">完全访问</option>
+            <option value="auto">自动审核</option>
+            <option value="manual">手动审批</option>
+          </select>
+          <button type="button" class="st-btn st-btn--icon" id="kbd-help" title="键盘快捷键（按 ?）" aria-label="键盘快捷键" data-i18n-attr="title:kbd.help,aria-label:kbd.help">
+            <svg class="st-icon"><use href="sprite.svg#i-info"/></svg></button>
+          <button type="button" class="st-btn st-btn--icon" id="spark-toggle" title="灵感便签（随手记）" aria-label="灵感便签（随手记）"
+                  data-i18n-attr="title:spark.strip.toggle,aria-label:spark.strip.toggle">
+            <svg class="st-icon"><use href="sprite.svg#i-bolt"/></svg></button>
+          <span class="spacer"></span>
+          <span class="composer-hint" id="composer-hint"></span>
+          <span class="autodrive-pill" id="autodrive-pill" hidden>
+            <span class="autodrive-pill__dot"></span>
+            <span data-i18n="autodrive.running">AI 自动续跑中…</span>
+            <button type="button" class="autodrive-pill__stop" id="autodrive-stop" data-i18n="autodrive.stop">停止</button>
+          </span>
+          <button type="button" class="st-btn st-btn--secondary" id="stop-btn" hidden>
+            <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-stop"/></svg><span data-i18n="chat.stop">Stop</span></button>
+          <button type="button" class="st-btn model-chip" id="model-btn" hidden aria-haspopup="dialog"
+                  aria-expanded="false" data-i18n-attr="aria-label:model.current,title:model.current">
+            <span class="model-chip__dot"></span><span class="model-chip__name" id="model-name"></span>
+            <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button>
+          <button type="submit" class="st-btn st-btn--primary st-btn--send" id="send-btn" aria-label="Send"
+                  data-i18n-attr="aria-label:chat.send">
+            <svg class="st-icon"><use href="sprite.svg#i-send"/></svg></button>
+        </div>
+      </form>
+      <div class="model-pop" id="model-pop" hidden role="menu" data-i18n-attr="aria-label:model.choose"></div>
+      <div class="kbd-hints" id="kbd-hints"></div>
+    </div>
+  </section>
+
+  <!-- ============================ Images ============================ -->
+  <section class="view view--images" id="view-images" role="tabpanel" aria-labelledby="tab-btn-images" hidden>
+    <div class="about">
+      <form class="st-card img-form" id="img-form">
+        <span class="card-title" id="img-title" data-i18n="img.title">Make an image</span>
+        <textarea class="st-input img-prompt" id="img-prompt" rows="3" placeholder="Describe the image…" aria-label="Prompt"
+                  data-i18n-attr="placeholder:img.placeholder,aria-label:img.prompt.label"></textarea>
+        <div class="img-row">
+          <label class="st-field"><span data-i18n="img.size">Size</span>
+            <select class="st-input" id="img-size">
+              <option>1024x1024</option><option>1536x1024</option><option>1024x1536</option>
+              <option>768x768</option><option>512x512</option></select></label>
+          <label class="st-field"><span data-i18n="img.seed">Seed</span>
+            <input class="st-input" id="img-seed" type="number" min="0" placeholder="random"
+                   data-i18n-attr="placeholder:img.seed.ph"></label>
+          <button type="submit" class="st-btn st-btn--primary" id="img-go" data-i18n="img.generate">Generate</button>
+        </div>
+        <span class="composer-hint" id="img-hint" data-i18n="img.hint">One image at a time; a chat request waits for it (and the other way round).</span>
+      </form>
+      <div class="img-results" id="img-results"></div>
+    </div>
+  </section>
+
+  <!-- ============================ Monitor ============================ -->
+  <section class="view view--monitor view--scroll" id="view-monitor" role="tabpanel" aria-labelledby="tab-btn-monitor" hidden>
+    <div class="monitor">
+      <div class="st-card state-card">
+        <div class="state-card__head">
+          <span class="card-title" data-i18n="mon.state">Model state</span>
+          <span class="badges" id="state-badges">
+            <span class="st-badge" data-s="idle" data-i18n="mon.state.idle">Idle</span>
+            <span class="st-badge st-badge--reading" data-s="reading" data-i18n="mon.state.reading">Reading</span>
+            <span class="st-badge st-badge--generating" data-s="generating" data-i18n="mon.state.generating">Generating</span>
+            <span class="st-badge st-badge--queued" data-s="queued" data-i18n="mon.state.queued">Queued</span>
+            <span class="st-badge st-badge--error" data-s="error" data-i18n="mon.state.error">Error</span>
+          </span>
+        </div>
+        <div class="state-card__row"><span id="state-label" data-i18n="mon.state.waiting">Waiting for a request</span><span class="muted" id="state-detail"></span></div>
+        <div class="st-progress" id="state-progress"><div class="st-progress__bar" id="state-bar" style="width:0%"></div></div>
+      </div>
+
+      <div class="metrics" id="metrics">
+        <!-- filled by app.js: Speed, GPU load, VRAM, GPU temp, Power, PCIe, CPU, Disk read -->
+      </div>
+
+      <div class="monitor-row">
+        <div class="st-card ctx-card">
+          <span class="card-title" data-i18n="mon.ctx.fill">Context fill</span>
+          <div class="ctx-gauge">
+            <svg class="st-gauge" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="st-gauge__track" cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+                      stroke-dasharray="235.6 314.2" transform="rotate(135 60 60)"/>
+              <circle class="st-gauge__fill" id="ctx-fill" cx="60" cy="60" r="50" fill="none" stroke-width="10"
+                      stroke-linecap="round" stroke-dasharray="0 314.2" transform="rotate(135 60 60)"/>
+            </svg>
+            <div class="ctx-gauge__label"><span class="ctx-gauge__pct" id="ctx-pct">0%</span><span class="muted" id="ctx-sub">&ndash;</span></div>
+          </div>
+          <div class="bar-row"><span data-i18n="mon.ctx.vram">Experts in VRAM</span><span class="muted" id="slots-text">&ndash;</span></div>
+          <div class="st-progress"><div class="st-progress__bar" id="slots-bar" style="width:0%"></div></div>
+          <div class="bar-row"><span data-i18n="mon.ctx.ram">System RAM</span><span class="muted" id="ram-text">&ndash;</span></div>
+          <div class="st-progress" id="ram-progress"><div class="st-progress__bar" id="ram-bar" style="width:0%"></div></div>
+          <div class="bar-row"><span data-i18n="mon.ctx.temp">GPU temperature</span><span class="muted" id="temp-text">&ndash;</span></div>
+          <div class="st-progress" data-tone="warn"><div class="st-progress__bar" id="temp-bar" style="width:0%"></div></div>
+        </div>
+        <div class="st-card req-card">
+          <div class="req-head"><span class="card-title" data-i18n="mon.req">Recent requests</span>
+            <button class="st-btn st-btn--secondary" id="req-all" hidden data-i18n="mon.req.all">Show all</button></div>
+          <div class="table-wrap" id="req-wrap">
+            <table class="st-table">
+              <thead><tr><th data-i18n="mon.th.time">Time</th><th data-i18n="mon.th.status">Status</th><th class="num" data-i18n="mon.th.prompt">Prompt</th><th class="num" data-i18n="mon.th.reused">Reused</th><th class="num" data-i18n="mon.th.output">Output</th>
+                <th class="num" data-i18n="mon.th.prefill" data-i18n-attr="title:mon.th.prefill.tip" title="New prompt tokens per second, excluding reused cache tokens (engine prompt time)">Prefill t/s</th><th class="num" data-i18n="mon.th.decode">Decode t/s</th><th class="num" data-i18n="mon.th.vramhit" data-i18n-attr="title:mon.th.vramhit.tip" title="While writing the answer: the share of the experts looked up that were already in VRAM. Experts the GPU read over PCIe (--pcie-frac) are not counted in it; their share of all routed experts is shown after it (+N% PCIe)">VRAM hit rate</th><th class="num" data-i18n="mon.th.duration">Duration</th></tr></thead>
+              <tbody id="req-body"><tr><td colspan="9" class="muted" data-i18n="mon.req.none">No requests yet</td></tr></tbody>
+            </table>
+          </div>
+          <p class="muted req-totals" id="req-totals"></p>
+        </div>
+      </div>
+
+      <div class="st-card cc-card" id="cc-card">
+        <div class="req-head"><span class="card-title" data-i18n="mon.cc">Conversation cache</span><span class="muted small" id="cc-sum"></span></div>
+        <div class="cc-bars" id="cc-bars" hidden>
+          <div><div class="bar-row"><span data-i18n="mon.cc.parked">Parked conversations</span><span class="muted" id="cc-slots-text">&ndash;</span></div>
+            <div class="st-progress"><div class="st-progress__bar" id="cc-slots-bar" style="width:0%"></div></div></div>
+          <div><div class="bar-row"><span data-i18n="mon.cc.mem">Their memory (RAM)</span><span class="muted" id="cc-mem-text">&ndash;</span></div>
+            <div class="st-progress"><div class="st-progress__bar" id="cc-mem-bar" style="width:0%"></div></div></div>
+        </div>
+        <dl class="facts" id="cc-facts"></dl>
+        <p class="muted small cc-note" id="cc-note"></p>
+      </div>
+
+      <div class="st-card mcp-card" id="mcp-card" hidden>
+        <div class="req-head"><span class="card-title" data-i18n="mon.mcp">MCP servers</span><span class="muted small" id="mcp-sum"></span></div>
+        <div class="mcp-list" id="mcp-list"></div>
+        <p class="muted small mcp-note" data-i18n="mon.mcp.note">Their tools run on this PC with your rights, when the model decides to call them
+          (in this page's chat only; switch it off in Sampling).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== Tools (MCP + skills) ====================== -->
+  <section class="view view--tools" id="view-tools" role="tabpanel" aria-labelledby="tab-btn-tools" hidden>
+    <div class="adm">
+      <aside class="adm-side">
+        <div class="st-card adm-card">
+          <div class="adm-head">
+            <span class="card-title" data-i18n="adm.servers">MCP servers</span>
+            <button class="st-btn st-btn--secondary adm-mini" id="adm-new-server" title="Add a server"
+                    data-i18n-attr="title:adm.new.server">+ New</button>
+          </div>
+          <div class="adm-list" id="adm-servers"></div>
+        </div>
+        <div class="st-card adm-card">
+          <div class="adm-head">
+            <span class="card-title" data-i18n="adm.skills">Skills</span>
+            <button class="st-btn st-btn--secondary adm-mini" id="adm-new-skill" title="Add a skill"
+                    data-i18n-attr="title:adm.new.skill">+ New</button>
+          </div>
+          <div class="adm-list" id="adm-skills"></div>
+        </div>
+        <div class="st-card adm-card">
+          <span class="card-title" data-i18n="adm.import">Import</span>
+          <p class="muted small" data-i18n-html="adm.import.desc">Paste a Claude Desktop <code>mcpServers</code> block to add several at once.</p>
+          <textarea class="st-input adm-import" id="adm-import" rows="4"
+                    placeholder='{ "mcpServers": { "name": { "command": "...", "args": [] } } }'></textarea>
+          <div class="adm-actions">
+            <button class="st-btn st-btn--secondary" id="adm-import-btn" data-i18n="adm.import.btn">Import JSON</button>
+          </div>
+          <p class="muted small" data-i18n="adm.applied.hint">Changes are backed up and take effect the next time Strata or the gateway starts.</p>
+        </div>
+      </aside>
+      <div class="adm-main">
+        <div id="adm-notice" class="adm-notice"></div>
+      <div class="st-card adm-card proxy-card" id="proxy-card" hidden>
+        <div class="req-head"><span class="card-title" data-i18n="tools.proxy">Proxy Settings</span></div>
+        <p class="muted small" data-i18n="tools.proxy.desc">SOCKS5 proxy URL. websearch primary path connects directly to Bing; proxy is only a fallback.</p>
+        <form class="cfg-form" id="proxy-form" onsubmit="return false">
+          <input class="st-input" id="proxy-input" size="34" type="text" data-i18n-attr="placeholder:tools.proxy.placeholder" placeholder="socks5://127.0.0.1:10808" autocomplete="off">
+        </form>
+        <div class="cfg-actions"><button class="st-btn st-btn--primary" id="proxy-save" type="button" data-i18n="tools.proxy.save">Save</button>
+          <span class="muted small" id="proxy-msg" role="status"></span></div>
+      </div>
+        <div id="adm-detail"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ Streaming debug drawer (Step1-G) ============================ -->
+  <section class="view view--debug view--scroll" id="view-debug" role="tabpanel" aria-labelledby="tab-btn-debug" hidden>
+  <div class="about">
+    <div class="db-subtabs mem-subtabs" role="tablist" aria-label="Debug sections" data-i18n-attr="aria-label:debug.subtabs.aria">
+      <button class="db-subtab" role="tab" data-db="bugbox" aria-selected="true" data-i18n="debug.tab.bugbox">Bug 收集箱</button>
+      <button class="db-subtab" role="tab" data-db="live" aria-selected="false" data-i18n="debug.tab.live">实时异常流</button>
+      <button class="db-subtab" role="tab" data-db="gateway" aria-selected="false" data-i18n="debug.tab.gateway">网关侧</button>
+      <button class="db-subtab" role="tab" data-db="recycle" aria-selected="false" data-i18n="debug.tab.recycle">垃圾回收</button>
+      <button class="db-subtab" role="tab" data-db="probe" aria-selected="false" data-i18n="hw.chip.title">Hardware probe</button>
+    </div>
+
+    <div class="bugbox-hero" id="bugbox-hero"></div>
+
+    <div class="st-card db-tabpanel mem-tabpanel is-active" data-db="bugbox">
+      <div class="req-head"><span class="card-title" id="bugbox-title" data-i18n="debug.bugbox.title">Bug 收集箱</span></div>
+      <div class="mem-kb-bar" id="bugbox-search-bar"><input class="st-input" id="bugbox-search" type="text" data-i18n-attr="placeholder:debug.bugbox.search.ph"><select class="st-input" id="bugbox-filter"><option value="" data-i18n="debug.bugbox.filter.all">All statuses</option><option value="open" data-i18n="debug.bugbox.stats.open">Open</option><option value="fixing" data-i18n="debug.bugbox.status.fixing">Fixing</option><option value="verified" data-i18n="debug.bugbox.status.verified">Verified</option></select></div>
+      <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-foldall" data-i18n="chat.fold.all">Collapse all</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixone" data-i18n="debug.bugbox.fixone">Fix one now</button><button class="st-btn st-btn--primary st-btn--sm" id="bugbox-fixall" data-i18n="debug.bugbox.fixall">Fix all (poll)</button><button class="st-btn st-btn--ghost st-btn--sm" id="bugbox-stopall" data-i18n="debug.bugbox.stopall" style="display:none">Stop polling</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-mergedup" data-i18n="debug.bugbox.mergedup">Merge duplicates</button><button class="st-btn st-btn--danger st-btn--sm" id="bugbox-clearall" data-i18n="debug.bugbox.clearall">Clear all</button><button class="st-btn st-btn--secondary st-btn--sm" id="bugbox-addman" data-i18n="debug.bugbox.addman">Add manually</button></div>
+      <div class="st-modal" id="bugbox-addmodal" hidden role="dialog" aria-modal="true" data-i18n-attr="aria-label:debug.bugbox.addman">
+        <div class="st-modal__card">
+          <div class="st-modal__head"><span class="card-title" data-i18n="debug.bugbox.addman">Add manually</span>
+            <button class="st-btn st-btn--icon" id="bugbox-addmodal-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+              <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button></div>
+          <label class="st-label" for="bugbox-am-title" data-i18n="debug.bugbox.addman.prompt.title">Title</label>
+          <input class="st-input" id="bugbox-am-title" type="text" spellcheck="false" autocomplete="off">
+          <label class="st-label" for="bugbox-am-desc" data-i18n="debug.bugbox.addman.prompt.desc">Description</label>
+          <div class="st-input st-textarea spark-rich__ed" id="bugbox-am-desc" contenteditable="true" role="textbox" aria-multiline="true"></div>
+          <label class="st-label" for="bugbox-am-note" data-i18n="debug.bugbox.addman.prompt.note">Size/shape note</label>
+          <input class="st-input" id="bugbox-am-note" type="text" spellcheck="false" autocomplete="off">
+          <div class="st-modal__actions"><span class="spacer"></span>
+            <button class="st-btn st-btn--secondary" id="bugbox-am-cancel" data-i18n="debug.bugbox.addman.cancel">Cancel</button>
+            <button class="st-btn st-btn--primary" id="bugbox-am-ok" data-i18n="debug.bugbox.addman.ok">Add</button></div>
+        </div>
+      </div>
+      <div class="debug-list" id="bugbox-list"></div>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="live">
+      <div class="req-head"><span class="card-title" data-i18n="debug.title">调试</span></div>
+      <p class="muted small" data-i18n="debug.desc">流式任务的实时调试：客户端异常、断点位置、传输状态，以及一键诊断与证据复制。</p>
+      <div class="drawer-actions">
+        <button class="st-btn st-btn--secondary" id="debug-copy" type="button" data-i18n="debug.copy">复制证据</button>
+        <button class="st-btn st-btn--primary" id="debug-diagnose" type="button" data-i18n="debug.diagnose">一键诊断</button>
+      </div>
+      <div class="debug-list" id="debug-list"></div>
+    </div>
+
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="gateway">
+      <div class="req-head"><span class="card-title" data-i18n="debug.gw.title">网关侧</span></div>
+      <p class="muted small debug-gw-desc" data-i18n="debug.gw.desc">网关侧（服务端）：本轮请求的逐块时间线与断点标注，可一键复制为 cURL 原样重放，定位「流到哪一步崩了」。</p>
+      <div class="drawer-actions">
+        <button class="st-btn st-btn--secondary" id="debug-curl" type="button" data-i18n="debug.gw.copycurl">复制为 cURL 重放</button>
+      </div>
+      <div class="debug-list" id="debug-gw-body"></div>
+    </div>
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="recycle">
+      <div class="req-head"><span class="card-title" data-i18n="recycle.title">垃圾回收</span>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-scan" type="button" data-i18n="recycle.scan">扫描候选</button></div>
+      <p class="muted small" data-i18n="recycle.desc">删除一律送 Windows 系统回收站（绝不物理删），可随时还原、保留后惑机会；功能依赖文件永不进候选。</p>
+        <div class="recycle-controls">
+          <div class="recycle-ctl-row">
+            <label for="recycle-ws" data-i18n="recycle.scope">Scope</label>
+            <select id="recycle-ws" class="st-perm-select"><option value="__this__" data-i18n="recycle.scope.this">Follow current session</option></select>
+          </div>
+          <div class="recycle-ctl-row">
+            <label data-i18n="recycle.category">Categories</label>
+            <div class="recycle-chips" id="recycle-chips">
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="scratch_scripts" checked><span data-i18n="recycle.cat.scratch_scripts">Scratch scripts</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="backups" checked><span data-i18n="recycle.cat.backups">Backups</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="generated" checked><span data-i18n="recycle.cat.generated">Generated</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="caches" checked><span data-i18n="recycle.cat.caches">Caches</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="run_logs"><span data-i18n="recycle.cat.run_logs">Run logs</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="dir_logs"><span data-i18n="recycle.cat.dir_logs">logs backups</span></label>
+              <label class="spark-toolbar__check"><input type="checkbox" class="recycle-cat" data-cat="tool_log"><span data-i18n="recycle.cat.tool_log">Tool logs</span></label>
+            </div>
+          </div>
+          <div class="recycle-ctl-row">
+            <label for="recycle-retention" data-i18n="recycle.retention">Retention</label>
+            <select id="recycle-retention" class="st-perm-select">
+              <option value="1">1</option>
+              <option value="6">6</option>
+              <option value="24">24</option>
+              <option value="72" selected>72</option>
+              <option value="168">168</option>
+              <option value="720">720</option>
+            </select>
+            <span data-i18n="recycle.retention.h">hours ago</span>
+          </div>
+          <p class="muted small" data-i18n="recycle.retention.note">note</p>
+        </div>
+      <div class="mem-actions">
+        <button class="st-btn st-btn--primary st-btn--sm" id="recycle-trash-sel" type="button" data-i18n="recycle.trash">把勾选项送入回收站</button>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-audit-refresh" type="button" data-i18n="recycle.audit.refresh">刷新审计</button></div>
+      <div class="mem-actions" id="recycle-progress-row" style="display:none;align-items:center;gap:8px">
+        <div class="st-progress" style="flex:1"><div class="st-progress__bar" id="recycle-progress-bar" style="width:0%"></div></div>
+        <span class="muted small" id="recycle-progress-text"></span>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="recycle-stop" type="button" data-i18n="recycle.stop">停止</button>
+      </div>
+      <div class="debug-list" id="recycle-list"></div>
+      <div class="debug-list" id="recycle-bin" hidden></div>
+      <div class="debug-list" id="recycle-audit" hidden></div>
+    </div>
+    <div class="st-card db-tabpanel mem-tabpanel" data-db="probe">
+      <div class="req-head"><span class="card-title" data-i18n="hw.chip.title">Hardware probe</span></div>
+      <dl class="facts" id="hw-chip"></dl>
+    </div>
+  </div>
+</section>
+<!-- ============================ Memory (knowledge / rules / notes) ============================ -->
+  <section class="view view--memory view--scroll" id="view-memory" role="tabpanel" aria-labelledby="tab-btn-memory" hidden>
+    <div class="about">
+      <div class="mem-subtabs" role="tablist" aria-label="Memory sections">         <button class="mem-subtab" role="tab" data-mem="kb" aria-selected="true" data-i18n="mem.kb.title">Knowledge base</button>         <button class="mem-subtab" role="tab" data-mem="rules" aria-selected="false" data-i18n="mem.rules.title">Workspace rules</button>         <button class="mem-subtab" role="tab" data-mem="notes" aria-selected="false" data-i18n="mem.notes.title">Experience notes</button>         <button class="mem-subtab" role="tab" data-mem="auto" aria-selected="false" data-i18n="mem.auto.title">自主沉淀</button>         <button class="mem-subtab" role="tab" data-mem="global" aria-selected="false" data-i18n="mem.global.title">Global memory</button>       </div>
+      <div class="st-card mem-tabpanel" data-mem="kb">
+        <div class="req-head"><span class="card-title" data-i18n="mem.kb.title">Knowledge base</span>
+          <span class="muted small" id="mem-kb-sum"></span></div>
+        <div class="mem-kb-bar">
+          <input class="st-input" id="mem-kb-search" type="text" data-i18n-attr="placeholder:mem.kb.search.ph">
+          <button class="st-btn st-btn--secondary" id="mem-kb-preview" data-i18n="mem.kb.preview">Preview</button>
+          <input class="st-input" id="mem-kb-path" type="text" data-i18n-attr="placeholder:mem.kb.path.ph">
+          <button class="st-btn st-btn--secondary" id="mem-kb-import" data-i18n="mem.kb.import">Import</button>
+        </div>
+        <pre class="mem-src-body mem-kb-preview-box" id="mem-kb-preview-box" hidden></pre>
+        <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="mem-kb-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="mem-kb-foldall" data-i18n="chat.fold.all">Collapse all</button></div>
+        <div class="kb-panel__list" id="mem-kb-list"></div>
+        <p class="muted small" data-i18n="mem.kb.note"></p>
+      </div>
+
+      <div class="st-card mem-tabpanel" data-mem="rules">
+        <div class="req-head"><span class="card-title" data-i18n="mem.rules.title">Workspace rules</span>
+          <span class="muted small" id="mem-rules-ws"></span></div>
+        <p class="muted small" id="mem-rules-empty" hidden data-i18n="mem.rules.empty"></p>
+        <textarea class="st-input st-textarea" id="mem-rules-edit" rows="6" hidden></textarea>
+        <div class="mem-actions" id="mem-rules-actions" hidden>
+          <button class="st-btn st-btn--primary" id="mem-rules-save" data-i18n="mem.rules.save">Save RULES.md</button>
+        </div>
+        <div class="req-head" id="mem-draft-head" hidden><span class="card-title" data-i18n="mem.rules.draft">Pending drafts</span></div>
+        <div class="kb-panel__list" id="mem-rules-draft"></div>
+      </div>
+
+      <div class="st-card mem-tabpanel" data-mem="notes">
+        <div class="req-head"><span class="card-title" data-i18n="mem.notes.title">Experience notes</span>
+          <span class="muted small" id="mem-notes-ws"></span></div>
+        <p class="muted small" id="mem-notes-empty" hidden data-i18n="mem.notes.empty"></p>
+        <div class="mem-actions"><button class="st-btn st-btn--ghost st-btn--sm" id="mem-notes-expandall" data-i18n="chat.expand.all">Expand all</button><button class="st-btn st-btn--ghost st-btn--sm" id="mem-notes-foldall" data-i18n="chat.fold.all">Collapse all</button></div>
+        <div class="kb-panel__list" id="mem-notes-list"></div>
+      </div>
+
+      <div class="st-card mem-tabpanel" data-mem="auto">
+        <div class="req-head"><span class="card-title" data-i18n="mem.auto.title">自主维护记忆</span>
+          <span class="muted small" id="mem-auto-sum"></span></div>
+        <p class="muted small" id="mem-auto-group"></p>
+        <p class="muted small" id="mem-auto-empty" hidden data-i18n="mem.auto.empty"></p>
+        <div class="mem-actions" id="mem-auto-actions">
+          <button class="st-btn st-btn--secondary" id="mem-auto-tidy" data-i18n="mem.auto.tidy.btn">整理记忆（去重）</button>
+          <button class="st-btn st-btn--secondary" id="mem-auto-setgroup" data-i18n="mem.auto.group.btn">设置本工作区分组</button>
+          <button class="st-btn st-btn--secondary" id="mem-auto-weekly" data-i18n="mem.weekly.open">查看周摘要</button>
+          <button class="st-btn st-btn--secondary" id="mem-auto-newgroup" data-i18n="mem.ne.open.group" hidden>新建组内条目</button>
+        </div>
+        <div class="seg mem-scope-filter" id="mem-auto-filter" role="group" aria-label="memory scope">
+          <button type="button" data-scope="all" aria-checked="true" data-i18n="mem.auto.filter.all">全部</button>
+          <button type="button" data-scope="workspace" aria-checked="false" data-i18n="mem.auto.filter.workspace">本工作区</button>
+          <button type="button" data-scope="group" aria-checked="false" data-i18n="mem.auto.filter.group">工作区间</button>
+          <button type="button" data-scope="global" aria-checked="false" data-i18n="mem.auto.filter.global">全局</button>
+        </div>
+        <div class="kb-panel__list" id="mem-auto-list"></div>
+      </div>
+
+      <div class="st-card mem-tabpanel" data-mem="global">
+        <div class="req-head"><span class="card-title" data-i18n="mem.global.title">Global memory (MEMORY.md)</span>
+          <span class="muted small" id="mem-global-sum"></span><button class="st-btn st-btn--ghost st-btn--sm" data-global-edit data-i18n="drawer.archive.edit">Unlock to edit</button></div>
+        <pre class="mem-src-body" id="mem-global-body"></pre>
+        <p class="muted small" data-i18n="mem.global.note"></p>
+        <p class="muted small" data-i18n="mem.auto.global.hint"></p>
+        <p class="muted small" data-i18n="mem.ne.global.hint"></p>
+        <div class="mem-actions" id="mem-global-actions">
+          <button class="st-btn st-btn--primary" id="mem-global-new" data-i18n="mem.ne.open.global">新建全局条目</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ Sparks (灵感便签) ============================ -->
+  <section class="view view--spark view--scroll" id="view-spark" role="tabpanel" aria-labelledby="tab-btn-spark" hidden>
+    <div class="about">
+      <div class="st-card">
+        <div class="req-head"><span class="card-title" data-i18n="tab.spark">Sparks</span>
+          <span class="muted small" data-i18n="spark.subtitle"></span></div>
+        <div class="spark-add">
+          <div class="spark-rich">
+            <div class="spark-rich__bar">
+              <button type="button" class="spark-rich__btn" data-cmd="bold" data-i18n-attr="title:spark.fmt.bold"><b>B</b></button>
+              <button type="button" class="spark-rich__btn" data-cmd="italic" data-i18n-attr="title:spark.fmt.italic"><i>I</i></button>
+              <button type="button" class="spark-rich__btn" data-cmd="insertUnorderedList" data-i18n-attr="title:spark.fmt.list">&bull;</button>
+            </div>
+            <div class="st-input st-textarea spark-rich__ed" id="spark-add-input" contenteditable="true" role="textbox" aria-multiline="true" data-i18n-attr="data-placeholder:spark.add.ph"></div>
+          </div>
+          <input class="st-input spark-add__tags" id="spark-add-tags" data-i18n-attr="placeholder:spark.tags.ph">
+          <div class="spark-add__bar">
+            <span class="spacer"></span>
+            <button class="st-btn st-btn--primary" id="spark-add-btn" data-i18n="spark.add.btn">Save to Sparks</button>
+          </div>
+        </div>
+        <div class="spark-filters" id="spark-filters"></div>
+        <div class="spark-toolbar">
+          <label class="spark-toolbar__check"><input type="checkbox" id="spark-selall"><span data-i18n="spark.sel.all">Select all</span></label>
+          <span class="spacer"></span>
+          <button type="button" class="st-btn st-btn--small st-btn--ghost" id="spark-delselected" data-i18n="spark.delselected.btn">Delete selected</button>
+          <button type="button" class="st-btn st-btn--small st-btn--primary" id="spark-runall" data-i18n="spark.runall.btn">Run all</button>
+          <button type="button" class="st-btn st-btn--small st-btn--secondary" id="spark-cleardone" data-i18n="spark.clear.done">Clear done</button>
+          <button type="button" class="st-btn st-btn--small st-btn--ghost" id="spark-clearall" data-i18n="spark.clear.all">Clear all</button>
+        </div>
+        <p class="muted small" id="spark-empty" data-i18n="spark.empty" hidden></p>
+        <div class="kb-panel__list" id="spark-list"></div>
+      </div>
+      <div class="st-card spark-memory">
+        <div class="req-head"><span class="card-title" data-i18n="spark.memory.title">Long-term memory</span></div>
+        <p class="muted small" id="spark-memory-empty" data-i18n="spark.memory.empty" hidden></p>
+        <div class="kb-panel__list" id="spark-memory-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ About ============================ -->
+  <section class="view view--schedule view--scroll" id="view-schedule" role="tabpanel" aria-labelledby="tab-btn-schedule" hidden>
+    <div class="st-card">
+      <div class="adm-head">
+        <span class="card-title" data-i18n="side.schedule">Schedule</span>
+        <button class="st-btn st-btn--secondary adm-mini" id="schedule-new" title="New schedule" data-i18n-attr="title:side.sched.add">
+          + New</button>
+      </div>
+      <p class="muted small" data-i18n="side.sched.note"></p>
+      <div id="sched-view-list"></div>
+    </div>
+  </section>
+  <section class="view view--about view--scroll" id="view-about" role="tabpanel" aria-labelledby="tab-btn-about" hidden>
+    <div class="about">
+      <div class="st-card">
+        <span class="card-title" data-i18n="about.engine">Model and engine</span>
+        <dl class="facts" id="facts-engine"></dl>
+      </div>
+      <div class="st-card">
+        <span class="card-title" data-i18n="about.pc">This PC</span>
+        <dl class="facts" id="facts-hw"></dl>
+      </div>
+      <div class="st-card">
+        <span class="card-title" data-i18n="about.connect">Connect your tools</span>
+        <p class="muted" data-i18n="about.connect.desc">Any OpenAI- or Anthropic-compatible client works with these addresses.</p>
+        <dl class="facts" id="facts-api"></dl>
+      </div>
+      <div class="st-card">
+        <span class="card-title" data-i18n="about.settings">Settings</span>
+        <div class="st-field lang-field">
+          <label class="st-label" for="lang-select" data-i18n="about.lang">Interface language</label>
+          <select class="st-input" id="lang-select">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="st-field">
+          <label class="st-label" for="api-key"><span data-i18n="about.apikey">API key</span> <output data-i18n="about.apikey.hint">only if the server was started with one</output></label>
+          <input class="st-input" id="api-key" type="password" autocomplete="off" placeholder="Not needed"
+                 data-i18n-attr="placeholder:about.apikey.ph">
+        </div>
+        <div class="toggle-row"><span data-i18n="about.dark">Dark theme</span>
+          <button class="st-toggle" id="dark-toggle" role="switch" aria-checked="false" aria-label="Dark theme"
+                  data-i18n-attr="aria-label:about.dark"></button></div>
+        <p class="muted small" data-i18n-html="about.note">Chats, settings and the key are kept in this browser only.
+          <a href="https://github.com/Niko1221/Strata" target="_blank" rel="noopener noreferrer">Strata on GitHub</a></p>
+      </div>
+      <div class="st-card cfg-card" id="cfg-card" hidden>
+        <div class="req-head"><span class="card-title" data-i18n="about.cfg">Model settings</span><span class="muted small" id="cfg-file"></span></div>
+        <p class="muted small" data-i18n="about.cfg.desc">Kept in the model's run config for every client. An empty field is the default. They
+          take effect the next time the model starts (close Strata's window and start it again).</p>
+        <form class="cfg-form" id="cfg-form"></form>
+        <div class="cfg-actions"><button class="st-btn st-btn--primary" id="cfg-save" type="button" data-i18n="about.cfg.save">Save</button>
+          <span class="muted small" id="cfg-msg" role="status"></span></div>
+      </div>
+      <div class="st-card rt-card" id="rt-card" hidden>
+        <div class="req-head"><span class="card-title" data-i18n="about.rt">运行参数</span><span class="muted small" id="rt-file"></span></div>
+        <p class="muted small" data-i18n="about.rt.desc">网关 agent 循环与工具执行的运行参数。修改后即时生效（无需重启），并写入 mcp_servers.json 下次启动沿用。留空表示使用默认值。</p>
+        <form class="cfg-form" id="rt-form"></form>
+        <div class="cfg-actions"><button class="st-btn st-btn--primary" id="rt-save" type="button" data-i18n="about.rt.save">保存</button>
+          <span class="muted small" id="rt-msg" role="status"></span></div>
+      </div>
+      <div class="st-card rt-card" id="ilog-card" hidden>
+        <div class="req-head"><span class="card-title" data-i18n="about.ilog">中断日志</span><span class="muted small" id="ilog-file"></span></div>
+        <p class="muted small" data-i18n="about.ilog.desc">每次回合非正常结束（连接被截断、可恢复停止、报错、手动停止）都会记录时间与当时所处阶段：思考中 / 回答中 / 哪个工具正在跑。用于判断到底是引擎静默、某个工具卡住，还是网络断开。</p>
+        <div class="ilog-list" id="ilog-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view view--donate view--scroll" id="view-donate" role="tabpanel" aria-labelledby="tab-btn-donate" hidden>
+    <div class="about donate">
+      <div class="st-card donate-hero">
+        <h2 class="donate-hero__title" data-i18n="donate.hero.title">This app is completely free and lives on the donations of its users</h2>
+        <p class="donate-hero__story" data-i18n="donate.hero.story"></p>
+        <p class="donate-hero__cta muted" data-i18n="donate.hero.cta"></p>
+      </div>
+      <div class="donate-cards">
+        <div class="st-card donate-card">
+          <span class="card-title" data-i18n="donate.alipay.title">Alipay (recommended)</span>
+          <p class="muted" data-i18n="donate.alipay.desc"></p>
+          <div class="donate-qr-wrap"><img class="donate-qr" id="donate-qr-alipay" src="img/donate-alipay.jpg" alt="Alipay QR code" loading="lazy"></div>
+        </div>
+        <div class="st-card donate-card">
+          <span class="card-title" data-i18n="donate.usdc.title">USDC (Arbitrum One)</span>
+          <p class="muted" data-i18n="donate.usdc.desc"></p>
+          <div class="donate-qr-wrap"><img class="donate-qr" id="donate-qr-usdc" src="img/donate-usdc.png" alt="USDC deposit QR code" loading="lazy"></div>
+          <div class="donate-addr"><code id="donate-usdc-addr">0xE6E51D58649020df831439A95c52a411E9B1Bc80</code><button class="st-btn st-btn--secondary st-btn--sm" id="donate-copy-btn" type="button" data-i18n-attr="title:donate.copy" data-copy="0xE6E51D58649020df831439A95c52a411E9B1Bc80"><svg class="st-icon st-icon--sm"><use href="sprite.svg#i-copy"/></svg><span data-i18n="donate.copy">复制地址</span></button></div>
+          <p class="donate-warn" data-i18n="donate.usdc.warn"></p>
+        </div>
+      </div>
+      <div class="st-card donate-thanks">
+        <p data-i18n="donate.thanks"></p>
+        <p class="donate-signature" data-i18n="donate.signature"></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="rh" id="rh-right" data-side="right" role="separator" aria-orientation="vertical" aria-label="调整任务面板宽度" data-i18n-attr="title:insp.resize"></div>
+
+  <!-- ============================ Inspector (right task panel) ============================ -->
+  <aside class="st-inspector" id="inspector" aria-label="任务面板">
+    <div class="st-inspector__head">
+      <span class="st-inspector__title" data-i18n="insp.title">任务面板</span>
+      <button class="st-btn st-btn--icon st-btn--icon-sm" id="inspector-collapse" title="收起面板" aria-label="收起面板">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button>
+    </div>
+    <div class="st-inspector__body">
+      <section class="ins-sec">
+        <div class="ins-sec__title" data-i18n="insp.ctx" data-i18n-attr="title:insp.ctx.tip">上下文占用</div>
+        <div class="ins-bar"><div class="ins-bar__fill" id="ins-ctx-bar" data-tone="success"></div></div>
+        <div class="ins-sec__row"><span id="ins-ctx-pct">–</span><span class="muted" id="ins-cache">–</span></div>
+        <div class="ins-sec__sub muted" id="ins-engine" hidden></div>
+        <div class="ins-sec__sub muted" id="ins-ctx-sub" data-i18n="insp.ctx.empty">模型信息未加载</div>
+        <div class="ins-sec__sub muted" id="ins-ctx-split" hidden></div>
+        <button class="st-btn st-btn--secondary st-btn--sm" id="ins-compact" type="button"
+                title="把早期消息压缩为模型生成的摘要，以减少上下文占用" data-i18n="insp.compact">压缩对话</button>
+        <div class="ins-sec__note" id="ins-ctx-note"></div>
+      </section>
+      <section class="ins-sec" id="ins-plan" hidden>
+        <div class="ins-sec__title"><span data-i18n="insp.plan">任务进度</span> <span class="ins-sec__count" id="ins-plan-count"></span><span class="ins-live-dot" id="ins-plan-live" hidden title="本轮进行中"></span></div>
+        <div class="ins-bar"><div class="ins-bar__fill ins-bar__fill--plan" id="ins-plan-bar"></div></div>
+        <ul class="ins-plan-list" id="ins-plan-list"></ul>
+      </section>
+      <section class="ins-sec" id="ins-files-sec">
+        <div class="ins-sec__title" data-i18n="insp.files">生成文件</div>
+        <ul class="ins-file-list" id="ins-files"><li class="muted" data-i18n="insp.none">暂无</li></ul>
+      </section>
+      <section class="ins-sec" id="ins-tests-sec">
+        <div class="ins-sec__title" data-i18n="insp.tests">测试结果</div>
+        <ul class="ins-test-list" id="ins-tests"><li class="muted" data-i18n="insp.none">暂无</li></ul>
+      </section>
+      <section class="ins-sec" id="ins-session">
+        <div class="ins-sec__title"><span data-i18n="insp.session">本会话统计</span></div>
+        <div class="ins-stat-grid">
+          <div class="ins-stat"><span class="ins-stat__v" id="ins-sess-in">–</span><span class="ins-stat__k" data-i18n="insp.session.in">输入</span></div>
+          <div class="ins-stat"><span class="ins-stat__v" id="ins-sess-out">–</span><span class="ins-stat__k" data-i18n="insp.session.out">输出</span></div>
+          <div class="ins-stat"><span class="ins-stat__v" id="ins-sess-turns">0</span><span class="ins-stat__k" data-i18n="insp.session.turns">轮次</span></div>
+        </div>
+        <div class="ins-sec__sub muted"><span data-i18n="insp.session.ctx">上下文趋势</span><span class="ins-sec__count" id="ins-spark-count" hidden></span></div>
+        <svg class="ins-spark" id="ins-sess-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<!-- ============================ Sampling drawer ============================ -->
+<aside class="st-drawer" id="drawer" data-open="false" aria-label="Sampling and thinking" aria-hidden="true" data-i18n-attr="aria-label:chat.sampling">
+  <div class="st-drawer__head"><span class="card-title" data-i18n="drawer.title">Sampling</span>
+    <button class="st-btn st-btn--icon" id="drawer-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+      <svg class="st-icon"><use href="sprite.svg#i-chevron"/></svg></button></div>
+  <div class="st-drawer__body">
+    <div class="st-field">
+      <label class="st-label" for="s-thinking"><span data-i18n="drawer.thinking">Thinking</span> <output id="o-thinking"></output></label>
+      <div class="seg" id="s-thinking" role="radiogroup" aria-label="Thinking" data-i18n-attr="aria-label:drawer.thinking">
+        <button type="button" role="radio" data-v="auto" data-i18n="drawer.thinking.auto">跟随模型</button><button type="button" role="radio" data-v="high" data-i18n="drawer.thinking.high">高</button>
+        <button type="button" role="radio" data-v="medium" data-i18n="drawer.thinking.medium">中</button><button type="button" role="radio" data-v="low" data-i18n="drawer.thinking.low">低</button>
+        <button type="button" role="radio" data-v="off" data-i18n="drawer.thinking.off">关闭</button>
+      </div>
+      <span class="muted small" data-i18n="drawer.thinking.hint">按任务记忆：切换任务会自动切到该任务的强度；新任务沿用上次选择</span>
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-thinkbudget"><span data-i18n="drawer.thinkBudget">思考预算</span> <output data-i18n="drawer.thinkBudget.hint">跟随档位（可手动覆盖）</output></label>
+      <input class="st-input" id="s-thinkbudget" type="number" min="1" step="1" placeholder="跟随档位（低1024/中4096/高32768）"
+             data-i18n-attr="placeholder:drawer.thinkBudget.ph,title:drawer.thinkBudget.tip">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-answerfloor"><span data-i18n="drawer.answerFloor">正文保底</span> <output data-i18n="drawer.answerFloor.hint">思考满后正文至少留出的额度</output></label>
+      <input class="st-input" id="s-answerfloor" type="number" min="1" step="1" placeholder="16384"
+             data-i18n-attr="placeholder:drawer.answerFloor.ph,title:drawer.answerFloor.tip">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-temp"><span data-i18n="drawer.temp">Temperature</span> <output id="o-temp"></output></label>
+      <input class="st-slider" type="range" id="s-temp" min="0" max="1.5" step="0.05">
+      <span class="muted small" data-i18n="drawer.temp.hint">0 = always the most likely word (exact, repeatable)</span>
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-topp"><span data-i18n="drawer.topp">Top-p</span> <output id="o-topp"></output></label>
+      <input class="st-slider" type="range" id="s-topp" min="0.05" max="1" step="0.05">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-topk"><span data-i18n="drawer.topk">Top-k</span> <output id="o-topk"></output></label>
+      <input class="st-slider" type="range" id="s-topk" min="1" max="64" step="1">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-max"><span data-i18n="drawer.max">Max tokens</span> <output data-i18n="drawer.max.hint">留空 = 自动（按剩余上下文，上限 32768）</output></label>
+      <input class="st-input" id="s-max" type="number" min="1" step="1" placeholder="自动（≤32768）"
+             data-i18n-attr="placeholder:drawer.max.ph">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-ceiling"><span data-i18n="drawer.maxCeiling">Output budget ceiling</span> <output data-i18n="drawer.maxCeiling.hint">empty = factory ceiling 32768</output></label>
+      <input class="st-input" id="s-ceiling" type="number" min="1" step="1" placeholder="Empty (≤32768)"
+             data-i18n-attr="placeholder:drawer.maxCeiling.ph">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-seed"><span data-i18n="drawer.seed">Seed</span> <output data-i18n="drawer.seed.hint">empty = random</output></label>
+      <input class="st-input" id="s-seed" type="number" min="1" step="1" placeholder="Random"
+             data-i18n-attr="placeholder:drawer.seed.ph">
+      <div class="seed-note" id="seed-note" hidden>
+        <span class="muted small" id="seed-note-text"></span>
+        <button type="button" class="seed-note__b" id="seed-lock" data-i18n="drawer.seed.lock">固定用这个</button>
+      </div>
+    </div>
+    <div class="toggle-row"><span><span data-i18n="drawer.show">Show thinking</span><br><span class="muted small" data-i18n="drawer.show.hint">expanded while it streams</span></span>
+      <button class="st-toggle" id="s-show" role="switch" aria-checked="true" aria-label="Show thinking"
+              data-i18n-attr="aria-label:drawer.show"></button></div>
+    <div class="toggle-row" id="mcp-row" hidden><span><span data-i18n="drawer.mcp">Use tools from MCP servers</span><br><span class="muted small"
+      id="mcp-row-sub" data-i18n="drawer.mcp.hint">the model may call them while it answers</span></span>
+      <button class="st-toggle" id="s-mcp" role="switch" aria-checked="true" aria-label="Use tools from MCP servers"
+              data-i18n-attr="aria-label:drawer.mcp"></button></div>
+    <div class="toggle-row" id="esp-row" hidden><span><span data-i18n="drawer.esp">Experimental speed projection</span><br><span class="muted small" data-i18n="drawer.esp.hint">the
+      engine's control vector; off = the stock model. Switching reads the chat again once</span></span>
+      <button class="st-toggle" id="s-esp" role="switch" aria-checked="true" aria-label="Experimental speed projection"
+              data-i18n-attr="aria-label:drawer.esp"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.share">Use for other apps too</span><br><span class="muted small" data-i18n="drawer.share.hint">omp and other API clients get
+      these settings for anything they don't set themselves</span></span>
+      <button class="st-toggle" id="s-share" role="switch" aria-checked="false" aria-label="Use for other apps too"
+              data-i18n-attr="aria-label:drawer.share"></button></div>
+    <div class="st-divider" data-i18n="drawer.intel">智能增强</div>
+    <div class="toggle-row"><span><span data-i18n="drawer.recall">自动召回经验知识</span><br><span class="muted small" data-i18n="drawer.recall.hint">发问前自动检索知识库并注入相关片段（按需，KB 为空则跳过）</span></span>
+      <button class="st-toggle" id="s-recall" role="switch" aria-checked="true" aria-label="Auto-recall knowledge"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autolearn">任务完成自动沉淀经验</span><br><span class="muted small" data-i18n="drawer.autolearn.hint">把每次真实任务的摘要写入知识库，供将来召回</span></span>
+      <button class="st-toggle" id="s-autolearn" role="switch" aria-checked="false" aria-label="Auto-learn from tasks"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.automemory">自主维护记忆</span><br><span class="muted small" data-i18n="drawer.automemory.hint">开启：模型提议的工作规则/知识/经验直接写入对应文件（可一键撤销、有审计）；关闭：先进草稿，等你审批</span></span>
+      <button class="st-toggle" id="s-automemory" role="switch" aria-checked="false" aria-label="Autonomous memory maintenance" data-i18n-attr="aria-label:drawer.automemory"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autorules">工作区规则自动沉淀</span><br><span class="muted small" data-i18n="drawer.autorules.hint">开启：模型提议的工作区规则直接写入 RULES.md（可一键撤销、有审计）；关闭：先进草稿，等你手动审核</span></span>
+      <button class="st-toggle" id="s-autorules" role="switch" aria-checked="true" aria-label="Auto-save workspace rules" data-i18n-attr="aria-label:drawer.autorules"></button></div>
+    <p class="muted small" style="margin:2px 0 8px 2px" data-i18n="drawer.automemory.scoped">默认沉淀到「本工作区」；在记忆面板「自主沉淀」里可把通用条目「升级为全局」，使其对所有工作区生效，也可把全局条目「降级」回当前工作区。</p>
+    <div class="toggle-row"><span><span data-i18n="drawer.memcompact">记忆文件语义压缩</span><br><span class="muted small" data-i18n="drawer.memcompact.hint">超过软阈值时，用模型把知识库/经验库合并得更紧凑（仅知识/经验）；工作规则只做无损去重、绝不改写语义</span></span>
+      <button class="st-toggle" id="s-memcompact" role="switch" aria-checked="false" aria-label="Memory semantic compaction" data-i18n-attr="aria-label:drawer.memcompact"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autocompact">长对话自动压缩</span><br><span class="muted small" data-i18n="drawer.autocompact.hint">上下文接近上限时自动摘要压缩，避免质量退化</span></span>
+      <button class="st-toggle" id="s-autocompact" role="switch" aria-checked="true" aria-label="Auto-compact long chats"></button></div>
+    <div class="toggle-row" id="s-compactpct-row"><label class="st-label" for="s-compactpct"><span data-i18n="drawer.compactpct">压缩触发阈值</span> <output id="o-compactpct">自动</output></label>
+      <input class="st-slider" type="range" id="s-compactpct" min="0" max="95" step="5" value="0">
+      <div class="muted small" data-i18n="drawer.compactpct.hint">左端=自动（按窗口算最佳值），右滑=手动钉一个百分比</div></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.archiveon">压缩时可恢复归档</span><br><span class="muted small" data-i18n="drawer.archiveon.hint">被折叠的旧历史写入工作区 .strata-archive/ 便于随时读回；最近决策/任务状态始终驻留</span></span>
+      <button class="st-toggle" id="s-archiveon" role="switch" aria-checked="true" aria-label="Recoverable archive" data-i18n-attr="aria-label:drawer.archiveon"></button></div>
+    <div class="toggle-row" id="s-archivemgr-row"><span data-i18n="drawer.archive.mgr">冷归档文件管理</span>
+      <button class="st-btn st-btn--ghost st-btn--sm" id="archive-mgr-refresh" data-i18n-attr="aria-label:drawer.archive.refresh" data-i18n="drawer.archive.refresh">刷新</button></div>
+    <div class="muted small" id="archive-mgr-hint" data-i18n="drawer.archive.mgr.hint"></div>
+    <div id="archive-mgr-list" class="mem-kb-list"></div>
+    <div class="toggle-row" id="s-targetpct-row"><label class="st-label" for="s-targetpct"><span data-i18n="drawer.compacttarget">压缩保留比例（近期原文）</span> <output id="o-targetpct">25%</output></label>
+      <input class="st-slider" type="range" id="s-targetpct" min="5" max="50" step="5" value="25">
+      <div class="muted small" data-i18n="drawer.compacttarget.hint">左端=压得更狠，右端=保留更多近期原文</div></div>
+    <div class="toggle-row" id="s-precondmax-row"><label class="st-label" for="s-precondmax"><span data-i18n="drawer.precondmax">压缩重试上限（防死循环）</span> <output id="o-precondmax">2</output></label>
+      <input class="st-slider" type="range" id="s-precondmax" min="1" max="5" step="1" value="2">
+      <div class="muted small" data-i18n="drawer.precondmax.hint">连续分段压缩仍装不下时，最多重试几次后停止并告警（防压缩死循环）。默认 2</div></div>
+    <div class="toggle-row" id="s-sparkfreeze-row"><label class="st-label" for="s-sparkfreeze"><span data-i18n="drawer.sparkfreeze">压缩前保留柱数（sparkline 冻结）</span> <output id="o-sparkfreeze">10</output></label>
+      <input class="st-slider" type="range" id="s-sparkfreeze" min="0" max="50" step="1" value="10">
+      <div class="muted small" data-i18n="drawer.sparkfreeze.hint">每次压缩后 sparkline 保留压缩前最近多少根柱（虚线分隔当前段）。默认 10，设 0 = 不保留</div></div>
+    <div class="toggle-row" id="s-sparkmax-row"><label class="st-label" for="s-sparkmax"><span data-i18n="drawer.sparkmax">柱状图显示上限（含冻结+当前段）</span> <output id="o-sparkmax">24</output></label>
+      <input class="st-slider" type="range" id="s-sparkmax" min="6" max="60" step="1" value="24">
+      <div class="muted small" data-i18n="drawer.sparkmax.hint">sparkline 总共最多显示多少根柱（冻结段+当前段）。达上限后最左柱平滑滚出；默认 24</div></div>
+      <div class="toggle-row" id="s-speeddrop-row"><label class="st-label" for="s-speeddrop"><span data-i18n="drawer.speeddrop">速度提前触发降幅</span> <output id="o-speeddrop">50%</output></label>
+        <input class="st-slider" type="range" id="s-speeddrop" min="5" max="80" step="5" value="50">
+        <div class="muted small" data-i18n="drawer.speeddrop.hint">仅在阈值滑条=自动时生效：解码速度较安静期基线下降达此百分比即提前压缩；左端灵敏，右滑迟钝</div></div>
+      <div class="st-field">
+      <label class="st-label" for="s-memchunk"><span data-i18n="drawer.memchunk">Memory-merge chunk budget</span> <output id="o-memchunk">auto</output></label>
+        <input class="st-slider" type="range" id="s-memchunk" min="0" max="12000" step="500" value="0">
+        <div class="muted small" data-i18n="drawer.memchunk.hint">Tokens per semantic-merge chunk; 0 = auto. Larger = fewer chunks, closer to window overflow.</div>
+      </div>
+      <div class="st-field">
+      <label class="st-label" for="s-memreserve"><span data-i18n="drawer.memreserve">Merge reserve ratio</span> <output id="o-memreserve">25%</output></label>
+        <input class="st-slider" type="range" id="s-memreserve" min="5" max="50" step="5" value="25">
+        <div class="muted small" data-i18n="drawer.memreserve.hint">Window share reserved for the merge reply (auto mode). Inert on large windows; disabled when the chunk budget is pinned. Default 25%.</div>
+      </div>
+    <div class="st-divider" data-i18n="drawer.autodrive">自主推进</div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autosteps">AI 自动续跑建议</span><br><span class="muted small" data-i18n="drawer.autosteps.hint">AI 回答后自动选择其给出的建议/下一步继续推进，无需手动点击（默认只跑它标注的推荐项）</span></span>
+      <button class="st-toggle" id="s-autosteps" role="switch" aria-checked="false" aria-label="AI auto-drive suggestions"></button></div>
+    <div class="toggle-row toggle-row--sub"><span><span data-i18n="drawer.autosteps.reconly">仅推荐项（默认只跑绿色）</span><br><span class="st-check__preview" data-state="on"><span data-i18n="drawer.autosteps.preview.on">开：仅推荐项</span><span data-i18n="drawer.autosteps.preview.off">关：推荐+普通项</span></span></span><button class="st-toggle" id="s-autosteps-rec" role="switch" aria-checked="true" aria-label="Recommended only" data-i18n-attr="aria-label:drawer.autosteps.reconly"></button></div>
+    <div class="toggle-row toggle-row--sub"><span><span data-i18n="drawer.hideavoid">隐藏不推荐建议</span><br><span class="muted small" data-i18n="drawer.hideavoid.hint">开：建议条里不显示不推荐（红）档；关：如常显示</span></span><button class="st-toggle" id="s-hideavoid" role="switch" aria-checked="false" aria-label="Hide not-recommended suggestions" data-i18n-attr="aria-label:drawer.hideavoid.aria"></button></div>
+    <div class="toggle-row toggle-row--sub"><div class="st-legend"><span data-i18n="drawer.autosteps.legend">下一步建议颜色即决定</span><ul class="st-legend__list"><li><i class="st-legend__dot st-legend__dot--rec"></i><span data-i18n="drawer.autosteps.legend.rec"></span></li><li><i class="st-legend__dot st-legend__dot--normal"></i><span data-i18n="drawer.autosteps.legend.normal"></span></li><li><i class="st-legend__dot st-legend__dot--hold"></i><span data-i18n="drawer.autosteps.legend.hold"></span></li><li><i class="st-legend__dot st-legend__dot--avoid"></i><span data-i18n="drawer.autosteps.legend.avoid"></span></li></ul></div></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.compactresume">压缩后自动续跑</span><br><span class="muted small" data-i18n="drawer.compactresume.hint">开启：压缩输出摘要后自动续跑被打断的未完成任务（3 秒内可撤销）；关闭：压缩后本轮自然收尾，等你点「继续」再续</span></span>
+      <button class="st-toggle" id="s-compactresume" role="switch" aria-checked="true" aria-label="Auto-resume after compaction"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autoresume">中断后自动续跑</span><br><span class="muted small" data-i18n="drawer.autoresume.hint">思考/工具途中被切断（掉线、看门狗、轮次上限）时自动接着做，无需手动点「继续」；连续 3 次仍中断则交回给你</span></span>
+      <button class="st-toggle" id="s-autoresume" role="switch" aria-checked="true" aria-label="Auto-resume interrupted turns"></button></div>
+    <div class="st-field">
+      <label class="st-label" for="s-autoresumeMax"><span data-i18n="drawer.autoresume.max">自动续跑硬上限</span> <output data-i18n="drawer.autoresume.max.hint">开启后一路跑到任务自然结束；达此数才熔断交回（真死循环才触顶）</output></label>
+      <input class="st-input" id="s-autoresumeMax" type="number" min="1" step="1" placeholder="24"
+             data-i18n-attr="placeholder:drawer.autoresume.max.ph,title:drawer.autoresume.max.tip">
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="s-emptyRoundMax"><span data-i18n="drawer.emptyroundmax">纯思考空轮·独立预算</span> <output data-i18n="drawer.emptyroundmax.hint">纯思考无产出的中断走此小预算自动续跑，与主链分开计数</output></label>
+      <input class="st-input" id="s-emptyRoundMax" type="number" min="0" step="1" placeholder="2"
+             data-i18n-attr="placeholder:drawer.emptyroundmax.ph,title:drawer.emptyroundmax.tip">
+    </div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autofix">自动修复收集箱 bug</span><br><span class="muted small" data-i18n="drawer.autofix.hint">开启后 AI 空闲时自动取最旧一条未修复的 bug 发起修复任务（推送即标 fixing 防自反馈）；修复需复现+门禁双绿才标 verified 并移出收集箱，审计留 JSONL。</span></span>
+      <button class="st-toggle" id="s-autofix" role="switch" aria-checked="false" aria-label="Auto-fix bugs in the collection box"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.cnthink">强制中文思考</span><br><span class="muted small" data-i18n="drawer.cnthink.hint">让模型用中文推理（可能更慢、token 更多，可用统计条实测）</span></span>
+      <button class="st-toggle" id="s-cnthink" role="switch" aria-checked="false" aria-label="Force Chinese thinking"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.stepsfold">执行过程折叠</span><br><span class="muted small" data-i18n="drawer.stepsfold.hint">带工具调用的回合，把中间叙述/思考/工具收纳为可展开的「执行过程」，只完整展示最终回答</span></span>
+      <button class="st-toggle" id="s-stepsfold" role="switch" aria-checked="true" aria-label="Fold work log"></button></div>
+    <div class="st-field">
+      <label class="st-label" for="s-designlang"><span data-i18n="design.lang.label">设计文档语言</span></label>
+      <select class="st-input" id="s-designlang">
+        <option value="auto" data-i18n="design.lang.auto">跟随对话</option>
+        <option value="zh" data-i18n="design.lang.zh">中文</option>
+        <option value="en" data-i18n="design.lang.en">English</option>
+      </select>
+    </div>
+    <div class="toggle-row"><span><span data-i18n="design.autosave.label">设计文档自动保存</span><br><span class="muted small" data-i18n="design.autosave.hint">模型提出设计文档时直接写入工作空间 .design/ 文件夹（横幅变为回执，仍可撤销/丢弃）；关闭则恢复为先询问</span></span>
+      <button class="st-toggle" id="s-designauto" role="switch" aria-checked="true" aria-label="Auto-save design docs"></button></div>
+    <div class="st-field">
+      <label class="st-label" for="s-persona"><span data-i18n="drawer.persona">默认人设 / 系统提示</span></label>
+      <textarea class="st-input st-textarea" id="s-persona" rows="3"
+                placeholder="例如：你是一名资深后端工程师，回答要简洁、优先给可运行代码"
+                data-i18n-attr="placeholder:drawer.persona.ph"></textarea>
+    </div>
+    <div class="drawer-actions">
+      <button class="st-btn st-btn--primary" id="s-apply" type="button" data-i18n="drawer.apply" data-i18n-attr="title:drawer.apply.tip">Apply</button>
+      <button class="st-btn st-btn--secondary" id="s-setdefault" type="button" data-i18n="drawer.setdefault" data-i18n-attr="title:drawer.setdefault.tip">Set to default</button>
+      <button class="st-btn st-btn--secondary" id="s-reset" type="button" data-i18n="drawer.reset" data-i18n-attr="title:drawer.reset.tip">Reset</button>
+    </div>
+  </div>
+</aside>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="st-toasts" id="toasts" aria-live="polite"></div>
+
+<!-- ============================ Workspace picker ============================ -->
+<div class="st-modal" id="ws-modal" hidden role="dialog" aria-modal="true" aria-label="Choose a workspace" data-i18n-attr="aria-label:ws.choose">
+  <div class="st-modal__card">
+    <div class="st-modal__head"><span class="card-title" data-i18n="ws.title">Workspace</span>
+      <button class="st-btn st-btn--icon" id="ws-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button></div>
+    <p class="muted small" data-i18n="ws.desc">The folder this task works in. The agent reads, writes, and runs commands here.</p>
+    <div class="ws-field">
+      <label class="st-label" for="ws-path" data-i18n="ws.path">Folder path</label>
+      <div class="ws-row">
+        <input class="st-input" id="ws-path" type="text" placeholder="C:\Users\sk\my-project" spellcheck="false" autocomplete="off">
+        <button class="st-btn st-btn--secondary" id="ws-pick" title="浏览文件夹"
+                data-i18n="ws.browse" data-i18n-attr="title:ws.browse.tip">浏览</button>
+      </div>
+      <p class="ws-resolved" id="ws-resolved" aria-live="polite"></p>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="ws-new" data-i18n="ws.new">Or create a new folder</label>
+      <div class="ws-row">
+        <input class="st-input" id="ws-new" type="text" placeholder="my-project" spellcheck="false" autocomplete="off">
+        <button class="st-btn st-btn--secondary" id="ws-create" title="Create folder"
+                data-i18n="ws.create" data-i18n-attr="title:ws.create.tip">Create</button>
+      </div>
+    </div>
+    <div class="ws-field">
+      <label class="st-label">模型权限（本工作空间）</label>
+      <div class="perm-seg" id="ws-perm" role="radiogroup" aria-label="Model permission" data-i18n-attr="aria-label:ws.perm.label">
+        <button type="button" class="perm-seg__btn" data-perm="full">完全访问</button>
+        <button type="button" class="perm-seg__btn" data-perm="auto">自动审核</button>
+        <button type="button" class="perm-seg__btn" data-perm="manual">手动审批</button>
+      </div>
+      <p class="muted small" id="ws-perm-desc">完全访问：模型自由调用所有工具，无需确认。</p>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="ws-persona" data-i18n="ws.persona">人设 / 系统提示（本工作空间，可选）</label>
+      <textarea class="st-input st-textarea" id="ws-persona" rows="2"
+                placeholder="例如：你是一名资深后端工程师，回答要简洁、优先给可运行代码"
+                data-i18n-attr="placeholder:ws.persona.ph"></textarea>
+    </div>
+    <div class="st-modal__actions">
+      <button class="st-btn st-btn--secondary" id="ws-none" data-i18n="ws.none">No workspace</button>
+      <span class="spacer"></span>
+      <button class="st-btn st-btn--primary" id="ws-apply" data-i18n="ws.apply">Set workspace</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ Workspace folder browser ============================ -->
+<!-- The browser's own "Browse" (File System Access API) deliberately hides a folder's
+     absolute path, so it could never give the agent a usable workspace. This in-app
+     browser reads the real tree from the server instead and returns the absolute path. -->
+<div class="st-modal" id="ws-browse" hidden role="dialog" aria-modal="true"
+     aria-label="选择工作区文件夹" data-i18n-attr="aria-label:ws.browse.title">
+  <div class="st-modal__card ws-browse__card">
+    <div class="st-modal__head">
+      <span class="card-title" data-i18n="ws.browse.title">选择工作区文件夹</span>
+      <button class="st-btn st-btn--icon" id="ws-browse-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button></div>
+    <p class="muted small" data-i18n="ws.browse.desc">点选文件夹逐层进入，确认后使用它在本机上的完整路径作为工作区。</p>
+    <div class="ws-browse__places" id="ws-browse-places"></div>
+    <div class="ws-browse__crumb" id="ws-browse-crumb"></div>
+    <div class="ws-browse__list" id="ws-browse-list"></div>
+    <div class="ws-browse__picked">
+      <span class="st-label" data-i18n="ws.browse.selected">将设置为工作区：</span>
+      <code id="ws-browse-current" class="ws-browse__current"></code>
+    </div>
+    <div class="ws-browse__note" id="ws-browse-note" hidden></div>
+    <div class="st-modal__actions">
+      <button class="st-btn st-btn--secondary" id="ws-browse-cancel" data-i18n="cancel">取消</button>
+      <span class="spacer"></span>
+      <button class="st-btn st-btn--primary" id="ws-browse-ok" data-i18n="ws.browse.ok">选择此文件夹</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ Models (switch + manage) ============================ -->
+<div class="st-modal" id="model-modal" hidden role="dialog" aria-modal="true" data-i18n-attr="aria-label:model.manage">
+  <div class="st-modal__card model-modal__card">
+    <div class="st-modal__head"><span class="card-title" data-i18n="model.manage">模型</span>
+      <button class="st-btn st-btn--icon" id="model-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button></div>
+    <p class="muted small" data-i18n="model.manage.desc">保存在 models.json，寄生与独立两个模式共用。</p>
+    <div class="model-list" id="model-list"></div>
+    <div class="model-form" id="model-form" hidden>
+      <div class="model-field">
+        <label class="st-label" for="mf-kind" data-i18n="model.f.kind">类型</label>
+        <select class="st-input" id="mf-kind">
+          <option value="local" data-i18n="model.kind.local">本机实例（Strata）</option>
+          <option value="custom" data-i18n="model.kind.custom">外部端点（OpenAI 兼容）</option>
+        </select>
+      </div>
+      <div class="model-field">
+        <label class="st-label" for="mf-name" data-i18n="model.f.name">显示名称</label>
+        <input class="st-input" id="mf-name" type="text" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="model-field">
+        <label class="st-label" for="mf-url" data-i18n="model.f.url">接口地址</label>
+        <input class="st-input" id="mf-url" type="text" spellcheck="false" autocomplete="off"
+               data-i18n-attr="placeholder:model.f.url.ph">
+      </div>
+      <div class="model-field" id="mf-key-field">
+        <label class="st-label" for="mf-key" data-i18n="model.f.key">API Key</label>
+        <div class="model-row">
+          <input class="st-input" id="mf-key" type="password" autocomplete="off" data-i18n-attr="placeholder:model.f.key.ph">
+          <button class="st-btn st-btn--secondary" id="mf-test" type="button" data-i18n="model.f.test">测试连接</button>
+        </div>
+        <p class="muted small" id="mf-test-out" hidden></p>
+      </div>
+      <div class="model-field">
+        <label class="st-label" for="mf-model" data-i18n="model.f.model">模型名称</label>
+        <input class="st-input" id="mf-model" type="text" spellcheck="false" autocomplete="off"
+               data-i18n-attr="placeholder:model.f.model.ph">
+      </div>
+      <details class="model-adv">
+        <summary data-i18n="model.f.advanced">高级设置</summary>
+        <div class="model-grid">
+          <label class="st-label" for="mf-ctx-in" data-i18n="model.f.ctxin">输入上下文</label>
+          <label class="st-label" for="mf-ctx-out" data-i18n="model.f.ctxout">输出上限</label>
+          <input class="st-input" id="mf-ctx-in" type="number" min="0" step="1024"
+                 data-i18n-attr="placeholder:model.f.ctxin.ph">
+          <input class="st-input" id="mf-ctx-out" type="number" min="0" step="512"
+                 data-i18n-attr="placeholder:model.f.ctxout.ph">
+          <label class="st-label" for="mf-context-window" data-i18n="model.f.ctxwindow">上下文窗口上限</label>
+          <span></span>
+          <input class="st-input" id="mf-context-window" type="number" min="0" step="1024"
+                 data-i18n-attr="placeholder:model.f.ctxwindow.ph">
+          <span></span>
+        </div>
+        <p class="muted small" id="mf-ctx-hint"></p>
+        <div class="model-field">
+          <label class="st-label" data-i18n="model.f.caps">能力</label>
+          <label class="model-check" id="mf-tools-field"><input type="checkbox" id="mf-tools"> <span data-i18n="model.f.tools">工具调用（由本机执行 MCP 工具）</span></label>
+          <label class="model-check"><input type="checkbox" id="mf-vision"> <span data-i18n="model.f.vision">图片输入</span></label>
+          <p class="muted small" data-i18n="model.f.media.note">音频 / 视频取决于端点自身能力；文档（PDF、Word）由工具读取，不算模型输入。</p>
+        </div>
+        <div class="model-field">
+          <label class="st-label" data-i18n="model.f.think.modes">支持的思考档位</label>
+          <div class="model-modes">
+            <label class="model-check"><input type="checkbox" class="mf-mode" value="off"> <span data-i18n="drawer.thinking.off">关闭</span></label>
+            <label class="model-check"><input type="checkbox" class="mf-mode" value="low"> <span data-i18n="drawer.thinking.low">低</span></label>
+            <label class="model-check"><input type="checkbox" class="mf-mode" value="medium"> <span data-i18n="drawer.thinking.medium">中</span></label>
+            <label class="model-check"><input type="checkbox" class="mf-mode" value="high"> <span data-i18n="drawer.thinking.high">高</span></label>
+          </div>
+        </div>
+        <div class="model-field">
+          <label class="st-label" for="mf-think" data-i18n="model.f.think.default">默认思考强度</label>
+          <select class="st-input" id="mf-think">
+            <option value="auto" data-i18n="model.f.think.follow">跟随会话设置</option>
+            <option value="off" data-i18n="drawer.thinking.off">关闭</option>
+            <option value="low" data-i18n="drawer.thinking.low">低</option>
+            <option value="medium" data-i18n="drawer.thinking.medium">中</option>
+            <option value="high" data-i18n="drawer.thinking.high">高</option>
+          </select>
+        </div>
+      </details>
+      <div class="model-form__actions">
+        <button class="st-btn st-btn--secondary" id="mf-cancel" type="button" data-i18n="model.cancel">取消</button>
+        <button class="st-btn st-btn--primary" id="mf-save" type="button" data-i18n="model.save">保存</button>
+      </div>
+    </div>
+    <div class="st-modal__actions">
+      <button class="st-btn st-btn--secondary" id="model-add" data-i18n="model.add">添加自定义模型</button>
+      <span class="spacer"></span>
+      <button class="st-btn st-btn--primary" id="model-done" data-i18n="model.done">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ Schedule add ============================ -->
+<div class="st-modal" id="sched-modal" hidden role="dialog" aria-modal="true" aria-label="New schedule" data-i18n-attr="aria-label:sched.title">
+  <div class="st-modal__card">
+    <div class="st-modal__head"><span class="card-title" data-i18n="sched.title">New schedule</span>
+      <button class="st-btn st-btn--icon" id="sched-close" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button></div>
+    <p class="muted small" data-i18n="sched.desc">A task the agent runs on a schedule. Takes effect when the scheduler daemon restarts.</p>
+    <div class="ws-field">
+      <label class="st-label" for="sched-name" data-i18n="sched.name">Name</label>
+      <input class="st-input" id="sched-name" type="text" placeholder="daily report" spellcheck="false" autocomplete="off"
+             data-i18n-attr="placeholder:sched.name.ph">
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-task" data-i18n="sched.task">Task (what to run)</label>
+      <input class="st-input" id="sched-task" type="text" placeholder="Summarize today's trades and store the lesson" spellcheck="false" autocomplete="off"
+             data-i18n-attr="placeholder:sched.task.ph">
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-mode" data-i18n="sched.trigger">Trigger</label>
+      <div class="ws-row">
+        <select class="st-input" id="sched-mode" style="width:140px">
+          <option value="every_minutes" data-i18n="sched.every_minutes">Every N minutes</option>
+          <option value="every_hours" data-i18n="sched.every_hours">Every N hours</option>
+          <option value="daily_at" data-i18n="sched.daily_at">Daily at HH:MM</option>
+          <option value="weekly_at" data-i18n="sched.weekly_at">Weekly (D:HH:MM)</option>
+          <option value="monthly_at" data-i18n="sched.monthly_at">Monthly (DD HH:MM)</option>
+          <option value="yearly_at" data-i18n="sched.yearly_at">Yearly (MM-DD HH:MM)</option>
+          <option value="at" data-i18n="sched.at">One-shot at date/time</option>
+        </select>
+        <input class="st-input" id="sched-value" type="text" placeholder="30" spellcheck="false" autocomplete="off">
+      </div>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-workspace" data-i18n="sched.workspace">Workspace</label>
+      <select class="st-input" id="sched-workspace"></select>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-perm" data-i18n="sched.perm">Access</label>
+      <select class="st-input" id="sched-perm">
+        <option value="auto" data-i18n="sched.perm.auto">Auto-review (consent given at creation)</option>
+        <option value="full" data-i18n="sched.perm.full">Full access</option>
+        <option value="manual" data-i18n="sched.perm.manual">Manual approval</option>
+      </select>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-model" data-i18n="sched.model">Model</label>
+      <select class="st-input" id="sched-model"></select>
+    </div>
+    <div class="ws-field">
+      <label class="st-label" for="sched-deliver" data-i18n="sched.deliver">Deliver</label>
+      <select class="st-input" id="sched-deliver">
+        <option value="" data-i18n="sched.deliver.audit">Audit only</option>
+        <option value="session_summary" data-i18n="sched.deliver.summary">Session summary</option>
+        <option value="session_stream" data-i18n="sched.deliver.stream">Session stream</option>
+      </select>
+    </div>
+    <div class="st-modal__actions">
+      <span class="spacer"></span>
+      <button class="st-btn st-btn--primary" id="sched-apply" data-i18n="sched.apply">Add schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ Approval modal ============================ -->
+<div class="approval-modal" id="approval-modal" hidden role="dialog" aria-modal="true" aria-label="Approval required" data-i18n-attr="aria-label:appr.title">
+  <div class="approval-modal__card">
+    <div class="approval-modal__icon">
+      <svg class="st-icon st-icon--lg"><use href="sprite.svg#i-shield"/></svg>
+    </div>
+    <span class="approval-modal__title" data-i18n="appr.title">Approval Required</span>
+    <p class="approval-modal__desc" id="approval-desc" data-i18n="appr.desc">The model wants to run a gated action.</p>
+    <div class="approval-modal__tool" id="approval-tool">filesystem__write</div>
+    <div class="approval-modal__actions">
+      <button class="st-btn st-btn--secondary" id="approval-deny" data-i18n="appr.deny">Deny</button>
+      <button class="st-btn st-btn--primary" id="approval-approve" data-i18n="appr.approve">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ Image viewer (double-click to enlarge) ============================ -->
+<div class="st-modal img-viewer" id="img-modal" hidden role="dialog" aria-modal="true" aria-label="查看图片" data-i18n-attr="aria-label:img.view">
+  <div class="img-viewer__card">
+    <div class="img-viewer__head">
+      <span class="img-viewer__name" id="img-modal-name"></span>
+      <button class="st-btn st-btn--icon" id="img-close" type="button" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button>
+    </div>
+    <div class="img-viewer__body"><img id="img-modal-img" alt=""></div>
+  </div>
+</div>
+
+<!-- ============================ Weekly summary (independent review view) ============================ -->
+<div class="st-modal" id="weekly-modal" hidden role="dialog" aria-modal="true" aria-label="Weekly summary" data-i18n-attr="aria-label:mem.weekly.title">
+  <div class="st-modal__card">
+    <div class="st-modal__head">
+      <span class="card-title" data-i18n="mem.weekly.title">本周新增记忆</span>
+      <button class="st-btn st-btn--icon" id="weekly-close" type="button" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button>
+    </div>
+    <p class="muted small" id="weekly-sub"></p>
+    <div class="kb-panel__list" id="weekly-list"></div>
+    <div class="st-modal__actions" id="weekly-actions">
+      <span class="spacer"></span>
+      <button class="st-btn st-btn--secondary" id="weekly-undoall" data-i18n="mem.weekly.undoall">全部撤销</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ New memory entry (global / group) ============================ -->
+<div class="st-modal" id="newentry-modal" hidden role="dialog" aria-modal="true" aria-label="New entry" data-i18n-attr="aria-label:mem.ne.title">
+  <div class="st-modal__card">
+    <div class="st-modal__head">
+      <span class="card-title" id="newentry-title" data-i18n="mem.ne.title">新建条目</span>
+      <button class="st-btn st-btn--icon" id="newentry-close" type="button" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="sprite.svg#i-chevron"/></svg></button>
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="ne-store" data-i18n="mem.ne.store">库</label>
+      <select class="st-input" id="ne-store">
+        <option value="rules" data-i18n="mem.ne.store.rules">规则</option>
+        <option value="knowledge" data-i18n="mem.ne.store.knowledge">知识库</option>
+        <option value="experience" data-i18n="mem.ne.store.experience">经验库</option>
+      </select>
+    </div>
+    <div class="st-field">
+      <label class="st-label" for="ne-text" data-i18n="mem.ne.text">内容</label>
+      <textarea class="st-input st-textarea" id="ne-text" rows="3" data-i18n-attr="placeholder:mem.ne.text.ph"></textarea>
+    </div>
+    <div class="st-modal__actions">
+      <span class="spacer"></span>
+      <button class="st-btn st-btn--secondary" id="newentry-cancel" data-i18n="mem.ne.cancel">取消</button>
+      <button class="st-btn st-btn--primary" id="newentry-submit" data-i18n="mem.ne.submit">添加</button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+<script src="admin.js"></script>
+
+<div id="flicker-status" style="position:fixed;right:16px;top:70px;z-index:99999;padding:10px 14px;background:#a30;border-radius:8px;font:bold 15px monospace;color:#fff;max-width:470px">booting...</div>
+<script>
+(function () {
+  const host = document.getElementById('chat') || document.body;
+  const node = document.createElement('div');
+  node.className = 'ans-md';
+  host.appendChild(node);
+
+  // fenced code block CLOSES mid-string, then more content streams in after it
+  // -> the code block (and its copy button) is repainted many more times while
+  //    the rest of the message grows. The fix must keep that node identity stable.
+  const fullSource =
+    "```propose-experience\n上下文：给绘图前后 sparkline 加冻结历史柱+分隔线\n复盘：重建会重启动画导致闪烁\n```\n\n后面还有更多流式文字正在陆续到达，触发对整段内容的反复重绘……";
+  const chunks = [];
+  for (let i = 1; i <= fullSource.length; i++) chunks.push(fullSource.slice(0, i));
+
+  function setStatus(txt, ok) {
+    const el = document.getElementById('flicker-status');
+    if (el) { el.textContent = txt; el.style.background = ok ? '#0a3' : '#a30'; }
+  }
+
+  function run() {
+    try {
+      if (typeof paintMd !== 'function') { setStatus('paintMd MISSING (app.js not loaded?)', false); return; }
+      let initialCopy = null;
+      let created = -1;
+      let repaintsAfterCreation = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        paintMd(node, chunks[i], true);
+        const copy = node.querySelector('.st-code__copy');
+        if (copy) {
+          if (initialCopy === null) { initialCopy = copy; created = i; }
+          else if (copy !== initialCopy) {
+            setStatus('FLICKER: rebuilt at chunk #' + i, false);
+            return;
+          } else {
+            repaintsAfterCreation++;
+          }
+        }
+      }
+      if (initialCopy === null) { setStatus('NO COPY BUTTON EVER APPEARED', false); return; }
+      initialCopy.style.outline = '3px solid #ff0';
+      initialCopy.style.opacity = '1';
+      setStatus('NO FLICKER: node held stable across ' + repaintsAfterCreation + ' repaints after it appeared', true);
+      window.__flicker = { created: created, held: repaintsAfterCreation, stable: true };
+    } catch (e) {
+      setStatus('ERR: ' + e.message, false);
+    }
+  }
+  run();
+})();
+</script>
+</body>
+</html>

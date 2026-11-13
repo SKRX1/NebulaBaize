@@ -123,3 +123,6 @@ MCP server 子进程是常驻的，源码改动需宿主重启才对实时工具
 pip 卸载无回收站语义（物理删除）；只有磁盘上的模型/临时文件才走 Shell.Application COM 送系统回收站
 批量字符串替换前先探测目标文件行尾（本项目 app.js/app.css 是 CRLF、index.html 是 LF），多行锚点须按真实行尾构造，否则 count=0 失配
 本机 `python -c "..."` 内联脚本 stdout 常被吞无输出；需要确定读取输出时写成 .py 脚本文件执行
+带 data-i18n 的节点若要内嵌动态 span（计数/徽标），翻译文本必须放叶子 span，动态 span 作兄弟，否则语言切换时 t() 覆写 textContent 会抹掉子节点（i18n 测试第 3 项会 FAIL）
+改 app.js 生产行为后，必须补"运行时实测"（喂真实输入断言行为），不能只靠静态读实 + node --check 就宣布完成
+修一个前端渲染 bug 时，配套写一条 DOM-身份回归测试（断言关键节点跨多次 repaint 不被重建），并注册进 tools/run_tests.py 的 SUITES 清单，否则该修复不进回归网。
