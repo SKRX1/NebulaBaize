@@ -947,6 +947,8 @@
     </div>
     <div class="toggle-row"><span><span data-i18n="drawer.autofix">自动修复收集箱 bug</span><br><span class="muted small" data-i18n="drawer.autofix.hint">开启后 AI 空闲时自动取最旧一条未修复的 bug 发起修复任务（推送即标 fixing 防自反馈）；修复需复现+门禁双绿才标 verified 并移出收集箱，审计留 JSONL。</span></span>
       <button class="st-toggle" id="s-autofix" role="switch" aria-checked="false" aria-label="Auto-fix bugs in the collection box"></button></div>
+    <div class="toggle-row"><span><span data-i18n="drawer.autoverifyfix">Auto-verify green-tested fixes</span><br><span class="muted small" data-i18n="drawer.autoverifyfix.hint">When on: a fix whose regression test came back green this turn is auto-marked verified and removed from the box.</span></span>
+      <button class="st-toggle" id="s-autoverifyfix" role="switch" aria-checked="false" aria-label="Auto-verify green-tested fixes"></button></div>
     <div class="toggle-row"><span><span data-i18n="drawer.cnthink">强制中文思考</span><br><span class="muted small" data-i18n="drawer.cnthink.hint">让模型用中文推理（可能更慢、token 更多，可用统计条实测）</span></span>
       <button class="st-toggle" id="s-cnthink" role="switch" aria-checked="false" aria-label="Force Chinese thinking"></button></div>
     <div class="toggle-row"><span><span data-i18n="drawer.stepsfold">执行过程折叠</span><br><span class="muted small" data-i18n="drawer.stepsfold.hint">带工具调用的回合，把中间叙述/思考/工具收纳为可展开的「执行过程」，只完整展示最终回答</span></span>

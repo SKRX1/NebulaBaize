@@ -122,6 +122,8 @@ SUITES = [
     "tests/test_think_dedupe.mjs",   # 2026-11-04 gate B: paintThink routes through dedupeThink (>=3 identical lines fold, <3 verbatim, differential)
 
     "tests/test_edit_resend.mjs",
+    "tests/test_edit_resend_stale.mjs",   # 2026-11-13 ROOT-CAUSE: editResend read messages[i].text off undefined -> unhandledrejection. confirmEdit is async and awaits the modal paste gate AFTER snapshotting the edit index; a branch switch / undo shortens messages during that await, so by the time editResend runs messages[i] is gone. Guard bails with a toast instead of reading .text off undefined. jsdom differential: occupy the paste gate, shorten messages past the snapshot, release -> NO rejection + resend CANCELLED; remove the guard and the crash returns (test turns red).
+    "tests/test_debug_getter_call.mjs",   # 2026-11-13 ROOT-CAUSE: `d.current is not a function` (window.onerror via live-timer sync renderDebug). __strataDebug.current is a GETTER returning the capture OBJECT, but renderDebug + buildDebugEvidence invoked it as d.current() -> a truthy non-function object invoked as a call. Fix reads it as a property (d.current). jsdom differential: arm a live capture, run renderDebug, assert it renders the live line WITHOUT throwing; revert the call sites to d.current() and the exact TypeError returns (test turns red).
 
     "tests/test_edit_modal_images.mjs",     # 2026-10-24: edit-modal scope parametrization (dim2 image -> multimodal part) + hard-delete now undoable (dim3 differential)
 
@@ -169,6 +171,8 @@ SUITES = [
     "tests/test_autosteps.mjs",
 
     "tests/test_autofix_loop.mjs",   # 2026-10-27: self-evolving fix loop — capture stamps open, push marks fixing, idle driver takes OLDEST open (anti self-feed), verified leaves the box (audit stays JSONL); differential double-probe proven
+    "tests/test_autoverify_fix.mjs",   # 2026-11-13 auto-verify: push records pendingFixTs; a GREEN regression test on THIS very turn ejects via markBugVerified (load-bearing). CONTROLS (no-test/red/switch-off) must stay in fixing.
+
 
     "tests/test_bugbox_merge_stats.mjs",   # 2026-10-28: bug-box signature-merge display + 4-number stats bar + one-shot physical merge (differential double-probe, jsdom runs real renderBugBox)
 
@@ -177,6 +181,7 @@ SUITES = [
     "tests/test_recycle_job_model.py",   # 2026-10-30: recycle batch-trash job model (parallel pool, sync<=3 stays sync, cancel only cancels not-yet-started, ledger lock, 404 unknown job); pure-stdlib, deterministic
 
     "tests/test_recycle_sel_size.mjs",   # 2026-10-30: select-size line (data-size carry, KB/MB adaptive, " . " separator, three-state selall, selall-click refreshes count+size); differential pure-logic, pure-ASCII probes
+    "tests/test_recycle_fetch_guard.mjs",   # 2026-11-13 ROOT-CAUSE: renderRecycle/Bin/Audit had NO try/catch around `await fetch("api/recycle")`; a network blip rejects -> floating rejected promise -> global unhandledrejection. Fix adds per-function try/catch (placeholder / keep-last-data no-op). Load-bearing single-variable differential: FIX realm -> 0 escape, CONTROL realm (guard stripped) -> >=1 escape. Capture at the node process layer (jsdom does not dispatch unhandledrejection for a plain floating promise). Real app.js jsdom-boot.
 
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_arc_scrolltop_autoexpand.mjs",   # 2026-11-11: scroll-top auto-expand static lock (root=#chat-scroll load-bearing+hit calls autoExpandCard+reverse differential proves the lock is not decorative)

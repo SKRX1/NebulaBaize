@@ -1194,7 +1194,7 @@ const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
-                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: false};
+                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: false, autoVerifyFix: true};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
 // the model reply in English. cnThink appends a reasoning-language rule (off by default — forcing
@@ -7572,6 +7572,7 @@ function pushBugFix(ts) {
     e.verdict ? ("- " + t("debug.bugbox.pf.diag") + ": " + e.verdict) : ""
   ].filter(Boolean).join("\n");
   setBugStatus(e.ts, "fixing");   // push = fix task in flight: mark fixing so the idle loop won't re-pick it
+  pendingFixTs = e.ts;            // record WHICH bug this push is fixing; streamAssistant moves it onto the turn
   ceSetText($("input"), prompt);
   send();
 }
@@ -7589,9 +7590,29 @@ window.__strataDebug = {
   markBugVerified(ts) { return markBugVerified(ts); },
 };
 
+// auto-verify: close the push->fix->verified loop (2026-11-13). pushBugFix records the bug
+// it pushed; streamAssistant moves it onto THIS turn's message (same one-shot write-then-
+// consume pattern as resumeBadge); a clean finish verifies it ONLY if this very turn actually
+// ran the regression test and it came back green. Gate on a REAL green test (not "the agent
+// says it fixed it") -- an unverified fix stays in fixing so no false auto-eject.
+let pendingFixTs = null;            // one-shot: set by pushBugFix, consumed by streamAssistant
+function maybeAutoVerifyFix(m) {
+  if (settings.autoVerifyFix === false) return;     // master switch off -> stay in fixing, await human
+  const ts = m && m._fixBugTs; if (!ts) return;     // this turn was not a bug-fix push -> nothing to verify
+  let green = false;
+  for (const t of (m.tools || [])) {                // reuse the SAME classifier the inspector uses
+    const c = classifyTool(t);
+    if (c && c.kind === "test" && c.ok === true) { green = true; break; }
+  }
+  if (!green) return;                               // no green test this turn -> stay fixing, await human confirm
+  markBugVerified(ts);                              // green -> markBugVerified filters it out of the box (audit stays in JSONL)
+  toast("success", t("debug.bugbox.autoverified.title"), t("debug.bugbox.autoverified.msg"), 6000);
+}
+
 async function streamAssistant() {
   const m = {role: "assistant", text: "", reasoning: "", time: Date.now()};
   if (resumeBadge) { m.autoResume = true; m.meta = resumeBadge; resumeBadge = null; }   // this turn is the auto-resume, not human input
+  if (pendingFixTs) { m._fixBugTs = pendingFixTs; pendingFixTs = null; }   // one-shot consume (same pattern as resumeBadge)
   messages.push(m);
   renderChat();
   const el = $("chat").lastElementChild;
@@ -8039,6 +8060,7 @@ async function streamAssistant() {
     // Interrupted turn -> carry on by itself; otherwise keep driving the suggested next steps.
     // Never both: an automatic resume already puts the task back on the rails.
     if (!pendingCompact) { if (!maybeAutoResume(m)) maybeAutoDrive(m); }
+    maybeAutoVerifyFix(m);    // auto-verify: verify+eject the bug this turn fixed IF its regression test came back green
   }
 }
 
@@ -8255,6 +8277,10 @@ async function confirmEdit() {   // 2026-11: async so the modal paste gate can b
 }
 
 function editResend(i, newText, strategy, images) {
+  // 2026-11: `i` is captured by confirmEdit BEFORE it awaits the modal paste gate; a concurrent
+  // branch switch / undo can shorten `messages` during that await, so messages[i] may be gone by
+  // the time we get here. Bail with a toast instead of reading .text off undefined (was an unhandled rejection).
+  if (i < 0 || !messages[i]) { toast("warn", t("ctx.edit.stale")); return; }
   if (busy) abortStream();
   const removed = messages.slice(i + 1);
   const originalText = messages[i].text;
@@ -8853,7 +8879,7 @@ function renderDebug() {
   const list = $("debug-list"); if (!list) return;
   const d = window.__strataDebug;
   const live = (busy && busy.msg) ? busy.msg : null;
-  const liveCap = d && d.current ? d.current() : null;
+  const liveCap = d && d.current ? d.current : null;
   const items = [];
   if (live && liveCap) {
     items.push({ kind: "live",
@@ -8889,7 +8915,7 @@ function renderDebug() {
 
 function buildDebugEvidence() {
   const d = window.__strataDebug;
-  const liveCap = d && d.current ? d.current() : null;
+  const liveCap = d && d.current ? d.current : null;
   const msgs = (typeof messages !== "undefined") ? messages : [];
   const snapshot = msgs.filter((m) => m && m.role === "assistant"
       && ((m._clientErrors && m._clientErrors.length) || m.clientError || m.error || m.truncated || m.stopped || m.notice || m.cutError))
@@ -9126,6 +9152,7 @@ function loadDrawer(s = settings) {
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
   $("s-compactresume").setAttribute("aria-checked", String(s.compactResume !== false));
   $("s-autofix").setAttribute("aria-checked", String(!!s.autofix));
+  if ($("s-autoverifyfix")) $("s-autoverifyfix").setAttribute("aria-checked", String(s.autoVerifyFix !== false));
   $("s-compactpct").value = s.compactPct || 0;
   $("s-compactpct-row").hidden = !s.autocompact;
   $("s-speeddrop").value = s.speedDropPct || 50;
@@ -9229,6 +9256,7 @@ if ($("s-hideavoid")) $("s-hideavoid").onclick = () => $("s-hideavoid").setAttri
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
 $("s-compactresume").onclick = () => $("s-compactresume").setAttribute("aria-checked", String($("s-compactresume").getAttribute("aria-checked") !== "true"));
 $("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", String($("s-autofix").getAttribute("aria-checked") !== "true"));
+if ($("s-autoverifyfix")) $("s-autoverifyfix").onclick = () => $("s-autoverifyfix").setAttribute("aria-checked", String($("s-autoverifyfix").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
 $("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
@@ -9270,6 +9298,7 @@ $("s-apply").onclick = async () => {
               autoresume: $("s-autoresume").getAttribute("aria-checked") === "true",
               compactResume: $("s-compactresume").getAttribute("aria-checked") === "true",
               autofix: $("s-autofix").getAttribute("aria-checked") === "true",
+              autoVerifyFix: $("s-autoverifyfix") ? $("s-autoverifyfix").getAttribute("aria-checked") === "true" : true,
               compactPct: +$("s-compactpct").value,
               speedDropPct: +$("s-speeddrop").value,
               compactTarget: +$("s-targetpct").value,
@@ -10232,8 +10261,8 @@ async function renderRecycle() {
   const ws = resolveRecycleWs(s);
   if (!ws) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.no_ws")) + '</div>'; return; }
   box.dataset.ws = ws;
-  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws, categories: recycleCheckedCats(), retention_hours: recycleRetentionH()})});
-  const j = await r.json();
+  let j;
+  try { const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws, categories: recycleCheckedCats(), retention_hours: recycleRetentionH()})}); j = await r.json(); } catch (e) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.err")) + '</div>'; return; }
   if (j.error) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.err")) + '</div>'; return; }
   const cands = j.candidates || [];
   if (!cands.length) { box.innerHTML = '<div class="muted small">' + esc(t("recycle.empty")) + '</div>'; }
@@ -10253,10 +10282,12 @@ async function renderRecycle() {
 }
 async function renderRecycleBin(ws) {
   if (!$("recycle-bin")) return;
-  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws})});
-  const j = await r.json();
-  recycleBinData = (j && j.in_bin) || [];
-  paintRecycleBin();
+  try {
+    const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "scan", workspace: ws})});
+    const j = await r.json();
+    recycleBinData = (j && j.in_bin) || [];
+    paintRecycleBin();
+  } catch (e) { /* network blip: keep last data, no-op */ }
 }
 function paintRecycleBin() {
   const box = $("recycle-bin"); if (!box) return;
@@ -10272,10 +10303,12 @@ function paintRecycleBin() {
 }
 async function renderRecycleAudit(ws) {
   if (!$("recycle-audit")) return;
-  const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "audit", workspace: ws})});
-  const j = await r.json();
-  recycleAuditData = (j && j.audit) || [];
-  paintRecycleAudit();
+  try {
+    const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "audit", workspace: ws})});
+    const j = await r.json();
+    recycleAuditData = (j && j.audit) || [];
+    paintRecycleAudit();
+  } catch (e) { /* network blip: keep last data, no-op */ }
 }
 function paintRecycleAudit() {
   const box = $("recycle-audit"); if (!box) return;
