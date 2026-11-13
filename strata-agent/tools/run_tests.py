@@ -151,6 +151,7 @@ SUITES = [
     "tests/test_autorules_dynamic.mjs",   # DYNAMIC gate: default-ON rules direct-write no-draft + switch-off->draft + decoupled from master
     "tests/test_autorules_i18n_jsdom.mjs",   # 2026-11-11: jsdom behaviour gate — i18n zh-CN renders s-autorules label/hint/DOM + propose end-to-end (default-ON direct-write vs switch-off draft)
     "tests/test_setdefault_button_jsdom.mjs",   # 2026-11-11: jsdom behaviour gate for the new s-setdefault button (confirm -> loadDrawer(DEFAULTS) -> auto-apply writes localStorage; cancel does not write)
+    "tests/test_sidebar_visibility_jsdom.mjs",   # 2026-11: per-tab sidebar visibility gear modal + switches (jsdom boot) - DEFAULT hides images/tools, switch takes effect immediately + persists, RESET snaps back to DEFAULTS. Locks the shallow-copy shared-array bug (setSidebarTabVisible now slices a copy so it never mutates DEFAULTS).
 
     "tests/test_mem_expand_all.mjs",   # 2026-10-26: A+C landing - memExpandAll real-fn differential (expand reveals loaded body / fold hides all)
 

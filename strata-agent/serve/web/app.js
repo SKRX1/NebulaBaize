@@ -185,7 +185,7 @@ function showTab(name) {
   // removed by default), so a JS-less first paint still shows the sidebar — fail
   // visible, not hidden. `#rh-left` (the sidebar's resize handle) is bound to the same
   // class in CSS:630 on purpose — a visible sidebar should ship with its resize handle.
-  document.body.classList.toggle("no-sidebar", tab !== "chat" && tab !== "spark" && tab !== "debug");
+  sidebarVisApply(tab);
   for (const b of document.querySelectorAll(".st-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
   for (const v of ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "donate", "schedule"]) $(`view-${v}`).hidden = v !== tab;
   if (tab === "images") $("img-prompt").focus();
@@ -203,6 +203,52 @@ function showTab(name) {
   if (tab === "chat" || tab === "spark") renderInspector();
 }
 for (const b of document.querySelectorAll(".st-tab")) b.onclick = () => showTab(b.dataset.tab);
+
+// ---- per-tab left-sidebar visibility (settings.sidebarTabs = the SHOW list) ----
+// showTab used to hardcode the whitelist (chat/spark/debug). It now reads the config so the
+// new settings modal can toggle it per tab. images/tools stay hidden by default; everything
+// else in DEFAULTS.sidebarTabs shows the sidebar. The class is added to <body>, CSS:662 does
+// the hiding (and hides #rh-left with it) -- mechanism unchanged, only the source of truth moved.
+function sidebarVisApply(t) {
+  const show = settings.sidebarTabs || [];
+  document.body.classList.toggle("no-sidebar", !show.includes(t));
+}
+function sidebarVisSave() { store.set("sampling", settings); }
+function openSidebarSettings() {
+  const modal = $("sidebar-modal"); if (!modal) return;
+  renderSidebarSettings();
+  modal.hidden = false;
+}
+function closeSidebarSettings() { const m = $("sidebar-modal"); if (m) m.hidden = true; }
+function renderSidebarSettings() {
+  const show = settings.sidebarTabs || [];
+  for (const row of document.querySelectorAll("#sidebar-modal [data-sidevis]"))
+    row.setAttribute("aria-checked", String(show.includes(row.dataset.sidevis)));
+}
+function setSidebarTabVisible(name, on) {
+  const arr = Array.isArray(settings.sidebarTabs) ? settings.sidebarTabs.slice() : [];
+  const i = arr.indexOf(name);
+  if (on && i < 0) arr.push(name);
+  else if (!on && i >= 0) arr.splice(i, 1);
+  settings.sidebarTabs = arr;
+  sidebarVisSave();
+  sidebarVisApply(tab);   // reflect on the CURRENT view immediately, no reload
+}
+function bindSidebarSettings() {
+  const gb = $("sidebar-settings-btn"); if (gb) gb.onclick = openSidebarSettings;
+  const cl = $("sidebar-settings-close"); if (cl) cl.onclick = closeSidebarSettings;
+  for (const row of document.querySelectorAll("#sidebar-modal [data-sidevis]"))
+    row.onclick = () => { const on = row.getAttribute("aria-checked") !== "true";
+      row.setAttribute("aria-checked", String(on)); setSidebarTabVisible(row.dataset.sidevis, on); };
+  const all = $("sidevis-all"); if (all) all.onclick = () => {
+    settings.sidebarTabs = ALL_TABS.slice(); sidebarVisSave(); renderSidebarSettings(); sidebarVisApply(tab); };
+  const none = $("sidevis-none"); if (none) none.onclick = () => {
+    settings.sidebarTabs = []; sidebarVisSave(); renderSidebarSettings(); sidebarVisApply(tab); };
+  const reset = $("sidevis-reset"); if (reset) reset.onclick = () => {
+    settings.sidebarTabs = DEFAULTS.sidebarTabs.slice(); sidebarVisSave(); renderSidebarSettings(); sidebarVisApply(tab); };
+}
+const ALL_TABS = ["chat", "images", "spark", "debug", "tools", "memory", "schedule", "monitor", "about", "donate"];
+bindSidebarSettings();
 window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
 
 // ------------------------------------------------------------------ server access
@@ -1194,7 +1240,8 @@ const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
-                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: true, autoVerifyFix: true};
+                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: true, autoVerifyFix: true,
+                   sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
 // the model reply in English. cnThink appends a reasoning-language rule (off by default — forcing
