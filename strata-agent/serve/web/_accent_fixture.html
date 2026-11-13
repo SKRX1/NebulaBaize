@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>accent fixture</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  /* fixture-only: lay the inspector out as a standalone card */
+  body { padding: 24px; background: var(--st-bg); }
+  .st-inspector { width: 320px; border: 1px solid var(--st-line); }
+</style>
+</head>
+<body>
+<aside class="st-inspector" aria-label="任务面板">
+  <div class="st-inspector__head">
+    <span class="st-inspector__title">任务面板</span>
+  </div>
+  <div class="st-inspector__body">
+
+    <section class="ins-sec" id="ins-plan">
+      <div class="ins-sec__title"><span>任务进度</span> <span class="ins-sec__count" id="ins-plan-count">2/5</span></div>
+      <div class="ins-bar"><div class="ins-bar__fill ins-bar__fill--plan" id="ins-plan-bar" style="width:40%"></div></div>
+      <ul class="ins-plan-list" id="ins-plan-list">
+        <li class="done">测试无头浏览器能否解析拆分 CSS（已完成）</li>
+        <li class="done">给 tokens.css 添加低饱和强调色 token（蓝/紫/青）</li>
+        <li>给 app.css 中三个区块标题/数据上色</li>
+        <li>截图验证配色效果</li>
+        <li>补录级联行为到规则库</li>
+      </ul>
+    </section>
+
+    <section class="ins-sec" id="ins-files-sec">
+      <div class="ins-sec__title">生成文件 <span class="ins-sec__count">3</span></div>
+      <ul class="ins-file-list" id="ins-files">
+        <li><span class="ins-file-path" title="serve/web/tokens.css">tokens.css</span><span class="ins-tag ok">写</span></li>
+        <li><span class="ins-file-path" title="serve/web/app.css">app.css</span><span class="ins-tag ok">写</span></li>
+        <li><span class="ins-file-path" title="README.md">README.md</span><span class="ins-tag err">改</span></li>
+      </ul>
+    </section>
+
+    <section class="ins-sec" id="ins-tests-sec">
+      <div class="ins-sec__title">测试结果 <span class="ins-sec__count">2</span></div>
+      <ul class="ins-test-list" id="ins-tests">
+        <li title="pytest tests/ -q"><span class="ins-file-path">pytest tests/ -q</span><span class="ins-tag ok">PASS</span></li>
+        <li title="node tests/test_i18n.mjs"><span class="ins-file-path">test_i18n.mjs</span><span class="ins-tag err">FAIL</span></li>
+      </ul>
+    </section>
+
+    <section class="ins-sec" id="ins-session">
+      <div class="ins-sec__title"><span>本会话统计</span></div>
+      <div class="ins-stat-grid">
+        <div class="ins-stat"><span class="ins-stat__v">12.4k</span><span class="ins-stat__k">输入</span></div>
+        <div class="ins-stat"><span class="ins-stat__v">3.1k</span><span class="ins-stat__k">输出</span></div>
+        <div class="ins-stat"><span class="ins-stat__v">8</span><span class="ins-stat__k">轮次</span></div>
+      </div>
+      <div class="ins-sec__sub muted"><span>上下文趋势</span><span class="ins-sec__count" id="ins-spark-count">6</span></div>
+      <svg class="ins-spark" id="ins-sess-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </section>
+
+  </div>
+</aside>
+</body>
+</html>

@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>accent fixture</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  /* fixture-only: lay the inspector out as a standalone card */
+  body { padding: 24px; background: var(--st-bg); }
+  .st-inspector { width: 320px; border: 1px solid var(--st-line); }
+</style>
+</head>
+<body>
+<aside class="st-inspector" aria-label="浠诲姟闈㈡澘">
+  <div class="st-inspector__head">
+    <span class="st-inspector__title">浠诲姟闈㈡澘</span>
+  </div>
+  <div class="st-inspector__body">
+
+    <section class="ins-sec" id="ins-plan">
+      <div class="ins-sec__title"><span>浠诲姟杩涘害</span> <span class="ins-sec__count" id="ins-plan-count">2/5</span></div>
+      <div class="ins-bar"><div class="ins-bar__fill ins-bar__fill--plan" id="ins-plan-bar" style="width:40%"></div></div>
+      <ul class="ins-plan-list" id="ins-plan-list">
+        <li class="done">娴嬭瘯鏃犲ご娴忚鍣ㄨ兘鍚﹁В鏋愭媶鍒?CSS锛堝凡瀹屾垚锛?/li>
+        <li class="done">缁?tokens.css 娣诲姞浣庨ケ鍜屽己璋冭壊 token锛堣摑/绱?闈掞級</li>
+        <li>缁?app.css 涓笁涓尯鍧楁爣棰?鏁版嵁涓婅壊</li>
+        <li>鎴浘楠岃瘉閰嶈壊鏁堟灉</li>
+        <li>琛ュ綍绾ц仈琛屼负鍒拌鍒欏簱</li>
+      </ul>
+    </section>
+
+    <section class="ins-sec" id="ins-files-sec">
+      <div class="ins-sec__title">鐢熸垚鏂囦欢 <span class="ins-sec__count">3</span></div>
+      <ul class="ins-file-list" id="ins-files">
+        <li><span class="ins-file-path" title="serve/web/tokens.css">tokens.css</span><span class="ins-tag ok">鍐?/span></li>
+        <li><span class="ins-file-path" title="serve/web/app.css">app.css</span><span class="ins-tag ok">鍐?/span></li>
+        <li><span class="ins-file-path" title="README.md">README.md</span><span class="ins-tag err">鏀?/span></li>
+      </ul>
+    </section>
+
+    <section class="ins-sec" id="ins-tests-sec">
+      <div class="ins-sec__title">娴嬭瘯缁撴灉 <span class="ins-sec__count">2</span></div>
+      <ul class="ins-test-list" id="ins-tests">
+        <li title="pytest tests/ -q"><span class="ins-file-path">pytest tests/ -q</span><span class="ins-tag ok">PASS</span></li>
+        <li title="node tests/test_i18n.mjs"><span class="ins-file-path">test_i18n.mjs</span><span class="ins-tag err">FAIL</span></li>
+      </ul>
+    </section>
+
+    <section class="ins-sec" id="ins-session">
+      <div class="ins-sec__title"><span>鏈細璇濈粺璁?/span></div>
+      <div class="ins-stat-grid">
+        <div class="ins-stat"><span class="ins-stat__v">12.4k</span><span class="ins-stat__k">杈撳叆</span></div>
+        <div class="ins-stat"><span class="ins-stat__v">3.1k</span><span class="ins-stat__k">杈撳嚭</span></div>
+        <div class="ins-stat"><span class="ins-stat__v">8</span><span class="ins-stat__k">杞</span></div>
+      </div>
+      <div class="ins-sec__sub muted"><span>涓婁笅鏂囪秼鍔?/span><span class="ins-sec__count" id="ins-spark-count">6</span></div>
+      <svg class="ins-spark" id="ins-sess-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </section>
+
+  </div>
+</aside>
+</body>
+</html>

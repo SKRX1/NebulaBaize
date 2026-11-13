@@ -1,4 +1,4 @@
-/* Strata UI — tokens. Derived from the Gainsty design system.
+/* Strata UI 鈥?tokens. Derived from the Gainsty design system.
    Dark is the default; light via <html data-theme="light">.
    Values marked (derived) are not in the Gainsty source and were added for the app. */
 
@@ -25,7 +25,7 @@
   /* motion (derived) */
   --st-ease:cubic-bezier(.2,.7,.2,1); --st-dur:160ms;
 
-  /* color — light */
+  /* color 鈥?light */
   --st-bg:#d7e4d4;   /* grey-green main/gutter; darker than near-white, lighter than sidebar so content stays brightest */
   --st-surface:#d0e0cf;   /* grey-green (D) per user; body text strong, muted dips to ~3.65 (aesthetic-priority) */
   --st-surface-2:#c6d9c4;   /* card a touch deeper than the page for layering */
@@ -48,6 +48,11 @@
   --st-danger:#e0283f;   --st-danger-tint:#fdecee;  --st-danger-text:#b01a2e; /* (derived) */
 --st-yellow:#f5c518;   --st-yellow-tint:#fff8e1;   --st-yellow-text:#8a6d00;  /* pure yellow (distinct from orange warn) */
 
+  /* inspector accent — low-saturation section colours */
+  --st-gen:#4a7fb5;     --st-gen-tint:#e3eef8;     --st-gen-text:#3668a0;
+  --st-test:#7c6bc4;    --st-test-tint:#eee8f8;    --st-test-text:#6353a8;
+  --st-stat:#3d9e8f;    --st-stat-tint:#e0f3ef;    --st-stat-text:#2e7d71;
+
   --st-code-bg:#1b1f23;  --st-code-ink:#e6e9ec;  /* code blocks stay dark in both themes (derived) */
 
   --st-sh-card:0 18px 7px rgba(0,0,0,.01),0 10px 6px rgba(0,0,0,.02),0 4px 4px rgba(0,0,0,.03),0 1px 2px rgba(0,0,0,.04);
@@ -56,7 +61,7 @@
   color-scheme:light;
 }
 
-/* color — dark (all derived) */
+/* color 鈥?dark (all derived) */
 [data-theme="dark"]{
   --st-bg:#0e1113;
   --st-surface:#161a1d;
@@ -79,6 +84,11 @@
   --st-warn:#f5b53d;     --st-warn-tint:rgba(245,181,61,.12);  --st-warn-text:#f8c96a;
   --st-danger:#ff5a6e;   --st-danger-tint:rgba(255,90,110,.12);--st-danger-text:#ff8a98;
 --st-yellow:#facc15;   --st-yellow-tint:rgba(250,204,21,.12);  --st-yellow-text:#fde047;
+
+  /* inspector accent — low-saturation section colours */
+  --st-gen:#6d9eeb;     --st-gen-tint:rgba(109,158,235,.12);  --st-gen-text:#89b4f0;
+  --st-test:#a78bfa;    --st-test-tint:rgba(167,139,250,.12); --st-test-text:#bca4fc;
+  --st-stat:#67d4c1;    --st-stat-tint:rgba(103,212,193,.12); --st-stat-text:#85e0d0;
 
   --st-code-bg:#0a0c0e;  --st-code-ink:#e6e9ec;
 

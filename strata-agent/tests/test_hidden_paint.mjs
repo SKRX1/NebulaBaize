@@ -56,7 +56,7 @@ win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
 ;window.__api = {
   get busy(){return busy}, get activeId(){return activeId}, get messages(){return messages},
-  renderChat, renderSessions, sendUserMessage, setInputValue:(v)=>{const i=document.getElementById('input'); if(i) i.value=v;},
+  renderChat, renderSessions, patchSteps, sendUserMessage, setInputValue:(v)=>{const i=document.getElementById('input'); if(i) i.value=v;},
   setSeed: (sess, aid) => { sessions = sess; activeId = aid; messages = sess.find(s=>s.id===aid).messages; },
 };`);
 const api = win.__api;
@@ -100,6 +100,41 @@ const bubbleText = () => { const bs = doc.querySelectorAll(".st-bubble"); const 
   console.log("=== differential summary ===");
   check("[differential] NEG arm frozen, POS arm painted; only document.hidden differed",
         !negBubble.includes("NEG-NEWEST") && posBubble.includes("NEG-NEWEST"));
+
+  console.log("=== regression: patchSteps null-host guard + on-turn client-error dual-sink ===");
+  // (2) static lock: the guard line exists in the shipped source
+  check("[static] patchSteps guard present",
+    appCode.includes('const bodyEl = node.querySelector(".st-steps__body");') && appCode.includes("if (!bodyEl) return;"));
+  // (2) runtime: REAL patchSteps (exported via __api), node whose BODY selector returns null
+  // (meta selector returns an object) -> guard must short-circuit before reconcileSegs, no throw.
+  const nullHostResult = win.eval(`(function(){
+    const n = { _sig:null, _user:false, _open:true, open:true,
+      querySelector:(sel)=> sel.indexOf('meta')>=0 ? { textContent:'' } : null };
+    try { __api.patchSteps(n, [{ src:'x', slot:'s0' }], { tools:[] }, true, null); return 'NO_THROW'; }
+    catch (e) { return 'THREW:' + (e && e.constructor ? e.constructor.name : '') + ':' + (e && e.message); }
+  })()`);
+  check("[runtime] patchSteps body=null -> no throw (guard held)", nullHostResult === "NO_THROW", "result=" + JSON.stringify(nullHostResult));
+  // (2) positive control: body present -> patchSteps proceeds PAST the guard (guard must NOT over-block)
+  const okHostResult = win.eval(`(function(){
+    function mkBody(){ return { textContent:'', children:[], appendChild(){}, replaceChild(){}, lastElementChild:null }; }
+    const n = { _sig:null, _user:false, _open:true, open:true,
+      querySelector:(sel)=> sel.indexOf('meta')>=0 ? { textContent:'' } : mkBody() };
+    try { __api.patchSteps(n, [{ src:'x', slot:'s0' }], { tools:[] }, true, null); return 'PROCEEDED'; }
+    catch (e) { return 'THREW:' + (e && e.constructor ? e.constructor.name : '') + ':' + (e && e.message); }
+  })()`);
+  check("[control] patchSteps body-present -> proceeds past guard", okHostResult === "PROCEEDED", "result=" + JSON.stringify(okHostResult));
+  // (1) on-turn client exception must ALSO hit the dual sink -> POST api/interrupt-log, origin=stream, stack present.
+  // The test already seeds a LIVE session (activeId set), so _recordClientError takes the on-turn branch.
+  // Spy fetch (the page's postQuiet -> fetch); dispatch the REAL window.error handler with a genuine Event.
+  const __spy = []; const __ofetch = win.fetch;
+  win.fetch = (url, opts) => { const u=String(url); if (u.includes('interrupt-log') && opts && opts.body) __spy.push(JSON.parse(String(opts.body))); return Promise.resolve({ok:true,json:async()=>({})}); };
+  const __err = new win.Error('GATE-A-PROBE'); __err.stack = 'Error: GATE-A-PROBE\n    at patchSteps';
+  const __ev = new win.Event('error'); __ev.error = __err; win.dispatchEvent(__ev);
+  win.fetch = __ofetch;
+  const posted = __spy.filter((e) => e && e.entry && e.entry.origin === 'stream' && e.entry.msg && String(e.entry.msg).includes('GATE-A-PROBE'));
+  check("[runtime] on-turn client error -> JSONL sink POST (origin=stream, stack present)",
+    posted.length >= 1 && posted[0].entry.stack && String(posted[0].entry.stack).includes('patchSteps'),
+    "posted=" + JSON.stringify(posted.map((e)=>({origin:e.entry.origin,msg:e.entry.msg,hasStack:!!e.entry.stack}))));
 
   queue.push(null);
   await streamPromise;

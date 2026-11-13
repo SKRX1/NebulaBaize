@@ -1,4 +1,4 @@
-﻿/* Star Nebula Agent — frontend i18n (zh default, en supported).
+/* Star Nebula Agent — frontend i18n (zh default, en supported).
  *
  * Loaded synchronously before app.js so t() is available while templates render.
  *
@@ -554,6 +554,9 @@
 "drawer.autosteps.preview.on": "开：仅推荐项",
 "drawer.autosteps.preview.off": "关：推荐+普通项",
 "drawer.autosteps.reconly": "仅推荐项（默认只跑绿色）",
+      "drawer.hideavoid": "隐藏不推荐建议",
+      "drawer.hideavoid.hint": "开：建议条里不显示不推荐（红）档；关：如常显示",
+      "drawer.hideavoid.aria": "隐藏不推荐建议",
       "drawer.autoresume": "中断后自动续跑",
       "drawer.autoresume.max": "自动续跑硬上限",
       "drawer.autoresume.max.hint": "开启后一路跑到任务自然结束；达此数才熔断交回（真死循环才触顶）",
@@ -1188,6 +1191,7 @@
       "insp.session.out": "输出",
       "insp.session.turns": "轮次",
       "insp.session.ctx": "上下文趋势",
+      "insp.session.bars": "· {n} 根柱",
 
       /* ── Untranslated tooltips / button hints (completeness pass) ── */
       "nav.views": "视图",
@@ -1793,6 +1797,9 @@
 "drawer.autosteps.preview.on": "On: recommended only",
 "drawer.autosteps.preview.off": "Off: recommended + normal",
 "drawer.autosteps.reconly": "Recommended only (default: green only)",
+      "drawer.hideavoid": "Hide not-recommended suggestions",
+      "drawer.hideavoid.hint": "On: the next-steps bar omits the not-recommended (red) tier; Off: shown as usual",
+      "drawer.hideavoid.aria": "Hide not-recommended suggestions",
       "drawer.autoresume": "Auto-resume after an interruption",
       "drawer.autoresume.max": "Auto-resume hard stop",
       "drawer.autoresume.max.hint": "Runs to natural completion; only at this count does it fuse and hand back (only a true loop tops out)",
@@ -2427,6 +2434,7 @@
       "insp.session.out": "Out",
       "insp.session.turns": "Turns",
       "insp.session.ctx": "Context trend",
+      "insp.session.bars": "· {n} bars",
 
       /* ── Untranslated tooltips / button hints (completeness pass) ── */
       "nav.views": "Views",

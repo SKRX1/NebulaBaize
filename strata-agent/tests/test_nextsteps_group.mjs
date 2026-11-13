@@ -61,7 +61,8 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
-;window.__api = { renderNextSteps, extractNextSteps, msgEl, dict: () => i18n._dict };`);
+;window.__api = { renderNextSteps, extractNextSteps, msgEl, dict: () => i18n._dict };
+;window.__setHideavoid = (v) => { settings.hideavoid = v; };`);
 const api = win.__api;
 
 function renderSteps(steps, selSteps = []) {
@@ -173,6 +174,24 @@ console.log("\n=== 7: i18n 文案 ===");
   check("zh 徽标=「推荐」，en=Recommended",
         dict.zh["nextsteps.badge"] === "推荐" && dict.en["nextsteps.badge"] === "Recommended");
   check("zh 推荐组标题=「推荐建议」", dict.zh["nextsteps.rec.title"] === "推荐建议");
+}
+
+/* ═══ 8. hideavoid: ON hides the not-recommended tier, OFF shows it (default) ═══ */
+console.log("\n=== 8: hideavoid toggle (default OFF = show; ON = hide the avoid tier) ===");
+{
+  const steps = [{ label: "R", recommended: true }, { label: "A", avoid: true }];
+  win.__setHideavoid(false);
+  let { box } = renderSteps(steps);
+  check("OFF (default): avoid tier still rendered", !!box.querySelector(".next-steps__group--avoid"));
+  check("OFF: recommended tier present", !!box.querySelector(".next-steps__group--rec"));
+  win.__setHideavoid(true);
+  ;({ box } = renderSteps(steps));
+  check("ON: avoid tier hidden", !box.querySelector(".next-steps__group--avoid"));
+  check("ON: other tiers (recommended) still render", !!box.querySelector(".next-steps__group--rec"));
+  win.__setHideavoid(true);
+  ;({ box } = renderSteps([{ label: "A", avoid: true }]));
+  check("ON + only-avoid tier -> panel collapses (no blank bar)", !!box && box.hidden === true);
+  win.__setHideavoid(false);
 }
 
 console.log("");

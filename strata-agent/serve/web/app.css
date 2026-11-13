@@ -1,4 +1,4 @@
-﻿/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
+/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
    shadows come only from the kit's tokens. */
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -689,7 +689,8 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 .ins-bar__fill--plan { background: var(--st-info); }
 .ins-plan-list, .ins-file-list, .ins-test-list { list-style: none; margin: 0; padding: 0;
                   display: flex; flex-direction: column; gap: 4px; font-size: var(--st-fs-sm); line-height: 1.5; }
-.ins-plan-list li.done { color: var(--st-ink-muted); text-decoration: line-through; }
+.ins-plan-list li { color: var(--st-info); }
+.ins-plan-list li.done { color: var(--st-accent-text); text-decoration: line-through; }
 /* B: the "finished but never wrote the all-ticked summary" reminder line -- idle + unticked only */
 .ins-plan-list li.ins-plan-remind { color: var(--st-info); font-style: italic; padding-top: 6px;
                                   border-top: 1px solid var(--st-border, currentColor); }
@@ -722,6 +723,18 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
                color: var(--st-ink); line-height: 1.1; }
 .ins-stat__k { font-size: var(--st-fs-xs); color: var(--st-ink-muted); }
 .ins-spark { width: 100%; height: 40px; display: block; margin-top: 2px; }
+/* Recommended color scheme: only "task progress" title echoes its own blue plan bar;
+   the context-trend bar count gets a light info-blue accent. Everything else stays on the
+   neutral ink tiers so the semantic palette is never polluted. */
+#ins-plan .ins-sec__title { color: var(--st-info); }
+#ins-spark-count { color: var(--st-info); }
+/* Inspector section accents: low-saturation blue / purple / cyan */
+#ins-files-sec .ins-sec__title { color: var(--st-gen-text); }
+#ins-tests-sec .ins-sec__title { color: var(--st-test-text); }
+#ins-session .ins-sec__title { color: var(--st-stat-text); }
+#ins-files-sec .ins-file-list li:not(.muted) { color: color-mix(in srgb, var(--st-gen-text) 40%, var(--st-ink-soft)); }
+#ins-tests-sec .ins-test-list li:not(.muted) { color: color-mix(in srgb, var(--st-test-text) 40%, var(--st-ink-soft)); }
+#ins-session .ins-stat__v { color: var(--st-stat-text); }
 /* ---------------- workspace tree: a workspace owns the tasks started inside it ---------------- */
 .st-ws { display: flex; flex-direction: column; }
 .st-ws__head { position: relative; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 3px;

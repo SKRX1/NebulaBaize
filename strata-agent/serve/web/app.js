@@ -1184,7 +1184,9 @@ function patchSteps(node, group, m, streaming, liveSlot) {
     const mt = node.querySelector(".st-steps__meta");
     if (mt && mt.textContent !== meta) mt.textContent = meta;
   }
-  reconcileSegs(node.querySelector(".st-steps__body"), group, m, streaming, liveSlot);
+  const bodyEl = node.querySelector(".st-steps__body");
+  if (!bodyEl) return;   // guard: a transient null here used to throw -> global onerror red banner
+  reconcileSegs(bodyEl, group, m, streaming, liveSlot);
 }
 
 // ------------------------------------------------------------------ Chat
@@ -1192,7 +1194,7 @@ const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
-                  autoresumeMax: 24, emptyRoundMax: 2};
+                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: false};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
 // the model reply in English. cnThink appends a reasoning-language rule (off by default — forcing
@@ -2570,7 +2572,7 @@ function paintMd(node, src, streaming) {
   if (!streaming || src.length <= MARKDOWN_LONG) {
     if (node._src === src) return;
     node._src = src; node._pb = null;
-    node.innerHTML = markdown(src);
+    setMdHtml(node, markdown(src));
     return;
   }
   const now = performance.now();
@@ -2581,7 +2583,34 @@ function paintMd(node, src, streaming) {
   let prefixHtml;
   if (node._pb && node._pb.text === prefix) prefixHtml = node._pb.html;
   else { prefixHtml = markdown(prefix); node._pb = {text: prefix, html: prefixHtml}; }
-  node.innerHTML = prefixHtml + markdown(tail);
+  setMdHtml(node, prefixHtml + markdown(tail));
+}
+// Anti-flicker: a whole-segment innerHTML rewrite DESTROYS the old subtree, so a code card's copy
+// button is rebuilt every streaming paint. The rebuilt <use href=sprite> re-resolves its icon
+// asynchronously (empty frame -> pop = the flicker the user saw), and on hover the opacity
+// transition restarts each frame. The parse layer already freezes a committed prefix (see _pb above)
+// but only the HTML STRING, not the DOM -- so the code-card HEAD (language label + copy button) is
+// preserved here by DOM identity: detach reusable heads into a holder before the rewrite, move them
+// back after, keyed by position + unchanged language label. The <pre> body always stays fresh (its
+// text genuinely grew). First build (no prior cards) is a plain rewrite -- nothing to preserve.
+function setMdHtml(node, html) {
+  const oldCards = node.querySelector(".st-code") ? [...node.querySelectorAll(".st-code")] : null;
+  if (!oldCards || !oldCards.length) { node.innerHTML = html; return; }
+  // Capture each OLD head's label FIRST (the only field that must match to reuse it), then detach the
+  // live head nodes into a holder so the innerHTML rewrite can't destroy them.
+  const oldLang = oldCards.map((c) => { const el = c.querySelector(".st-code__lang"); return el ? (el.textContent || "").trim().toLowerCase() : null; });
+  const heads = oldCards.map((c) => c.firstElementChild);              // .st-code__head (label + copy button)
+  const holder = document.createElement("div");
+  for (const h of heads) if (h) holder.appendChild(h);
+  node.innerHTML = html;
+  const newCards = [...node.querySelectorAll(".st-code")];
+  for (let i = 0; i < newCards.length; i++) {
+    if (i >= heads.length || !heads[i] || !newCards[i].firstElementChild) continue;   // count/shape changed -> fresh head
+    const nl = newCards[i].querySelector(".st-code__lang");
+    const newLang = nl ? (nl.textContent || "").trim().toLowerCase() : null;
+    if (newLang !== oldLang[i]) continue;                             // label changed -> the fresh head is correct
+    newCards[i].replaceChild(heads[i], newCards[i].firstElementChild);
+  }
 }
 // a tool event from the stream (the `strata_mcp` field of a chunk)
 function onTool(m, x) {
@@ -2730,7 +2759,7 @@ function renderNextSteps(el, m) {
     if (hasRec)   html += group("rec", recs);
     if (hasRest)  html += group(hasRec ? "more" : "solo", rest);
     if (hasHold)  html += group("hold", hold);
-    if (hasAvoid) html += group("avoid", avoid);
+    if (hasAvoid && !settings.hideavoid) html += group("avoid", avoid);
 
     html += sel.size
       ? `<span class="next-steps__acts">` +
@@ -2738,6 +2767,7 @@ function renderNextSteps(el, m) {
         `<button type="button" class="st-btn st-btn--ghost st-btn--sm" data-steps-clear>${esc(t("nextsteps.clear"))}</button>` +
         `<span class="next-steps__custom"></span></span>`
       : "";
+    box.hidden = html === "";                 // every tier filtered (hideavoid) -> collapse, no blank bar
     box.innerHTML = html;
     syncStepsSendLabel();                          // reflect typed text ("+ 自定义") right away
   } else {
@@ -3557,6 +3587,17 @@ function renderInspector() {
     const shown = frozen.length ? frozen.concat(ctxArr) : ctxArr;
     const sh = ctxSpark(shown, frozen.length ? frozen.length - 1 : -1);
     if (spark.innerHTML !== sh) spark.innerHTML = sh;
+    // Bar count: the user asked to SEE how many bars are on screen instead of counting them
+    // by hand. It must report the number actually rendered, so it mirrors ctxSpark's own
+    // rolling-window cap (settings.sparkMaxBars, same fallback as SPARK_MAX_BARS) exactly.
+    const cap = (typeof settings !== "undefined" && +settings.sparkMaxBars >= 1) ? +settings.sparkMaxBars : SPARK_MAX_BARS;
+    const sc = $("ins-spark-count");
+    if (sc) {
+      const nshown = Math.min(shown.length, cap);
+      sc.hidden = !nshown;
+      const ct = t("insp.session.bars", {n: fmt(nshown)});
+      if (sc.textContent !== ct) sc.textContent = ct;
+    }
   }
 }
 function applyInspector() { const ins = $("inspector"); if (ins) ins.hidden = (tab !== "chat" && tab !== "spark") || !inspectorOpen; layoutHandles(); }
@@ -4446,7 +4487,7 @@ function workspaceSystem(ws) {
   // 2026-10: the wording iron law — clickable executable tiers must read as imperative so a
   // click is a decision, not a question; and the "?" tier must ship an explicit default so a
   // click means "ratify the default" and the agent must not re-ask.
-  txt += `\n\n【建议条措辞铁律】凡「可执行档」（推荐 * / 一般 - / 不推荐 !）的建议必须写成祈使陈述句（例：「跑一遍全套回归」），不要写成疑问句或「让用户补一下信息」的句子——用户点击即代表拍板执行，你不得再反问；「? 等你确认」档必须在本轮正文里写明你建议的默认值/默认方案（例：「默认取 16384 词」），因为用户点击 = 授权按该默认执行，你不得反问；若确实无法预设默认值（真正开放的问题），改用决策卡 proposal 或在正文里直陈，不要放进 ? 档。`;
+  txt += `\n\n【建议条措辞铁律】凡「可执行档」（推荐 * / 一般 - / 不推荐 !）的建议必须写成祈使陈述句（例：「跑一遍全套回归」），不要写成疑问句或「让用户补一下信息」的句子——用户点击即代表拍板执行，你不得再反问；「? 等你确认」档必须在本轮正文里写明你建议的默认值/默认方案（例：「默认取 16384 词」），因为用户点击 = 授权按该默认执行，你不得反问；若确实无法预设默认值（真正开放的问题），改用决策卡 proposal 或在正文里直陈，不要放进 ? 档。另注：其中「不推荐」(!) 红档可能被用户在采样设置里开启「隐藏不推荐建议」开关而对用户隐藏（默认不隐藏=照常显示；开启则前端渲染时过滤掉该档）——即便你列了红档，用户也可能看不到它，故凡需要用户真正拍板的项请优先用决策卡 proposal 或在正文直陈，不要只依赖红档送达。`;
   // H2: always-on memory, composed from THREE scopes in precedence order (lowest first): global ->
   // group -> workspace. Later, more specific tiers can refine/override earlier ones. Global entries
   // apply to every workspace (universal); group entries to every workspace in that group (the
@@ -7299,12 +7340,13 @@ function _recordClientError(phase, err) {
   _dbg.lastError = rec;
   _dbg._lastTs = now;
   (_dbg.turn._clientErrors = _dbg.turn._clientErrors || []).push(rec);
+  _recordBugCapture(phase, err, "stream");   // on-turn now ALSO hits the dual sink (bugBox localStorage + gateway JSONL), origin=stream
 }
 // Off-turn exception collector: fires when an error arrives while NO stream is active.
 // This is what makes 'a bug found during workspace development gets recorded' work -- the
 // old guard dropped every off-turn exception. De-dupes, then feeds the SAME dual sink as
 // the interruption log: localStorage mirror (strata.bugBox) + gateway JSONL (api/interrupt-log).
-function _recordBugCapture(phase, err) {
+function _recordBugCapture(phase, err, origin) {
   const now = Date.now();
   const msg = err && err.message != null ? err.message : String(err);
   const sig = msg;                                  // signature = error first-line (function/type encoded in it)
@@ -7327,7 +7369,7 @@ function _recordBugCapture(phase, err) {
     count: 1,          // number of merged occurrences
     kind: 'bug:' + phase,                          // bug:window.onerror | bug:unhandledrejection
     status: 'open',                                // open->fixing->verified (audit lives in the JSONL append-only sink)
-    origin: 'ui',                                  // ui = off-turn; stream errors stay on the message
+    origin: origin || 'ui',                        // ui = off-turn; stream = on-turn (now also dual-sinked)
     sourceTab: (typeof tab !== 'undefined' ? tab : null),
     session: (typeof activeId !== 'undefined' ? activeId : null),
     msg,
@@ -8361,6 +8403,7 @@ $("new-btn").onclick = () => {
   renderChat();
   syncCtxFromSession();
   toast("info", t("toast.newchat.title"), t("toast.newchat.msg"), 6000, {label: t("toast.undo"), run: () => { messages = backup; saveChat(); renderChat(); }});
+  $("input").focus();
 };
 $("export-btn").onclick = () => {
   if (!messages.length) { toast("info", t("toast.nothingtosave.title")); return; }
@@ -9079,6 +9122,7 @@ function loadDrawer(s = settings) {
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
   $("s-autosteps").setAttribute("aria-checked", String(!!s.autosteps));
   if ($("s-autosteps-rec")) $("s-autosteps-rec").setAttribute("aria-checked", String(s.autostepsRec !== false));
+  if ($("s-hideavoid")) $("s-hideavoid").setAttribute("aria-checked", String(!!s.hideavoid));
   $("s-autoresume").setAttribute("aria-checked", String(s.autoresume !== false));
   $("s-compactresume").setAttribute("aria-checked", String(s.compactResume !== false));
   $("s-autofix").setAttribute("aria-checked", String(!!s.autofix));
@@ -9181,6 +9225,7 @@ $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked
 $("s-archiveon").onclick = () => $("s-archiveon").setAttribute("aria-checked", String($("s-archiveon").getAttribute("aria-checked") !== "true"));
 $("s-autosteps").onclick = () => $("s-autosteps").setAttribute("aria-checked", String($("s-autosteps").getAttribute("aria-checked") !== "true"));
 $("s-autosteps-rec").onclick = () => { const on = $("s-autosteps-rec").getAttribute("aria-checked") !== "true"; $("s-autosteps-rec").setAttribute("aria-checked", String(on)); const pv = $("s-autosteps-rec").closest(".toggle-row").querySelector(".st-check__preview"); if (pv) pv.setAttribute("data-state", on ? "on" : "off"); };
+if ($("s-hideavoid")) $("s-hideavoid").onclick = () => $("s-hideavoid").setAttribute("aria-checked", String($("s-hideavoid").getAttribute("aria-checked") !== "true"));
 $("s-autoresume").onclick = () => $("s-autoresume").setAttribute("aria-checked", String($("s-autoresume").getAttribute("aria-checked") !== "true"));
 $("s-compactresume").onclick = () => $("s-compactresume").setAttribute("aria-checked", String($("s-compactresume").getAttribute("aria-checked") !== "true"));
 $("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", String($("s-autofix").getAttribute("aria-checked") !== "true"));
@@ -9221,6 +9266,7 @@ $("s-apply").onclick = async () => {
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",
               autosteps: $("s-autosteps").getAttribute("aria-checked") === "true",
               autostepsRec: $("s-autosteps-rec") ? $("s-autosteps-rec").getAttribute("aria-checked") === "true" : true,
+              hideavoid: $("s-hideavoid") ? $("s-hideavoid").getAttribute("aria-checked") === "true" : false,
               autoresume: $("s-autoresume").getAttribute("aria-checked") === "true",
               compactResume: $("s-compactresume").getAttribute("aria-checked") === "true",
               autofix: $("s-autofix").getAttribute("aria-checked") === "true",
@@ -10042,6 +10088,7 @@ document.addEventListener("strata:langchange", () => {
   if (typeof renderDesignBanner === "function") renderDesignBanner();
   if (typeof loadConfig === "function" && tab === "about") loadConfig();
   if (tab === "spark") renderSpark();       // labels in the list are baked at render time
+  if (tab === "chat" || tab === "spark") renderInspector();   // D11 bar count text is baked at render time
   // admin.js repaints the Tools tab itself; it listens to the same event.
   // refresh the health-derived subtitle, which embeds the model name
   $("chat-empty-sub").textContent = t("chat.empty.sub.model", {model: health.model});
