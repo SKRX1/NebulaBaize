@@ -172,6 +172,7 @@ SUITES = [
 
     "tests/test_autofix_loop.mjs",   # 2026-10-27: self-evolving fix loop — capture stamps open, push marks fixing, idle driver takes OLDEST open (anti self-feed), verified leaves the box (audit stays JSONL); differential double-probe proven
     "tests/test_autoverify_fix.mjs",   # 2026-11-13 auto-verify: push records pendingFixTs; a GREEN regression test on THIS very turn ejects via markBugVerified (load-bearing). CONTROLS (no-test/red/switch-off) must stay in fixing.
+    "tests/test_autoverify_fix_realpage.py",   # 2026-11-13 REAL-browser E2E of the auto-verify-fix loop: real DOM push-button click -> pendingFixTs -> consume -> green-test ejection, via headless Chromium --dump-dom over a temp http doc-root (same doc-root lesson as test_visual_http_render.py). Differential: switch-OFF + no-push-turn controls STAY fixing. Skips if no renderable browser.
 
 
     "tests/test_bugbox_merge_stats.mjs",   # 2026-10-28: bug-box signature-merge display + 4-number stats bar + one-shot physical merge (differential double-probe, jsdom runs real renderBugBox)
@@ -463,6 +464,7 @@ SLOW_SUITES = [
     "tests/test_model_probe.mjs",
     "tests/test_stale_tab.mjs",
     "tests/test_empty_round_e2e.py",
+    "tests/test_autoverify_fix_realpage.py",   # real-browser cold launch + temp http doc-root -> slow tier
 ]
 _SLOWSET = set(SLOW_SUITES)
 SUITES_QUICK = [s for s in SUITES if s not in _SLOWSET]
