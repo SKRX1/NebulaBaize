@@ -333,9 +333,11 @@
         <!-- resolution tier + ratio chips (click fills W/H below; W/H stay editable) -->
         <div class="img-row img-chips" id="img-res-row">
           <span data-i18n="img.resolution">Resolution</span>
-          <button type="button" class="st-chip is-active" data-imgres="1" data-i18n="img.res.1k">1K</button>
-          <button type="button" class="st-chip" data-imgres="2" data-i18n="img.res.2k">2K</button>
-          <button type="button" class="st-chip" data-imgres="3" data-i18n="img.res.4k">4K</button>
+          <button type="button" class="st-chip is-active" data-imgres="0" data-i18n="img.res.512">512</button>
+          <button type="button" class="st-chip" data-imgres="1" data-i18n="img.res.768">768</button>
+          <button type="button" class="st-chip" data-imgres="2" data-i18n="img.res.1k">1K</button>
+          <button type="button" class="st-chip" data-imgres="3" data-i18n="img.res.2k">2K</button>
+          <button type="button" class="st-chip" data-imgres="4" data-i18n="img.res.4k">4K</button>
         </div>
         <div class="img-row img-chips" id="img-ratio-row">
           <span data-i18n="img.ratio">Ratio</span>
@@ -352,9 +354,9 @@
         </div>
         <div class="img-row">
           <label class="st-field"><span data-i18n="img.width">Width</span>
-            <input class="st-input" id="img-width" type="number" min="64" max="4096" step="8" value="1024"></label>
+            <input class="st-input" id="img-width" type="number" min="64" max="4096" step="8" value="512"></label>
           <label class="st-field"><span data-i18n="img.height">Height</span>
-            <input class="st-input" id="img-height" type="number" min="64" max="4096" step="8" value="1024"></label>
+            <input class="st-input" id="img-height" type="number" min="64" max="4096" step="8" value="512"></label>
           <label class="st-field"><span data-i18n="img.steps">Steps</span>
             <input class="st-input" id="img-steps" type="number" min="4" max="150" value="8"></label>
           <label class="st-field"><span data-i18n="img.cfg_scale">CFG</span>

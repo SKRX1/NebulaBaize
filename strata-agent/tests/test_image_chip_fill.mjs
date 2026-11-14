@@ -1,0 +1,109 @@
+/* Behaviour sentinel: image-page resolution chips fill the W/H inputs.
+ *
+ * The "image_e2e_sentinel family" jsdom-behaviour member (siblings: the static tier-lock
+ * test_image_default_tier_static.mjs in the quick tier, and the live gateway POST gate
+ * tools/image_e2e_sentinel.py in the slow tier). This one drives the REAL click handler in
+ * jsdom and asserts the engine-visible W/H inputs update — so a broken chip->input wiring is
+ * caught as behaviour, not just as static text.
+ *
+ * Single-variable differential (the ONLY thing that changes between scenes is WHICH chip is
+ * clicked; the observable is the resulting #img-width value):
+ *   BOOT                -> 512 (the new fastest default the expansion set)
+ *   CLICK 768 chip       -> #img-width = 768   (a tier that DIFFERS from boot)
+ *   CLICK 512 chip back  -> #img-width = 512   (two-way: clicking back restores the boot value)
+ * LOAD-BEARING: boot is already 512, so a naive "click 512 -> 512" would pass even if the
+ * wiring were dead. The 768 scene is what makes it real: if the delegated click handler did not
+ * run, #img-width would STAY 512 and the 768 scene would fail. The 512-back scene then closes
+ * the loop (the value moved off 512 and came back), proving the inputs track the clicked chip.
+ *
+ * jsdom setup matches test_app_regen.mjs (full boot so every $("id") exists; matchMedia/raf/
+ * EventSource polyfills; explicit win.close() teardown so the process exits instead of hanging).
+ *
+ * Run: node tests/test_image_chip_fill.mjs
+ */
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { createRequire } from "module";
+
+const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const { JSDOM } = require("jsdom");
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(HERE, "..");
+const WEB = path.join(ROOT, "serve", "web");
+
+const FAILURES = [];
+const check = (label, cond, extra = "") => {
+  console.log("  " + (cond ? "OK   " : "FAIL ") + label + (extra ? "  " + extra : ""));
+  if (!cond) FAILURES.push(label);
+};
+
+const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
+const dom = new JSDOM(html, { url: "http://127.0.0.1:8765/", runScripts: "outside-only" });
+const win = dom.window;
+const doc = win.document;
+
+win.TextDecoder = TextDecoder;
+win.TextEncoder = TextEncoder;
+win.AbortController = AbortController;
+win.matchMedia = () => ({ matches: false, media: "", onchange: null,
+  addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return false; } });
+if (typeof win.requestAnimationFrame !== "function") {
+  win.requestAnimationFrame = (cb) => setTimeout(() => cb(win.performance.now()), 0);
+}
+if (typeof win.cancelAnimationFrame !== "function") {
+  win.cancelAnimationFrame = (id) => clearTimeout(id);
+}
+// app.js boot calls initSessionStream() which news an EventSource; jsdom has none. A no-op stub
+// keeps the boot path quiet (the test never relies on the SSE stream).
+win.EventSource = class { constructor() {} close() {} addEventListener() {} };
+win.localStorage.setItem("strata.lang", "en");
+win.confirm = () => true;
+win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
+
+// boot the app (the chip->W/H wiring lives in an IIFE inside app.js)
+win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
+win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const chip = (res) => doc.querySelector(`#img-res-row [data-imgres="${res}"]`);
+const wh = () => ({ w: doc.getElementById("img-width").value, h: doc.getElementById("img-height").value });
+
+const main = async () => {
+  console.log("=== image chip -> W/H fill (single-variable differential) ===");
+  await sleep(30);   // let boot settle
+
+  check("768 chip present", !!chip("1"), "data-imgres=1");
+  check("512 chip present", !!chip("0"), "data-imgres=0");
+
+  // control: boot default is 512 (the expansion's new fastest default)
+  check("boot inputs are 512 (control)", wh().w === "512" && wh().h === "512", JSON.stringify(wh()));
+
+  // scene A: click the 768 chip -> inputs move OFF 512 to 768 (load-bearing: a dead handler
+  // would leave them at the 512 boot value, failing this assertion)
+  chip("1").click();
+  await sleep(10);
+  check("click 768 chip fills W/H=768", wh().w === "768" && wh().h === "768", JSON.stringify(wh()));
+  const active768 = chip("1").classList.contains("is-active") && !chip("0").classList.contains("is-active");
+  check("active class moved to the 768 chip", active768);
+
+  // scene B: click the 512 chip back -> inputs restore the boot value (two-way, closes the loop)
+  chip("0").click();
+  await sleep(10);
+  check("click 512 chip fills back W/H=512", wh().w === "512" && wh().h === "512", JSON.stringify(wh()));
+
+  console.log();
+  if (FAILURES.length) {
+    console.log(`FAILED (${FAILURES.length}):`);
+    for (const f of FAILURES) console.log("  - " + f);
+    win.close();
+    process.exit(1);
+  }
+  console.log("IMAGE CHIP-FILL SENTINEL: ALL PASSED");
+  win.close();
+  process.exit(0);
+};
+
+main().catch((e) => { console.error(e); process.exit(1); });

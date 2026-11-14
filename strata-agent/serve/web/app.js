@@ -9689,8 +9689,8 @@ _imgFilePreview("img-ref-file",  "img-gen-preview");
 // the engine gets exactly what the inputs show. Custom ratio box: "a:b" like 16:10.
 (function () {
   const $id = (x) => document.getElementById(x);
-  const TIER = { "1": 1024, "2": 2048, "3": 4096 };   // tier -> long-edge base px
-  let tier = "1", ratio = "1:1";
+  const TIER = { "0": 512, "1": 768, "2": 1024, "3": 2048, "4": 4096 };   // tier -> long-edge base px
+  let tier = "0", ratio = "1:1";   // 默认 512（最快档）
   const parseRatio = (txt) => {
     const m = /^(\d+(?:\.\d+)?)[ :]+(\d+(?:\.\d+)?)$/.exec((txt || "").trim());
     if (!m) return null;
@@ -9700,7 +9700,7 @@ _imgFilePreview("img-ref-file",  "img-gen-preview");
   const snap = (v) => Math.max(64, Math.min(4096, Math.round(v / 8) * 8));
   function apply() {
     const r = parseRatio(ratio) || [1, 1];
-    const long = TIER[tier] || 1024;
+    const long = TIER[tier] || 512;
     const w = $id("img-width"), h = $id("img-height");
     if (!w || !h) return;
     if (r[0] >= r[1]) { w.value = snap(long); h.value = snap(long * r[1] / r[0]); }

@@ -95,6 +95,10 @@ SUITES = [
 
     "tests/test_admin_render.mjs",
 
+    "tests/test_image_default_tier_static.mjs",   # 2026-11-14 image_e2e_sentinel family STATIC lock: the FIRST res chip data-imgres=0(512) is the active default, W/H boot 512, app.js tier 0->512 boots tier 0; pure source scan so it runs in QUICK (the 512 default stays locked even when Quick skips the live POST sentinel); LOAD-BEARING decoy flips the tier-0 regex
+    "tests/test_image_chip_fill.mjs",   # 2026-11-14 image_e2e_sentinel family jsdom BEHAVIOUR: click 768 chip -> #img-width fills 768, click back 512 -> restores 512 (single variable = WHICH chip is clicked; boot-512 is the control, the 768 scene is the load-bearing proof the wiring is live)
+
+
     "tests/test_stream_intel.mjs",
 
     "tests/test_paste_contract.mjs",   # 2026-10-24: paste/mixed-image helpers must be DEFINED and RUN (locks the "only a call site, no definition" ReferenceError bug)
