@@ -8,13 +8,18 @@
  *
  * Single-variable differential (the ONLY thing that changes between scenes is WHICH chip is
  * clicked; the observable is the resulting #img-width value):
- *   BOOT                -> 512 (the new fastest default the expansion set)
- *   CLICK 768 chip       -> #img-width = 768   (a tier that DIFFERS from boot)
- *   CLICK 512 chip back  -> #img-width = 512   (two-way: clicking back restores the boot value)
+ *   BOOT                 -> 512 (the default tier4; ladder now starts at 32=tier0, NOT 512)
+ *   CLICK 768 chip (tier5) -> #img-width = 768   (a tier that DIFFERS from boot)
+ *   CLICK 512 chip back (tier4) -> #img-width = 512   (two-way: clicking back restores the boot value)
  * LOAD-BEARING: boot is already 512, so a naive "click 512 -> 512" would pass even if the
  * wiring were dead. The 768 scene is what makes it real: if the delegated click handler did not
  * run, #img-width would STAY 512 and the 768 scene would fail. The 512-back scene then closes
  * the loop (the value moved off 512 and came back), proving the inputs track the clicked chip.
+ *
+ * NOTE (2026-11-14 alignment): chips are keyed by data-imgres tier, and the ladder starts at
+ * tier0=32; 512 is tier4 and 768 is tier5. Earlier this test clicked data-imgres="1"/"0" assuming
+ * they mapped to 768/512 (true in the pre-expansion ladder); after the expansion tier0=32/tier1=64
+ * so those clicks filled 64/32 and broke. We now click the REAL tier5(768) and tier4(512) chips.
  *
  * jsdom setup matches test_app_regen.mjs (full boot so every $("id") exists; matchMedia/raf/
  * EventSource polyfills; explicit win.close() teardown so the process exits instead of hanging).
@@ -68,29 +73,29 @@ win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const chip = (res) => doc.querySelector(`#img-res-row [data-imgres="${res}"]`);
+const chip = (tier) => doc.querySelector(`#img-res-row [data-imgres="${tier}"]`);
 const wh = () => ({ w: doc.getElementById("img-width").value, h: doc.getElementById("img-height").value });
 
 const main = async () => {
   console.log("=== image chip -> W/H fill (single-variable differential) ===");
   await sleep(30);   // let boot settle
 
-  check("768 chip present", !!chip("1"), "data-imgres=1");
-  check("512 chip present", !!chip("0"), "data-imgres=0");
+  check("768 chip present (tier5)", !!chip("5"), "data-imgres=5");
+  check("512 chip present (tier4)", !!chip("4"), "data-imgres=4");
 
-  // control: boot default is 512 (the expansion's new fastest default)
+  // control: boot default is 512 (tier4) — the ladder's default, ladder itself starts at 32
   check("boot inputs are 512 (control)", wh().w === "512" && wh().h === "512", JSON.stringify(wh()));
 
-  // scene A: click the 768 chip -> inputs move OFF 512 to 768 (load-bearing: a dead handler
+  // scene A: click the 768 chip (tier5) -> inputs move OFF 512 to 768 (load-bearing: a dead handler
   // would leave them at the 512 boot value, failing this assertion)
-  chip("1").click();
+  chip("5").click();
   await sleep(10);
   check("click 768 chip fills W/H=768", wh().w === "768" && wh().h === "768", JSON.stringify(wh()));
-  const active768 = chip("1").classList.contains("is-active") && !chip("0").classList.contains("is-active");
+  const active768 = chip("5").classList.contains("is-active") && !chip("4").classList.contains("is-active");
   check("active class moved to the 768 chip", active768);
 
-  // scene B: click the 512 chip back -> inputs restore the boot value (two-way, closes the loop)
-  chip("0").click();
+  // scene B: click the 512 chip back (tier4) -> inputs restore the boot value (two-way, closes the loop)
+  chip("4").click();
   await sleep(10);
   check("click 512 chip fills back W/H=512", wh().w === "512" && wh().h === "512", JSON.stringify(wh()));
 

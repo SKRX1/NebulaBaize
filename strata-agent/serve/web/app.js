@@ -9718,8 +9718,28 @@ function _imgFilePreview(inputId, previewId) {
     if (!f) { pc.style.display = "none"; return; }
     const url = URL.createObjectURL(f);
     const old = pc.querySelector("img"); if (old) old.remove();
+    const oldd = pc.querySelector(".img-src-dims"); if (oldd) oldd.remove();
     const img = document.createElement("img"); img.src = url;
-    pc.append(img); pc.style.display = "";
+    pc.append(img); pc.style.display="";
+    // [自动检测 2026-11-14] 原图解出后显示真实尺寸与比例（纯前端，无后端）
+    const put = (w, h) => {
+      const d = document.createElement("div");
+      d.className = "img-src-dims";
+      const g = (a, b) => { while (b) { const t = a % b; a = b; b = t; } return a; };
+      const k = g(w, h) || 1;
+      d.textContent = t("img.srcdims").replace("{w}", w).replace("{h}", h)
+                    .replace("{r}", (w / k) + ":" + (h / k));
+      pc.append(d);
+      // [autoFillW 2026-11-14] 自定义尺寸：检测到的原图尺寸自动回填生成宽/高
+      //（引擎任意 W/H 都透传，原图比例直接可生成，不必手填；手动改输入框仍然优先）
+      const aw = document.getElementById("img-width"), ah = document.getElementById("img-height");
+      // [FIX 2026-11-14 snap8] 回填必须先吸附到 8 的倍数：input step=8 的原生校验会静默拦截非网格值
+      // （如 420/630），导致点生成无反应。就近取整（JS Math.round 平局向上），与 chips 的 snap 同规则。
+      const snap8 = (v) => Math.max(32, Math.min(4096, Math.round(v / 8) * 8));
+      if (aw && ah) { aw.value = snap8(w); ah.value = snap8(h); }
+    };
+    if (img.complete && img.naturalWidth) put(img.naturalWidth, img.naturalHeight);
+    else img.onload = () => put(img.naturalWidth, img.naturalHeight);
   });
 }
 _imgFilePreview("img-init-file", "img-gen-preview");
@@ -9778,7 +9798,11 @@ _imgFilePreview("img-ref-file",  "img-gen-preview");
 $("img-form").onsubmit = async (ev) => {
   ev.preventDefault();
   const prompt = $("img-prompt").value.trim();
-  if (!prompt) return;
+  if (!prompt) {
+    // [FIX 2026-11-14] 空提示词不再静默返回：hint 位明示（图生图/编辑模式提示词=想要的目标画面）
+    const _h = $("img-hint"); if (_h) _h.textContent = t("img.needprompt");
+    return;
+  }
   const genMode = $("img-gen-mode") ? $("img-gen-mode").value : "txt2img";
   const body = {prompt, size: "1024x1024", response_format: "b64_json", gen_mode: genMode};
   { // explicit W/H (chips fill these; user typing wins) + negative + sampler params
@@ -9796,6 +9820,7 @@ $("img-form").onsubmit = async (ev) => {
   if (cfgEl("img-cfg-mode")) body.mode = cfgEl("img-cfg-mode").value;
   if (cfgEl("img-cfg-model-dir") && cfgEl("img-cfg-model-dir").value.trim()) body.model_dir = cfgEl("img-cfg-model-dir").value.trim();
   if ($("img-seed").value !== "") body.seed = Number($("img-seed").value);
+  { const cEl = $("img-count"); if (cEl && Number(cEl.value) > 1) body.n = Number(cEl.value); }  // [张数] 默认1不传=后端默认1
   if (cfgEl("img-cfg-mode") && cfgEl("img-cfg-mode").value === "local") body.async_preview = true;
   if (genMode === "img2img") {
     const fi = $("img-init-file");
@@ -9818,17 +9843,29 @@ $("img-form").onsubmit = async (ev) => {
   const t0 = performance.now();
   $("img-hint").textContent = t("img.generating");
   // [实时预览 方案A] 渲染结果（同步/异步完成时共用）。
-  const renderResult = (j) => {
+  const renderResult = (j, into) => {
+    // [FIX 2026-11-14 双图] into=已存在的实时预览 fig：首张成品就地升级它（不留预览残留，
+    // 一次生成只留一张图；停止按钮此刻已无意义，移除）。同步路径与多张的后续张照旧 prepend。
+    let usedInto = false;
     for (const d of j.data) {
-      const fig = document.createElement("figure");
-      const img = document.createElement("img");
+      let fig, img, cap;
+      if (into && !usedInto) {
+        usedInto = true; fig = into;
+        img = fig.querySelector("img"); cap = fig.querySelector("figcaption");
+        const ph = fig.querySelector(".live-preview-ph"); if (ph) ph.remove();
+        const sb = fig.querySelector(".live-preview-stop"); if (sb) sb.remove();
+      } else {
+        fig = document.createElement("figure");
+        img = document.createElement("img");
+        cap = document.createElement("figcaption");
+        $("img-results").prepend(fig);
+      }
       img.src = d.url || ("data:image/png;base64," + d.b64_json);
+      img.hidden = false;
       img.alt = prompt;
-      const cap = document.createElement("figcaption");
       const savedNote = d.saved_path ? ` [saved]` : "";
       cap.textContent = `${j.size}, seed ${d.seed}, ${((performance.now() - t0) / 1000).toFixed(0)} s${savedNote}: ${prompt}`;
       fig.append(img, cap);
-      $("img-results").prepend(fig);
     }
   };
   try {
@@ -9841,12 +9878,18 @@ $("img-form").onsubmit = async (ev) => {
       fig.dataset.livePreview = j.job_id;
       const img = document.createElement("img");
       img.alt = prompt;
+      img.hidden = true;   // [FIX 2026-11-14] 首帧落盘前不挂 src：404 会渲染成破图
+      const ph = document.createElement("div");     // [占位卡] 模型加载期的体面过渡：不再破图
+      ph.className = "live-preview-ph";
+      ph.innerHTML = `<span class="live-preview-ph__dot"></span><span class="live-preview-ph__txt"></span>`;
       const cap = document.createElement("figcaption");
       cap.textContent = `${j.size}, seed ${$("img-seed").value || "auto"}, ...: ${prompt}`;
-      fig.append(img, cap);
+      fig.append(ph, img, cap);
       $("img-results").prepend(fig);
       const bust = (u) => u + "?t=" + Date.now();
-      img.src = bust(j.preview_url);
+      const phTxt = ph.querySelector(".live-preview-ph__txt");
+      const setPh = () => { if (ph.isConnected) phTxt.textContent = t("img.generating") + " · " + Math.round((performance.now() - t0) / 1000) + "s"; };
+      setPh();
       // [停止生成] 预览下方放一个停止按钮；点击即取消后台任务并收尾轮询。
       const stopBtn = document.createElement("button");
       stopBtn.type = "button";
@@ -9883,7 +9926,7 @@ $("img-form").onsubmit = async (ev) => {
           const pj = await pr.json();
           if (!pr.ok) throw new Error((pj.error && pj.error.message) || ("HTTP " + pr.status));
           if (pj.status === "done") {
-            if (pj.result) renderResult(pj.result);   // 成品 prepend 到结果区顶部
+            if (pj.result) renderResult(pj.result, fig);   // [原地升级] 预览 fig 就地换成品，不留残留
             $("img-hint").textContent = t("img.done");
             $("img-go").disabled = false;             // 收尾解锁按钮
             return;
@@ -9897,7 +9940,10 @@ $("img-form").onsubmit = async (ev) => {
             if (!stopBtn.dataset.done) finalizeCancelled();
             return;
           }
-          if (pj.preview_url) img.src = bust(pj.preview_url);   // 进行中：刷新预览
+          if (pj.preview_ready) {                   // [占位卡] 引擎真画出来了才切 <img>
+            img.hidden = false; ph.remove();
+            img.src = bust(pj.preview_url);
+          } else setPh();                           // 还在加载：占位卡刷新秒数
           $("img-hint").textContent = t("img.generating");
           setTimeout(poll, 2000);                      // 每约2秒刷新一次
         } catch (e) {                                   // 网络抖动：下一拍再试

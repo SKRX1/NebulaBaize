@@ -91,7 +91,12 @@ TURBO_CFG = 1.0
 # [实时预览 2026-11-14 方案A] 本地生成异步化：后台线程跑 sd-cli（拼 --preview），主线程立即返回
 # job_id+preview_url，前端每约2秒轮询 GET /api/image-preview?job= 刷新预览图。预览 png 落在
 # data/generated/previews/ 下（静态服务 data/generated/ 前缀天然覆盖子目录）。
-PREVIEWS_DIR = os.path.join(ROOT, "data", "generated", "previews")
+# [FIX 2026-11-14] sd-cli 误读 CJK 路径（与 ASCII 模型缓存同根因）：ROOT 含中文时预览必须
+# 落 ASCII 物理目录，否则引擎每步画的预览全写进它看不见的路径，前端永远 404 破图。
+# 物理改道、URL 不变：静态服务把 data/generated/previews/ 前缀映射到这里（照 data/uploads/ 先例）。
+PREVIEWS_ASCII = r"C:\Users\sk\strata_snapshots\previews"   # 快照惯例目录（重启报告也写在那）
+PREVIEWS_DIR = PREVIEWS_ASCII if not os.path.join(ROOT, "data", "generated", "previews").isascii() \
+    else os.path.join(ROOT, "data", "generated", "previews")
 _IMAGE_JOBS = {}            # job_id -> {status, preview_url, result, error}
 class _ProcRc:
     """[停止生成] 轻量 shim：让 _run_cancellable 的返回值兼容 subprocess.run 的 .returncode/.stderr。"""
@@ -1558,7 +1563,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
         elif clean.startswith("data/generated/"):
             # generated images live in ROOT/data/generated (OUTSIDE the web root).
             rel = clean[len("data/generated/"):]
-            filepath = Path(ROOT) / "data" / "generated" / rel.lstrip("/")
+            if PREVIEWS_DIR != os.path.join(ROOT, "data", "generated", "previews") \
+                    and rel.replace("\\", "/").startswith("previews/"):
+                # [FIX 2026-11-14] 预览子目录被 ASCII 改道时，URL 不变、物理路径映射过去
+                filepath = Path(PREVIEWS_DIR) / rel[len("previews/"):].lstrip("/")
+            else:
+                filepath = Path(ROOT) / "data" / "generated" / rel.lstrip("/")
         else:
             # Try as a direct file in WEB_DIR
             filepath = Path(WEB_DIR) / clean
@@ -1570,7 +1580,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
             uploads_root = (Path(ROOT) / "data" / "uploads").resolve()
             generated_root = (Path(ROOT) / "data" / "generated").resolve()
             if not (str(filepath).startswith(str(web_root)) or str(filepath).startswith(str(uploads_root))
-                    or str(filepath).startswith(str(generated_root))):
+                    or str(filepath).startswith(str(generated_root))
+                    or str(filepath).startswith(str(Path(PREVIEWS_DIR).resolve()))):
                 self._json(403, {"error": {"type": "forbidden", "message": "path outside web root"}})
                 return
         except Exception:
@@ -1968,12 +1979,22 @@ class GatewayHandler(BaseHTTPRequestHandler):
             w, h = (int(x) for x in size.lower().split("x", 1))
         except Exception:
             w, h = 512, 512
-        seed = int(payload.get("seed") or 0)
+        _seed_raw = payload.get("seed")
+        if isinstance(_seed_raw, bool) or _seed_raw is None or _seed_raw == "" or _seed_raw == 0:
+            import random as _rnd
+            seed = _rnd.randint(1, 2**31 - 1)   # 留空=真随机（旧代码把空当 0，0 是合法固定种子→完全复现=雷同根因）
+        else:
+            try:
+                seed = int(_seed_raw)
+            except (TypeError, ValueError):
+                import random as _rnd
+                seed = _rnd.randint(1, 2**31 - 1)
         n = int(payload.get("n") or 1)
         resp_fmt = payload.get("response_format") or "b64_json"
         # generation request params (txt2img / img2img / edit) — pass through to the engine
         genreq = {
-            "negative":   payload.get("negative_prompt") or payload.get("n") or "",
+            "negative":   payload.get("negative_prompt")
+                     or (payload.get("n") if isinstance(payload.get("n"), str) else "") or "",   # [FIX] n=OpenAI 数量字段，别名只认 str，否则 n=2 被当负向词喵 f.write(int) 崩
             "steps":      payload.get("steps") or TURBO_STEPS,          # [默认档] 留空=Turbo 官方 8 步
             "cfg_scale":  payload.get("cfg_scale") or TURBO_CFG,        # [默认档] 留空=Turbo 官方 CFG 1
             "cpu_offload": payload.get("cpu_offload", False),   # [默认不勾=更快] 显存够用；不足时勾上(走PCIe搬运很慢)            # [CPU卸载 建议开启] 默认开
@@ -1981,6 +2002,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "init_image": payload.get("init_image"),   # data URL or absolute path
             "strength":   payload.get("strength"),     # img2img redraw amount
             "ref_images": payload.get("ref_images"),   # edit: list of data URLs / paths
+            "sampling_method": payload.get("sampling_method"),   # [增变化] 实测同seed下换采样方法MD5不同
+            "scheduler": payload.get("scheduler"),               # [增变化] karras等调度器改sigma分布
+            "eta": payload.get("eta"),                           # [增变化] 噪声乘子>0注入额外随机性
         }
 
         cfg = self._load_image_settings()
@@ -2093,6 +2117,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
             cmd += ["--cfg-scale", str(float(genreq["cfg_scale"]))]
         if genreq.get("cpu_offload"):              # [CPU卸载 建议开启] 权重驻 RAM 省显存，需要时搬进显存
             cmd += ["--offload-to-cpu", "--mmap"]
+        if genreq.get("sampling_method"):          # [增变化] 仅用户填了才传
+            cmd += ["--sampling-method", str(genreq["sampling_method"])]
+        if genreq.get("scheduler"):                # [增变化] 仅用户填了才传
+            cmd += ["--scheduler", str(genreq["scheduler"])]
+        if genreq.get("eta") not in (None, "", 0): # [增变化] eta=0=引擎默认，不传
+            cmd += ["--eta", str(float(genreq["eta"]))]
         if exe.lower().endswith(".py"):   # a python-script runner needs the interpreter prefix
             cmd = [sys.executable] + cmd   # a compiled sd-cli exe is used as-is
         # ── img2img / edit inputs: copy the uploaded image into the work dir under an ASCII
@@ -2264,7 +2294,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if job is None:
                 self._json(404, {"error": {"type": "not_found", "message": "unknown job_id"}})
                 return
-            snapshot = dict(job)
+            # [FIX 2026-11-14] 快照必须剔除内部字段：cancel=threading.Event、proc=Popen 都不可
+            # json 序列化，旧代码 dict(job) 全量快照 → _json 里 json.dumps 抛 TypeError →
+            # handler 崩、连接被掐 → 前端轮询永远 RemoteDisconnected（「看不到进度/结果」的根因）。
+            snapshot = {k: v for k, v in job.items() if k not in ("cancel", "proc")}
+            # [FIX 2026-11-14] 就绹位：预览 png 真落盘了才让前端挂 src（否则 404 破图）
+            snapshot["preview_ready"] = bool(snapshot.get("preview_url")) and os.path.isfile(
+                os.path.join(PREVIEWS_DIR, os.path.basename(snapshot["preview_url"])))
         if snapshot["status"] in ("done", "cancelled", "error"):   # 终态读后回收（预览图保留）
             with _IMAGE_JOBS_LOCK:
                 _IMAGE_JOBS.pop(job_id, None)
