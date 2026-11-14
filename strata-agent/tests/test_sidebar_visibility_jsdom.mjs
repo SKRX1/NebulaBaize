@@ -51,6 +51,7 @@ appCode += `
   getTab: () => tab,
   sidebarVisApply,
   renderSidebarSettings,
+  showTab,
   $,
 };`;
 
@@ -141,6 +142,27 @@ console.log("\n=== E. USER EXACT PATH: from clean default -> OPEN images -> RESE
     JSON.stringify(api.getSettings().sidebarTabs) === JSON.stringify(def), JSON.stringify(api.getSettings().sidebarTabs));
   check("E-2: after RESET, localStorage persisted == clean DEFAULTS",
     JSON.stringify(LS().sidebarTabs) === JSON.stringify(def), JSON.stringify(LS().sidebarTabs));
+}
+
+console.log("\n=== F. EXPLICIT E2E PATH: gear switch ON for images -> ENTER images page -> LEFT SIDEBAR APPEARS ===");
+{
+  // The user-named end-to-end: from clean default, the images page HIDES the left task-list
+  // column; flipping the gear-modal switch ON makes it APPEAR when you enter the images page.
+  const def = api.DEFAULTS.sidebarTabs;
+  api.$("sidevis-reset").onclick();   // guarantee a clean DEFAULTS baseline (images NOT shown)
+  check("F-pre: clean default, images NOT in show list", !api.getSettings().sidebarTabs.includes("images"), JSON.stringify(api.getSettings().sidebarTabs));
+  api.showTab("images");              // ENTER the images page while it is still hidden-by-default
+  check("F-1: on images page BEFORE switch -> left sidebar HIDDEN (body.no-sidebar=true)",
+    win.document.body.classList.contains("no-sidebar"), "got=" + win.document.body.classList.contains("no-sidebar"));
+  row("images").onclick();            // flip the gear-modal images switch ON (live onclick)
+  api.showTab("images");              // re-enter the images page (showTab -> sidebarVisApply)
+  check("F-2: images switch now aria-checked=true + settings includes it",
+    row("images").getAttribute("aria-checked") === "true" && api.getSettings().sidebarTabs.includes("images"));
+  check("F-3: AFTER switch, on images page -> LEFT SIDEBAR APPEARS (no no-sidebar)",
+    !win.document.body.classList.contains("no-sidebar"), "got=" + win.document.body.classList.contains("no-sidebar"));
+  check("F-3: persisted to localStorage (shows images)", (LS().sidebarTabs || []).includes("images"), JSON.stringify(LS().sidebarTabs));
+  // restore default so the run leaves storage tidy
+  api.$("sidevis-reset").onclick();
 }
 
 console.log("\nRESULT: " + (FAILURES.length === 0 ? "ALL PASS" : "FAILURES: " + FAILURES.join(", ")));

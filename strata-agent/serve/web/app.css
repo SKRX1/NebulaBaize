@@ -1,4 +1,4 @@
-/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
+﻿/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
    shadows come only from the kit's tokens. */
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -529,6 +529,8 @@ main { flex: 1; min-height: 0; display: flex; }
               font-weight: var(--st-fw-medium); color: var(--st-ink-soft); }
 .toggle-row .st-toggle { flex: none; }   /* a long label must not squeeze the switch */
 .toggle-row--sub { padding-left: var(--st-s-3); }
+.sidebar-settings__list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: var(--st-s-2); }
+.sidebar-settings__list .toggle-row { font-size: var(--st-fs-base); }
 .st-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs-sm); color: var(--st-ink-soft); cursor: pointer; }
 .st-check input { accent-color: var(--st-accent); }
 .st-textarea { width: 100%; min-height: 56px; resize: vertical; line-height: 1.5; font: 400 var(--st-fs-sm)/1.5 var(--st-font);
@@ -1554,3 +1556,17 @@ audio.md-media { height: 38px; }
 .chat-empty .bz-eyes  { animation: bz-glow 3.2s ease-in-out infinite; }
 @keyframes bz-breathe { 0%,100% { opacity:.95; transform: scale(1); } 50% { opacity:1; transform: scale(1.04); } }
 @keyframes bz-glow { 0%,100% { opacity:.8; } 50% { opacity:1; } }
+/* img2img / edit live preview strip */
+.img-gen-preview{margin-top:6px;display:flex;align-items:center;gap:8px}
+.img-gen-preview img{border-radius:6px;max-width:220px;max-height:160px;object-fit:contain}
+
+/* image page: resolution-tier + ratio chips (click presets W/H; W/H stay editable) */
+.img-chips { flex-wrap: wrap; align-items: center; gap: 6px; }
+.img-chips > span { color: var(--st-ink-soft); font-size: var(--st-fs-sm); margin-right: 2px; }
+.st-chip { height: 28px; padding: 0 12px; border-radius: var(--st-r-pill); cursor: pointer;
+  font: 400 var(--st-fs-sm) var(--st-font); color: var(--st-ink-soft);
+  background: transparent; border: 1px solid var(--st-line); }
+.st-chip:hover { color: var(--st-ink); border-color: var(--st-ink-soft); }
+.st-chip.is-active { color: var(--st-accent); border-color: var(--st-accent); background: var(--st-accent-tint); }
+.img-ratio-custom { width: 88px; height: 28px; padding: 0 8px; font-size: var(--st-fs-sm); }
+.img-ratio-custom.is-error { border-color: var(--st-danger); }

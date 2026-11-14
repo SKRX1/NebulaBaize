@@ -58,7 +58,7 @@ check("inlineMedia() keeps the /data/uploads/ image branch", imFn.includes(ESC))
 check("http_server routes data/uploads/ prefix", /clean\.startswith\("data\/uploads\/"\)/.test(srv));
 check("http_server maps it to ROOT/data/uploads", /Path\(ROOT\)\s*\/\s*"data"\s*\/\s*"uploads"/.test(srv));
 check("http_server security check ALSO allows the uploads root prefix",
-      /uploads_root[\s\S]{0,160}startswith\(str\(uploads_root\)\)/.test(srv) &&
+      /uploads_root[\s\S]{0,260}startswith\(str\(uploads_root\)\)/.test(srv) &&
       /startswith\(str\(web_root\)\)\s*or[\s\S]{0,40}startswith\(str\(uploads_root\)\)/.test(srv));
 
 /* ─── LAYER 2: behaviour differential (pure-string replica of the render chain) ─ */

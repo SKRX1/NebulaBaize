@@ -180,6 +180,7 @@ let tab = "chat";
 let inspectorOpen = store.get("inspector.open", true);   // declared early: applyInspector() runs before this line's original spot
 function showTab(name) {
   tab = ["chat", "images", "monitor", "tools", "about", "memory", "spark", "debug", "donate", "schedule"].includes(name) ? name : "chat";
+  if (tab === "images") loadImageSettings();
   // the left sidebar (task list) shows on chat / spark / debug; every other tab lets
   // the view take the full width. The class is added for the full-width tabs (never
   // removed by default), so a JS-less first paint still shows the sidebar — fail
@@ -295,7 +296,7 @@ async function loadHealth() {
     health = await (await fetch("health")).json();
     $("attach-btn").title = health.images ? t("chat.attach.images") : t("chat.attach");
     $("chat-empty-sub").textContent = t("chat.empty.sub.model", {model: health.model});
-    $("tab-btn-images").hidden = !health.image_generation;
+    $("tab-btn-images").hidden = false;  // always visible on the top bar (per user); configure from inside
     if (location.hash === "#images" && health.image_generation) showTab("images");
   } catch (e) {
     setTimeout(loadHealth, 2000);
@@ -2034,6 +2035,11 @@ function wbChoose() {
   if (!wbCurrent) return;
   $("ws-path").value = wbCurrent;   // the real absolute path, always
   updateResolved();
+  if (_imgBrowseCb) {
+    const cbEl = document.getElementById(_imgBrowseCb);
+    if (cbEl) cbEl.value = wbCurrent;
+    _imgBrowseCb = null;
+  }
   closeBrowser();
   $("ws-path").focus();
 }
@@ -9580,30 +9586,286 @@ showTab(location.hash.slice(1) || "chat");
 if (startModal === "sched") setTimeout(() => openSchedModal(null), 0);   // ?modal=sched deep-links the create modal (headless-screenshot reachable; deferred one task = after top-level let/const are initialized, TDZ)
 poll();
 
+// ── image config: two-slot settings (local direct + external API) ──────────────
+// Added 2026-11-13 per user decision. The frontend keeps two config slots; runtime
+// picks local-first (per user decision). Paths are never preset — the backend reads
+// from config/image_settings.json and the frontend loads/saves via /api/image-settings.
+
+let _imgBrowseCb = null;   // input id to fill when browse confirms (null = default workspace picker)
+
+function browseInto(inputId, startPath) {
+  _imgBrowseCb = inputId;
+  openBrowser(startPath || "");
+}
+
+async function loadImageSettings() {
+  try {
+    const r = await fetch("api/image-settings", {headers: headers()});
+    if (!r.ok) return;
+    const cfg = await r.json();
+    const mode = cfg.mode || "local";
+    const local = cfg.local || {};
+    const api   = cfg.api   || {};
+    const el = (id) => document.getElementById(id);
+    if (el("img-cfg-mode"))      el("img-cfg-mode").value = mode;
+    if (el("img-cfg-model-dir")) el("img-cfg-model-dir").value = local.model_dir || local._model_dir || "";
+    if (el("img-cfg-exe"))       el("img-cfg-exe").value = local.exe || "";
+    if (el("img-cfg-api-url"))   el("img-cfg-api-url").value = api.base_url || "";
+    if (el("img-cfg-api-key"))   el("img-cfg-api-key").value = api.api_key || "";
+    if (el("img-cfg-api-model")) el("img-cfg-api-model").value = api.model || "";
+  } catch (e) { /* page just loaded or server offline */ }
+}
+
+async function saveImageSettings() {
+  const el = (id) => document.getElementById(id);
+  const mode      = el("img-cfg-mode") ? el("img-cfg-mode").value : "local";
+  const model_dir = el("img-cfg-model-dir") ? el("img-cfg-model-dir").value.trim() : "";
+  const exe       = el("img-cfg-exe") ? el("img-cfg-exe").value.trim() : "";
+  const api_url   = el("img-cfg-api-url") ? el("img-cfg-api-url").value.trim() : "";
+  const api_key   = el("img-cfg-api-key") ? el("img-cfg-api-key").value.trim() : "";
+  const api_model = el("img-cfg-api-model") ? el("img-cfg-api-model").value.trim() : "";
+  const body = {
+    mode,
+    local: { model_dir, exe,
+             diffusion_model: model_dir ? model_dir.replace(/[\\\/]+$/, "") + "\\diffusion_model.gguf" : "",
+             vae:             model_dir ? model_dir.replace(/[\\\/]+$/, "") + "\\vae.gguf"             : "",
+             llm:             model_dir ? model_dir.replace(/[\\\/]+$/, "") + "\\llm.gguf"             : "" },
+    api:   { base_url: api_url, api_key, model: api_model }
+  };
+  try {
+    const r = await fetch("api/image-settings", {method: "POST", headers: headers(true), body: JSON.stringify(body)});
+    if (!r.ok) throw new Error((await r.json()).error.message);
+    const saved = el("img-cfg-saved");
+    if (saved) { saved.style.display = ""; setTimeout(() => { saved.style.display = "none"; }, 2500); }
+    // re-show the tab in case health was false before this save
+    loadHealth && loadHealth();
+  } catch (e) { alert("save failed: " + e.message); }
+}
+
+// wire the buttons once DOM is ready (deferred via setTimeout so we don't collide with i18n/init code)
+setTimeout(() => {
+  const el = (id) => document.getElementById(id);
+  if (el("img-cfg-save"))       el("img-cfg-save").onclick       = saveImageSettings;
+  if (el("img-cfg-browse-model")) el("img-cfg-browse-model").onclick = () => browseInto("img-cfg-model-dir");
+  if (el("img-cfg-browse-exe")) el("img-cfg-browse-exe").onclick = () => browseInto("img-cfg-exe");
+  // load existing config on page ready
+  loadImageSettings();
+}, 200);
+// ─────────────────────────────────────────────────────────────────────────────────
 // ------------------------------------------------------------------ images (POST /v1/images/generations)
+// gen-mode show/hide rows
+if ($("img-gen-mode")) {
+  const showRows = (mode) => {
+    const i2r = $("img-gen-img2img-row"), er = $("img-gen-edit-row"), pv = $("img-gen-preview");
+    if (i2r) i2r.style.display = (mode === "img2img") ? "" : "none";
+    if (er)   er.style.display   = (mode === "edit")     ? "" : "none";
+    if (pv)   pv.style.display   = "none";
+  };
+  $("img-gen-mode").addEventListener("change", (e) => showRows(e.target.value));
+  showRows($("img-gen-mode").value);
+}
+// browse-image buttons: forward click to hidden file input
+if ($("img-init-browse")) $("img-init-browse").addEventListener("click", () => { const fi = $("img-init-file"); if (fi) fi.click(); });
+if ($("img-ref-browse"))  $("img-ref-browse").addEventListener("click",  () => { const fr = $("img-ref-file");  if (fr) fr.click(); });
+// live thumbnail after file selection
+function _imgFilePreview(inputId, previewId) {
+  const inp = $(inputId), pc = $(previewId);
+  if (!inp || !pc) return;
+  inp.addEventListener("change", () => {
+    const f = inp.files && inp.files[0];
+    if (!f) { pc.style.display = "none"; return; }
+    const url = URL.createObjectURL(f);
+    const old = pc.querySelector("img"); if (old) old.remove();
+    const img = document.createElement("img"); img.src = url;
+    pc.append(img); pc.style.display = "";
+  });
+}
+_imgFilePreview("img-init-file", "img-gen-preview");
+_imgFilePreview("img-ref-file",  "img-gen-preview");
+
+// ── resolution tier + ratio chips → fill the editable W/H inputs ────────────────
+// Click a chip = preset (long edge follows the tier: 1K=1024 / 2K=2048 / 4K=4096,
+// ratio splits it, snapped to ×8 for the latent grid); typing W/H stays free-form —
+// the engine gets exactly what the inputs show. Custom ratio box: "a:b" like 16:10.
+(function () {
+  const $id = (x) => document.getElementById(x);
+  const TIER = { "1": 1024, "2": 2048, "3": 4096 };   // tier -> long-edge base px
+  let tier = "1", ratio = "1:1";
+  const parseRatio = (txt) => {
+    const m = /^(\d+(?:\.\d+)?)[ :]+(\d+(?:\.\d+)?)$/.exec((txt || "").trim());
+    if (!m) return null;
+    const a = parseFloat(m[1]), b = parseFloat(m[2]);
+    return (a > 0 && b > 0) ? [a, b] : null;
+  };
+  const snap = (v) => Math.max(64, Math.min(4096, Math.round(v / 8) * 8));
+  function apply() {
+    const r = parseRatio(ratio) || [1, 1];
+    const long = TIER[tier] || 1024;
+    const w = $id("img-width"), h = $id("img-height");
+    if (!w || !h) return;
+    if (r[0] >= r[1]) { w.value = snap(long); h.value = snap(long * r[1] / r[0]); }
+    else              { h.value = snap(long); w.value = snap(long * r[0] / r[1]); }
+  }
+  function wire(rowId, attr) {
+    const row = $id(rowId);
+    if (!row) return;
+    row.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-" + attr + "]");
+      if (!btn) return;
+      row.querySelectorAll("[data-" + attr + "]").forEach((b) => b.classList.toggle("is-active", b === btn));
+      if (attr === "imgres") tier = btn.getAttribute("data-imgres");
+      else ratio = btn.getAttribute("data-imgratio");
+      apply();
+    });
+  }
+  wire("img-res-row", "imgres");
+  wire("img-ratio-row", "imgratio");
+  const rc = $id("img-ratio-custom");
+  if (rc) rc.addEventListener("change", () => {
+    const r = parseRatio(rc.value);
+    if (!r && rc.value.trim()) { rc.classList.add("is-error"); return; }
+    rc.classList.remove("is-error");
+    if (!r) return;
+    ratio = r[0] + ":" + r[1];
+    const row = $id("img-ratio-row");
+    row.querySelectorAll("[data-imgratio]").forEach((b) => b.classList.remove("is-active"));
+    apply();
+  });
+})();
+
 $("img-form").onsubmit = async (ev) => {
   ev.preventDefault();
   const prompt = $("img-prompt").value.trim();
   if (!prompt) return;
-  const body = {prompt, size: $("img-size").value, response_format: "b64_json"};
+  const genMode = $("img-gen-mode") ? $("img-gen-mode").value : "txt2img";
+  const body = {prompt, size: "1024x1024", response_format: "b64_json", gen_mode: genMode};
+  { // explicit W/H (chips fill these; user typing wins) + negative + sampler params
+    const wEl = $("img-width"), hEl = $("img-height");
+    if (wEl && hEl && Number(wEl.value) > 0 && Number(hEl.value) > 0)
+      body.size = Math.round(Number(wEl.value)) + "x" + Math.round(Number(hEl.value));
+    const ng = $("img-negative");
+    if (ng && ng.value.trim()) body.negative_prompt = ng.value.trim();
+    const st = $("img-steps"), cf = $("img-cfg-scale");
+    if (st && st.value) body.steps = Math.round(Number(st.value));
+    if (cf && cf.value) body.cfg_scale = Number(cf.value);
+    const co = $("img-cpu-offload"); if (co) body.cpu_offload = co.checked;
+  }
+  const cfgEl = (id) => document.getElementById(id);
+  if (cfgEl("img-cfg-mode")) body.mode = cfgEl("img-cfg-mode").value;
+  if (cfgEl("img-cfg-model-dir") && cfgEl("img-cfg-model-dir").value.trim()) body.model_dir = cfgEl("img-cfg-model-dir").value.trim();
   if ($("img-seed").value !== "") body.seed = Number($("img-seed").value);
+  if (cfgEl("img-cfg-mode") && cfgEl("img-cfg-mode").value === "local") body.async_preview = true;
+  if (genMode === "img2img") {
+    const fi = $("img-init-file");
+    if (fi && fi.files && fi.files[0]) {
+      const rd = new FileReader();
+      await new Promise(r => { rd.onload = r; rd.readAsDataURL(fi.files[0]); });
+      body.init_image = rd.result;
+    }
+    if ($("img-strength") && $("img-strength").value) body.strength = Number($("img-strength").value);
+  } else if (genMode === "edit") {
+    const fr = $("img-ref-file");
+    if (fr && fr.files && fr.files[0]) {
+      const rd2 = new FileReader();
+      await new Promise(r => { rd2.onload = r; rd2.readAsDataURL(fr.files[0]); });
+      body.ref_images = [rd2.result];
+    }
+    if ($("img-strength") && $("img-strength").value) body.strength = Number($("img-strength").value);
+  }
   $("img-go").disabled = true;
   const t0 = performance.now();
   $("img-hint").textContent = t("img.generating");
+  // [实时预览 方案A] 渲染结果（同步/异步完成时共用）。
+  const renderResult = (j) => {
+    for (const d of j.data) {
+      const fig = document.createElement("figure");
+      const img = document.createElement("img");
+      img.src = d.url || ("data:image/png;base64," + d.b64_json);
+      img.alt = prompt;
+      const cap = document.createElement("figcaption");
+      const savedNote = d.saved_path ? ` [saved]` : "";
+      cap.textContent = `${j.size}, seed ${d.seed}, ${((performance.now() - t0) / 1000).toFixed(0)} s${savedNote}: ${prompt}`;
+      fig.append(img, cap);
+      $("img-results").prepend(fig);
+    }
+  };
   try {
     const r = await fetch("v1/images/generations", {method: "POST", headers: headers(true), body: JSON.stringify(body)});
     const j = await r.json();
     if (!r.ok) throw new Error((j.error && j.error.message) || r.statusText);
-    for (const d of j.data) {
+    if (j.job_id) {
+      // 异步：先放一张实时预览图（带缓存穿透时间戳），每约2秒轮询刷新，done 时渲染成品。
       const fig = document.createElement("figure");
+      fig.dataset.livePreview = j.job_id;
       const img = document.createElement("img");
-      img.src = "data:image/png;base64," + d.b64_json;
       img.alt = prompt;
       const cap = document.createElement("figcaption");
-      cap.textContent = `${j.size}, seed ${d.seed}, ${((performance.now() - t0) / 1000).toFixed(0)} s: ${prompt}`;
+      cap.textContent = `${j.size}, seed ${$("img-seed").value || "auto"}, ...: ${prompt}`;
       fig.append(img, cap);
       $("img-results").prepend(fig);
+      const bust = (u) => u + "?t=" + Date.now();
+      img.src = bust(j.preview_url);
+      // [停止生成] 预览下方放一个停止按钮；点击即取消后台任务并收尾轮询。
+      const stopBtn = document.createElement("button");
+      stopBtn.type = "button";
+      stopBtn.className = "st-btn st-btn--secondary st-btn--sm live-preview-stop";
+      stopBtn.textContent = t("img.stopgen");
+      stopBtn.dataset.job = j.job_id;
+      let cancelled = false;               // 防重复点
+      const finalizeCancelled = () => {
+        if (stopBtn.dataset.done) return; stopBtn.dataset.done = "1";
+        stopBtn.remove();                 // 移除停止按钮
+        $("img-hint").textContent = t("img.cancelled");
+        $("img-go").disabled = false;      // 解锁生成按钮
+      };
+      stopBtn.addEventListener("click", async () => {
+        if (cancelled) return;
+        try { if (!window.confirm(t("img.stopgen.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
+        cancelled = true;
+        try {
+          const cr = await fetch("api/image-cancel?job=" + encodeURIComponent(j.job_id), {method: "POST", headers: headers(true)});
+          const cj = await cr.json().catch(() => ({}));
+          if (!cr.ok) throw new Error((cj.error && cj.error.message) || ("HTTP " + cr.status));
+          // 取消成功：轮询循环会在收到 cancelled 时收尾；这里也立即收尾 UI 以免再等一拍。
+          finalizeCancelled();
+          fig.dataset.livePreview = "cancelled";   // 让 poll 循环看到后自行停止
+        } catch (e) {
+          cancelled = false;              // 失败允许再点
+          toast("error", t("toast.noimage.title"), String(e.message || e), 6000);
+        }
+      });
+      fig.append(stopBtn);
+      const poll = async () => {
+        try {
+          const pr = await fetch("api/image-preview?job=" + encodeURIComponent(j.job_id), {headers: headers()});
+          const pj = await pr.json();
+          if (!pr.ok) throw new Error((pj.error && pj.error.message) || ("HTTP " + pr.status));
+          if (pj.status === "done") {
+            if (pj.result) renderResult(pj.result);   // 成品 prepend 到结果区顶部
+            $("img-hint").textContent = t("img.done");
+            $("img-go").disabled = false;             // 收尾解锁按钮
+            return;
+          }
+          if (pj.status === "error") {                 // 失败：移除预览占位、报错、解锁
+            fig.remove(); $("img-hint").textContent = "";
+            toast("error", t("toast.noimage.title"), String(pj.error || ""), 8000);
+            $("img-go").disabled = false; return;
+          }
+          if (pj.status === "cancelled" || fig.dataset.livePreview === "cancelled") {  // [停止生成] 取消收尾
+            if (!stopBtn.dataset.done) finalizeCancelled();
+            return;
+          }
+          if (pj.preview_url) img.src = bust(pj.preview_url);   // 进行中：刷新预览
+          $("img-hint").textContent = t("img.generating");
+          setTimeout(poll, 2000);                      // 每约2秒刷新一次
+        } catch (e) {                                   // 网络抖动：下一拍再试
+          setTimeout(poll, 2000);
+        }
+      };
+      poll();                                          // 立即首拍（此后每2秒）
+      return;                                          // 异步路径不在此解锁/收尾
     }
+    renderResult(j);                                   // 同步路径：原样渲染
     $("img-hint").textContent = t("img.done");
   } catch (e) {
     $("img-hint").textContent = "";

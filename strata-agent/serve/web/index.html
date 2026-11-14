@@ -142,6 +142,8 @@
   <button class="st-btn st-btn--icon" id="theme-btn" title="Light / dark" aria-label="Switch between light and dark"
           data-i18n-attr="title:hdr.theme,aria-label:hdr.theme">
     <svg class="st-icon"><use id="theme-icon" href="web/sprite.svg#i-moon"/></svg></button>
+  <button class="st-btn st-btn--icon" id="sidebar-settings-btn" title="侧栏显示设置" aria-label="侧栏显示设置" data-i18n-attr="title:sidebar.settings.btn,aria-label:sidebar.settings.btn">
+    <svg class="st-icon"><use href="web/sprite.svg#i-settings"/></svg></button>
   <button class="st-btn st-btn--icon" id="inspector-toggle" title="任务面板（上下文 / 进度 / 文件 / 测试）" aria-label="任务面板"
           data-i18n-attr="title:hdr.inspector,aria-label:hdr.inspector">
     <svg class="st-icon"><use href="web/sprite.svg#i-panel"/></svg></button>
@@ -293,22 +295,124 @@
   </section>
 
   <!-- ============================ Images ============================ -->
-  <section class="view view--images" id="view-images" role="tabpanel" aria-labelledby="tab-btn-images" hidden>
+  <section class="view view--images view--scroll" id="view-images" role="tabpanel" aria-labelledby="tab-btn-images" hidden>
     <div class="about">
       <form class="st-card img-form" id="img-form">
         <span class="card-title" id="img-title" data-i18n="img.title">Make an image</span>
         <textarea class="st-input img-prompt" id="img-prompt" rows="3" placeholder="Describe the image…" aria-label="Prompt"
                   data-i18n-attr="placeholder:img.placeholder,aria-label:img.prompt.label"></textarea>
+        <div class="img-row" id="img-gen-mode-row">
+          <label class="st-field"><span data-i18n="img.genmode">Mode</span>
+            <select class="st-input" id="img-gen-mode">
+              <option value="txt2img" data-i18n="img.genmode.txt2img">Text → Image</option>
+              <option value="img2img" data-i18n="img.genmode.img2img">Image → Image</option>
+              <option value="edit" data-i18n="img.genmode.edit">Image Edit</option>
+            </select></label>
+          <span class="composer-hint" data-i18n="img.genmode.hint">切换上方模式即可使用图生图 / 图片编辑——切过去后上传与强度行会自动出现。</span>
+        </div>
+        <!-- img2img upload + strength (shown when gen_mode=img2img) -->
+        <div class="img-row img-gen-img2img" id="img-gen-img2img-row" style="display:none">
+          <label class="st-field" style="flex:1"><span data-i18n="img.init_image">Source image</span>
+            <input class="st-input" id="img-init-file" type="file" accept="image/*" hidden></label>
+          <button type="button" class="st-btn st-btn--ghost" id="img-init-browse" data-i18n="img.browse_image">Browse…</button>
+          <label class="st-field"><span data-i18n="img.strength">Strength</span>
+            <input class="st-input" id="img-strength" type="number" min="0.1" max="1.0" step="0.05" value="0.75"></label>
+        </div>
+        <div class="img-gen-preview" id="img-gen-preview" style="display:none">
+          <img id="img-gen-preview-img" alt="" style="max-width:200px;max-height:150px;border-radius:6px">
+        </div>
+        <!-- edit ref images (shown when gen_mode=edit) -->
+        <div class="img-row img-gen-edit" id="img-gen-edit-row" style="display:none">
+          <label class="st-field" style="flex:1"><span data-i18n="img.ref_images">Reference image</span>
+            <input class="st-input" id="img-ref-file" type="file" accept="image/*" hidden></label>
+          <button type="button" class="st-btn st-btn--ghost" id="img-ref-browse" data-i18n="img.browse_image">Browse…</button>
+          <span id="img-ref-preview"></span>
+        </div>
+        <textarea class="st-input img-prompt" id="img-negative" rows="2" placeholder="" aria-label="Negative prompt"
+                  data-i18n-attr="placeholder:img.neg.placeholder,aria-label:img.neg.label"></textarea>
+        <!-- resolution tier + ratio chips (click fills W/H below; W/H stay editable) -->
+        <div class="img-row img-chips" id="img-res-row">
+          <span data-i18n="img.resolution">Resolution</span>
+          <button type="button" class="st-chip is-active" data-imgres="1" data-i18n="img.res.1k">1K</button>
+          <button type="button" class="st-chip" data-imgres="2" data-i18n="img.res.2k">2K</button>
+          <button type="button" class="st-chip" data-imgres="3" data-i18n="img.res.4k">4K</button>
+        </div>
+        <div class="img-row img-chips" id="img-ratio-row">
+          <span data-i18n="img.ratio">Ratio</span>
+          <button type="button" class="st-chip is-active" data-imgratio="1:1">1:1</button>
+          <button type="button" class="st-chip" data-imgratio="16:9">16:9</button>
+          <button type="button" class="st-chip" data-imgratio="9:16">9:16</button>
+          <button type="button" class="st-chip" data-imgratio="4:3">4:3</button>
+          <button type="button" class="st-chip" data-imgratio="3:4">3:4</button>
+          <button type="button" class="st-chip" data-imgratio="3:2">3:2</button>
+          <button type="button" class="st-chip" data-imgratio="2:3">2:3</button>
+          <button type="button" class="st-chip" data-imgratio="21:9">21:9</button>
+          <input class="st-input img-ratio-custom" id="img-ratio-custom" type="text" placeholder="16:10"
+                 data-i18n-attr="placeholder:img.ratio.custom.ph" aria-label="Custom ratio">
+        </div>
         <div class="img-row">
-          <label class="st-field"><span data-i18n="img.size">Size</span>
-            <select class="st-input" id="img-size">
-              <option>1024x1024</option><option>1536x1024</option><option>1024x1536</option>
-              <option>768x768</option><option>512x512</option></select></label>
+          <label class="st-field"><span data-i18n="img.width">Width</span>
+            <input class="st-input" id="img-width" type="number" min="64" max="4096" step="8" value="1024"></label>
+          <label class="st-field"><span data-i18n="img.height">Height</span>
+            <input class="st-input" id="img-height" type="number" min="64" max="4096" step="8" value="1024"></label>
+          <label class="st-field"><span data-i18n="img.steps">Steps</span>
+            <input class="st-input" id="img-steps" type="number" min="4" max="150" value="8"></label>
+          <label class="st-field"><span data-i18n="img.cfg_scale">CFG</span>
+            <input class="st-input" id="img-cfg-scale" type="number" min="1" max="20" step="0.5" value="1"></label>
+        </div>
+        <div class="img-row">
           <label class="st-field"><span data-i18n="img.seed">Seed</span>
             <input class="st-input" id="img-seed" type="number" min="0" placeholder="random"
                    data-i18n-attr="placeholder:img.seed.ph"></label>
           <button type="submit" class="st-btn st-btn--primary" id="img-go" data-i18n="img.generate">Generate</button>
         </div>
+        <div class="img-row">
+          <label class="model-check"><input type="checkbox" id="img-cpu-offload"> <span data-i18n="img.cpu_offload">启用CPU卸载（显存不足时建议开启）</span></label>
+        </div>
+        <!-- ── Image config: two slots, runtime mode-selectable (added 2026-11-13) ── -->
+        <div class="img-config" id="img-config">
+          <span class="card-title" data-i18n="img.cfg.title">Image generation config</span>
+          <!-- mode selector -->
+          <div class="img-row">
+            <label class="st-field"><span data-i18n="img.cfg.mode">Mode</span>
+              <select class="st-input" id="img-cfg-mode">
+                <option value="local" data-i18n="img.cfg.mode.local">Local direct (sd-cli)</option>
+                <option value="api" data-i18n="img.cfg.mode.api">External API</option>
+              </select></label>
+            <button type="button" class="st-btn" id="img-cfg-save" data-i18n="img.cfg.save">Save config</button>
+            <span id="img-cfg-saved" style="color:#5ba85b;font-size:0.85em;display:none" data-i18n="img.cfg.saved">Saved</span>
+          </div>
+          <!-- local direct slot -->
+          <div class="img-row">
+            <label class="st-field" style="flex:1"><span data-i18n="img.cfg.model_dir">Model folder</span>
+              <input class="st-input" id="img-cfg-model-dir" type="text"
+                     placeholder="e.g. E:\models\qwen-image" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-model" data-i18n="img.cfg.browse">Browse…</button>
+          </div>
+          <div class="img-row">
+            <label class="st-field" style="flex:1"><span data-i18n="img.cfg.exe">sd-cli exe (optional)</span>
+              <input class="st-input" id="img-cfg-exe" type="text"
+                     placeholder="path to sd-cli (optional)" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-exe" data-i18n="img.cfg.browse">Browse…</button>
+          </div>
+          <span class="composer-hint" data-i18n="img.cfg.local_note">Fill paths then Save.</span>
+          <!-- external API slot -->
+          <div class="img-row">
+            <label class="st-field" style="flex:2"><span data-i18n="img.cfg.api_url">API address</span>
+              <input class="st-input" id="img-cfg-api-url" type="text"
+                     placeholder="http://127.0.0.1:8100/v1  or  https://api.example.com/v1"
+                     autocomplete="off" spellcheck="false"></label>
+          </div>
+          <div class="img-row">
+            <label class="st-field"><span data-i18n="img.cfg.api_key">API Key</span>
+              <input class="st-input" id="img-cfg-api-key" type="password"
+                     placeholder="(optional)" autocomplete="off" spellcheck="false"></label>
+            <label class="st-field"><span data-i18n="img.cfg.api_model">Model name</span>
+              <input class="st-input" id="img-cfg-api-model" type="text"
+                     placeholder="qwen-image-2.1-turbo" autocomplete="off" spellcheck="false"></label>
+          </div>
+          <span class="composer-hint" data-i18n="img.cfg.api_note">Fill API address then Save.</span>
+        </div><!-- /img-config -->
         <span class="composer-hint" id="img-hint" data-i18n="img.hint">One image at a time; a chat request waits for it (and the other way round).</span>
       </form>
       <div class="img-results" id="img-results"></div>
@@ -1211,6 +1315,35 @@
   </div>
 </div>
 
+
+<!-- ============================ Sidebar visibility settings ============================ -->
+<!-- Plan A: one toggle per tab; gear button in the top bar opens it. Persisted in
+     settings.sidebarTabs (the SHOW list). Default 8 show / 2 hide (images, tools). -->
+<div class="st-modal" id="sidebar-modal" hidden role="dialog" aria-modal="true" aria-label="侧栏显示设置" data-i18n-attr="aria-label:sidebar.settings.title">
+  <div class="st-modal__card">
+    <div class="st-modal__head"><span class="card-title" data-i18n="sidebar.settings.title">侧栏显示设置</span>
+      <button class="st-btn st-btn--icon" id="sidebar-settings-close" aria-label="关闭" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chevron"/></svg></button></div>
+    <p class="muted small" data-i18n="sidebar.settings.desc">选择在哪些标签页里显示左侧边栏（任务列表）。</p>
+    <div class="sidebar-settings__list">
+      <div class="toggle-row"><span data-i18n="tab.chat">对话</span><button class="st-toggle" data-sidevis="chat" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.images">图片</span><button class="st-toggle" data-sidevis="images" role="switch" aria-checked="false"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.spark">便签</span><button class="st-toggle" data-sidevis="spark" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="debug.title">调试</span><button class="st-toggle" data-sidevis="debug" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.tools">工具</span><button class="st-toggle" data-sidevis="tools" role="switch" aria-checked="false"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.memory">记忆</span><button class="st-toggle" data-sidevis="memory" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.schedule">定时任务</span><button class="st-toggle" data-sidevis="schedule" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.monitor">监控</span><button class="st-toggle" data-sidevis="monitor" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.about">关于</span><button class="st-toggle" data-sidevis="about" role="switch" aria-checked="true"></button></div>
+      <div class="toggle-row"><span data-i18n="tab.donate">捐助</span><button class="st-toggle" data-sidevis="donate" role="switch" aria-checked="true"></button></div>
+    </div>
+    <div class="st-modal__actions">
+      <button class="st-btn st-btn--ghost" id="sidevis-all" data-i18n="sidebar.settings.showall">全部显示</button>
+      <button class="st-btn st-btn--ghost" id="sidevis-none" data-i18n="sidebar.settings.hideall">全部隐藏</button>
+      <button class="st-btn st-btn--ghost" id="sidevis-reset" data-i18n="sidebar.settings.reset">恢复默认</button>
+    </div>
+  </div>
+</div>
 <!-- ============================ Approval modal ============================ -->
 <div class="approval-modal" id="approval-modal" hidden role="dialog" aria-modal="true" aria-label="Approval required" data-i18n-attr="aria-label:appr.title">
   <div class="approval-modal__card">

@@ -30,6 +30,7 @@ import os
 import queue
 import re
 import select
+import contextlib
 import shutil
 try:
     import psutil
@@ -80,6 +81,24 @@ from executor import is_error, error_code
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.environ.get("WEB_DIR", os.path.join(ROOT, "serve", "web"))
+# Generated images persist here (survives refresh/restart) and are served via _serve_static's data/generated/ route. Created lazily by _gen_local.
+GENERATED_DIR = os.path.join(ROOT, "data", "generated", "images")
+# [Turbo 官方默认档] 前后端留空即用这两个值（Qwen-Image-2.1-Turbo: 8 steps, CFG 1）
+TURBO_STEPS = 8
+TURBO_CFG = 1.0
+
+# [实时预览 2026-11-14 方案A] 本地生成异步化：后台线程跑 sd-cli（拼 --preview），主线程立即返回
+# job_id+preview_url，前端每约2秒轮询 GET /api/image-preview?job= 刷新预览图。预览 png 落在
+# data/generated/previews/ 下（静态服务 data/generated/ 前缀天然覆盖子目录）。
+PREVIEWS_DIR = os.path.join(ROOT, "data", "generated", "previews")
+_IMAGE_JOBS = {}            # job_id -> {status, preview_url, result, error}
+class _ProcRc:
+    """[停止生成] 轻量 shim：让 _run_cancellable 的返回值兼容 subprocess.run 的 .returncode/.stderr。"""
+    __slots__ = ("returncode", "stdout", "stderr")
+    def __init__(self, rc, out, err):
+        self.returncode, self.stdout, self.stderr = rc, out, err
+
+_IMAGE_JOBS_LOCK = threading.Lock()
 
 # The build id the served frontend carries (window.__strataBuild). Read once, cached: the gateway
 # serves this very file, so the id always matches what a fresh tab loads. It rides along on every
@@ -1348,6 +1367,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._api_models("GET", "/api/models")
             return
 
+        # ── local /health: forward upstream response then patch image_generation from our own config
+        if path == "/health":
+            self._local_health()
+            return
         if self._is_api(path):
             self._proxy("GET")
         else:
@@ -1382,6 +1405,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._mcp_call()
             return
 
+        if path == "/v1/images/generations":
+            self._handle_image_gen()
+            return
         if path == "/v1/chat/completions":
             payload = self._cached_json()
             entry = _route_model(payload.get("model")) if isinstance(payload, dict) else None
@@ -1527,6 +1553,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
             # Map the URL prefix to that real drop-point so the frontend can inline them.
             rel = clean[len("data/uploads/"):]
             filepath = Path(ROOT) / "data" / "uploads" / rel.lstrip("/")
+        elif clean.startswith("data/generated/"):
+            # generated images live in ROOT/data/generated (OUTSIDE the web root).
+            rel = clean[len("data/generated/"):]
+            filepath = Path(ROOT) / "data" / "generated" / rel.lstrip("/")
         else:
             # Try as a direct file in WEB_DIR
             filepath = Path(WEB_DIR) / clean
@@ -1536,7 +1566,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             filepath = filepath.resolve()
             web_root = Path(WEB_DIR).resolve()
             uploads_root = (Path(ROOT) / "data" / "uploads").resolve()
-            if not (str(filepath).startswith(str(web_root)) or str(filepath).startswith(str(uploads_root))):
+            generated_root = (Path(ROOT) / "data" / "generated").resolve()
+            if not (str(filepath).startswith(str(web_root)) or str(filepath).startswith(str(uploads_root))
+                    or str(filepath).startswith(str(generated_root))):
                 self._json(403, {"error": {"type": "forbidden", "message": "path outside web root"}})
                 return
         except Exception:
@@ -1574,6 +1606,22 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _local_health(self):
+        """GET /health — forward upstream, patch image_generation from local image_settings."""
+        upstream = self.state.upstream_url
+        url = upstream + "/health"
+        try:
+            resp = urllib.request.urlopen(url, timeout=10)
+            body = json.loads(resp.read().decode("utf-8", "replace"))
+        except Exception:
+            body = {"status": "ok", "service": "strata"}
+        cfg = self._load_image_settings()
+        img_ready = bool(
+            (cfg.get("local") and cfg["local"].get("exe")) or
+            (cfg.get("api") and cfg["api"].get("base_url"))
+        )
+        body["image_generation"] = img_ready
+        self._json(200, body)
     # ─── Management API: MCP servers + skills ─────────────────────────────────────
     def _cached_json(self) -> dict:
         """The POST body, read only once (the routing decision and the proxy both need it)."""
@@ -1729,6 +1777,17 @@ class GatewayHandler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if not path.startswith("/api/"):
             return False
+        if path.rstrip("/") == "/api/image-settings":
+            self._api_image_settings(method)
+            return True
+        if path.rstrip("/") == "/api/image-preview":   # [实时预览 方案A] 前端轮询
+            from urllib.parse import parse_qs, urlparse
+            qs = parse_qs(urlparse(self.path).query)
+            self._api_image_preview((qs.get("job") or [""])[0])
+            return True
+        if path.rstrip("/") == "/api/image-cancel":    # [停止生成] 前端点停止按钮
+            self._api_image_cancel()
+            return True
         if path.rstrip("/") == "/api/chat/stop":
             self._api_chat_stop(method)
             return True
@@ -1803,6 +1862,356 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._json(500, {"error": {"type": "internal", "message": str(e)}})
         return True
 
+    # ─── Image generation: config load/save + direct generate ───────────────────
+    # Added 2026-11-13 per user decision: frontend image tab holds two config slots
+    # (local direct + external API). The gateway dispatches at runtime, defaulting to
+    # local when both are configured. Paths are NOT preset on the backend (config starts empty).
+
+    def _load_image_settings(self) -> dict:
+        cfg_path = os.path.join(ROOT, "config", "image_settings.json")
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                d = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            d = {}
+        # Merge defaults (frontend fills these, backend never presets paths)
+        out = {"mode": "local", "local": {}, "api": {}}
+        out["mode"] = d.get("mode") or "local"
+        out["local"] = dict(d.get("local") or {})
+        out["api"] = dict(d.get("api") or {})
+        return out
+
+    def _api_image_settings(self, method: str):
+        """GET/POST /api/image-settings — read or write the image tab's two config slots."""
+        if method == "GET":
+            self._json(200, self._load_image_settings())
+            return
+        if method == "POST":
+            body = self._read_json()
+            mode = body.get("mode") or "local"
+            local = dict(body.get("local") or {})
+            api = dict(body.get("api") or {})
+            cfg = {"mode": mode, "local": local, "api": api}
+            cfg_path = os.path.join(ROOT, "config", "image_settings.json")
+            try:
+                with open(cfg_path, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, ensure_ascii=False, indent=2)
+            except OSError as e:
+                self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+                return
+            self._json(200, cfg)
+            return
+        self._json(405, {"error": {"type": "method_not_allowed", "message": f"{method} not allowed"}})
+
+    def _handle_image_gen(self):
+        """POST /v1/images/generations — generate an image, mode-decided at runtime.
+
+        Dispatch order (user decision, 2026-11-13):
+          1. If body carries explicit mode, use it.
+          2. Else, use config mode (default "local").
+          3. Fallback: if chosen mode's config is empty, auto-switch to the other mode if
+             it's configured; if neither is configured, 400.
+        """
+        payload = self._cached_json()
+        if not isinstance(payload, dict):
+            self._json(400, {"error": {"type": "invalid_request", "message": "body must be JSON object"}})
+            return
+        prompt = (payload.get("prompt") or "").strip()
+        if not prompt:
+            self._json(400, {"error": {"type": "invalid_request", "message": "prompt required"}})
+            return
+        size = payload.get("size") or "512x512"
+        try:
+            w, h = (int(x) for x in size.lower().split("x", 1))
+        except Exception:
+            w, h = 512, 512
+        seed = int(payload.get("seed") or 0)
+        n = int(payload.get("n") or 1)
+        resp_fmt = payload.get("response_format") or "b64_json"
+        # generation request params (txt2img / img2img / edit) — pass through to the engine
+        genreq = {
+            "negative":   payload.get("negative_prompt") or payload.get("n") or "",
+            "steps":      payload.get("steps") or TURBO_STEPS,          # [默认档] 留空=Turbo 官方 8 步
+            "cfg_scale":  payload.get("cfg_scale") or TURBO_CFG,        # [默认档] 留空=Turbo 官方 CFG 1
+            "cpu_offload": payload.get("cpu_offload", False),   # [默认不勾=更快] 显存够用；不足时勾上(走PCIe搬运很慢)            # [CPU卸载 建议开启] 默认开
+            "gen_mode":   payload.get("gen_mode") or "txt2img",
+            "init_image": payload.get("init_image"),   # data URL or absolute path
+            "strength":   payload.get("strength"),     # img2img redraw amount
+            "ref_images": payload.get("ref_images"),   # edit: list of data URLs / paths
+        }
+
+        cfg = self._load_image_settings()
+        mode = payload.get("mode") or cfg["mode"] or "local"
+        local = cfg["local"]; api = cfg["api"]
+
+        # auto-fallback if chosen slot has no config
+        def local_ready(): return local.get("exe") and local.get("diffusion_model")
+        def api_ready(): return api.get("base_url")
+        if mode == "local" and not local_ready():
+            if api_ready():
+                mode = "api"
+            else:
+                self._json(400, {"error": {"type": "invalid_request",
+                    "message": "neither local model path nor external API is configured (fill them on the image tab)"}})
+                return
+        elif mode == "api" and not api_ready():
+            if local_ready():
+                mode = "local"
+            else:
+                self._json(400, {"error": {"type": "invalid_request",
+                    "message": "neither local model path nor external API is configured (fill them on the image tab)"}})
+                return
+
+        if mode == "local":
+            if payload.get("async_preview"):            # [实时预览 方案A] 异步路径，立即返回 job_id
+                try:
+                    self._json(200, self._gen_local_async(prompt, w, h, seed, n, resp_fmt, local, genreq))
+                except Exception as e:
+                    self._json(500, {"error": {"type": "server_error", "message": f"local generate failed: {e}"}})
+                return
+            try:
+                result = self._gen_local(prompt, w, h, seed, n, resp_fmt, local, genreq)
+            except Exception as e:
+                self._json(500, {"error": {"type": "server_error", "message": f"local generate failed: {e}"}})
+                return
+            self._json(200, result)
+        else:
+            try:
+                result = self._gen_via_api(payload, api)
+            except Exception as e:
+                self._json(500, {"error": {"type": "server_error", "message": f"API generate failed: {e}"}})
+                return
+            self._json(200, result)
+
+    def _gen_local(self, prompt: str, w: int, h: int, seed: int, n: int, resp_fmt: str, cfg: dict,
+                   genreq: Optional[dict] = None, preview_path: Optional[str] = None,
+                   cancel_event=None, job_id=None) -> dict:
+        import tempfile, subprocess, base64
+        genreq = genreq or {}
+        gen_mode = genreq.get("gen_mode") or "txt2img"   # txt2img | img2img | edit
+        strength = genreq.get("strength")               # img2img redraw amount (None -> engine default 0.75)
+        exe = cfg["exe"]
+        dm  = cfg.get("diffusion_model", "")
+        vae = cfg.get("vae", "")
+        llm = cfg.get("llm", "")
+        llm_vision = cfg.get("llm_vision", "")
+        extra = cfg.get("args") or []
+        if not os.path.isfile(exe):
+            raise FileNotFoundError(f"exe not found: {exe}")
+        for tag, k in (("diffusion_model",dm),("vae",vae),("llm",llm)):
+            if k and not os.path.isfile(k):
+                raise FileNotFoundError(f"{tag} not found: {k}")
+        work = tempfile.mkdtemp(prefix="img-")
+        pf = os.path.join(work, "prompt.txt")
+        with open(pf, "w", encoding="utf-8") as f:
+            f.write(prompt)
+        pattern = os.path.join(work, "img_%d.png")
+        cmd = [exe, "--diffusion-model", dm, "--vae", vae, "--llm", llm,
+               "-W", str(w), "-H", str(h), "--prompt-file", pf, "-s", str(seed),
+               "-b", str(n), "-o", pattern]
+        # user-set negative / steps / cfg (engine defaults apply when blank)
+        if genreq.get("negative"):
+            nf = os.path.join(work, "neg.txt")
+            with open(nf, "w", encoding="utf-8") as f:
+                f.write(genreq["negative"])
+            cmd += ["--negative-prompt-file", nf]
+        if genreq.get("steps"):
+            cmd += ["--steps", str(int(genreq["steps"]))]
+        if genreq.get("cfg_scale"):
+            cmd += ["--cfg-scale", str(float(genreq["cfg_scale"]))]
+        if genreq.get("cpu_offload"):              # [CPU卸载 建议开启] 权重驻 RAM 省显存，需要时搬进显存
+            cmd += ["--offload-to-cpu", "--mmap"]
+        if exe.lower().endswith(".py"):   # a python-script runner needs the interpreter prefix
+            cmd = [sys.executable] + cmd   # a compiled sd-cli exe is used as-is
+        # ── img2img / edit inputs: copy the uploaded image into the work dir under an ASCII
+        # name (the engine misreads CJK source paths), then wire sd-cli's own flags ──
+        def _stage_img(src_desc, slot):
+            dest = os.path.join(work, f"in_{slot}.png")
+            if src_desc.startswith("data:"):              # browser data URL
+                b64 = src_desc.split(",", 1)[1] if "," in src_desc else src_desc
+                with open(dest, "wb") as fh:
+                    fh.write(base64.b64decode(b64))
+            elif src_desc and os.path.isfile(src_desc):  # absolute disk path (Browse… path)
+                shutil.copyfile(src_desc, dest)
+            else:
+                return None
+            return dest
+        if gen_mode == "img2img":
+            staged = _stage_img(genreq.get("init_image") or "", "init")
+            if staged:
+                cmd += ["-i", staged]
+                if strength is not None:
+                    cmd += ["--strength", str(float(strength))]
+        elif gen_mode == "edit":
+            if llm_vision:                        # [EDIT-VISION 2026-11-13] Qwen-Image edit needs vision weights
+                cmd += ["--llm_vision", llm_vision]
+            for j, ri in enumerate(genreq.get("ref_images") or []):
+                staged = _stage_img(ri, f"ref{j}")
+                if staged:
+                    cmd += ["-r", staged]                  # reference image for edit (repeatable)
+        if extra:
+            cmd += list(extra)
+        if preview_path:                            # [实时预览 方案A] 逐步写 preview 到固定路径
+            cmd += ["--preview", "vae", "--preview-path", preview_path, "--preview-interval", "1"]
+        if cancel_event is not None:                # [停止生成] 异步路径用 Popen，便于取消时 terminate
+            rc, out_txt, err_txt = self._run_cancellable(cmd, work, cancel_event, job_id)
+            proc = _ProcRc(rc, out_txt, err_txt)
+        else:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600, cwd=work)
+        if proc.returncode != 0:
+            raise RuntimeError(f"sd-cli rc={proc.returncode}: {proc.stderr[-400:] if proc.stderr else proc.stdout[-400:]}")
+        # ── persist results into GENERATED_DIR so they survive refresh/restart; also return
+        # base64 (back-compat) so an old client keeps working ──
+        os.makedirs(GENERATED_DIR, exist_ok=True)
+        data = []
+        for i in range(n):
+            pngp = os.path.join(work, f"img_{i}.png")
+            if not os.path.isfile(pngp):
+                raise RuntimeError(f"expected output missing: {pngp}")
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            fname = f"gen_{stamp}_{uuid.uuid4().hex[:8]}.png"
+            dest = os.path.join(GENERATED_DIR, fname)
+            shutil.copyfile(pngp, dest)
+            item = {"revised_prompt": prompt, "seed": seed + i,
+                    "url": "/data/generated/images/" + fname,   # served by _serve_static
+                    "saved_path": dest}
+            item["b64_json"] = base64.b64encode(open(pngp,"rb").read()).decode("ascii")
+            data.append(item)
+        # tidy the scratch work dir
+        for fn in os.listdir(work):
+            with contextlib.suppress(OSError):
+                os.remove(os.path.join(work, fn))
+        with contextlib.suppress(OSError):
+            os.rmdir(work)
+        return {"created": int(time.time()), "data": data, "model": cfg.get("model_name") or "qwen-image-2.1-turbo",
+                "output_format": "png", "size": f"{w}x{h}",
+                "strata": {"mode":"local","exe":exe,"gen_mode":gen_mode}}
+
+    def _gen_local_async(self, prompt, w, h, seed, n, resp_fmt, cfg, genreq) -> dict:
+        """[实时预览 方案A] 启动后台线程跑 _gen_local（带 preview_path），立即返回 job_id。
+
+        前端拿到 job_id+preview_url 后每约2秒轮询 GET /api/image-preview?job= 刷新预览；
+        status=done 时 result 带完整 OpenAI-shaped 成品。ThreadingHTTPServer 保证轮询与生成并发。"""
+        job_id = uuid.uuid4().hex[:12]
+        os.makedirs(PREVIEWS_DIR, exist_ok=True)
+        preview_path = os.path.join(PREVIEWS_DIR, "job_%s.png" % job_id)
+        preview_url = "/data/generated/previews/job_%s.png" % job_id
+        cancel = threading.Event()                  # [停止生成] worker 每短拍检查；置位=取消
+        with _IMAGE_JOBS_LOCK:
+            _IMAGE_JOBS[job_id] = {"status": "running", "preview_url": preview_url,
+                                   "result": None, "error": None, "cancel": cancel, "proc": None}
+        def worker():
+            try:
+                result = self._gen_local(prompt, w, h, seed, n, resp_fmt, cfg, genreq,
+                                          preview_path=preview_path, cancel_event=cancel, job_id=job_id)
+                with _IMAGE_JOBS_LOCK:
+                    job = _IMAGE_JOBS.get(job_id)
+                    if job and job["cancel"].is_set():       # 被取消：不写 done
+                        job["status"] = "cancelled"
+                    elif job:
+                        job["status"] = "done"
+                        job["result"] = result
+            except Exception as e:
+                with _IMAGE_JOBS_LOCK:
+                    job = _IMAGE_JOBS.get(job_id)
+                    if job:
+                        # 取消导致的非零退出/管道异常归为 cancelled，不算 error
+                        job["status"] = "cancelled" if job["cancel"].is_set() else "error"
+                        job["error"] = None if job["cancel"].is_set() else str(e)
+            finally:
+                with _IMAGE_JOBS_LOCK:                       # 收尾释放 proc 引用（已结束的进程）
+                    j = _IMAGE_JOBS.get(job_id)
+                    if j and j["status"] in ("done", "cancelled", "error"):
+                        j["proc"] = None
+        threading.Thread(target=worker, daemon=True).start()
+        return {"created": int(time.time()), "job_id": job_id, "status": "running",
+                "preview_url": preview_url, "size": "%dx%d" % (w, h),
+                "model": cfg.get("model_name") or "qwen-image-2.1-turbo", "data": []}
+
+    def _run_cancellable(self, cmd, work, cancel_event, job_id):
+        """[停止生成] 异步路径专用：Popen 跑 cmd，reader 线程抽干管道（防大输出死锁），
+
+        主循环 wait 短超时检查 cancel_event；被取消则 terminate→（宽限后）kill。
+        返回 (returncode, stdout_text, stderr_text)。"""
+        import subprocess as _sp
+        proc = _sp.Popen(cmd, stdout=_sp.PIPE, stderr=_sp.PIPE, text=True, cwd=work)
+        with _IMAGE_JOBS_LOCK:
+            if job_id and _IMAGE_JOBS.get(job_id):
+                _IMAGE_JOBS[job_id]["proc"] = proc
+        out_buf, err_buf = [], []
+        def drain(pipe, buf):
+            try:
+                for line in pipe:
+                    buf.append(line)
+            except Exception:       # 管道随进程关闭即结束本守护线程（非静默吞异常）
+                return
+        threading.Thread(target=drain, args=(proc.stdout, out_buf), daemon=True).start()
+        threading.Thread(target=drain, args=(proc.stderr, err_buf), daemon=True).start()
+        while True:
+            try:
+                rc = proc.wait(timeout=0.5)
+                break
+            except _sp.TimeoutExpired:
+                if cancel_event.is_set():
+                    proc.terminate()                    # 先温和终止
+                    try:
+                        rc = proc.wait(timeout=3)
+                    except _sp.TimeoutExpired:
+                        proc.kill()                     # 宽限后强杀
+                        rc = proc.wait()
+                    break
+        # drain 线程读尽已缓冲输出（给短超时，避免取消时无限等）
+        time.sleep(0.2)
+        return rc, "".join(out_buf), "".join(err_buf)
+
+    def _api_image_cancel(self) -> None:
+        """POST /api/image-cancel — [停止生成] 置 job 的 cancel Event，worker 会 terminate 子进程。
+
+        返回 {cancelled:True, job_id}。任务保留在表里直到 worker 收尾。"""
+        req = self._read_json() if hasattr(self, "_read_json") else {}
+        from urllib.parse import parse_qs, urlparse
+        job_id = req.get("job") or (parse_qs(urlparse(self.path).query).get("job") or [""])[0]
+        with _IMAGE_JOBS_LOCK:
+            job = _IMAGE_JOBS.get(job_id)
+            if job is None:
+                self._json(404, {"error": {"type": "not_found", "message": "unknown job_id"}})
+                return
+            job["cancel"].set()
+            proc = job.get("proc")
+        if proc is not None:
+            with contextlib.suppress(Exception):
+                proc.terminate()                        # 双保险：立即终止正在跑的子进程
+        self._json(200, {"cancelled": True, "job_id": job_id})
+
+    def _api_image_preview(self, job_id) -> None:
+        """GET /api/image-preview?job= — 轮询异步生成任务状态。
+
+        返回 {status, preview_url, result, error}；done 时带完整 result，读后即回收任务。"""
+        with _IMAGE_JOBS_LOCK:
+            job = _IMAGE_JOBS.get(job_id)
+            if job is None:
+                self._json(404, {"error": {"type": "not_found", "message": "unknown job_id"}})
+                return
+            snapshot = dict(job)
+        if snapshot["status"] in ("done", "cancelled", "error"):   # 终态读后回收（预览图保留）
+            with _IMAGE_JOBS_LOCK:
+                _IMAGE_JOBS.pop(job_id, None)
+        self._json(200, snapshot)
+
+    def _gen_via_api(self, payload: dict, api_cfg: dict) -> dict:
+        base = str(api_cfg.get("base_url") or "").rstrip("/")
+        key  = str(api_cfg.get("api_key") or "")
+        model = str(api_cfg.get("model") or "")
+        if model:
+            payload = dict(payload); payload.setdefault("model", model)
+        url = base + "/images/generations" if base.endswith("/v1") else base + "/v1/images/generations"
+        body_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(url, data=body_bytes, method="POST")
+        req.add_header("Content-Type", "application/json")
+        if key:
+            req.add_header("Authorization", "Bearer " + key)
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            return json.loads(resp.read().decode("utf-8", "replace"))
     def _api_chat_stop(self, method: str):
         """POST /api/chat/stop — explicitly cancel a running stream.
 
