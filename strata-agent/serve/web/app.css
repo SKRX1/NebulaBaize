@@ -1597,6 +1597,16 @@ audio.md-media { height: 38px; }
 .st-chip.is-active { color: var(--st-accent); border-color: var(--st-accent); background: var(--st-accent-tint); }
 .img-ratio-custom { width: 88px; height: 28px; padding: 0 8px; font-size: var(--st-fs-sm); }
 .img-ratio-custom.is-error { border-color: var(--st-danger); }
+/* [seed-vars 2026-11-14] 三调节/随机种子/种子收藏：纯 token，暗亮双主题免维护 */
+.img-seed-dice { flex: none; padding: 0 10px; }
+.img-seedbook-head { align-items: center; margin-top: 8px; }
+.img-seedbook-head > span { color: var(--st-ink-soft); font-size: var(--st-fs-sm); }
+.img-seedbook { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; }
+.img-seedbook-item { display: flex; gap: 10px; align-items: center; padding: 4px 8px; border-radius: var(--st-r-sm); cursor: pointer; font-size: var(--st-fs-sm); }
+.img-seedbook-item:hover { background: var(--st-accent-tint); }
+.img-seedbook-seed { color: var(--st-accent); font-weight: 600; min-width: 70px; }
+.img-seedbook-prompt { color: var(--st-ink-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.img-seedbook-empty { color: var(--st-ink-muted); font-size: var(--st-fs-sm); padding: 4px 8px; }
 
 /* [FIX 2026-11-14] 实时预览占位卡：首帧落盘前的体面过渡（呼吸点 + 已用秒数） */
 .live-preview-ph{display:flex;align-items:center;gap:8px;padding:14px 16px;border:1px dashed var(--st-line-2,#444);border-radius:var(--st-r-lg)}

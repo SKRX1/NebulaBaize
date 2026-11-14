@@ -9795,6 +9795,36 @@ _imgFilePreview("img-ref-file",  "img-gen-preview");
   });
 })();
 
+// [种子收藏 2026-11-14] localStorage-only seed book (zero backend). Records the real seed
+// the engine wrote back, dedup by seed+prompt, capped, click a row to refill #img-seed.
+const SEEDBOOK_KEY = "strata.imgSeedBook";
+function seedbookLoad(){ try { const a = JSON.parse(localStorage.getItem(SEEDBOOK_KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function seedbookSave(a){ try { localStorage.setItem(SEEDBOOK_KEY, JSON.stringify(a.slice(0,50))); } catch (e) {} }
+function seedbookRecord(seed, prompt){
+  if (seed == null || seed === 0 || seed === "0") return;   // 0/auto 不入库（非真实种子）
+  const a = seedbookLoad();
+  const key = String(seed) + "|" + String(prompt || "").slice(0, 80);
+  if (a.some(x => String(x.seed) + "|" + String(x.prompt || "").slice(0, 80) === key)) return;   // 去重
+  a.unshift({seed: seed, prompt: String(prompt || ""), ts: Date.now()});
+  seedbookSave(a); renderSeedbook();
+}
+function renderSeedbook(){
+  const ul = $("img-seedbook"); if (!ul) return;
+  const a = seedbookLoad();
+  ul.innerHTML = "";
+  if (!a.length) { const li = document.createElement("li"); li.className = "img-seedbook-empty"; li.textContent = t("img.seedbook.empty"); ul.appendChild(li); return; }
+  for (const x of a) {
+    const li = document.createElement("li"); li.className = "img-seedbook-item"; li.dataset.seed = String(x.seed); li.title = x.prompt || "";
+    const s = document.createElement("span"); s.className = "img-seedbook-seed"; s.textContent = String(x.seed);
+    const p = document.createElement("span"); p.className = "img-seedbook-prompt"; p.textContent = (x.prompt || "").slice(0, 40);
+    li.append(s, p); ul.appendChild(li);
+  }
+}
+if ($("img-seed-dice")) $("img-seed-dice").onclick = () => { $("img-seed").value = String(Math.floor(Math.random() * (2147483646)) + 1); };   // [真随机] 前端生成随机正整数
+if ($("img-seedbook-clear")) $("img-seedbook-clear").onclick = () => { seedbookSave([]); renderSeedbook(); };
+if ($("img-seedbook")) $("img-seedbook").onclick = (e) => { const li = e.target.closest(".img-seedbook-item"); if (li && li.dataset.seed) $("img-seed").value = li.dataset.seed; };   // [回填] 点击用此种子
+renderSeedbook();
+
 $("img-form").onsubmit = async (ev) => {
   ev.preventDefault();
   const prompt = $("img-prompt").value.trim();
@@ -9820,6 +9850,9 @@ $("img-form").onsubmit = async (ev) => {
   if (cfgEl("img-cfg-mode")) body.mode = cfgEl("img-cfg-mode").value;
   if (cfgEl("img-cfg-model-dir") && cfgEl("img-cfg-model-dir").value.trim()) body.model_dir = cfgEl("img-cfg-model-dir").value.trim();
   if ($("img-seed").value !== "") body.seed = Number($("img-seed").value);
+  { const _sm = $("img-sampling-method"); if (_sm && _sm.value) body.sampling_method = _sm.value; }
+  { const _sc = $("img-scheduler"); if (_sc && _sc.value) body.scheduler = _sc.value; }
+  { const _et = $("img-eta"); if (_et && _et.value !== "") { const _ev = Number(_et.value); if (_ev) body.eta = _ev; } }
   { const cEl = $("img-count"); if (cEl && Number(cEl.value) > 1) body.n = Number(cEl.value); }  // [张数] 默认1不传=后端默认1
   if (cfgEl("img-cfg-mode") && cfgEl("img-cfg-mode").value === "local") body.async_preview = true;
   if (genMode === "img2img") {
@@ -9865,6 +9898,7 @@ $("img-form").onsubmit = async (ev) => {
       img.alt = prompt;
       const savedNote = d.saved_path ? ` [saved]` : "";
       cap.textContent = `${j.size}, seed ${d.seed}, ${((performance.now() - t0) / 1000).toFixed(0)} s${savedNote}: ${prompt}`;
+      seedbookRecord(d.seed, prompt);   // [种子收藏] 记录真实seed（后端回写值）
       fig.append(img, cap);
     }
   };

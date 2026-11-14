@@ -241,6 +241,14 @@
       "img.steps": "步数（留空=默认）",
       "img.cfg_scale": "CFG（留空=默认）",
       "img.cpu_offload": "启用CPU卸载（显存不足时建议开启）",
+      "img.seed.random": "随机",
+      "img.var.default": "默认",
+      "img.sampler": "采样方法",
+      "img.scheduler": "调度器",
+      "img.eta": "Eta（留空=默认）",
+      "img.seedbook": "种子收藏",
+      "img.seedbook.clear": "清空",
+      "img.seedbook.empty": "暂无收藏",
 
       /* ── Monitor ── */
       "mon.state": "模型状态",
@@ -1580,6 +1588,14 @@
       "img.steps": "Steps (blank = default)",
       "img.cfg_scale": "CFG (blank = default)",
       "img.cpu_offload": "Enable CPU offload (if VRAM is short)",
+      "img.seed.random": "Random",
+      "img.var.default": "default",
+      "img.sampler": "Sampling method",
+      "img.scheduler": "Scheduler",
+      "img.eta": "Eta (blank = default)",
+      "img.seedbook": "Seed book",
+      "img.seedbook.clear": "Clear",
+      "img.seedbook.empty": "(no saved seeds)",
 
       /* ── Monitor ── */
       "mon.state": "Model state",
