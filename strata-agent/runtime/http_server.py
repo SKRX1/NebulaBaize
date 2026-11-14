@@ -2002,6 +2002,21 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if k and not os.path.isfile(k):
                 raise FileNotFoundError(f"{tag} not found: {k}")
         work = tempfile.mkdtemp(prefix="img-")
+        # ── the engine misreads CJK paths (see _stage_img below): an ASCII-named
+        # model file under work/ lets it read them. hardlink, fall back to copy ──
+        def _stage_ascii_model(path, slot):
+            if not path or path.isascii():
+                return path
+            dest = os.path.join(work, "model_%s.gguf" % slot)
+            try:
+                os.link(path, dest)
+            except OSError:
+                shutil.copyfile(path, dest)
+            return dest
+        dm  = _stage_ascii_model(dm, "dm")
+        vae = _stage_ascii_model(vae, "vae")
+        llm = _stage_ascii_model(llm, "llm")
+        llm_vision = _stage_ascii_model(llm_vision, "vision")
         pf = os.path.join(work, "prompt.txt")
         with open(pf, "w", encoding="utf-8") as f:
             f.write(prompt)
