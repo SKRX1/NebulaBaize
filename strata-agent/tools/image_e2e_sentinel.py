@@ -50,7 +50,33 @@ def _post(payload: dict, timeout: float = 120.0) -> dict:
         return json.loads(r.read().decode("utf-8"))
 
 
-def _png_dims(b64: str) -> tuple[int, int]:
+def _post_strict(payload: dict, timeout: float = 120.0) -> dict:
+    """_post, but a non-2xx from the built-in handler is a REAL bug -> clean FAIL (not silenced),
+    surfacing the handler's JSON body (the actual sd-cli error). A pure transport failure
+    (connection refused / timeout) means unreachable -> the reachability gate owns the skip.
+    A 4xx is a client/contract problem -> also a real FAIL, not a skip."""
+    req = urllib.request.Request(
+        f"{GATEWAY_URL}/v1/images/generations",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "replace")
+        except Exception:
+            pass
+        # server RESPONDED (we are reachable) -> any non-2xx is a real failure, keep it RED.
+        raise AssertionError(f"gateway responded {e.code} (NOT a skip; built-in handler bug): {body[:400]}")
+    except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
+        # transport-only failure: the reachability gate already decided; surface as a clean FAIL
+        raise AssertionError(f"gateway became unreachable mid-call (should have self-skipped): {e!r}")
+
+
     raw = base64.b64decode(b64)
     if raw[:8] != b"\x89PNG\r\n\x1a\n":
         raise AssertionError(f"response is not PNG (got {raw[:8]!r})")
@@ -61,7 +87,7 @@ def _png_dims(b64: str) -> tuple[int, int]:
 def run_fast() -> float:
     payload = {"prompt": PROMPT, "size": SIZE, "response_format": "b64_json"}
     t0 = time.time()
-    resp = _post(payload)
+    resp = _post_strict(payload)
     elapsed = time.time() - t0
     b64 = (resp.get("data") or [{}])[0].get("b64_json") or ""
     assert b64, "b64_json must be non-empty"
@@ -76,7 +102,7 @@ def run_slow() -> float:
     payload = {"prompt": PROMPT, "size": SIZE, "response_format": "b64_json",
                "cpu_offload": True}
     t0 = time.time()
-    resp = _post(payload)
+    resp = _post_strict(payload)
     elapsed = time.time() - t0
     b64 = (resp.get("data") or [{}])[0].get("b64_json") or ""
     assert b64, "b64_json must be non-empty (slow path)"
