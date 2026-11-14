@@ -647,6 +647,33 @@ main { flex: 1; min-height: 0; display: flex; }
 .img-results figure{margin:0}
 .img-results img{max-width:100%;border-radius:var(--st-r-lg);display:block}
 .img-results figcaption{font-size:var(--st-fs-sm, 13px);color:var(--st-ink-2, inherit);margin-top:4px}
+/* [LAYOUT-DUAL 2026-11-14] images page: form left, results right; single column on narrow. */
+/* Scope via #view-images so the generic .about (used by About/Donate) keeps its single column. */
+#view-images > .about {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(0, 1.05fr);
+  gap: var(--st-s-6);
+  align-items: start;
+  max-width: 1400px;
+}
+/* keep the results column pinned while the long form scrolls (desktop only) */
+#view-images .img-results { position: sticky; top: var(--st-s-6); }
+/* empty-state placeholder so the results area is visible before the first generation */
+#view-images .img-results:empty::before {
+  content: "生成的图片会显示在这里  /  Generated images appear here";
+  display: block;
+  padding: var(--st-s-6);
+  border: 1px dashed var(--st-line, rgba(255,255,255,.15));
+  border-radius: var(--st-r-lg);
+  color: var(--st-ink-2, inherit);
+  opacity: .65;
+  font-size: var(--st-fs-sm, 13px);
+  min-height: 160px;
+}
+@media (max-width: 900px) {
+  #view-images > .about { grid-template-columns: 1fr; }
+  #view-images .img-results { position: static; }
+}
 
 /* ---------------------------------------------------------------- sidebar (tasks + workspace) */
 .st-sidebar { flex: none; width: var(--side-w, 260px); display: flex; flex-direction: column; gap: var(--st-s-3);

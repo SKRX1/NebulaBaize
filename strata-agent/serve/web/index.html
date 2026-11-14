@@ -333,11 +333,15 @@
         <!-- resolution tier + ratio chips (click fills W/H below; W/H stay editable) -->
         <div class="img-row img-chips" id="img-res-row">
           <span data-i18n="img.resolution">Resolution</span>
-          <button type="button" class="st-chip is-active" data-imgres="0" data-i18n="img.res.512">512</button>
-          <button type="button" class="st-chip" data-imgres="1" data-i18n="img.res.768">768</button>
-          <button type="button" class="st-chip" data-imgres="2" data-i18n="img.res.1k">1K</button>
-          <button type="button" class="st-chip" data-imgres="3" data-i18n="img.res.2k">2K</button>
-          <button type="button" class="st-chip" data-imgres="4" data-i18n="img.res.4k">4K</button>
+          <button type="button" class="st-chip" data-imgres="0" data-i18n="img.res.32">32</button>
+          <button type="button" class="st-chip" data-imgres="1" data-i18n="img.res.64">64</button>
+          <button type="button" class="st-chip" data-imgres="2" data-i18n="img.res.128">128</button>
+          <button type="button" class="st-chip" data-imgres="3" data-i18n="img.res.256">256</button>
+          <button type="button" class="st-chip is-active" data-imgres="4" data-i18n="img.res.512">512</button>
+          <button type="button" class="st-chip" data-imgres="5" data-i18n="img.res.768">768</button>
+          <button type="button" class="st-chip" data-imgres="6" data-i18n="img.res.1k">1K</button>
+          <button type="button" class="st-chip" data-imgres="7" data-i18n="img.res.2k">2K</button>
+          <button type="button" class="st-chip" data-imgres="8" data-i18n="img.res.4k">4K</button>
         </div>
         <div class="img-row img-chips" id="img-ratio-row">
           <span data-i18n="img.ratio">Ratio</span>
@@ -354,9 +358,9 @@
         </div>
         <div class="img-row">
           <label class="st-field"><span data-i18n="img.width">Width</span>
-            <input class="st-input" id="img-width" type="number" min="64" max="4096" step="8" value="512"></label>
+            <input class="st-input" id="img-width" type="number" min="32" max="4096" step="8" value="512"></label>
           <label class="st-field"><span data-i18n="img.height">Height</span>
-            <input class="st-input" id="img-height" type="number" min="64" max="4096" step="8" value="512"></label>
+            <input class="st-input" id="img-height" type="number" min="32" max="4096" step="8" value="512"></label>
           <label class="st-field"><span data-i18n="img.steps">Steps</span>
             <input class="st-input" id="img-steps" type="number" min="4" max="150" value="8"></label>
           <label class="st-field"><span data-i18n="img.cfg_scale">CFG</span>
@@ -391,6 +395,35 @@
                      placeholder="e.g. E:\models\qwen-image" autocomplete="off" spellcheck="false"></label>
             <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-model" data-i18n="img.cfg.browse">Browse…</button>
           </div>
+          <!-- [VIZ-QUANT 2026-11-14] quantized-model path pickers: input + datalist(scan) + browse. -->
+          <div class="img-row">
+            <span style="flex:1"></span>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-scan" data-i18n="img.cfg.scan">Scan folder for models…</button>
+          </div>
+          <div class="img-row">
+            <label class="st-field" style="flex:1"><span data-i18n="img.cfg.diffusion_model">Diffusion model (.gguf)</span>
+              <input class="st-input" id="img-cfg-diffusion_model" type="text" list="img-dl-diffusion_model" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-dm" data-i18n="img.cfg.browse">Browse…</button>
+          </div>
+          <div class="img-row">
+            <label class="st-field" style="flex:1"><span data-i18n="img.cfg.vae">VAE (.gguf)</span>
+              <input class="st-input" id="img-cfg-vae" type="text" list="img-dl-vae" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-vae" data-i18n="img.cfg.browse">Browse…</button>
+          </div>
+          <div class="img-row">
+            <label class="st-field" style="flex:1"><span data-i18n="img.cfg.llm">LLM backbone (.gguf)</span>
+              <input class="st-input" id="img-cfg-llm" type="text" list="img-dl-llm" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-llm" data-i18n="img.cfg.browse">Browse…</button>
+          </div>
+          <div class="img-row">
+            <label class="st-field" style="flex:1"><span data-i18n="img.cfg.llm_vision">LLM vision / mmproj (.gguf, edit only)</span>
+              <input class="st-input" id="img-cfg-llm_vision" type="text" list="img-dl-llm_vision" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="st-btn st-btn--ghost" id="img-cfg-browse-vision" data-i18n="img.cfg.browse">Browse…</button>
+          </div>
+          <datalist id="img-dl-diffusion_model"></datalist>
+          <datalist id="img-dl-vae"></datalist>
+          <datalist id="img-dl-llm"></datalist>
+          <datalist id="img-dl-llm_vision"></datalist>
           <div class="img-row">
             <label class="st-field" style="flex:1"><span data-i18n="img.cfg.exe">sd-cli exe (optional)</span>
               <input class="st-input" id="img-cfg-exe" type="text"

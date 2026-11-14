@@ -31,6 +31,7 @@ import queue
 import re
 import select
 import contextlib
+import hashlib
 import shutil
 try:
     import psutil
@@ -99,6 +100,7 @@ class _ProcRc:
         self.returncode, self.stdout, self.stderr = rc, out, err
 
 _IMAGE_JOBS_LOCK = threading.Lock()
+_ASCII_CACHE_LOCK = threading.Lock()   # serialises first-copy into the ASCII model cache
 
 # The build id the served frontend carries (window.__strataBuild). Read once, cached: the gateway
 # serves this very file, so the id always matches what a fresh tab loads. It rides along on every
@@ -1780,6 +1782,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/image-settings":
             self._api_image_settings(method)
             return True
+        if path.rstrip("/") == "/api/image-scan-models":
+            self._api_image_scan_models()
+            return True
         if path.rstrip("/") == "/api/image-preview":   # [实时预览 方案A] 前端轮询
             from urllib.parse import parse_qs, urlparse
             qs = parse_qs(urlparse(self.path).query)
@@ -1880,6 +1885,44 @@ class GatewayHandler(BaseHTTPRequestHandler):
         out["local"] = dict(d.get("local") or {})
         out["api"] = dict(d.get("api") or {})
         return out
+
+    def _api_image_scan_models(self) -> None:
+        """GET /api/image-scan-models?dir=<path> - list *.gguf under that model folder
+        (one level deep) so the image tab can pick a quantized model by name instead of
+        hand-editing image_settings.json. Read-only; defaults to the configured model_dir.
+        Returns {"dir": <resolved>, "files": [{"name":..., "path":..., "role_guess":...}]}.
+        """
+        qs = parse_qs(urlsplit(self.path).query)
+        d = (qs.get("dir") or [""])[0].strip()
+        if not d:
+            d = (self._load_image_settings().get("local", {}) or {}).get("model_dir", "")
+        if not d or not os.path.isdir(d):
+            self._json(200, {"dir": d, "files": [], "error": "dir not found"})
+            return
+        files = []
+        try:
+            for root, _dirs, fnames in os.walk(d):
+                depth = os.path.relpath(root, d).count(os.sep)
+                if depth > 1:            # model_dir + one level (its CJK subfolders) only
+                    continue
+                for fn in fnames:
+                    if fn.lower().endswith(".gguf"):
+                        full = os.path.join(root, fn)
+                        low = fn.lower()
+                        if "mmproj" in low or "vision" in low:
+                            role = "llm_vision"
+                        elif "vae" in low:
+                            role = "vae"
+                        elif "llm" in low:
+                            role = "llm"
+                        else:
+                            role = "diffusion_model"
+                        files.append({"name": fn, "path": full, "role_guess": role})
+        except OSError as e:
+            self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+            return
+        files.sort(key=lambda x: (x["role_guess"], x["name"]))
+        self._json(200, {"dir": d, "files": files})
 
     def _api_image_settings(self, method: str):
         """GET/POST /api/image-settings — read or write the image tab's two config slots."""
@@ -2007,11 +2050,25 @@ class GatewayHandler(BaseHTTPRequestHandler):
         def _stage_ascii_model(path, slot):
             if not path or path.isascii():
                 return path
+            # [CACHE 2026-11-14] process-level ASCII cache: cross-volume hardlink is
+            # physically impossible (temp=C:, models=E:) so a big gguf would be re-copied
+            # EVERY request. Copy once into a persistent cache dir keyed by source path,
+            # reuse on later runs; hardlink that cache entry into this request's work dir.
+            cache = os.path.join(tempfile.gettempdir(), "strata_ascii_model_cache")
+            os.makedirs(cache, exist_ok=True)
+            key = hashlib.md5(os.path.abspath(path).encode("utf-8")).hexdigest()[:16]
+            cached = os.path.join(cache, key + ".gguf")
+            with _ASCII_CACHE_LOCK:
+                if not (os.path.isfile(cached) and os.path.getsize(cached) == os.path.getsize(path)):
+                    tmp = cached + ".tmp" + str(os.getpid())
+                    shutil.copyfile(path, tmp)
+                    with contextlib.suppress(OSError):
+                        os.replace(tmp, cached)
             dest = os.path.join(work, "model_%s.gguf" % slot)
             try:
-                os.link(path, dest)
+                os.link(cached, dest)        # same-volume hardlink: cheap, no second copy
             except OSError:
-                shutil.copyfile(path, dest)
+                shutil.copyfile(cached, dest)
             return dest
         dm  = _stage_ascii_model(dm, "dm")
         vae = _stage_ascii_model(vae, "vae")

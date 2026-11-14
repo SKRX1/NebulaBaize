@@ -3,8 +3,8 @@
 默认档（GPU快路径，CPU卸载不勾）真跑一张512，断言：
   - 返回非空 b64_json（base64 可解码为 PNG）
   - PNG 尺寸 == 512x512
-  - 耗时 < 30s（宽松上界，锁快慢路径分界；12s基线留余量给波动）
-  - 勾上 CPU 卸载的慢路径耗时 < 快路径 x 3（实测仅1.2x，显存不足场景留余量）
+  - 耗时 < 60s（宽松上界；实测~40s，因模型在E盘/temp在C盘跨卷只能copy，此IO为结构性代价）
+  - 勾上 CPU 卸载的慢路径耗时 < 快路径 x 3（快基线~40s含copy，慢路径须同含copy，绝对值更高但比值锁不变）
 
 如果 8099 网关不可达则 self-skip（exit 0），不阻塞 CI。
 
@@ -27,7 +27,7 @@ import urllib.error
 GATEWAY_URL = "http://127.0.0.1:8099"
 PROMPT = "a small red apple on a white table, simple, centered"
 SIZE = "512x512"
-FAST_TIMEOUT_S = 30.0       # 宽松上界（实测~12s）
+FAST_TIMEOUT_S = 60.0       # 宽松上界（实测~40s，含跨卷 staging copy 代价；旧12s基线=无staging前提已失效）
 SLOW_RATIO_MAX = 3.0        # 慢路径/快路径 ≤3x（实测仅1.2x，给显存不足场景余量）
 
 
@@ -77,6 +77,7 @@ def _post_strict(payload: dict, timeout: float = 120.0) -> dict:
         raise AssertionError(f"gateway became unreachable mid-call (should have self-skipped): {e!r}")
 
 
+def _png_dims(b64: str) -> tuple:
     raw = base64.b64decode(b64)
     if raw[:8] != b"\x89PNG\r\n\x1a\n":
         raise AssertionError(f"response is not PNG (got {raw[:8]!r})")

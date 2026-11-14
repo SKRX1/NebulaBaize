@@ -9609,6 +9609,10 @@ async function loadImageSettings() {
     const el = (id) => document.getElementById(id);
     if (el("img-cfg-mode"))      el("img-cfg-mode").value = mode;
     if (el("img-cfg-model-dir")) el("img-cfg-model-dir").value = local.model_dir || local._model_dir || "";
+    if (el("img-cfg-diffusion_model")) el("img-cfg-diffusion_model").value = local.diffusion_model || "";
+    if (el("img-cfg-vae"))             el("img-cfg-vae").value = local.vae || "";
+    if (el("img-cfg-llm"))             el("img-cfg-llm").value = local.llm || "";
+    if (el("img-cfg-llm_vision"))      el("img-cfg-llm_vision").value = local.llm_vision || "";
     if (el("img-cfg-exe"))       el("img-cfg-exe").value = local.exe || "";
     if (el("img-cfg-api-url"))   el("img-cfg-api-url").value = api.base_url || "";
     if (el("img-cfg-api-key"))   el("img-cfg-api-key").value = api.api_key || "";
@@ -9624,14 +9628,23 @@ async function saveImageSettings() {
   const api_url   = el("img-cfg-api-url") ? el("img-cfg-api-url").value.trim() : "";
   const api_key   = el("img-cfg-api-key") ? el("img-cfg-api-key").value.trim() : "";
   const api_model = el("img-cfg-api-model") ? el("img-cfg-api-model").value.trim() : "";
+  const dm   = el("img-cfg-diffusion_model") ? el("img-cfg-diffusion_model").value.trim() : "";
+  const vaeV = el("img-cfg-vae")        ? el("img-cfg-vae").value.trim()        : "";
+  const llmV = el("img-cfg-llm")        ? el("img-cfg-llm").value.trim()        : "";
+  const vis  = el("img-cfg-llm_vision") ? el("img-cfg-llm_vision").value.trim() : "";
+  // [ROUNDTRIP-FIX 2026-11-14] the backend json.dumps the WHOLE body (no server merge), so a
+  // Save that omits args silently wipes args=[--max-vram,...]. Read current config first and
+  // carry args back through, so a front-end Save never drops them. (model paths are now read
+  // from their own inputs above, so this GET only needs to preserve args.)
+  let existingArgs = [];
+  try { const gr = await fetch("api/image-settings", {headers: headers()}); if (gr.ok) existingArgs = ((await gr.json()).local || {}).args || []; }
+  catch (e) { /* offline/read failed -> keep [] and let the POST surface the real error */ }
   const body = {
     mode,
-    local: { model_dir, exe,
-             diffusion_model: model_dir ? model_dir.replace(/[\\\/]+$/, "") + "\\diffusion_model.gguf" : "",
-             vae:             model_dir ? model_dir.replace(/[\\\/]+$/, "") + "\\vae.gguf"             : "",
-             llm:             model_dir ? model_dir.replace(/[\\\/]+$/, "") + "\\llm.gguf"             : "" },
+    local: { model_dir, exe, diffusion_model: dm, vae: vaeV, llm: llmV, llm_vision: vis, args: existingArgs },
     api:   { base_url: api_url, api_key, model: api_model }
   };
+
   try {
     const r = await fetch("api/image-settings", {method: "POST", headers: headers(true), body: JSON.stringify(body)});
     if (!r.ok) throw new Error((await r.json()).error.message);
@@ -9648,6 +9661,35 @@ setTimeout(() => {
   if (el("img-cfg-save"))       el("img-cfg-save").onclick       = saveImageSettings;
   if (el("img-cfg-browse-model")) el("img-cfg-browse-model").onclick = () => browseInto("img-cfg-model-dir");
   if (el("img-cfg-browse-exe")) el("img-cfg-browse-exe").onclick = () => browseInto("img-cfg-exe");
+  if (el("img-cfg-browse-dm"))      el("img-cfg-browse-dm").onclick      = () => browseInto("img-cfg-diffusion_model");
+  if (el("img-cfg-browse-vae"))     el("img-cfg-browse-vae").onclick     = () => browseInto("img-cfg-vae");
+  if (el("img-cfg-browse-llm"))     el("img-cfg-browse-llm").onclick     = () => browseInto("img-cfg-llm");
+  if (el("img-cfg-browse-vision"))  el("img-cfg-browse-vision").onclick  = () => browseInto("img-cfg-llm_vision");
+  if (el("img-cfg-scan"))           el("img-cfg-scan").onclick           = () => scanImageModels();
+  // [VIZ-QUANT 2026-11-14] scan the model folder, fill each field's datalist so the user
+  // can pick a quantized .gguf by name (grouped by role_guess) then Save.
+  window.scanImageModels = async function () {
+    const el = (id) => document.getElementById(id);
+    const dir = el("img-cfg-model-dir") ? el("img-cfg-model-dir").value.trim() : "";
+    try {
+      const q = dir ? ("?dir=" + encodeURIComponent(dir)) : "";
+      const r = await fetch("api/image-scan-models" + q, { headers: headers() });
+      if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) .error || {}).message || r.status);
+      const data = await r.json();
+      const files = data.files || [];
+      if (!files.length) { toast("warn", t("img.cfg.scan_empty")); return; }
+      const dl = { diffusion_model: "img-dl-diffusion_model", vae: "img-dl-vae", llm: "img-dl-llm", llm_vision: "img-dl-llm_vision" };
+      for (const id of Object.values(dl)) { const d = el(id); if (d) d.innerHTML = ""; }
+      for (const f of files) {
+        const d = el(dl[f.role_guess] || "img-dl-diffusion_model");
+        if (!d) continue;
+        const o = document.createElement("option");
+        o.value = f.path; o.label = f.name + "  (" + f.role_guess + ")";
+        d.appendChild(o);
+      }
+      toast("success", t("img.cfg.scan_ok", { n: files.length }));
+    } catch (e) { toast("error", t("img.cfg.scan_fail"), String((e && e.message) || e)); }
+  };
   // load existing config on page ready
   loadImageSettings();
 }, 200);
@@ -9689,15 +9731,15 @@ _imgFilePreview("img-ref-file",  "img-gen-preview");
 // the engine gets exactly what the inputs show. Custom ratio box: "a:b" like 16:10.
 (function () {
   const $id = (x) => document.getElementById(x);
-  const TIER = { "0": 512, "1": 768, "2": 1024, "3": 2048, "4": 4096 };   // tier -> long-edge base px
-  let tier = "0", ratio = "1:1";   // 默认 512（最快档）
+  const TIER = { "0": 32, "1": 64, "2": 128, "3": 256, "4": 512, "5": 768, "6": 1024, "7": 2048, "8": 4096 };   // tier -> long-edge base px
+  let tier = "4", ratio = "1:1";   // default 512 (fastest of the common tiers)
   const parseRatio = (txt) => {
     const m = /^(\d+(?:\.\d+)?)[ :]+(\d+(?:\.\d+)?)$/.exec((txt || "").trim());
     if (!m) return null;
     const a = parseFloat(m[1]), b = parseFloat(m[2]);
     return (a > 0 && b > 0) ? [a, b] : null;
   };
-  const snap = (v) => Math.max(64, Math.min(4096, Math.round(v / 8) * 8));
+  const snap = (v) => Math.max(32, Math.min(4096, Math.round(v / 8) * 8));   // floor 32 (was 64) so the 32 tier is honoured
   function apply() {
     const r = parseRatio(ratio) || [1, 1];
     const long = TIER[tier] || 512;
