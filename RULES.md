@@ -128,3 +128,4 @@ pip 卸载无回收站语义（物理删除）；只有磁盘上的模型/临时
 修一个前端渲染 bug 时，配套写一条 DOM-身份回归测试（断言关键节点跨多次 repaint 不被重建），并注册进 tools/run_tests.py 的 SUITES 清单，否则该修复不进回归网。
 async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在 await 之后使用前必须重新校验——await 期间全局可变状态（messages、分支、撤销栈）可能被并发改变致其越界
 对象字面量里 get xxx() 定义的成员必须按属性读取（d.current），绝不能写成 d.current()——getter 返回值是 truthy 的非函数对象，`d.current ? d.current()` 会过了 truthy 检查后对对象求值抛 "is not a function"
+新增静默 except 块（body 仅 pass/continue/docstring/注释）会撞上 tests/test_code_hygiene.py 的棘轮基线；要规避就给 body 放一条真实语句（如 return/记日志），而非靠加注释
