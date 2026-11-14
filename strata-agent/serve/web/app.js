@@ -9821,6 +9821,11 @@ function renderSeedbook(){
   }
 }
 if ($("img-seed-dice")) $("img-seed-dice").onclick = () => { $("img-seed").value = String(Math.floor(Math.random() * (2147483646)) + 1); };   // [真随机] 前端生成随机正整数
+if ($("img-seed-save")) $("img-seed-save").onclick = () => {
+  const sv = $("img-seed").value.trim(); if (!sv) return;
+  const pw = $("img-prompt") ? $("img-prompt").value.trim() : "";
+  seedbookRecord(Number(sv), pw);
+};
 if ($("img-seedbook-clear")) $("img-seedbook-clear").onclick = () => { seedbookSave([]); renderSeedbook(); };
 if ($("img-seedbook")) $("img-seedbook").onclick = (e) => { const li = e.target.closest(".img-seedbook-item"); if (li && li.dataset.seed) $("img-seed").value = li.dataset.seed; };   // [回填] 点击用此种子
 renderSeedbook();

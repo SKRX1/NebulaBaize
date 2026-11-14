@@ -248,6 +248,7 @@
       "img.eta": "Eta（留空=默认）",
       "img.seedbook": "种子收藏",
       "img.seedbook.clear": "清空",
+      "img.seed.save": "收藏当前",
       "img.seedbook.empty": "暂无收藏",
 
       /* ── Monitor ── */
@@ -1595,6 +1596,7 @@
       "img.eta": "Eta (blank = default)",
       "img.seedbook": "Seed book",
       "img.seedbook.clear": "Clear",
+      "img.seed.save": "Save current",
       "img.seedbook.empty": "(no saved seeds)",
 
       /* ── Monitor ── */
