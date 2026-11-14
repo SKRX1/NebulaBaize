@@ -433,7 +433,8 @@ SUITES = [
 
     "tools/_flash_probe_upstream.py",   # flash-crash MAIN-CHANNEL gate: real subprocess gateway + fake slow-SSE upstream; node client mirrors fetch->reader->abort; falsifiable P1(forwarded)/P2(AbortError->m.stopped=true)/P3(upstream saw disconnect); all three must light green
 
-    "tests/test_monitor_custom_api_landing.py",   # 2026-11-05: custom-API monitor landing (A1 tok-tuple / A2 duration_s read-key / A3 est-vs-real decode / A4 declared window / B5 stream_options / C6 i18n), differential gate
+    "tests/test_monitor_custom_api_landing.py",   # 2026-11-05: custom-API monitor landing (A1 tok-tuple / A2 duration_s read-key / A3 est-vs-real decode / A4 declared window / B5 stream_options / C6 i18n), differential gate,
+    "tools/image_e2e_sentinel.py"   # 2026-11-14: image gen e2e sentinel - live-if-up; fast 512/non-empty-b64 + ratio lock (measured 1.2x, cap 3x)
 ]
 
 
@@ -465,7 +466,8 @@ SLOW_SUITES = [
     "tests/test_model_probe.mjs",
     "tests/test_stale_tab.mjs",
     "tests/test_empty_round_e2e.py",
-    "tests/test_autoverify_fix_realpage.py",   # real-browser cold launch + temp http doc-root -> slow tier
+    "tests/test_autoverify_fix_realpage.py",   # real-browser cold launch + temp http doc-root -> slow tier,
+    "tools/image_e2e_sentinel.py"   # live e2e: real gateway POST x2 (~24s total)
 ]
 _SLOWSET = set(SLOW_SUITES)
 SUITES_QUICK = [s for s in SUITES if s not in _SLOWSET]
