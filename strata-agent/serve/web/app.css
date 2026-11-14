@@ -1613,3 +1613,8 @@ audio.md-media { height: 38px; }
 .live-preview-ph__dot{width:8px;height:8px;border-radius:50%;background:var(--st-info,#38bdf8);animation:blink 1.2s steps(2) infinite;flex:none}
 .live-preview-ph__txt{font-size:var(--st-fs-sm,13px);color:var(--st-ink-2,inherit)}
 @media (prefers-reduced-motion: reduce){.live-preview-ph__dot{animation:none}}
+
+.img-promptbook-item { gap: 8px; }
+.img-promptbook-snap { flex: 0 0 auto; margin-left: auto; font-size: .78em; opacity: .75; white-space: nowrap; }
+.img-promptbook-del { flex: 0 0 auto; border: 0; background: none; color: inherit; cursor: pointer; font-size: .9em; opacity: .55; padding: 0 4px; }
+.img-promptbook-del:hover { opacity: 1; color: #d66; }

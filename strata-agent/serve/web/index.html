@@ -330,6 +330,13 @@
         </div>
         <textarea class="st-input img-prompt" id="img-negative" rows="2" placeholder="" aria-label="Negative prompt"
                   data-i18n-attr="placeholder:img.neg.placeholder,aria-label:img.neg.label"></textarea>
+        <!-- [提示词收藏 2026-11-14] 正负成对收藏 + 参数快照；权威=config/prompt_book.json（进git/备份），localStorage=离线镜像 -->
+        <div class="img-row img-promptbook-head">
+          <span data-i18n="img.promptbook">Prompt book</span>
+          <button type="button" class="st-btn st-btn--ghost" id="img-promptbook-save" data-i18n="img.promptbook.save">Save current</button>
+          <button type="button" class="st-btn st-btn--ghost" id="img-promptbook-clear" data-i18n="img.promptbook.clear">Clear</button>
+        </div>
+        <ul class="img-seedbook img-promptbook" id="img-promptbook"></ul>
         <!-- resolution tier + ratio chips (click fills W/H below; W/H stay editable) -->
         <div class="img-row img-chips" id="img-res-row">
           <span data-i18n="img.resolution">Resolution</span>

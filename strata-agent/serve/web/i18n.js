@@ -250,6 +250,16 @@
       "img.seedbook.clear": "清空",
       "img.seed.save": "收藏当前",
       "img.seedbook.empty": "暂无收藏",
+      "img.promptbook": "提示词收藏",
+      "img.promptbook.save": "收藏当前",
+      "img.promptbook.clear": "清空",
+      "img.promptbook.empty": "暂无收藏（点上方「收藏当前」把正负提示词成对存进来）",
+      "img.promptbook.name": "给这条收藏起个名字：",
+      "img.promptbook.click": "点击应用这条收藏",
+      "img.promptbook.applyparams": "应用收藏内容。同时回填当时的参数（步数/CFG/调度器等）吗？",
+      "img.promptbook.del": "删除",
+      "img.promptbook.clear.confirm": "清空全部提示词收藏？",
+      "img.promptbook.need": "提示词为空，无可收藏",
 
       /* ── Monitor ── */
       "mon.state": "模型状态",
@@ -1598,6 +1608,16 @@
       "img.seedbook.clear": "Clear",
       "img.seed.save": "Save current",
       "img.seedbook.empty": "(no saved seeds)",
+      "img.promptbook": "Prompt book",
+      "img.promptbook.save": "Save current",
+      "img.promptbook.clear": "Clear",
+      "img.promptbook.empty": "(empty - use Save current above to store a positive+negative pair)",
+      "img.promptbook.name": "Name this entry:",
+      "img.promptbook.click": "Click to apply this entry",
+      "img.promptbook.applyparams": "Apply the entry. Also restore its saved params (steps/CFG/scheduler)?",
+      "img.promptbook.del": "Delete",
+      "img.promptbook.clear.confirm": "Clear all prompt-book entries?",
+      "img.promptbook.need": "Nothing to save - both prompt boxes are empty",
 
       /* ── Monitor ── */
       "mon.state": "Model state",

@@ -9800,13 +9800,20 @@ _imgFilePreview("img-ref-file",  "img-gen-preview");
 const SEEDBOOK_KEY = "strata.imgSeedBook";
 function seedbookLoad(){ try { const a = JSON.parse(localStorage.getItem(SEEDBOOK_KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function seedbookSave(a){ try { localStorage.setItem(SEEDBOOK_KEY, JSON.stringify(a.slice(0,50))); } catch (e) {} }
+// [prompt book 2026-11-14] dual-write: localStorage stays the offline mirror, the backend
+// file (config/prompt_book.json via /api/prompt-book) is the authority that rides into git.
+function promptbookSync(){
+  const doc = {prompts: promptbookMem.prompts, seeds: seedbookLoad()};   // seeds = the localStorage mirror (post-migration)
+  try { localStorage.setItem("strata.promptBook", JSON.stringify(doc)); } catch (e) {}   // mirror incl. prompts
+  fetch("api/prompt-book", {method: "POST", headers: headers(true), body: JSON.stringify(doc)}).catch(() => {});   // parasitic: no route -> mirror only
+}
 function seedbookRecord(seed, prompt){
   if (seed == null || seed === 0 || seed === "0") return;   // 0/auto 不入库（非真实种子）
   const a = seedbookLoad();
   const key = String(seed) + "|" + String(prompt || "").slice(0, 80);
   if (a.some(x => String(x.seed) + "|" + String(x.prompt || "").slice(0, 80) === key)) return;   // 去重
   a.unshift({seed: seed, prompt: String(prompt || ""), ts: Date.now()});
-  seedbookSave(a); renderSeedbook();
+  seedbookSave(a); promptbookSync(); renderSeedbook();
 }
 function renderSeedbook(){
   const ul = $("img-seedbook"); if (!ul) return;
@@ -9826,8 +9833,89 @@ if ($("img-seed-save")) $("img-seed-save").onclick = () => {
   const pw = $("img-prompt") ? $("img-prompt").value.trim() : "";
   seedbookRecord(Number(sv), pw);
 };
-if ($("img-seedbook-clear")) $("img-seedbook-clear").onclick = () => { seedbookSave([]); renderSeedbook(); };
+if ($("img-seedbook-clear")) $("img-seedbook-clear").onclick = () => { seedbookSave([]); promptbookSync(); renderSeedbook(); };
 if ($("img-seedbook")) $("img-seedbook").onclick = (e) => { const li = e.target.closest(".img-seedbook-item"); if (li && li.dataset.seed) $("img-seed").value = li.dataset.seed; };   // [回填] 点击用此种子
+// [提示词收藏 2026-11-14] prompt book: positive+negative PAIRS with a params
+// snapshot (steps/cfg/sampling/scheduler/eta/seed). Authority = config/prompt_book.json
+// through /api/prompt-book (rides into git + bundle backup); localStorage = offline
+// mirror. Boot: GET -> the server wins when reachable (one-shot migration of a
+// local-only seed book); every edit writes BOTH legs via promptbookSync(). A row click
+// refills the boxes and asks whether to also restore the snapshot; the ✕ deletes it.
+let promptbookMem = {prompts: [], seeds: []};
+function promptbookLocalLoad(){
+  try { const d = JSON.parse(localStorage.getItem("strata.promptBook") || "null");
+    if (d && typeof d === "object") return {prompts: Array.isArray(d.prompts) ? d.prompts : [], seeds: Array.isArray(d.seeds) ? d.seeds : []};
+  } catch (e) {}
+  return null;
+}
+async function promptbookBoot(){
+  const local = promptbookLocalLoad();
+  let doc = null;
+  try { const r = await fetch("api/prompt-book", {headers: headers()}); if (r.ok) doc = await r.json(); } catch (e) {}
+  if (doc) {
+    if (local && local.seeds.length && !doc.seeds.length) doc.seeds = local.seeds;   // one-shot migrate the old local-only seed book
+    if (local && local.prompts.length && !doc.prompts.length) doc.prompts = local.prompts;
+    promptbookMem = doc;
+    try { localStorage.setItem("strata.promptBook", JSON.stringify(doc)); } catch (e) {}
+    try { localStorage.setItem(SEEDBOOK_KEY, JSON.stringify(doc.seeds.slice(0, 50))); } catch (e) {}   // keep the seed list's own key in sync
+  } else if (local) {
+    promptbookMem = local;                    // parasitic/offline: the mirror is all we have
+  }
+  renderPromptbook(); renderSeedbook();
+}
+function promptbookSnapshotParams(){
+  const v = (id) => { const el = $(id); return el ? String(el.value).trim() : ""; };
+  return {steps: v("img-steps"), cfg: v("img-cfg-scale"), sampling: v("img-sampling-method"),
+          scheduler: v("img-scheduler"), eta: v("img-eta"), seed: v("img-seed")};
+}
+function promptbookApplyParams(p){
+  const set = (id, val) => { const el = $(id); if (el && val != null && val !== "") el.value = val; };
+  set("img-steps", p.steps); set("img-cfg-scale", p.cfg);
+  set("img-sampling-method", p.sampling); set("img-scheduler", p.scheduler);
+  set("img-eta", p.eta); set("img-seed", p.seed);
+}
+if ($("img-promptbook-save")) $("img-promptbook-save").onclick = () => {
+  const pos = $("img-prompt").value.trim(), neg = $("img-negative").value.trim();
+  if (!pos && !neg) { const h = $("img-hint"); if (h) h.textContent = t("img.promptbook.need"); return; }
+  const name = window.prompt(t("img.promptbook.name"), pos.slice(0, 30)) || pos.slice(0, 30);
+  promptbookMem.prompts.unshift({name, positive: pos, negative: neg, params: promptbookSnapshotParams(), created: Date.now()});
+  promptbookSync(); renderPromptbook();
+};
+if ($("img-promptbook-clear")) $("img-promptbook-clear").onclick = () => {
+  if (!window.confirm(t("img.promptbook.clear.confirm"))) return;
+  promptbookMem.prompts = []; promptbookSync(); renderPromptbook();
+};
+function renderPromptbook(){
+  const ul = $("img-promptbook"); if (!ul) return;
+  ul.innerHTML = "";
+  const a = promptbookMem.prompts || [];
+  if (!a.length) { const li = document.createElement("li"); li.className = "img-seedbook-empty"; li.textContent = t("img.promptbook.empty"); ul.appendChild(li); return; }
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const li = document.createElement("li"); li.className = "img-seedbook-item img-promptbook-item"; li.dataset.idx = String(i);
+    li.title = t("img.promptbook.click") + "\n+" + (x.positive || "") + (x.negative ? "\n-" + x.negative : "");
+    const nm = document.createElement("span"); nm.className = "img-seedbook-seed"; nm.textContent = x.name || (x.positive || "").slice(0, 20);
+    const pv = document.createElement("span"); pv.className = "img-seedbook-prompt"; pv.textContent = (x.positive || "").slice(0, 40);
+    const pm = x.params || {};
+    const sn = document.createElement("span"); sn.className = "img-promptbook-snap";
+    sn.textContent = [pm.steps && ("s" + pm.steps), pm.cfg && ("c" + pm.cfg), pm.scheduler, pm.seed && ("seed" + pm.seed)].filter(Boolean).join(" ");
+    const del = document.createElement("button"); del.type = "button"; del.className = "img-promptbook-del"; del.textContent = "\u2715"; del.title = t("img.promptbook.del"); del.dataset.del = String(i);
+    li.append(nm, pv, sn, del); ul.appendChild(li);
+  }
+}
+if ($("img-promptbook")) $("img-promptbook").onclick = (e) => {
+  const del = e.target.closest("[data-del]");
+  if (del) { promptbookMem.prompts.splice(+del.dataset.del, 1); promptbookSync(); renderPromptbook(); return; }   // ✕ = delete this row
+  const li = e.target.closest(".img-promptbook-item"); if (!li) return;
+  const x = promptbookMem.prompts[+li.dataset.idx]; if (!x) return;
+  $("img-prompt").value = x.positive || "";
+  $("img-negative").value = x.negative || "";
+  const p = x.params || {};
+  if (p.steps || p.cfg || p.scheduler || p.seed) { if (window.confirm(t("img.promptbook.applyparams"))) promptbookApplyParams(p); }
+  else if (p.sampling || p.eta) promptbookApplyParams(p);   // only the new-control fields set: apply quietly
+};
+promptbookBoot();
+
 renderSeedbook();
 
 $("img-form").onsubmit = async (ev) => {

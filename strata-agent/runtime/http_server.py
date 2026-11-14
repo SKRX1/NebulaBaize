@@ -1793,6 +1793,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/image-settings":
             self._api_image_settings(method)
             return True
+        if path.rstrip("/") == "/api/prompt-book":
+            self._api_prompt_book(method)          # [prompt book 2026-11-14] authoritative store
+            return True
         if path.rstrip("/") == "/api/image-scan-models":
             self._api_image_scan_models()
             return True
@@ -1934,6 +1937,59 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
         files.sort(key=lambda x: (x["role_guess"], x["name"]))
         self._json(200, {"dir": d, "files": files})
+
+    PROMPT_BOOK_CAP = (200, 50)   # (prompts, seeds) hard caps — mirrors the frontend's
+
+    def _prompt_book_path(self) -> str:
+        # STRATA_PROMPT_BOOK isolates the file for tests (same env-override pattern as STRATA_INTERRUPT_LOG)
+        return os.environ.get("STRATA_PROMPT_BOOK") or os.path.join(ROOT, "config", "prompt_book.json")
+
+    def _prompt_book_load(self) -> dict:
+        path = self._prompt_book_path()
+        try:
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            d = {}
+        if not isinstance(d, dict):
+            d = {}
+        return {"prompts": d.get("prompts") if isinstance(d.get("prompts"), list) else [],
+                "seeds": d.get("seeds") if isinstance(d.get("seeds"), list) else []}
+
+    def _api_prompt_book(self, method: str):
+        """GET/POST /api/prompt-book — the prompt book (positive+negative pairs, with a
+        params snapshot) and the seed book, in ONE file: config/prompt_book.json, so both
+        ride into git and the daily bundle backup (localStorage alone never does).
+        GET returns the doc; POST replaces it wholesale (frontend sends the full doc — the
+        same no-merge contract /api/image-settings uses). A .bak of the previous file is
+        kept beside it. Parasitic mode has no route here — the frontend then falls back to
+        its localStorage mirror (app.js's offline leg)."""
+        if method in (None, "GET"):
+            self._json(200, self._prompt_book_load())
+            return
+        if method == "POST":
+            body = self._read_json()
+            prompts = body.get("prompts")
+            seeds = body.get("seeds")
+            if not isinstance(prompts, list) or not isinstance(seeds, list):
+                self._json(400, {"error": {"type": "invalid_request",
+                                           "message": "prompts and seeds must both be lists"}})
+                return
+            cp, cs = self.PROMPT_BOOK_CAP
+            doc = {"prompts": prompts[:cp], "seeds": seeds[:cs]}
+            path = self._prompt_book_path()
+            try:
+                if os.path.exists(path):                                  # backup-before-write
+                    import shutil
+                    shutil.copyfile(path, path + ".bak")
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(doc, f, ensure_ascii=False, indent=2)
+            except OSError as e:
+                self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+                return
+            self._json(200, doc)
+            return
+        self._json(405, {"error": {"type": "method_not_allowed", "message": f"{method} not allowed"}})
 
     def _api_image_settings(self, method: str):
         """GET/POST /api/image-settings — read or write the image tab's two config slots."""
