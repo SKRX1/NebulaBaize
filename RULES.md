@@ -131,3 +131,5 @@ async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在
 新增静默 except 块（body 仅 pass/continue/docstring/注释）会撞上 tests/test_code_hygiene.py 的棘轮基线；要规避就给 body 放一条真实语句（如 return/记日志），而非靠加注释
 星云白泽前端无 token 时 app.js 会降级隐藏大部分控件，无头截图不能证伪完整版布局；完整版布局需带 token 浏览器实看
 sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以「静态 DOM 结构+选择器命中」读回坐实即可，不必强跑 sim
+批量移动 scratch 到 .strata-recycle 用 Python shutil 时，git status 输出的相对路径分隔符是 /，Windows 下须先 p.replace('/',os.sep) 再拼绝对路径，否则 os.rename/CopyFile2 报 WinError 3
+量显存峰值用「边跑边每<1s采样 nvidia-smi 抓 max」，sd-cli 进度输出要重定向到文件而非 PIPE，否则进度流填满 pipe buffer 会卡住进程采不到峰值
