@@ -129,3 +129,5 @@ pip 卸载无回收站语义（物理删除）；只有磁盘上的模型/临时
 async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在 await 之后使用前必须重新校验——await 期间全局可变状态（messages、分支、撤销栈）可能被并发改变致其越界
 对象字面量里 get xxx() 定义的成员必须按属性读取（d.current），绝不能写成 d.current()——getter 返回值是 truthy 的非函数对象，`d.current ? d.current()` 会过了 truthy 检查后对对象求值抛 "is not a function"
 新增静默 except 块（body 仅 pass/continue/docstring/注释）会撞上 tests/test_code_hygiene.py 的棘轮基线；要规避就给 body 放一条真实语句（如 return/记日志），而非靠加注释
+星云白泽前端无 token 时 app.js 会降级隐藏大部分控件，无头截图不能证伪完整版布局；完整版布局需带 token 浏览器实看
+sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以「静态 DOM 结构+选择器命中」读回坐实即可，不必强跑 sim
