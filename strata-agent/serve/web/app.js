@@ -10003,11 +10003,13 @@ function renderGallery(){
   if (gallerySelSet.size) {   // [删除增强] batch bar appears only while the set is non-empty (selection survives every repaint)
     const bar = document.createElement("div"); bar.className = "img-gallery__batchbar";
     const cnt = document.createElement("span"); cnt.className = "img-gallery__batchcount"; cnt.textContent = t("img.gallery.batch.n").replace("{n}", String(gallerySelSet.size));
+    const fav = document.createElement("button"); fav.type = "button"; fav.className = "st-btn st-btn--sm"; fav.setAttribute("data-testid", "batch-fav"); fav.textContent = t("img.gallery.batch.fav");
+    fav.addEventListener("click", () => galleryBatchFav());
     const del = document.createElement("button"); del.type = "button"; del.className = "st-btn st-btn--sm st-btn--danger"; del.textContent = t("img.gallery.batch.del");
     del.addEventListener("click", () => galleryBatchDelete());
     const clr = document.createElement("button"); clr.type = "button"; clr.className = "st-btn st-btn--sm st-btn--ghost"; clr.textContent = t("img.gallery.batch.clear");
     clr.addEventListener("click", () => { gallerySelSet.clear(); renderGallery(); });
-    bar.append(cnt, del, clr); host.append(bar);
+    bar.append(cnt, fav, del, clr); host.append(bar);
   }
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
   const liveSel = galleryLiveSel ? (galleryLive.find((l) => l.id === galleryLiveSel && !l.retired) || null) : null;   // [SD式融合] a live record can drive the stage
@@ -10120,6 +10122,22 @@ async function galleryBatchDelete(){
     drop(it);
   }
   gallerySave(); renderGallery();
+}
+async function galleryBatchFav(){   // [批量收藏 2026-11-16] non-destructive copy of each pick into data/saved_images/; reuses the single-save endpoint. No confirm box (a copy is safe, repeatable).
+  if (!gallerySelSet.size) { toast("warn", t("side.batch.none")); return; }   // reuses the batch-delete guard key, symmetric with galleryBatchDelete
+  const items = [...gallerySelSet];   // identity refs: entries AND live rows
+  let ok = 0, fail = 0;
+  for (const x of items) {
+    const src = x.url || x.saved_ref || "";   // same src the single-save path posts
+    if (!src) { fail++; continue; }
+    try {
+      const r = await fetch("api/saved-image", {method: "POST", headers: headers(true), body: JSON.stringify({ src })});   // backend dedups an identical src (idempotent)
+      const j = await r.json();
+      if (r.ok) { x.saved = true; x.saved_ref = j.ref || x.saved_ref; ok++; } else fail++;   // mirror the single-save mutation
+    } catch { fail++; }
+  }
+  toast("info", t("img.gallery.batch.fav.ok", {ok, fail}));
+  renderGallery();   // selection is KEPT (favouriting is repeatable; the user may pick more)
 }
 async function galleryTrashFiles(items){   // [删除增强] shared leg: files -> the Windows Recycle Bin via /api/recycle (the archive-manager convention)
   const s0 = activeSession();

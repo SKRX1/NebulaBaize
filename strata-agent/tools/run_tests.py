@@ -100,6 +100,7 @@ SUITES = [
     "tests/test_img_gallery_jsdom.mjs",   # 2026-11-15 image gallery gate: jsdom boot — authoritative-file restore, click-select, dblclick reuses openImageView, save POSTs api/saved-image, i2i stub leg, delete confirm-cancel differential + empty-is-real-intent (the .length trap)
 
     "tests/test_batch_delete_jsdom.mjs",   # 2026-11-15 删除增强行为锁: B1 Ctrl/Cmd toggle + Shift range from the gallerySel anchor, the summary box DEFAULT-checked (files -> the Recycle Bin via /api/recycle), the un-checked DECOY proves it load-bearing (index-only, no fetch); the batch bar only exists while the set is non-empty
+    "tests/test_batch_fav_jsdom.mjs",   # 2026-11-16 批量收藏行为锁: multisel 多选 -> batch bar grows the fav button (data-testid=batch-fav); a click POSTs api/saved-image per pick (reuses the single-save endpoint, backend copyfile is idempotent); success -> saved=true + saved_ref=backend ref; the NOT-ok DECOY (gen_f4) proves the fail branch is load-bearing (never flips a failed pick); the set is KEPT after fav (non-destructive/repeatable — opposite of batch-delete drain)
     "tests/test_preview_ui_lock.mjs",   # 2026-11-14 preview A+B lock: ASCII detour for CJK ROOT, poll preview_ready gate, placeholder card css, n-alias str-only, in-place fig upgrade (single mount); pure static scan so it runs in QUICK
 
 
