@@ -10124,9 +10124,14 @@ async function galleryBatchDelete(){
 async function galleryTrashFiles(items){   // [删除增强] shared leg: files -> the Windows Recycle Bin via /api/recycle (the archive-manager convention)
   const s0 = activeSession();
   const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
-  if (!ws) return;   // no workspace = no ledger home: graceful index-only removal (the gates keep green)
   const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => u.startsWith("/data/generated/images/") || u.startsWith("/data/saved_images/") || isAbsolutePath(u)).map(galleryResolvePath).filter(Boolean);   // [删除增强 2026-11-15b] only real files (never localStorage mirrors); urls stay url-shaped, the backend maps them
   if (!paths.length) return;
+  // [ws-空修复 2026-11-16] a url-shape path resolves to the INSTALL ROOT and needs NO workspace — the old
+  // `if (!ws) return` here silently swallowed the whole file leg on any workspace-less session (that was the
+  // "勾选了却删不掉文件夹内的图" bug: the index still dropped the entry, the file stayed on disk). Only a purely
+  // workspace-rooted batch (no url shape) still needs a ws for its ledger; a ws-empty url batch now FIRES and the backend lands the ledger on the install root.
+  const hasUrlShape = paths.some((p) => p.startsWith("/data/generated/images/") || p.startsWith("/data/saved_images/"));
+  if (!ws && !hasUrlShape) return;   // legacy workspace-rooted shape with no ws = no ledger home: graceful index-only removal (the gates keep green)
   try {
     const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
     const j = await r.json().catch(() => ({}));

@@ -4007,10 +4007,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
     RECYCLE_RETENTION_FLOOR_H = 1.0                                      # retention only gates tool_log; floor 1h
 
     def _recycle_paths(self, req):
+        # [ws-空修复 2026-11-16] an empty workspace no longer bails: the ledger lands on the INSTALL ROOT
+        # default. Callers only send a ws-empty request for url-shape paths (they resolve to the install
+        # root via _recycle_resolve anyway); a fully unresolvable batch stays rejected by its own caller.
         ws = (req.get("workspace") or "").strip()
-        if not ws:
-            return None, None
-        base = Path(ws)
+        base = Path(ws) if ws else Path(ROOT)
         ledger = base / ".strata-recycle" / "ledger.jsonl"
         return base, ledger
 

@@ -219,5 +219,24 @@ check("I2 the fused grid no longer owns a scrollbar (single scroll container)",
   check("I11 the selection survives re-render (cell keeps the sel class)", !!win.document.querySelector(".img-gallery__cell--sel"));
 }
 
+console.log("\n=== J. [ws-空修复 2026-11-16] EMPTY workspace + url-shape path: the delete leg must STILL fire the fetch (the old if(!ws) return silently swallowed it = the bug) ===");
+{
+  win.localStorage.setItem("strata.sessions", JSON.stringify([{ id: "sProbe", workspace: "", permission: "full" }]));   // wipe the workspace the G section seeded
+  win.localStorage.setItem("strata.session.active", JSON.stringify("sProbe"));
+  api.galleryMem().push(Object.assign({}, SEED_ITEM));   // re-seed one entry (H/I may have emptied it)
+  api.renderGallery();
+  const cell0 = () => win.document.querySelector('.img-gallery__cell[data-idx="0"]');
+  cell0().dispatchEvent(new win.MouseEvent("click", { bubbles: true }));   // select it
+  const recBefore = api.__recycled().length;
+  win.document.querySelector('.img-gallery__actions [data-act="del"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  await tick();
+  const box = win.document.querySelector('[data-testid="batch-confirm"]');
+  check("J1 the box opens default-CHECKED even on a workspace-less session", !!box && box.querySelector('[data-testid="batch-check"]').checked === true);
+  box.querySelectorAll("button")[0].click();   // OK (default checked)
+  await tick(120);
+  check("J2 THE FIX: a workspace-EMPTY url-shape delete STILL fires /api/recycle (was silently swallowed)", api.__recycled().length === recBefore + 1);
+  check("J3 the fired fetch carried the url-shape path (the backend maps it to the install root)", api.__recycled()[recBefore].paths.length === 1 && api.__recycled()[recBefore].paths[0].startsWith("/data/generated/images/"));
+}
+
 console.log("\n" + (FAILURES.length ? "IMG-GALLERY-GATE: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "IMG-GALLERY-GATE: ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);
