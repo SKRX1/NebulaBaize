@@ -7,7 +7,13 @@
     "vae": "E:\\QwenImage2.1Turbo\\models\\vae.gguf",
     "llm": "E:\\QwenImage2.1Turbo\\models\\编码器\\Qwen-Image-2.1-Turbo-Abliterated-Uncensored-AD-Q3_K.gguf",
     "llm_vision": "E:\\QwenImage2.1Turbo\\models\\编码器\\mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-BF16.gguf",
-    "args": ["--max-vram", "10", "--vae-tiling"]
+    "args": [
+      "--max-vram",
+      "10",
+      "--vae-tiling",
+      "--offload-to-cpu",
+      "--mmap"
+    ]
   },
   "api": {
     "base_url": "",
