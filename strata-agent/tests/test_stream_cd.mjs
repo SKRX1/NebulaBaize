@@ -97,7 +97,8 @@ async function sendChat(chunks, gap = 0) {
     return { ok: true, status: 200, json: async () => ({}) };
   };
   const input = doc.getElementById("input");
-  input.value = "prompt";
+  input.value = "prompt";   // [深查闭环 2026-11-16] #input is contenteditable; ceText reads DOM text not .value.
+  input.textContent = "prompt";   // feed it the way a real user types (this was a HARNESS gap, not a product bug)
   const btn = doc.getElementById("send-btn");
   btn.click();
   await sleep(Math.max(400, gap * chunks.length + 400));

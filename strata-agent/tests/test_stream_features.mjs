@@ -95,7 +95,7 @@ const main = async () => {
 
   const input = doc.getElementById("input");
   check("input present", !!input);
-  input.value = "Do the thing.";
+  input.textContent = "Do the thing.";   // [深查闭环 2026-11-16] #input is contenteditable; send() reads via ceText (DOM text), NOT .value. The old `input.value=` left it empty -> send() bailed at the empty guard -> len=0. This was a HARNESS gap, not a product bug.
   const sendBtn = doc.getElementById("send-btn");
   let threw = null;
   try { if (sendBtn) sendBtn.click(); } catch (e) { threw = e; }
