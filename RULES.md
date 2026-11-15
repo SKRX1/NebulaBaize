@@ -133,3 +133,12 @@ async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在
 sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以「静态 DOM 结构+选择器命中」读回坐实即可，不必强跑 sim
 批量移动 scratch 到 .strata-recycle 用 Python shutil 时，git status 输出的相对路径分隔符是 /，Windows 下须先 p.replace('/',os.sep) 再拼绝对路径，否则 os.rename/CopyFile2 报 WinError 3
 量显存峰值用「边跑边每<1s采样 nvidia-smi 抓 max」，sd-cli 进度输出要重定向到文件而非 PIPE，否则进度流填满 pipe buffer 会卡住进程采不到峰值
+前端持久化数据要进备份的，一律走「后端 JSON 权威 + localStorage 镜像」双写（bugBox/interruptLog/promptBook 三处同一模式），纯 localStorage 不进 git/bundle
+给 http_server.py 的新路由加测试时用 STRATA_* 环境变量隔离数据文件（照 STRATA_INTERRUPT_LOG/STRATA_PROMPT_BOOK 惯例），测试绝不碰真实 config/
+换图落位铁律：源图→字节级复制入 serve/web/img/（引用名沿用不改前端）、旧图落 .bak、SRC/DST MD5 对账，png 零转码
+全套回归本机跑法：79 个脚本式测试逐个 python 直跑（pytest 收集会被自带 sys.exit 的脚本打断），3 项既有失败：test_encoding(缺编码声明)、gateway_monitor/management_api(需网关在线)
+用完即送的脚手架只指本轮自建的；tools/ 历史积压未经扫描不得扩大删除范围
+门禁测试锁定 run_all_tests.py 转发器：定位失败必红（非零+诚实stderr）、委托退出码必透传、参数必转发——防工作区根假绿旧病复发
+前端行为门禁被本轮拍板正当推翻时（如控件形态改变），更新断言锁住「事实」（默认值/行为），不锁旧形态
+无头浏览器截图工具等待窗<2.8s：harness 的自动交互脚本要安排在 ≤300ms 触发，长等待探针交给 browser__sim/jsdom
+本地 harness 页必须放 serve/web/ 内经 http://127.0.0.1:8099/ 访问（放 evidence/ 走 file:// 会因相对 CSS 路径 404 渲染成裸页）
