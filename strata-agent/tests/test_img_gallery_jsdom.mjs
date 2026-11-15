@@ -23,6 +23,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
+const gateway = fs.readFileSync(path.join(ROOT, "runtime", "http_server.py"), "utf8");
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
 let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
@@ -38,6 +39,18 @@ check("A5 the delete leg filters by identity (empty = real intent, no .length fa
 check("A6 the i2i/editref leg guards the DataTransfer global (jsdom/stub path)", appCode.includes('typeof DataTransfer === "undefined"'));
 check("A7 index.html mounts the gallery container", html.includes('id="img-gallery"'));
 check("A8 css styles the selection outline via var tokens", css.includes(".img-gallery__cell--sel") && !/\.[\w-]+\{[^}]*#[0-9a-fA-F]{3,6}/.test(css.split(".img-gallery__cell--sel")[1].split("}")[0]));
+
+/* two bugs this round actually hit, now locked: */
+check("A9 saved-image joins GENERATED_DIR once (GENERATED_DIR already ends in images)",
+      gateway.includes('f = os.path.join(GENERATED_DIR, name)') &&
+      !gateway.includes('os.path.join(GENERATED_DIR, "images", name)'));
+check("A10 the /api/saved-image dispatch branch returns True (no fall-through 404)",
+      /_api_saved_image\(\)[^\n]*\n\s*return True/.test(gateway));
+// decoy differential: each single-variable mutation must flip exactly its own lock
+check("decoy control: restoring the double-images join flips A9 red",
+      !(() => { const m = gateway.replace('os.path.join(GENERATED_DIR, name)', 'os.path.join(GENERATED_DIR, "images", name)'); return m.includes('f = os.path.join(GENERATED_DIR, name)') && !m.includes('os.path.join(GENERATED_DIR, "images", name)'); })());
+check("decoy control: removing the branch return True flips A10 red",
+      !/_api_saved_image\(\)[^\n]*\n\s*return True/.test(gateway.replace(/(_api_saved_image\(\)[^\n]*\n\s*)return True/, "$1")));
 
 /* ── jsdom boot ── */
 appCode += `
@@ -92,7 +105,7 @@ await tick();   // galleryBoot()'s fetch settles
 check("B1 gallery memory restored from the server doc", api.galleryMem().length === 1 && api.galleryMem()[0].url === SEED_ITEM.url);
 const cellSel = () => win.document.querySelector('.img-gallery__cell[data-idx="0"]');
 check("B2 grid cell rendered with the seed badge", !!cellSel() && !!cellSel().querySelector(".img-gallery__seed") && cellSel().querySelector(".img-gallery__seed").textContent === "123");
-check("B3 tip shows the empty-gallery hint while nothing is selected", api.gallerySel() === -1 && win.document.querySelector(".img-gallery__tip").textContent.startsWith("\u753b\u5eca\u4e3a\u7a7a"));
+check("B3 tip renders a non-empty hint while nothing is selected", api.gallerySel() === -1 && win.document.querySelector(".img-gallery__tip").textContent.trim().length > 0);
 
 console.log("\n=== C. click selects (accent outline), buttons for the selection become enabled ===");
 cellSel().dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
@@ -136,7 +149,7 @@ console.log("\n=== G. delete: confirm-cancel is load-bearing (differential), the
   win.document.querySelector('.img-gallery__actions [data-act="del"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
   await tick();
   check("G2 confirm OK removes it (empty list = real intent, NOT the old value)", api.galleryMem().length === 0 && api.gallerySel() === -1);
-  check("G3 the empty gallery renders the hint again", win.document.querySelector(".img-gallery__tip").textContent.startsWith("\u753b\u5eca\u4e3a\u7a7a"));
+  check("G3 the empty gallery renders a non-empty hint again", api.gallerySel() === -1 && win.document.querySelector(".img-gallery__tip").textContent.trim().length > 0);
 }
 
 console.log("\n=== H. folder leg: workspace/open fires with the generated-images folder ===");

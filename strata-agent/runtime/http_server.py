@@ -1807,6 +1807,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return True
         if path.rstrip("/") == "/api/saved-image":
             self._api_saved_image()                # [img gallery 2026-11-15] copy one entry into data/saved_images
+            return True                            # [FIX 2026-11-15] branch fell through -> 404
         if path.rstrip("/") == "/api/image-scan-models":
             self._api_image_scan_models()
             return True
@@ -2068,7 +2069,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"):
             self._json(400, {"error": {"type": "invalid_request", "message": "unsupported image type"}})
             return
-        f = os.path.join(GENERATED_DIR, "images", name)
+        f = os.path.join(GENERATED_DIR, name)   # [FIX 2026-11-15] GENERATED_DIR already ends in images -> double path 404
         if not os.path.isfile(f):
             self._json(404, {"error": {"type": "not_found", "message": "source image not on disk"}})
             return

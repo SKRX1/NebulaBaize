@@ -9922,7 +9922,6 @@ if ($("img-promptbook")) $("img-promptbook").onclick = (e) => {
   else if (p.sampling || p.eta) promptbookApplyParams(p);   // only the new-control fields set: apply quietly
 };
 promptbookBoot();
-galleryBoot();   // [img gallery 2026-11-15] restore the gallery from the authoritative file / mirror
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // [img gallery 2026-11-15] the image tab's browsable gallery: view stage (current
@@ -10054,6 +10053,10 @@ function galleryWire(){
   });
 }
 galleryWire();
+galleryBoot();   // [img gallery 2026-11-15 TDZ-fix] call sits AFTER the module: the top-level
+                 // let galleryMem is uninitialised at the old spot, and a throwing fetch makes
+                 // the reference fire in TDZ (reproduced in jsdom) — sandbox-crasher, same class
+                 // as the documented top-level-TDZ trap.
 
 
 renderSeedbook();

@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "url": "/data/generated/images/gen_20261115_093035_ad889f16.png",
+      "seed": 682137459,
+      "prompt": "白色神兽白泽（真机验收原条目）",
+      "ts": 1794706236209,
+      "size": "448x640",
+      "saved": false
+    },
+    {
+      "url": "/data/generated/images/gen_20261115_095125_e5dfe5b5.png",
+      "seed": 1017137312,
+      "prompt": "a tiny red fox on a mossy rock (seeded)",
+      "ts": 1794708685000,
+      "size": "256x256",
+      "saved": false
+    },
+    {
+      "url": "/data/generated/images/gen_20261115_095125_18534336.png",
+      "seed": null,
+      "prompt": "a tiny red fox on a mossy rock (auto)",
+      "ts": 1794708685000,
+      "size": "256x256",
+      "saved": false
+    },
+    {
+      "url": "/data/generated/images/gen_20261115_095125_4364d1c8.png",
+      "seed": 1017137314,
+      "prompt": "a tiny red fox on a mossy rock (seed+1)",
+      "ts": 1794708685000,
+      "size": "256x256",
+      "saved": true,
+      "saved_ref": "/data/saved_images/gen_20261115_095125_4364d1c8.png"
+    }
+  ]
+}
