@@ -220,6 +220,7 @@ SUITES = [
     "tests/test_stats_flicker.mjs",
     "tests/test_code_copy_flicker.mjs",   # 2026-11-14 ROOT-CAUSE: a fenced code block's top-right copy button flickered WHILE generating (same family as test_stats_flicker). paintMd rewrote node.innerHTML each streaming paint, rebuilding the .st-code card + its copy button each frame (sprite <use> re-resolve + hover transition restart). Fix routes both rewrite paths through setMdHtml, which preserves each code-card HEAD by DOM identity (position + unchanged language label). jsdom DOM-identity differential: same-label repaint -> SAME button node; label-change -> fresh head allowed; multi-card keeps each head by position.
 
+    "tests/test_seedbook_single_delete.mjs",   # 2026-11-15: seed-book PER-ROW single delete (X deletes only that row, order kept; last-delete lands on the honest empty state) + count field is a number INPUT default 1; static order-lock (data-del before refill) + jsdom behaviour
     "tests/test_seed_display.mjs",       # 2026-10-20: random seed actually used is shown + replayable
 
     "tests/test_nebula.mjs",

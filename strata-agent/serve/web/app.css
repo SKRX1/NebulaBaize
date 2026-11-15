@@ -1616,5 +1616,5 @@ audio.md-media { height: 38px; }
 
 .img-promptbook-item { gap: 8px; }
 .img-promptbook-snap { flex: 0 0 auto; margin-left: auto; font-size: .78em; opacity: .75; white-space: nowrap; }
-.img-promptbook-del { flex: 0 0 auto; border: 0; background: none; color: inherit; cursor: pointer; font-size: .9em; opacity: .55; padding: 0 4px; }
-.img-promptbook-del:hover { opacity: 1; color: #d66; }
+.img-promptbook-del, .img-seedbook-del { flex: 0 0 auto; border: 0; background: none; color: inherit; cursor: pointer; font-size: .9em; opacity: .55; padding: 0 4px; }
+.img-promptbook-del:hover, .img-seedbook-del:hover { opacity: 1; color: #d66; }

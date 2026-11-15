@@ -9820,11 +9820,14 @@ function renderSeedbook(){
   const a = seedbookLoad();
   ul.innerHTML = "";
   if (!a.length) { const li = document.createElement("li"); li.className = "img-seedbook-empty"; li.textContent = t("img.seedbook.empty"); ul.appendChild(li); return; }
-  for (const x of a) {
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
     const li = document.createElement("li"); li.className = "img-seedbook-item"; li.dataset.seed = String(x.seed); li.title = x.prompt || "";
     const s = document.createElement("span"); s.className = "img-seedbook-seed"; s.textContent = String(x.seed);
     const p = document.createElement("span"); p.className = "img-seedbook-prompt"; p.textContent = (x.prompt || "").slice(0, 40);
-    li.append(s, p); ul.appendChild(li);
+    // [single-del 2026-11-15] per-row X (same pattern as the prompt-book row); the click delegate deletes THIS row only.
+    const del = document.createElement("button"); del.type = "button"; del.className = "img-promptbook-del img-seedbook-del"; del.textContent = "\u2715"; del.title = t("img.seedbook.del"); del.dataset.del = String(i);
+    li.append(s, p, del); ul.appendChild(li);
   }
 }
 if ($("img-seed-dice")) $("img-seed-dice").onclick = () => { $("img-seed").value = String(Math.floor(Math.random() * (2147483646)) + 1); };   // [真随机] 前端生成随机正整数
@@ -9834,7 +9837,11 @@ if ($("img-seed-save")) $("img-seed-save").onclick = () => {
   seedbookRecord(Number(sv), pw);
 };
 if ($("img-seedbook-clear")) $("img-seedbook-clear").onclick = () => { seedbookSave([]); promptbookSync(); renderSeedbook(); };
-if ($("img-seedbook")) $("img-seedbook").onclick = (e) => { const li = e.target.closest(".img-seedbook-item"); if (li && li.dataset.seed) $("img-seed").value = li.dataset.seed; };   // [回填] 点击用此种子
+if ($("img-seedbook")) $("img-seedbook").onclick = (e) => {   // [refill+single-del 2026-11-15] X deletes THIS row; row-click refills the seed box
+  const del = e.target.closest("[data-del]");
+  if (del) { const a = seedbookLoad(); a.splice(+del.dataset.del, 1); seedbookSave(a); promptbookSync(); renderSeedbook(); return; }   // X = delete THIS row only
+  const li = e.target.closest(".img-seedbook-item"); if (li && li.dataset.seed) $("img-seed").value = li.dataset.seed;
+};
 // [提示词收藏 2026-11-14] prompt book: positive+negative PAIRS with a params
 // snapshot (steps/cfg/sampling/scheduler/eta/seed). Authority = config/prompt_book.json
 // through /api/prompt-book (rides into git + bundle backup); localStorage = offline

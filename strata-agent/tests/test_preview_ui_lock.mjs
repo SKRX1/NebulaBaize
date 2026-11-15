@@ -38,7 +38,7 @@ ok(css.includes("prefers-reduced-motion: reduce){.live-preview-ph__dot{animation
 
 // --- 张数 + 双图根修 ---
 ok(html.includes('id="img-count"'), "html: img-count select exists");
-ok(html.includes('<option value="1" selected>'), "html: count default is 1");
+ok(html.includes('id="img-count" type="number" min="1" max="16" step="1" value="1"'), "html: count default is 1");   // 2026-11-15: select -> number INPUT (owner ruling); the FACT (default 1) stays locked
 ok(js.includes('$("img-count")'), "frontend: submit reads img-count into body.n");
 ok(js.includes('autoFillW'), "frontend: source-dims autoFillW marker is wired (lock-safe)");
 ok(js.includes("const renderResult = (j, into)"), "frontend: renderResult accepts the upgrade target");
