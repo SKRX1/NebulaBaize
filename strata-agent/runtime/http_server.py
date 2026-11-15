@@ -1560,6 +1560,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
             # Map the URL prefix to that real drop-point so the frontend can inline them.
             rel = clean[len("data/uploads/"):]
             filepath = Path(ROOT) / "data" / "uploads" / rel.lstrip("/")
+        elif clean.startswith("data/saved_images/"):
+            # [img gallery 2026-11-15] saved copies land in ROOT/data/saved_images (OUTSIDE the web root)
+            rel = clean[len("data/saved_images/"):]
+            filepath = Path(ROOT) / "data" / "saved_images" / rel.lstrip("/").replace("\\", "/")
         elif clean.startswith("data/generated/"):
             # generated images live in ROOT/data/generated (OUTSIDE the web root).
             rel = clean[len("data/generated/"):]
@@ -1577,10 +1581,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
         try:
             filepath = filepath.resolve()
             web_root = Path(WEB_DIR).resolve()
+            saved_root = (Path(ROOT) / "data" / "saved_images").resolve()   # [img gallery 2026-11-15]
             uploads_root = (Path(ROOT) / "data" / "uploads").resolve()
             generated_root = (Path(ROOT) / "data" / "generated").resolve()
             if not (str(filepath).startswith(str(web_root)) or str(filepath).startswith(str(uploads_root))
                     or str(filepath).startswith(str(generated_root))
+                    or str(filepath).startswith(str(saved_root))
                     or str(filepath).startswith(str(Path(PREVIEWS_DIR).resolve()))):
                 self._json(403, {"error": {"type": "forbidden", "message": "path outside web root"}})
                 return
@@ -1796,6 +1802,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/prompt-book":
             self._api_prompt_book(method)          # [prompt book 2026-11-14] authoritative store
             return True
+        if path.rstrip("/") == "/api/image-gallery":
+            self._api_image_gallery(method)        # [img gallery 2026-11-15] authoritative store
+            return True
+        if path.rstrip("/") == "/api/saved-image":
+            self._api_saved_image()                # [img gallery 2026-11-15] copy one entry into data/saved_images
         if path.rstrip("/") == "/api/image-scan-models":
             self._api_image_scan_models()
             return True
@@ -1990,6 +2001,89 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._json(200, doc)
             return
         self._json(405, {"error": {"type": "method_not_allowed", "message": f"{method} not allowed"}})
+
+    # [img gallery 2026-11-15] ── the image tab's browsable gallery (view stage + grid) ──
+    # Authoritative file config/image_gallery.json (same contract as prompt_book.json:
+    # wholesale-POST, .bak, env-override for tests, cap 500) so it rides into git and the
+    # bundle backup; localStorage is only the offline mirror. Entries: {url, seed, prompt,
+    # ts, size, saved}. Saved copies land in ROOT/data/saved_images/<fname>.
+
+    IMG_GALLERY_CAP = 500
+
+    def _img_gallery_path(self) -> str:
+        # STRATA_IMAGE_GALLERY isolates the file for tests (same env-override pattern as STRATA_PROMPT_BOOK)
+        return os.environ.get("STRATA_IMAGE_GALLERY") or os.path.join(ROOT, "config", "image_gallery.json")
+
+    def _api_image_gallery(self, method: str):
+        if method in (None, "GET"):
+            path = self._img_gallery_path()
+            doc = {}
+            try:
+                with open(path, encoding="utf-8") as f:
+                    doc = json.load(f)
+            except (OSError, ValueError):
+                doc = {}
+            if not isinstance(doc, dict):
+                doc = {}
+            self._json(200, {"items": doc.get("items") if isinstance(doc.get("items"), list) else []})
+            return
+        if method == "POST":
+            body = self._read_json()
+            items = body.get("items")
+            if not isinstance(items, list):
+                self._json(400, {"error": {"type": "invalid_request", "message": "items must be a list"}})
+                return
+            doc = {"items": items[:self.IMG_GALLERY_CAP]}
+            path = self._img_gallery_path()
+            try:
+                if os.path.exists(path):                                  # backup-before-write
+                    import shutil
+                    shutil.copyfile(path, path + ".bak")
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(doc, f, ensure_ascii=False, indent=2)
+            except OSError as e:
+                self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+                return
+            self._json(200, doc)
+            return
+        self._json(405, {"error": {"type": "method_not_allowed", "message": f"{method} not allowed"}})
+
+    def _api_saved_image(self):
+        """POST /api/saved-image {src}: copy ONE server-generated image into data/saved_images/.
+        Only accepts paths under /data/generated/images/ (the URL the generation flow itself
+        hands out) — no traversal, no arbitrary read. Refuses >20 MB (the front-end ceiling)
+        and non-image extensions. Returns the served reference of the copy."""
+        body = self._read_json()
+        src = (body.get("src") or "").split("?")[0]
+        prefix = "/data/generated/images/"
+        if not src.startswith(prefix):
+            self._json(400, {"error": {"type": "invalid_request",
+                                       "message": "src must be a generated image path under " + prefix}})
+            return
+        name = src[len(prefix):]
+        if "/" in name or ".." in name or "\\" in name:
+            self._json(400, {"error": {"type": "invalid_request", "message": "bad file name"}})
+            return
+        ext = os.path.splitext(name)[1].lower()
+        if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"):
+            self._json(400, {"error": {"type": "invalid_request", "message": "unsupported image type"}})
+            return
+        f = os.path.join(GENERATED_DIR, "images", name)
+        if not os.path.isfile(f):
+            self._json(404, {"error": {"type": "not_found", "message": "source image not on disk"}})
+            return
+        if os.path.getsize(f) > 20_000_000:
+            self._json(413, {"error": {"type": "server_error", "message": "image too large (max 20 MB)"}})
+            return
+        import shutil
+        saved_dir = os.path.join(ROOT, "data", "saved_images")
+        try:
+            os.makedirs(saved_dir, exist_ok=True)
+            shutil.copyfile(f, os.path.join(saved_dir, name))
+        except OSError as e:
+            self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+            return
+        self._json(200, {"ref": "/data/saved_images/" + name})
 
     def _api_image_settings(self, method: str):
         """GET/POST /api/image-settings — read or write the image tab's two config slots."""

@@ -9922,6 +9922,139 @@ if ($("img-promptbook")) $("img-promptbook").onclick = (e) => {
   else if (p.sampling || p.eta) promptbookApplyParams(p);   // only the new-control fields set: apply quietly
 };
 promptbookBoot();
+galleryBoot();   // [img gallery 2026-11-15] restore the gallery from the authoritative file / mirror
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// [img gallery 2026-11-15] the image tab's browsable gallery: view stage (current
+// selection + its action bar) above a selectable multi-column grid. Single click =
+// select, double click = the existing lightbox (openImageView). Authority file =
+// config/image_gallery.json via /api/image-gallery (same dual-write contract as the
+// prompt book: backend file rides into git, localStorage is the offline mirror).
+// Save = copy into data/saved_images/; delete = remove from the gallery index only
+// (the file itself lives on in the generated folder — never a physical delete here).
+const GALLERY_KEY = "strata.imgGallery";
+let galleryMem = [];
+let gallerySel = -1;
+function galleryLocalLoad(){ try { const d = JSON.parse(localStorage.getItem(GALLERY_KEY) || "null"); return (d && Array.isArray(d.items)) ? d.items : []; } catch (e) { return []; } }
+function gallerySave(){
+  try { localStorage.setItem(GALLERY_KEY, JSON.stringify({ items: galleryMem.slice(0, 500) })); } catch (e) {}
+  fetch("api/image-gallery", {method: "POST", headers: headers(true), body: JSON.stringify({ items: galleryMem.slice(0, 500) })}).catch(() => {});   // parasitic: no route -> mirror only
+}
+async function galleryBoot(){
+  const local = galleryLocalLoad();
+  let doc = null;
+  try { const r = await fetch("api/image-gallery", {headers: headers()}); if (r.ok) doc = await r.json(); } catch (e) {}
+  if (doc && Array.isArray(doc.items)) galleryMem = (doc.items.length ? doc.items : local);
+  else galleryMem = local;
+  if (gallerySel >= galleryMem.length) gallerySel = -1;
+  renderGallery();
+}
+function galleryAdd(e){
+  if (!e || !e.url) return;
+  if (galleryMem.some((x) => x.url === e.url)) return;   // 去重
+  galleryMem.unshift(e);
+  galleryMem = galleryMem.slice(0, 500);
+  gallerySave(); renderGallery();
+}
+function renderGallery(){
+  const host = $("img-gallery"); if (!host) return;
+  host.innerHTML = "";
+  const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
+  const stage = document.createElement("div"); stage.className = "img-gallery__stage";
+  const fig = document.createElement("figure");
+  const simg = document.createElement("img"); simg.className = "img-gallery__stage-img";
+  if (sel) { simg.src = sel.url; simg.alt = sel.prompt || "image"; } else simg.hidden = true;
+  fig.append(simg);
+  const bar = document.createElement("div"); bar.className = "img-gallery__actions";
+  for (const [act, ic, key] of [["save", "download", "img.gallery.save"], ["del", "trash", "img.gallery.del"],
+                                ["i2i", "image", "img.gallery.i2i"], ["editref", "link", "img.gallery.editref"],
+                                ["folder", "folder", "img.gallery.folder"]]) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "st-btn st-btn--icon";
+    b.innerHTML = icon(ic); b.title = t(key); b.setAttribute("data-act", act);
+    if (!sel) b.disabled = true;
+    bar.append(b);
+  }
+  const tip = document.createElement("div"); tip.className = "img-gallery__tip";
+  tip.textContent = sel
+    ? [sel.size, (sel.seed == null ? "auto" : "seed " + sel.seed), sel.prompt].filter(Boolean).join(" · ")
+    : t("img.gallery.empty");
+  stage.append(fig, bar, tip);
+  const grid = document.createElement("div"); grid.className = "img-gallery__grid";
+  galleryMem.forEach((x, i) => {
+    const cell = document.createElement("button"); cell.type = "button";
+    cell.className = "img-gallery__cell" + (i === gallerySel ? " img-gallery__cell--sel" : "");
+    cell.setAttribute("data-idx", String(i)); cell.title = x.prompt || "";
+    const ci = document.createElement("img"); ci.src = x.url; ci.alt = x.prompt || "image";
+    const badge = document.createElement("span"); badge.className = "img-gallery__seed";
+    badge.textContent = (x.seed == null || x.seed === "") ? "auto" : String(x.seed);
+    cell.append(ci, badge); grid.append(cell);
+  });
+  host.append(stage, grid);
+}
+async function galleryAction(act){
+  const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
+  if (!sel) { toast("info", t("img.gallery.tip")); return; }
+  if (act === "save") {
+    try {
+      const r = await fetch("api/saved-image", {method: "POST", headers: headers(true), body: JSON.stringify({ src: sel.url })});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+      sel.saved = true; sel.saved_ref = j.ref || sel.saved_ref;
+      gallerySave(); renderGallery();
+    } catch (e) { toast("error", t("img.gallery.save"), String(e.message || e), 6000); }
+    return;
+  }
+  if (act === "del") {
+    if (!window.confirm(t("img.gallery.confirm.del"))) return;
+    galleryMem = galleryMem.filter((x) => x !== sel);   // 空列表也是真实意图
+    gallerySel = -1;
+    gallerySave(); renderGallery();
+    return;
+  }
+  if (act === "i2i") { await galleryFillSlot(sel, "img-init-file", "img2img"); return; }
+  if (act === "editref") { await galleryFillSlot(sel, "img-ref-file", "edit"); return; }
+  if (act === "folder") { await galleryOpenFolder(sel); return; }
+}
+async function galleryFillSlot(it, inputId, mode){
+  let blob;
+  try { const r = await fetch(it.saved_ref || it.url, {headers: headers()}); if (!r.ok) throw new Error("HTTP " + r.status); blob = await r.blob(); }
+  catch (e) { toast("error", t("img.gallery.tip"), String(e.message || e), 6000); return; }
+  if (typeof DataTransfer === "undefined" || typeof File === "undefined") { toast("warn", t("img.gallery.tip"), "DataTransfer/File not available in this browser"); return; }
+  const name = decodeURIComponent((it.saved_ref || it.url).split("/").pop() || "image.png");
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], name, { type: blob.type || "image/png" }));
+  const ms = $("img-gen-mode");
+  if (ms && ms.value !== mode) { ms.value = mode; ms.dispatchEvent(new Event("change")); }   // 行显示联动
+  const inp = $(inputId); if (!inp) return;
+  inp.files = dt.files;
+  inp.dispatchEvent(new Event("change", { bubbles: true }));   // 触发既有 _imgFilePreview 预览+尺寸回填
+}
+async function galleryOpenFolder(it){
+  const p = (it.saved_ref ? "data/saved_images"
+           : it.url.startsWith("/data/generated/") ? "data/generated/images" : "");
+  if (!p) { toast("info", t("img.gallery.tip")); return; }
+  try {
+    const r = await fetch("workspace/open", {method: "POST", headers: headers(true), body: JSON.stringify({ path: p })});
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error((j.error && j.error.message) || ("HTTP " + r.status)); }
+  } catch (e) { toast("error", t("img.gallery.folder"), String(e.message || e), 6000); }
+}
+function galleryWire(){
+  const host = $("img-gallery"); if (!host) return;
+  host.addEventListener("click", async (e) => {
+    const btn = e.target.closest && e.target.closest("[data-act]");
+    if (btn) { await galleryAction(btn.getAttribute("data-act")); return; }
+    const cell = e.target.closest && e.target.closest(".img-gallery__cell");
+    if (cell) { gallerySel = Number(cell.getAttribute("data-idx")); renderGallery(); }
+  });
+  host.addEventListener("dblclick", (e) => {
+    const cell = e.target.closest && e.target.closest(".img-gallery__cell");
+    if (cell) { const it = galleryMem[Number(cell.getAttribute("data-idx"))]; if (it) openImageView(it.saved_ref || it.url, it.prompt || "image"); return; }
+    const im = e.target.closest && e.target.closest(".img-gallery__stage-img");
+    if (im && im.src) openImageView(im.src, im.alt);
+  });
+}
+galleryWire();
+
 
 renderSeedbook();
 
@@ -9999,6 +10132,7 @@ $("img-form").onsubmit = async (ev) => {
       const savedNote = d.saved_path ? ` [saved]` : "";
       cap.textContent = `${j.size}, seed ${d.seed}, ${((performance.now() - t0) / 1000).toFixed(0)} s${savedNote}: ${prompt}`;
       seedbookRecord(d.seed, prompt);   // [种子收藏] 记录真实seed（后端回写值）
+      if (d.url) galleryAdd({ url: d.url, seed: (d.seed == null ? null : d.seed), prompt: prompt, ts: Date.now(), size: j.size || "", saved: false });   // [img gallery 2026-11-15] register the persisted hit
       fig.append(img, cap);
     }
   };

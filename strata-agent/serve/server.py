@@ -5638,6 +5638,16 @@ def make_handler(svc: Service):
                         return
                     self._images_upload(req)
                     return
+                if path == "/api/image-gallery":            # [img gallery 2026-11-15] authoritative store (parasitic twin of the gateway route)
+                    if not self._own_page("the image gallery can be saved"):
+                        return
+                    self._api_image_gallery(req)
+                    return
+                if path == "/api/saved-image":              # [img gallery 2026-11-15] copy one entry into data/saved_images
+                    if not self._own_page("an image copy can be saved"):
+                        return
+                    self._saved_image(req)
+                    return
                 if path == "/workspace/create":             # the web app's sidebar: create a workspace folder
                     if not self._own_page("a workspace folder can be created"):
                         return
@@ -6028,6 +6038,68 @@ def make_handler(svc: Service):
                                        "message": "the image could not be saved: " + str(e)}})
                 return
             self._json(200, {"ref": "/data/uploads/" + fname, "name": req.get("name") or fname})
+        def _api_image_gallery(self, req: dict):
+            """GET/POST /api/image-gallery — parasitic twin of the gateway route (same
+            contract: authoritative config/image_gallery.json, wholesale POST, .bak, cap
+            500). `req` is already the parsed body here; GET passes {}."""
+            if "items" not in req:
+                doc = {}
+                try:
+                    doc = json.loads((ROOT / "config" / "image_gallery.json").read_bytes())
+                except Exception:
+                    doc = {}
+                if not isinstance(doc, dict):
+                    doc = {}
+                self._json(200, {"items": doc.get("items") if isinstance(doc.get("items"), list) else []})
+                return
+            items = req.get("items")
+            if not isinstance(items, list):
+                self._json(400, {"error": {"type": "invalid_request", "message": "items must be a list"}})
+                return
+            doc = {"items": items[:500]}
+            path = ROOT / "config" / "image_gallery.json"
+            try:
+                import shutil
+                if path.exists():                                         # backup-before-write
+                    shutil.copyfile(path, str(path) + ".bak")
+                path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+            except OSError as e:
+                self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+                return
+            self._json(200, doc)
+        def _saved_image(self, req: dict):
+            """POST /api/saved-image {src} — parasitic twin: copy one server-generated
+            image into data/saved_images/ (only the generated-images prefix, no traversal)."""
+            import shutil
+            src = (req.get("src") or "").split("?")[0]
+            prefix = "/data/generated/images/"
+            if not src.startswith(prefix):
+                self._json(400, {"error": {"type": "invalid_request",
+                                           "message": "src must be a generated image path under " + prefix}})
+                return
+            name = src[len(prefix):]
+            if "/" in name or ".." in name or "\\" in name:
+                self._json(400, {"error": {"type": "invalid_request", "message": "bad file name"}})
+                return
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"):
+                self._json(400, {"error": {"type": "invalid_request", "message": "unsupported image type"}})
+                return
+            f = ROOT / "data" / "generated" / "images" / name
+            if not f.is_file():
+                self._json(404, {"error": {"type": "not_found", "message": "source image not on disk"}})
+                return
+            if f.stat().st_size > 20_000_000:
+                self._json(413, {"error": {"type": "server_error", "message": "image too large (max 20 MB)"}})
+                return
+            saved_dir = ROOT / "data" / "saved_images"
+            try:
+                saved_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(str(f), str(saved_dir / name))
+            except OSError as e:
+                self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+                return
+            self._json(200, {"ref": "/data/saved_images/" + name})
         def _workspace_open(self, req: dict):
             """POST /workspace/open: reveal a folder in the OS file manager (the sidebar's
             "打开文件夹"). The path is passed to the OS as a single argv element — never through a
