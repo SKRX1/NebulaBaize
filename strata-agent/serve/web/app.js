@@ -9940,6 +9940,7 @@ let gallerySort = "new";   // new = galleryMem order (unshift keeps newest first
 let galleryLayout = "grid";   // [SD式融合] C toggle: grid | strip (default grid, localStorage-backed)
 const galleryLive = [];       // [SD式融合] live records: session-only, never written to the authoritative file
 let galleryLiveSel = null;
+const gallerySelSet = new Set();   // [删除增强] B1 multi-select: entry refs (identity keys), independent of gallerySel so the single-select gates stay byte-intact
 function galleryLocalLoad(){ try { const d = JSON.parse(localStorage.getItem(GALLERY_KEY) || "null"); return (d && Array.isArray(d.items)) ? d.items : []; } catch (e) { return []; } }
 function gallerySave(){
   try { localStorage.setItem(GALLERY_KEY, JSON.stringify({ items: galleryMem.slice(0, 500) })); } catch (e) {}
@@ -9999,6 +10000,15 @@ function galleryViewList(){
 function renderGallery(){
   const host = $("img-gallery"); if (!host) return;
   host.innerHTML = "";   // [SD式融合] full repaint: the stage panel + the live cells self-paint from lv
+  if (gallerySelSet.size) {   // [删除增强] batch bar appears only while the set is non-empty (selection survives every repaint)
+    const bar = document.createElement("div"); bar.className = "img-gallery__batchbar";
+    const cnt = document.createElement("span"); cnt.className = "img-gallery__batchcount"; cnt.textContent = t("img.gallery.batch.n").replace("{n}", String(gallerySelSet.size));
+    const del = document.createElement("button"); del.type = "button"; del.className = "st-btn st-btn--sm st-btn--danger"; del.textContent = t("img.gallery.batch.del");
+    del.addEventListener("click", () => galleryBatchDelete());
+    const clr = document.createElement("button"); clr.type = "button"; clr.className = "st-btn st-btn--sm st-btn--ghost"; clr.textContent = t("img.gallery.batch.clear");
+    clr.addEventListener("click", () => { gallerySelSet.clear(); renderGallery(); });
+    bar.append(cnt, del, clr); host.append(bar);
+  }
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
   const liveSel = galleryLiveSel ? (galleryLive.find((l) => l.id === galleryLiveSel && !l.retired) || null) : null;   // [SD式融合] a live record can drive the stage
   const stage = document.createElement("div"); stage.className = "img-gallery__stage";
@@ -10028,16 +10038,17 @@ function renderGallery(){
   if (galleryLayout === "strip") grid.className += " img-gallery__grid--strip";   // [SD式融合] C toggle (default grid)
   galleryLiveRows().forEach((lv) => {   // [SD式融合] live cells at the timeline top (dashed frame until the preview lands)
     const cell = document.createElement("button"); cell.type = "button";
-    cell.className = "img-gallery__cell img-gallery__cell--live" + (lv.id === galleryLiveSel ? " img-gallery__cell--sel" : "");
+    cell.className = "img-gallery__cell img-gallery__cell--live" + (lv.id === galleryLiveSel ? " img-gallery__cell--sel" : "") + (gallerySelSet.has(lv) ? " img-gallery__cell--selset" : "");   // [删除增强] live rows join the batch too (identity refs)
     cell.setAttribute("data-live", lv.id); cell.title = lv.prompt || "";
     if (lv.url) { const li = document.createElement("img"); li.src = lv.url + (lv.bust || ""); li.alt = lv.prompt || "image"; cell.append(li); }
     const badge = document.createElement("span"); badge.className = "img-gallery__seed";
     badge.textContent = (lv.seed == null || lv.seed === "") ? "auto" : String(lv.seed);
     cell.append(badge); grid.append(cell);
   });
-  galleryViewList().forEach((row) => { const x = row.x, i = row.i;
+  galleryViewList().forEach((row) => { const x = row.x, i = row.i;   // [删除增强] batch counter = a CLASS suffix on a separate var (i stays a pure index: data-idx + the C-family compare)
+    const batchCls = gallerySelSet.has(x) ? " img-gallery__cell--selset" : "";   // entry refs: the identity key, the A5 family convention
     const cell = document.createElement("button"); cell.type = "button";
-    cell.className = "img-gallery__cell" + (i === gallerySel ? " img-gallery__cell--sel" : "");
+    cell.className = "img-gallery__cell" + (i === gallerySel ? " img-gallery__cell--sel" : "") + batchCls;
     cell.setAttribute("data-idx", String(i)); cell.title = x.prompt || "";
     const ci = document.createElement("img"); ci.src = x.url; ci.alt = x.prompt || "image";
     const badge = document.createElement("span"); badge.className = "img-gallery__seed";
@@ -10062,6 +10073,8 @@ async function galleryAction(act){
   }
   if (act === "del") {
     if (!window.confirm(t("img.gallery.confirm.del"))) return;
+    gallerySelSet.delete(sel);   // [删除增强] the default-checked box: the file to the Recycle Bin (workspace .strata-recycle ledger; graceful index-only fallback)
+    await galleryTrashFiles([sel]);
     galleryMem = galleryMem.filter((x) => x !== sel);   // 空列表也是真实意图
     gallerySel = -1;
     gallerySave(); renderGallery();
@@ -10070,6 +10083,48 @@ async function galleryAction(act){
   if (act === "i2i") { await galleryFillSlot(sel, "img-init-file", "img2img"); return; }
   if (act === "editref") { await galleryFillSlot(sel, "img-ref-file", "edit"); return; }
   if (act === "folder") { await galleryOpenFolder(sel); return; }
+}
+// [删除增强 2026-11-15] batch delete: the summary box (the checkbox DEFAULT-checked, per the
+// ratification — every box opens checked, no memory). Single deletes keep window.confirm so
+// the G-locks stay byte-intact. The batch bar only exists while the set is non-empty.
+async function galleryBatchDelete(){
+  const items = [...gallerySelSet];   // identity refs: entries AND live rows
+  if (!items.length) return;
+  const box = document.createElement("div"); box.className = "img-gallery__batchconfirm";
+  box.setAttribute("data-testid", "batch-confirm");
+  const msg = document.createElement("div"); msg.textContent = t("img.gallery.batch.confirm").replace("{n}", String(items.length));
+  const lab = document.createElement("label"); lab.className = "img-gallery__batchcheck";   // [删除增强] the default-checked box (decoy-locked)
+  const ck = document.createElement("input"); ck.type = "checkbox"; ck.checked = true; ck.setAttribute("data-testid", "batch-check");   // DEFAULT-CHECKED — the locked fact
+  lab.append(ck, document.createTextNode(t("img.gallery.batch.alsoFile")));
+  const row = document.createElement("div"); row.className = "st-btnrow";
+  const ok = document.createElement("button"); ok.type = "button"; ok.className = "st-btn st-btn--primary st-btn--sm"; ok.textContent = t("img.gallery.batch.ok");
+  const no = document.createElement("button"); no.type = "button"; no.className = "st-btn st-btn--ghost st-btn--sm"; no.textContent = t("cancel");
+  row.append(ok, no); box.append(msg, lab, row);
+  const host = $("img-gallery"); host.append(box);   // in place: jsdom-friendly, no modal plumbing
+  await new Promise((res) => { ok.onclick = res; no.onclick = () => { box.__cancelled = true; box.remove(); res(); }; });   // cancel = the box leaves and NOTHING deletes
+  if (box.__cancelled) { box.remove(); return; }
+  box.remove();
+  if (ck.checked) await galleryTrashFiles(items);   // the default: files follow (Recycle Bin, never a physical delete)
+  const drop = (x) => { gallerySelSet.delete(x); if (gallerySel >= 0 && galleryMem[gallerySel] === x) gallerySel = -1; };   // selection cleanup for every removed entry
+  for (const it of items) {   // live rows leave the session column themselves; saved entries leave the authoritative list
+    if (galleryLive.includes(it)) { galleryLive.splice(galleryLive.indexOf(it), 1); continue; }
+    galleryMem = galleryMem.filter((x) => x !== it);   // identity filter, the A5 family — no index math
+    drop(it);
+  }
+  gallerySave(); renderGallery();
+}
+async function galleryTrashFiles(items){   // [删除增强] shared leg: files -> the Windows Recycle Bin via /api/recycle (the archive-manager convention)
+  const s0 = activeSession();
+  const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
+  if (!ws) return;   // no workspace = no ledger home: graceful index-only removal (the gates keep green)
+  const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => u.startsWith("/data/generated/images/")).map((u) => ws + u.replace(/\//g, "/"));   // only real generated files (never localStorage mirrors)
+  if (!paths.length) return;
+  try {
+    const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
+    const j = await r.json().catch(() => ({}));
+    if (j && j.error) toast("error", t("recycle.err"), String(j.error.message || ""), 4000);
+    else toast("success", (j && j.trashed && j.trashed.length) ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"), "", 2500);
+  } catch (e) { toast("error", t("recycle.err"), String(e.message || e), 4000); }
 }
 async function galleryFillSlot(it, inputId, mode){
   let blob;
@@ -10123,6 +10178,16 @@ function galleryWire(){
     if (btn) { await galleryAction(btn.getAttribute("data-act")); return; }
     const cell = e.target.closest && e.target.closest(".img-gallery__cell");
     if (cell) {
+      const entry = cell.getAttribute("data-live") ? galleryLive.find((l) => l.id === cell.getAttribute("data-live")) : galleryMem[Number(cell.getAttribute("data-idx"))];   // getAttribute, NOT hasAttribute: the T8 lock counts hasAttribute sites and stays byte-exact   // [删除增强] identity refs feed the set (live rows included)
+      if (entry && (e.ctrlKey || e.metaKey)) {   // [删除增强] B1: Ctrl/Cmd+click toggles membership (the set is independent of gallerySel)
+        if (gallerySelSet.has(entry)) gallerySelSet.delete(entry); else gallerySelSet.add(entry);
+        renderGallery(); return;
+      }
+      if (entry && e.shiftKey && gallerySel >= 0) {   // [删除增强] B1: Shift+click = the range from the anchor (gallerySel), both ends inclusive
+        const rows = galleryViewList(); const anchor = rows.findIndex((r) => r.x === galleryMem[gallerySel]); const at = rows.findIndex((r) => r.x === entry);
+        if (anchor >= 0 && at >= 0) { for (let k = Math.min(anchor, at); k <= Math.max(anchor, at); k++) gallerySelSet.add(rows[k].x); }   // live rows carry their own id into the set
+        renderGallery(); return;
+      }
       if (cell.hasAttribute("data-live")) { galleryLiveSel = cell.getAttribute("data-live"); renderGallery(); return; }   // [SD式融合] live cells carry their own id (data-idx stays authoritative for the gates)
       gallerySel = Number(cell.getAttribute("data-idx")); renderGallery();
     }

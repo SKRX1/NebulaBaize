@@ -98,6 +98,8 @@ SUITES = [
     "tests/test_image_default_tier_static.mjs",   # 2026-11-14 image_e2e_sentinel family STATIC lock: the FIRST res chip data-imgres=0(512) is the active default, W/H boot 512, app.js tier 0->512 boots tier 0; pure source scan so it runs in QUICK (the 512 default stays locked even when Quick skips the live POST sentinel); LOAD-BEARING decoy flips the tier-0 regex
     "tests/test_image_chip_fill.mjs",   # 2026-11-14 image_e2e_sentinel family jsdom BEHAVIOUR: click 768 chip -> #img-width fills 768, click back 512 -> restores 512 (single variable = WHICH chip is clicked; boot-512 is the control, the 768 scene is the load-bearing proof the wiring is live)
     "tests/test_img_gallery_jsdom.mjs",   # 2026-11-15 image gallery gate: jsdom boot — authoritative-file restore, click-select, dblclick reuses openImageView, save POSTs api/saved-image, i2i stub leg, delete confirm-cancel differential + empty-is-real-intent (the .length trap)
+
+    "tests/test_batch_delete_jsdom.mjs",   # 2026-11-15 删除增强行为锁: B1 Ctrl/Cmd toggle + Shift range from the gallerySel anchor, the summary box DEFAULT-checked (files -> the Recycle Bin via /api/recycle), the un-checked DECOY proves it load-bearing (index-only, no fetch); the batch bar only exists while the set is non-empty
     "tests/test_preview_ui_lock.mjs",   # 2026-11-14 preview A+B lock: ASCII detour for CJK ROOT, poll preview_ready gate, placeholder card css, n-alias str-only, in-place fig upgrade (single mount); pure static scan so it runs in QUICK
 
 
