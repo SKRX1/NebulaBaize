@@ -76,7 +76,10 @@ win.URL.createObjectURL = () => "blob:stub";
 Object.defineProperty(win.HTMLInputElement.prototype, "files", { set(v) { this._f = v; }, get() { return this._f; }, configurable: true });
 
 const SEED_ITEM = { url: "/data/generated/images/gen_gate1.png", seed: 123, prompt: "gate prompt", ts: 1, size: "512x512", saved: false };
+win.localStorage.setItem("strata.sessions", JSON.stringify([{ id: "sG", workspace: "wsG", permission: "full" }]));   // [方案A] a workspace so the box file-leg reaches /api/recycle
+win.localStorage.setItem("strata.session.active", JSON.stringify("sG"));
 const POSTS = [];
+const RECYCLED = [];
 win.fetch = async (url, o) => {
   const u = String(url);
   if (u === "mcp/call") return { ok: true, status: 200, json: async () => ({ ok: true, text: "" }) };
@@ -84,6 +87,7 @@ win.fetch = async (url, o) => {
   if (u.endsWith("api/image-gallery")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => JSON.parse(o.body) }; }
   if (u.endsWith("api/saved-image")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ ref: "/data/saved_images/gen_gate1.png" }) }; }
   if (u.endsWith("workspace/open")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ opened: true }) }; }
+  if (u.endsWith("api/recycle")) { const b = JSON.parse(o.body); RECYCLED.push(b); return { ok: true, status: 200, json: async () => ({ trashed: b.paths.map(() => "x") }) }; }
   if (u.endsWith("gen_gate1.png")) return { ok: true, status: 200, blob: async () => ({ size: 3, type: "image/png" }) };
   if (u.endsWith("settings")) return { ok: true, status: 200, json: async () => ({ shared: false }) };
   return { ok: true, status: 200, json: async () => ({}) };
@@ -97,6 +101,7 @@ win.DataTransfer = class {
 win.eval(i18nSrc);
 win.eval(appCode);
 const api = win.__api;
+api.__recycled = () => RECYCLED;
 const setConfirm = (v) => { CONFIRM_ANSWER = v; };
 
 const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
@@ -140,16 +145,28 @@ console.log("\n=== F. i2i leg: flips gen-mode + fills the file slot through the 
   check("F3 the gen-mode change handler revealed the img2img row", win.document.getElementById("img-gen-img2img-row").style.display !== "none");
 }
 
-console.log("\n=== G. delete: confirm-cancel is load-bearing (differential), then delete-all = REAL empty state ===");
+console.log("\n=== G. [方案A 2026-11-16] single delete shares the in-place box (native confirm could NOT carry a checkbox = the root cause) ===");
 {
-  setConfirm(false);
-  win.document.querySelector('.img-gallery__actions [data-act="del"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  const boxOf = () => win.document.querySelector('[data-testid="batch-confirm"]');
+  const boxBtns = () => boxOf() ? [...boxOf().querySelectorAll("button")] : [];
+  const boxChk = () => boxOf() ? boxOf().querySelector('[data-testid="batch-check"]') : null;
+  const delClick = () => win.document.querySelector('.img-gallery__actions [data-act="del"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+
+  delClick();
   await tick();
-  check("G1 confirm CANCEL keeps the entry (index still 1)", api.galleryMem().length === 1);
-  setConfirm(true);
-  win.document.querySelector('.img-gallery__actions [data-act="del"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("G1a the single-delete del click opens the in-place box (NOT a native confirm)", !!boxOf());
+  check("G1b THE DEFAULT: the box opens CHECKED (the file follows — the locked fact)", !!boxChk() && boxChk().checked === true);
+  boxBtns()[1].click();   // cancel
   await tick();
-  check("G2 confirm OK removes it (empty list = real intent, NOT the old value)", api.galleryMem().length === 0 && api.gallerySel() === -1);
+  check("G1c box CANCEL keeps the entry and fires NO fetch (index still 1)", api.galleryMem().length === 1 && !boxOf() && api.__recycled().length === 0);
+
+  delClick();
+  await tick();
+  check("G2a the box reopened for the confirmed delete", !!boxOf());
+  boxBtns()[0].click();   // OK (box still default-checked)
+  await tick(120);
+  check("G2b the recycle fetch fired ONCE for exactly this file (default-check is load-bearing)", api.__recycled().length === 1 && api.__recycled()[0].paths.length === 1);
+  check("G2c the entry left the authoritative list (empty = real intent, NOT the old value)", api.galleryMem().length === 0 && api.gallerySel() === -1);
   check("G3 the empty gallery renders a non-empty hint again", api.gallerySel() === -1 && win.document.querySelector(".img-gallery__tip").textContent.trim().length > 0);
 }
 

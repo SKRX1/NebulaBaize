@@ -10074,9 +10074,10 @@ async function galleryAction(act){
     return;
   }
   if (act === "del") {
-    if (!window.confirm(t("img.gallery.confirm.del"))) return;
+    const ans = await galleryConfirmDelete([sel]);   // [方案A 2026-11-16] single delete shares the batch confirm box (n=1); native window.confirm could NOT carry a checkbox — that was the "勾选项不起作用" root cause
+    if (!ans.confirmed) return;   // cancel = the box leaves, nothing deletes
     gallerySelSet.delete(sel);   // [删除增强] the default-checked box: the file to the Recycle Bin (workspace .strata-recycle ledger; graceful index-only fallback)
-    await galleryTrashFiles([sel]);
+    if (ans.trash) await galleryTrashFiles([sel]);   // [方案A] checked (the default) = the file follows to the Recycle Bin; unchecked = index-only
     galleryMem = galleryMem.filter((x) => x !== sel);   // 空列表也是真实意图
     gallerySel = -1;
     gallerySave(); renderGallery();
@@ -10089,9 +10090,7 @@ async function galleryAction(act){
 // [删除增强 2026-11-15] batch delete: the summary box (the checkbox DEFAULT-checked, per the
 // ratification — every box opens checked, no memory). Single deletes keep window.confirm so
 // the G-locks stay byte-intact. The batch bar only exists while the set is non-empty.
-async function galleryBatchDelete(){
-  const items = [...gallerySelSet];   // identity refs: entries AND live rows
-  if (!items.length) return;
+async function galleryConfirmDelete(items){   // [方案A 2026-11-16] the SHARED confirm box (single n=1 AND batch). Returns {confirmed, trash}. cancel -> confirmed=false (nothing deletes). The box opens DEFAULT-CHECKED (the locked fact: files follow).
   const box = document.createElement("div"); box.className = "img-gallery__batchconfirm";
   box.setAttribute("data-testid", "batch-confirm");
   const msg = document.createElement("div"); msg.textContent = t("img.gallery.batch.confirm").replace("{n}", String(items.length));
@@ -10103,10 +10102,17 @@ async function galleryBatchDelete(){
   const no = document.createElement("button"); no.type = "button"; no.className = "st-btn st-btn--ghost st-btn--sm"; no.textContent = t("cancel");
   row.append(ok, no); box.append(msg, lab, row);
   const host = $("img-gallery"); host.append(box);   // in place: jsdom-friendly, no modal plumbing
-  await new Promise((res) => { ok.onclick = res; no.onclick = () => { box.__cancelled = true; box.remove(); res(); }; });   // cancel = the box leaves and NOTHING deletes
-  if (box.__cancelled) { box.remove(); return; }
+  await new Promise((res) => { ok.onclick = res; no.onclick = () => { box.__cancelled = true; res(); }; });   // cancel = the box leaves and NOTHING deletes
+  const confirmed = !box.__cancelled;
   box.remove();
-  if (ck.checked) await galleryTrashFiles(items);   // the default: files follow (Recycle Bin, never a physical delete)
+  return { confirmed, trash: confirmed && ck.checked };
+}
+async function galleryBatchDelete(){
+  const items = [...gallerySelSet];   // identity refs: entries AND live rows
+  if (!items.length) return;
+  const ans = await galleryConfirmDelete(items);   // [方案A 2026-11-16] single + batch share ONE confirm component (the box, the default-checked box, the cancel-leave contract all live in the helper)
+  if (!ans.confirmed) return;   // cancel = the box leaves and NOTHING deletes
+  if (ans.trash) await galleryTrashFiles(items);   // the default: files follow (Recycle Bin, never a physical delete)
   const drop = (x) => { gallerySelSet.delete(x); if (gallerySel >= 0 && galleryMem[gallerySel] === x) gallerySel = -1; };   // selection cleanup for every removed entry
   for (const it of items) {   // live rows leave the session column themselves; saved entries leave the authoritative list
     if (galleryLive.includes(it)) { galleryLive.splice(galleryLive.indexOf(it), 1); continue; }

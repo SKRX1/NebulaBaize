@@ -29,7 +29,7 @@ console.log("\n=== A. static locks ===");
 check("S1 the batch bar + summary box css exist", css.includes(".img-gallery__batchbar{") && css.includes(".img-gallery__batchconfirm{"));
 check("S2 the set is INDEPENDENT of gallerySel (the single-select gates stay byte-intact)", /const gallerySelSet = new Set\(\);/.test(appCode));
 check("S3 the default-checked fact is exactly one line (the decoy hits it)", appCode.split("\n").filter((l) => l.includes('ck.checked = true; ck.setAttribute("data-testid", "batch-check")')).length === 1);
-check("S4 the single-delete window.confirm gate stayed byte-intact (the G family)", /if \(!window\.confirm\(t\("img\.gallery\.confirm\.del"\)\)\) return;/.test(appCode));
+check("S4 [方案A 2026-11-16] single + batch share ONE confirm component (the shared box helper) — the single-delete native window.confirm was REMOVED (it could not carry the checkbox = the root cause)", /async function galleryConfirmDelete\(items\)/.test(appCode) && !/window\.confirm\(t\("img\.gallery\.confirm\.del"\)/.test(appCode));
 check("S5 the saved-cells batch counter is a SEPARATE var (the `i`-pollution regression lock): the loop keeps `i` a pure index and never appends a class to it", /const batchCls = gallerySelSet\.has\(x\)/.test(appCode) && !/className[^;]*\+\s*i\b/.test(appCode));
 
 /* ── harness: the same stub set as the gallery/fuse gates ── */
