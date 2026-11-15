@@ -1,6 +1,31 @@
 {
   "items": [
     {
+      "url": "/data/generated/images/gen_20261115_101657_06d08d97.png",
+      "seed": 424242,
+      "prompt": "白色神兽白泽 standing on a green hill, sunny（暗/亮主题验收）",
+      "ts": 1794709102561,
+      "size": "256x256",
+      "saved": false
+    },
+    {
+      "url": "/data/generated/images/gen_20261115_101740_32783cd3.png",
+      "seed": 777,
+      "prompt": "a red panda drinking tea under a lantern, night",
+      "ts": 1794709102562,
+      "size": "256x256",
+      "saved": true,
+      "saved_ref": "/data/saved_images/gen_20261115_101740_32783cd3.png"
+    },
+    {
+      "url": "/data/generated/images/gen_20261115_101747_034d6f22.png",
+      "seed": 1954743453,
+      "prompt": "a blue crane standing in shallow water, morning fog",
+      "ts": 1794709102563,
+      "size": "256x256",
+      "saved": false
+    },
+    {
       "url": "/data/generated/images/gen_20261115_093035_ad889f16.png",
       "seed": 682137459,
       "prompt": "白色神兽白泽（真机验收原条目）",
