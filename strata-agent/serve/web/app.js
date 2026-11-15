@@ -9955,6 +9955,7 @@ async function galleryBoot(){
   if (gallerySel >= galleryMem.length) gallerySel = -1;
   renderGallery();
 }
+function galleryCategory(x){ return x.category || (x.saved ? "saved" : "session"); }   // [分类归属·方案A 2026-11-15] explicit category wins; legacy data migrates from the saved boolean (lazy, no store rewrite)
 function galleryAdd(e){
   if (!e || !e.url) return;
   if (galleryMem.some((x) => x.url === e.url)) return;   // 去重
@@ -9966,6 +9967,35 @@ function galleryAdd(e){
     gallerySel = 0;
   }
   gallerySave(); renderGallery();
+}
+// [添加图片 2026-11-15] import any image from any folder. The native picker yields a File;
+// we read it as a data URL (the SAME channel the generation flow uses in _stage_img), POST it
+// to api/gallery-import which copies it into data/saved_images/ under a unique imp_ name, then
+// galleryAdd the returned ref. galleryAdd keeps its url-dedup (the backend name is unique so a
+// re-import of the same file is a NEW entry by design — the user asked to add it again).
+async function galleryImportFiles(files){
+  const list = [...(files || [])];
+  if (!list.length) return;
+  let ok = 0, fail = 0, skip = 0;   // skip = [去重] the content was already in the gallery
+  for (const f of list){
+    let dataUrl = null;
+    try { dataUrl = await new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = () => rej(new Error("read failed")); rd.readAsDataURL(f); }); }
+    catch (e) { fail++; continue; }
+    if (!dataUrl || dataUrl.indexOf("data:image/") !== 0) { fail++; continue; }
+    try {
+      const r = await fetch("api/gallery-import", {method: "POST", headers: headers(true), body: JSON.stringify({ name: f.name || "", dataUrl })});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error || !j.ref) { fail++; continue; }
+      const nm = f.name || j.name || "";
+      // [去重 2026-11-15] the backend names files by content hash, so an identical image yields
+      // the SAME ref -> an existing gallery url -> a duplicate. Skip it (content-dedup).
+      if (galleryMem.some((x) => x.url === j.ref)) { skip++; continue; }
+      galleryAdd({ url: j.ref, prompt: t("img.gallery.add.prompt", { name: nm }), name: nm, ts: Date.now(), saved: true, source: "import", category: (galleryView === "all" ? "saved" : galleryView) });   // [分类归属·方案A 2026-11-15] follows the active tab; under 全部 defaults to 收藏
+      ok++;
+    } catch (e) { fail++; }
+  }
+  if (list.length > 1 || fail || skip || !ok) toast(ok ? "success" : (fail && !ok ? "warn" : "info"), t("img.gallery.add"), t("img.gallery.add.result", { ok, fail, skip }), 3500);
+  renderGallery();
 }
 function galleryLivePass(lv){   // [SD式融合] the STAGE panel self-paints from lv (the carrier stays whole & hidden:
                                  // renderResult must keep finding ph/img inside it via querySelector — all gate strings live there)
@@ -9992,7 +10022,7 @@ function galleryLiveRows(){ return galleryLive.filter((l) => !l.retired && galle
 function galleryLiveRetire(lv){ if (!lv.retired) { lv.retired = true; renderGallery(); } }   // [SD式融合] retire = the cell + the stage panel drop it on the next paint
 function galleryViewList(){
   const q = galleryQuery.trim().toLowerCase();
-  let rows = galleryMem.map((x, i) => ({ x: x, i: i })).filter((r) => galleryView === "all" || (galleryView === "saved" ? r.x.saved : !r.x.saved));
+  let rows = galleryMem.map((x, i) => ({ x: x, i: i })).filter((r) => galleryView === "all" || galleryCategory(r.x) === galleryView);   // [分类归属·方案A 2026-11-15] filter by category, not the saved boolean
   if (q) rows = rows.filter((r) => (String(r.x.prompt || "") + " " + String(r.x.seed == null ? "" : r.x.seed) + " " + String(r.x.size || "")).toLowerCase().includes(q));
   if (gallerySort === "old") rows = rows.slice().reverse();
   return rows;
@@ -10211,6 +10241,13 @@ function galleryWire(){
     renderGallery();
   });
   const si = $("img-fusion-search"); if (si) si.addEventListener("input", () => { galleryQuery = si.value; renderGallery(); });
+  {   // [添加图片 2026-11-15] the native picker -> hidden input -> galleryImportFiles
+    const addBtn = $("img-gallery-add"), addInput = $("img-gallery-import-file");
+    if (addBtn && addInput) {
+      addBtn.addEventListener("click", () => addInput.click());
+      addInput.addEventListener("change", () => { const fl = addInput.files ? [...addInput.files] : []; galleryImportFiles(fl); addInput.value = ""; });   // reset so the same file re-picks
+    }
+  }
   const so = $("img-fusion-sort"); if (so) so.addEventListener("change", () => { gallerySort = so.value; renderGallery(); });
   host.addEventListener("click", async (e) => {
     const btn = e.target.closest && e.target.closest("[data-act]");

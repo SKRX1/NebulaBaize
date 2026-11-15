@@ -101,6 +101,7 @@ SUITES = [
 
     "tests/test_batch_delete_jsdom.mjs",   # 2026-11-15 删除增强行为锁: B1 Ctrl/Cmd toggle + Shift range from the gallerySel anchor, the summary box DEFAULT-checked (files -> the Recycle Bin via /api/recycle), the un-checked DECOY proves it load-bearing (index-only, no fetch); the batch bar only exists while the set is non-empty
     "tests/test_batch_fav_jsdom.mjs",   # 2026-11-16 批量收藏行为锁: multisel 多选 -> batch bar grows the fav button (data-testid=batch-fav); a click POSTs api/saved-image per pick (reuses the single-save endpoint, backend copyfile is idempotent); success -> saved=true + saved_ref=backend ref; the NOT-ok DECOY (gen_f4) proves the fail branch is load-bearing (never flips a failed pick); the set is KEPT after fav (non-destructive/repeatable — opposite of batch-delete drain)
+    "tests/test_gallery_import_jsdom.mjs",   # 2026-11-15 添加图片行为锁: 任意文件夹图片 -> 原生选择器 -> FileReader 读成 data URL -> POST api/gallery-import(复制到 data/saved_images/) -> galleryAdd(prompt=文件名/saved/source=import); DECOY bad_* 名 -> 后端 NOT-ok 证明 fail 分支 load-bearing(不入库); 同 ref 经 galleryAdd 二次导入被 url-dedup(不重复); 空选择/多选自洽
     "tests/test_preview_ui_lock.mjs",   # 2026-11-14 preview A+B lock: ASCII detour for CJK ROOT, poll preview_ready gate, placeholder card css, n-alias str-only, in-place fig upgrade (single mount); pure static scan so it runs in QUICK
 
 

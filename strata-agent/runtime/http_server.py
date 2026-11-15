@@ -1808,6 +1808,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/saved-image":
             self._api_saved_image()                # [img gallery 2026-11-15] copy one entry into data/saved_images
             return True                            # [FIX 2026-11-15] branch fell through -> 404
+        if path.rstrip("/") == "/api/gallery-import":
+            self._api_gallery_import()             # [img gallery 添加图片] import one arbitrary file via data URL
+            return True
         if path.rstrip("/") == "/api/image-scan-models":
             self._api_image_scan_models()
             return True
@@ -2085,6 +2088,70 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._json(500, {"error": {"type": "server_error", "message": str(e)}})
             return
         self._json(200, {"ref": "/data/saved_images/" + name})
+
+    def _api_gallery_import(self):
+        """POST /api/gallery-import {name, dataUrl}: import ONE arbitrary image file the
+        user picked from any folder. The browser reads it as a data: URL (the same channel
+        the generation flow already uses in _stage_img), we decode and COPY it into
+        data/saved_images/ under a CONTENT-hash name imp_<sha256[:16]>.<ext> (same bytes -> same
+        name -> same path -> same ref), then return it. Only image extensions are accepted;
+        >20 MB is refused, and an existing hash path is reused (idempotent)."""
+        import base64, uuid, time
+        body = self._read_json()
+        data_url = body.get("dataUrl") or ""
+        if not data_url.startswith("data:image/") or "," not in data_url:
+            self._json(400, {"error": {"type": "invalid_request",
+                                   "message": "dataUrl must be a data:image/ URL"}})
+            return
+        allowed = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")
+        raw_name = str(body.get("name") or "")
+        ext = os.path.splitext(raw_name)[1].lower()
+        if ext not in allowed:
+            # extension from the MIME subtype when the name carried none
+            head = data_url.split(",", 1)[0]   # data:image/png;base64
+            sub = head.split(";", 1)[0].split("/")[-1].lower() if "/" in head else ""
+            ext = ".jpg" if sub == "jpeg" else ("." + sub)
+        if ext not in allowed:
+            self._json(400, {"error": {"type": "invalid_request",
+                                   "message": "unsupported image type"}})
+            return
+        head2 = data_url.split(",", 1)[0]
+        if ";base64" not in head2:
+            self._json(400, {"error": {"type": "invalid_request",
+                                   "message": "data URL must be base64"}})
+            return
+        b64 = data_url.split(",", 1)[1]
+        try:
+            raw = base64.b64decode(b64)
+        except Exception as e:
+            self._json(400, {"error": {"type": "invalid_request",
+                                   "message": "bad base64: " + str(e)}})
+            return
+        if not raw:
+            self._json(400, {"error": {"type": "invalid_request",
+                                   "message": "empty image data"}})
+            return
+        if len(raw) > 20_000_000:
+            self._json(413, {"error": {"type": "server_error",
+                                   "message": "image too large (max 20 MB)"}})
+            return
+        # [添加图片去重 2026-11-15] content-addressed name: same BYTES -> same sha256 -> same
+        # path -> same ref. That makes the front-end's existing url-dedup (galleryAdd) equivalent
+        # to CONTENT-dedup, and a re-import never wastes disk on a duplicate copy.
+        digest = hashlib.sha256(raw).hexdigest()[:16]
+        fname = "imp_" + digest + ext
+        saved_dir = os.path.join(ROOT, "data", "saved_images")
+        dest = os.path.join(saved_dir, fname)
+        existed = os.path.isfile(dest)
+        try:
+            os.makedirs(saved_dir, exist_ok=True)
+            if not existed:   # idempotent: identical content already on disk -> reuse it
+                with open(dest, "wb") as fh:
+                    fh.write(raw)
+        except OSError as e:
+            self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+            return
+        self._json(200, {"ref": "/data/saved_images/" + fname, "name": raw_name or fname, "existed": existed})
 
     def _api_image_settings(self, method: str):
         """GET/POST /api/image-settings — read or write the image tab's two config slots."""
