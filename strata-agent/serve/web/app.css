@@ -657,7 +657,7 @@ main { flex: 1; min-height: 0; display: flex; }
   max-width: 1400px;
 }
 /* keep the results column pinned while the long form scrolls (desktop only) */
-#view-images .img-results { position: sticky; top: var(--st-s-6); }
+#view-images .img-results { position: static; }
 /* empty-state placeholder so the results area is visible before the first generation */
 #view-images .img-results:empty::before {
   content: "生成的图片会显示在这里  /  Generated images appear here";
@@ -672,23 +672,30 @@ main { flex: 1; min-height: 0; display: flex; }
 }
 @media (max-width: 900px) {
   #view-images > .about { grid-template-columns: 1fr; }
-  #view-images .img-results { position: static; }
 }
 
+/* [融合时间线 2026-11-15] right column = one scroll panel; the segmented bar is the
+   single sticky element; results + grid flow as one fused list (the grid no longer
+   owns a scrollbar). The old per-column pinning below retires to static flow. */
+.img-fusion{display:flex;flex-direction:column;gap:var(--st-s-2)}
+.img-fusion__bar{position:sticky;top:var(--st-s-6);z-index:6;display:flex;gap:var(--st-s-2);align-items:center;
+  flex-wrap:wrap;background:var(--st-bg,#fff);padding:6px 0}
+.img-fusion__tabs{display:flex;gap:6px}
+.img-fusion__search{flex:1;min-width:120px;height:auto;padding:6px 10px}
+.img-fusion__sort{width:auto;flex:none;height:auto;padding:6px 10px}
 /* [img gallery 2026-11-15] view stage (top) + selectable grid (bottom), accent outline on the selection */
 .img-gallery{display:flex;flex-direction:column;gap:var(--st-s-2);margin-top:var(--st-s-2)}
 .img-gallery__stage figure{margin:0}
 .img-gallery__stage-img{max-height:min(46vh, 480px);max-width:100%;border-radius:var(--st-r-md);display:block}
 .img-gallery__actions{display:flex;gap:var(--st-s-1);align-items:center;flex-wrap:wrap}
 .img-gallery__actions .st-btn--icon[disabled]{opacity:.4}
-.img-gallery__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--st-s-2);max-height:340px;overflow-y:auto}
+.img-gallery__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--st-s-2)}
 .img-gallery__cell{position:relative;padding:0;border:1px solid transparent;border-radius:var(--st-r-sm);background:transparent;cursor:pointer;line-height:0}
 .img-gallery__cell img{width:100%;height:110px;object-fit:cover;border-radius:var(--st-r-sm);display:block}
 .img-gallery__cell--sel{border-color:var(--st-accent, rgba(255,255,255,.4));box-shadow:0 0 0 1px var(--st-accent, rgba(255,255,255,.4))}
 .img-gallery__seed{position:absolute;right:4px;bottom:4px;font-size:11px;line-height:1;color:var(--st-ink-2, inherit);background:var(--st-surface-2, inherit);padding:2px 4px;border-radius:6px}
 .img-gallery__tip{font-size:var(--st-fs-sm, 13px);color:var(--st-ink-2, inherit)}
 @media (max-width: 900px) {
-  .img-gallery__grid{max-height:220px}
   .img-gallery__stage-img{max-height:36vh}
 }
 

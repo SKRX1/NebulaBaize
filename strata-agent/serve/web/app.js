@@ -9934,6 +9934,9 @@ promptbookBoot();
 const GALLERY_KEY = "strata.imgGallery";
 let galleryMem = [];
 let gallerySel = -1;
+let galleryView = "all";   // [融合时间线 2026-11-15] segmented view: session | saved | all
+let galleryQuery = "";     // search box -> prompt/seed/size substring filter
+let gallerySort = "new";   // new = galleryMem order (unshift keeps newest first); old = reversed
 function galleryLocalLoad(){ try { const d = JSON.parse(localStorage.getItem(GALLERY_KEY) || "null"); return (d && Array.isArray(d.items)) ? d.items : []; } catch (e) { return []; } }
 function gallerySave(){
   try { localStorage.setItem(GALLERY_KEY, JSON.stringify({ items: galleryMem.slice(0, 500) })); } catch (e) {}
@@ -9954,6 +9957,13 @@ function galleryAdd(e){
   galleryMem.unshift(e);
   galleryMem = galleryMem.slice(0, 500);
   gallerySave(); renderGallery();
+}
+function galleryViewList(){
+  const q = galleryQuery.trim().toLowerCase();
+  let rows = galleryMem.map((x, i) => ({ x: x, i: i })).filter((r) => galleryView === "all" || (galleryView === "saved" ? r.x.saved : !r.x.saved));
+  if (q) rows = rows.filter((r) => (String(r.x.prompt || "") + " " + String(r.x.seed == null ? "" : r.x.seed) + " " + String(r.x.size || "")).toLowerCase().includes(q));
+  if (gallerySort === "old") rows = rows.slice().reverse();
+  return rows;
 }
 function renderGallery(){
   const host = $("img-gallery"); if (!host) return;
@@ -9979,7 +9989,7 @@ function renderGallery(){
     : t("img.gallery.empty");
   stage.append(fig, bar, tip);
   const grid = document.createElement("div"); grid.className = "img-gallery__grid";
-  galleryMem.forEach((x, i) => {
+  galleryViewList().forEach((row) => { const x = row.x, i = row.i;
     const cell = document.createElement("button"); cell.type = "button";
     cell.className = "img-gallery__cell" + (i === gallerySel ? " img-gallery__cell--sel" : "");
     cell.setAttribute("data-idx", String(i)); cell.title = x.prompt || "";
@@ -10039,6 +10049,16 @@ async function galleryOpenFolder(it){
 }
 function galleryWire(){
   const host = $("img-gallery"); if (!host) return;
+  const tabs = $("img-fusion-tabs");
+  if (tabs) tabs.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-gview]"); if (!b) return;
+    galleryView = b.getAttribute("data-gview");
+    for (const el of tabs.querySelectorAll("[data-gview]")) el.classList.toggle("is-active", el === b);
+    const res = $("img-results"); if (res) res.hidden = (galleryView === "saved");
+    renderGallery();
+  });
+  const si = $("img-fusion-search"); if (si) si.addEventListener("input", () => { galleryQuery = si.value; renderGallery(); });
+  const so = $("img-fusion-sort"); if (so) so.addEventListener("change", () => { gallerySort = so.value; renderGallery(); });
   host.addEventListener("click", async (e) => {
     const btn = e.target.closest && e.target.closest("[data-act]");
     if (btn) { await galleryAction(btn.getAttribute("data-act")); return; }

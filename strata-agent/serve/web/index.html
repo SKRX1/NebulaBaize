@@ -491,8 +491,26 @@
         </div><!-- /img-config -->
         <span class="composer-hint" id="img-hint" data-i18n="img.hint">One image at a time; a chat request waits for it (and the other way round).</span>
       </form>
-      <div class="img-results" id="img-results"></div>
-      <div class="img-gallery" id="img-gallery"></div>
+      <!-- [融合时间线 2026-11-15] one scroll panel: sticky segmented bar (会话|收藏|
+           全部 + 搜索 + 排序) above the fused timeline; the session column feeds the
+           timeline from the top (new generations prepend), the gallery grid follows
+           as the same single list, one shared selection state. -->
+      <div class="img-fusion" id="img-fusion">
+        <div class="img-fusion__bar">
+          <div class="img-fusion__tabs" id="img-fusion-tabs" role="group" aria-label="gallery view">
+            <button type="button" class="st-chip" data-gview="session" data-i18n="img.gallery.view.session">Session</button>
+            <button type="button" class="st-chip" data-gview="saved" data-i18n="img.gallery.view.saved">Saved</button>
+            <button type="button" class="st-chip is-active" data-gview="all" data-i18n="img.gallery.view.all">All</button>
+          </div>
+          <input class="st-input img-fusion__search" id="img-fusion-search" type="search" data-i18n-attr="placeholder:img.gallery.search.ph">
+          <select class="st-input img-fusion__sort" id="img-fusion-sort" data-i18n-attr="aria-label:img.gallery.sort.aria">
+            <option value="new" data-i18n="img.gallery.sort.new">Newest first</option>
+            <option value="old" data-i18n="img.gallery.sort.old">Oldest first</option>
+          </select>
+        </div>
+        <div class="img-results" id="img-results"></div>
+        <div class="img-gallery" id="img-gallery"></div>
+      </div>
     </div>
   </section>
 

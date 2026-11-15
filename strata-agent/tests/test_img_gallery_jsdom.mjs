@@ -56,6 +56,7 @@ check("decoy control: removing the branch return True flips A10 red",
 appCode += `
 ;window.__api = {
   galleryMem: () => galleryMem, gallerySel: () => gallerySel, renderGallery: () => renderGallery(),
+  galleryView: () => galleryView, galleryQuery: () => galleryQuery, gallerySort: () => gallerySort,
   $,
 };`;
 
@@ -164,6 +165,41 @@ console.log("\n=== H. folder leg: workspace/open fires with the generated-images
   await tick();
   const hit = POSTS.slice(before).find((p) => p.url.endsWith("workspace/open"));
   check("H1 workspace/open fired with data/generated/images", !!hit && hit.body.path === "data/generated/images");
+}
+
+/* ── [融合时间线 2026-11-15 A+C] fused single-scroll panel + segmented views ──
+   Locks BEHAVIOUR not shape: the shell mounts, the three view tabs filter the SAME
+   list by the saved flag, the search box filters live, and the grid no longer owns
+   its own scrollbar (one scroll container = the page). */
+console.log("\n=== I. fused timeline (2026-11-15 A+C): shell, segmented views, search ===");
+check("I1 html mounts the fused shell (fusion bar: tabs + search + sort)",
+      html.includes('id="img-fusion"') && html.includes('id="img-fusion-tabs"') &&
+      html.includes('id="img-fusion-search"') && html.includes('id="img-fusion-sort"'));
+check("I2 the fused grid no longer owns a scrollbar (single scroll container)",
+      css.includes(".img-gallery__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--st-s-2)}\n") &&
+      !/\.img-gallery__grid\{[^}]*max-height/.test(css));
+{
+  // entry state after section H: one unsaved entry in the index
+  const cells = () => win.document.querySelectorAll(".img-gallery__cell").length;
+  const tab = (v) => win.document.querySelector('#img-fusion-tabs [data-gview="' + v + '"]');
+  check("I3 default view=all shows the entry", api.galleryView() === "all" && cells() === 1);
+  tab("saved").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("I4 view=saved hides the unsaved entry (0 cells)", api.galleryView() === "saved" && cells() === 0);
+  check("I5 view=saved also hides the session column", win.document.getElementById("img-results").hidden === true);
+  tab("session").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("I6 view=session shows the unsaved entry again", api.galleryView() === "session" && cells() === 1);
+  tab("all").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("I7 back to all: the column is revealed and the entry shows", win.document.getElementById("img-results").hidden === false && cells() === 1);
+  const si = win.document.getElementById("img-fusion-search");
+  si.value = "gate prompt"; si.dispatchEvent(new win.Event("input", { bubbles: true }));
+  check("I8 search hit keeps the entry visible", cells() === 1);
+  si.value = "zzz-nothing"; si.dispatchEvent(new win.Event("input", { bubbles: true }));
+  check("I9 search miss hides it (live filter)", cells() === 0);
+  si.value = ""; si.dispatchEvent(new win.Event("input", { bubbles: true }));
+  const so = win.document.getElementById("img-fusion-sort");
+  so.value = "old"; so.dispatchEvent(new win.Event("change", { bubbles: true }));
+  check("I10 sort flips without losing entries", api.gallerySort() === "old" && cells() === 1);
+  check("I11 the selection survives re-render (cell keeps the sel class)", !!win.document.querySelector(".img-gallery__cell--sel"));
 }
 
 console.log("\n" + (FAILURES.length ? "IMG-GALLERY-GATE: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "IMG-GALLERY-GATE: ALL GREEN"));
