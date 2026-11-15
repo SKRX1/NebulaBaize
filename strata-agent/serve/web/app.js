@@ -10043,6 +10043,7 @@ function renderGallery(){
     if (lv.url) { const li = document.createElement("img"); li.src = lv.url + (lv.bust || ""); li.alt = lv.prompt || "image"; cell.append(li); }
     const badge = document.createElement("span"); badge.className = "img-gallery__seed";
     badge.textContent = (lv.seed == null || lv.seed === "") ? "auto" : String(lv.seed);
+    if (galleryMultiSel) { const cb = document.createElement("span"); cb.className = "img-gallery__cell-check" + (gallerySelSet.has(lv) ? " is-on" : ""); cb.setAttribute("data-cbi", "live"); cb.setAttribute("data-cbref", lv.id); cb.innerHTML = icon("check"); cell.append(cb); }   // [勾选框多选 2026-11-15b] live rows carry their own id into the box (identity refs)
     cell.append(badge); grid.append(cell);
   });
   galleryViewList().forEach((row) => { const x = row.x, i = row.i;   // [删除增强] batch counter = a CLASS suffix on a separate var (i stays a pure index: data-idx + the C-family compare)
@@ -10053,6 +10054,7 @@ function renderGallery(){
     const ci = document.createElement("img"); ci.src = x.url; ci.alt = x.prompt || "image";
     const badge = document.createElement("span"); badge.className = "img-gallery__seed";
     badge.textContent = (x.seed == null || x.seed === "") ? "auto" : String(x.seed);
+    if (galleryMultiSel) { const cb = document.createElement("span"); cb.className = "img-gallery__cell-check" + (gallerySelSet.has(x) ? " is-on" : ""); cb.setAttribute("data-cbi", "idx"); cb.setAttribute("data-cbref", String(i)); cb.innerHTML = icon("check"); cell.append(cb); }   // [勾选框多选 2026-11-15b] data-cbref = the plain loop index (i stays authoritat for data-idx)
     cell.append(ci, badge); grid.append(cell);
   });
   host.append(stage, grid);
@@ -10117,7 +10119,7 @@ async function galleryTrashFiles(items){   // [删除增强] shared leg: files -
   const s0 = activeSession();
   const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
   if (!ws) return;   // no workspace = no ledger home: graceful index-only removal (the gates keep green)
-  const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => u.startsWith("/data/generated/images/")).map((u) => ws + u.replace(/\//g, "/"));   // only real generated files (never localStorage mirrors)
+  const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => u.startsWith("/data/generated/images/") || u.startsWith("/data/saved_images/") || isAbsolutePath(u)).map(galleryResolvePath).filter(Boolean);   // [删除增强 2026-11-15b] only real files (never localStorage mirrors); urls stay url-shaped, the backend maps them
   if (!paths.length) return;
   try {
     const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
@@ -10171,6 +10173,14 @@ function galleryWire(){
       renderGallery();
     });
   }
+  const ms = $("img-fusion-multisel");   // [勾选框多选 2026-11-15b] the multi-select toggle: ON = every rendered cell (any view) shows a tick box
+  if (ms) ms.addEventListener("click", () => {
+    galleryMultiSel = !galleryMultiSel;
+    if (!galleryMultiSel) gallerySelSet.clear();   // leaving the mode drops the picks (the batch bar rides along: empty set)
+    ms.setAttribute("aria-pressed", String(galleryMultiSel));
+    ms.classList.toggle("is-active", galleryMultiSel);
+    renderGallery();
+  });
   const si = $("img-fusion-search"); if (si) si.addEventListener("input", () => { galleryQuery = si.value; renderGallery(); });
   const so = $("img-fusion-sort"); if (so) so.addEventListener("change", () => { gallerySort = so.value; renderGallery(); });
   host.addEventListener("click", async (e) => {
@@ -10178,7 +10188,17 @@ function galleryWire(){
     if (btn) { await galleryAction(btn.getAttribute("data-act")); return; }
     const cell = e.target.closest && e.target.closest(".img-gallery__cell");
     if (cell) {
+      if (galleryMultiSel && e.target.closest && e.target.closest(".img-gallery__cell-check")) {   // [勾选框多选 2026-11-15b] the tick box is the picker in multi-select mode
+        const cbx = e.target.closest(".img-gallery__cell-check");
+        const ent = cbx.getAttribute("data-cbi") === "live" ? galleryLive.find((l) => l.id === cbx.getAttribute("data-cbref")) : galleryMem[Number(cbx.getAttribute("data-cbref"))];
+        if (ent) { if (gallerySelSet.has(ent)) gallerySelSet.delete(ent); else gallerySelSet.add(ent); renderGallery(); }
+        return;
+      }
       const entry = cell.getAttribute("data-live") ? galleryLive.find((l) => l.id === cell.getAttribute("data-live")) : galleryMem[Number(cell.getAttribute("data-idx"))];   // getAttribute, NOT hasAttribute: the T8 lock counts hasAttribute sites and stays byte-exact   // [删除增强] identity refs feed the set (live rows included)
+      if (galleryMultiSel && entry) {   // [勾选框多选 2026-11-15b] in the tick-box mode a plain cell click is ALSO a pick (the box AND the cell are both selectors — the A-family convention)
+        if (gallerySelSet.has(entry)) gallerySelSet.delete(entry); else gallerySelSet.add(entry);
+        renderGallery(); return;
+      }
       if (entry && (e.ctrlKey || e.metaKey)) {   // [删除增强] B1: Ctrl/Cmd+click toggles membership (the set is independent of gallerySel)
         if (gallerySelSet.has(entry)) gallerySelSet.delete(entry); else gallerySelSet.add(entry);
         renderGallery(); return;
@@ -11068,6 +11088,14 @@ function populateRecycleControls() {
   if (rs) { rs.value = String(store.get("recycle.retention", 72)); if (rs.selectedIndex < 0) rs.value = "72"; }
   const savedCats = store.get("recycle.cats", null);
   if (sel && Array.isArray(savedCats)) document.querySelectorAll(".recycle-cat").forEach((c) => { c.checked = savedCats.indexOf(c.dataset.cat) >= 0; });
+}
+let galleryMultiSel = false;   // [勾选框多选 2026-11-15b] the bar's multi-select toggle: every rendered cell (any view) shows a tick box; OFF keeps the modifier behaviour byte-identical
+function galleryResolvePath(u){   // [删除增强 2026-11-15b] root-cause fix: a server url (/data/generated/images/..., /data/saved_images/...) maps to the INSTALL ROOT, not to the workspace — the old workspace+url splice missed the strata-agent/ segment and the backend silently skipped every file
+  const clean = String(u || "").split("?")[0];
+  if (clean.startsWith("/data/generated/images/") || clean.startsWith("/data/saved_images/")) return clean;   // url shape: the backend maps it
+  const s0 = activeSession();
+  const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
+  return ws ? ws + clean.replace(/\//g, "/") : "";   // legacy shape: workspace-rooted (the archive-manager convention)
 }
 function resolveRecycleWs(s) {
   const sel = $("recycle-ws");

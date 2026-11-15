@@ -189,6 +189,7 @@ SUITES = [
     "tests/test_recycle_paging.mjs",   # 2026-10-29: recycle bin+audit default 30 rows / load-more +30 with ZERO refetch (data cached in module vars); differential pure-logic, pure-ASCII probes
 
     "tests/test_recycle_job_model.py",   # 2026-10-30: recycle batch-trash job model (parallel pool, sync<=3 stays sync, cancel only cancels not-yet-started, ledger lock, 404 unknown job); pure-stdlib, deterministic
+    "tests/test_recycle_url_mapping.py",   # 2026-11-15b ROOT-CAUSE: the gallery trash spliced workspace+url and the strata-agent/ segment was missing -> f.exists() false -> silent skip ("勾选项不起作用"). Fix: url shapes (/data/generated/images/, /data/saved_images/) resolve against the INSTALL ROOT via _recycle_resolve; workspace stays the ledger home. Pure-stdlib deterministic lock
 
     "tests/test_recycle_sel_size.mjs",   # 2026-10-30: select-size line (data-size carry, KB/MB adaptive, " . " separator, three-state selall, selall-click refreshes count+size); differential pure-logic, pure-ASCII probes
     "tests/test_recycle_fetch_guard.mjs",   # 2026-11-13 ROOT-CAUSE: renderRecycle/Bin/Audit had NO try/catch around `await fetch("api/recycle")`; a network blip rejects -> floating rejected promise -> global unhandledrejection. Fix adds per-function try/catch (placeholder / keep-last-data no-op). Load-bearing single-variable differential: FIX realm -> 0 escape, CONTROL realm (guard stripped) -> >=1 escape. Capture at the node process layer (jsdom does not dispatch unhandledrejection for a plain floating promise). Real app.js jsdom-boot.

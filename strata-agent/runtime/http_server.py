@@ -4112,8 +4112,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return 500, {"error": {"message": "COM send failed: %s" % e}}
                 if ok:
-                    self._recycle_ledger_append(ledger, raw)
-                    done.append(str(Path(raw)))
+                    self._recycle_ledger_append(ledger, str(self._recycle_resolve(raw)))
+                    done.append(str(self._recycle_resolve(raw)))
             return 200, {"trashed": done, "skipped": len(paths) - len(done)}
         # Large batch: background job so the caller can poll progress and stop mid-flight.
         job_id = uuid.uuid4().hex
@@ -4125,9 +4125,19 @@ class GatewayHandler(BaseHTTPRequestHandler):
                           args=(job, ledger, paths), name="recycle-trash", daemon=True).start()
         return 200, {"job_id": job_id, "total": len(paths)}
 
+    def _recycle_resolve(self, raw):
+        # [删除增强 2026-11-15b] a served url shape maps to the install root (data/generated/images,
+        # data/saved_images live OUTSIDE any workspace); everything else is workspace-absolute as before.
+        clean = str(raw).split("?")[0]
+        if clean.startswith("/data/generated/images/"):
+            return Path(GENERATED_DIR) / clean[len("/data/generated/images/"):]
+        if clean.startswith("/data/saved_images/"):
+            return Path(ROOT) / "data" / "saved_images" / clean[len("/data/saved_images/"):]   # same mapping the serving branch uses
+        return Path(raw)
+
     def _recycle_trash_one(self, raw):
         """Send ONE file to the Recycle Bin via its own PowerShell+COM. True = it moved."""
-        f = Path(raw)
+        f = self._recycle_resolve(raw)
         if not f.exists() or f.name in self.RECYCLE_WHITELIST:
             return False
         folder = str(f.parent); name = f.name

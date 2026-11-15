@@ -30,6 +30,7 @@ check("S1 the batch bar + summary box css exist", css.includes(".img-gallery__ba
 check("S2 the set is INDEPENDENT of gallerySel (the single-select gates stay byte-intact)", /const gallerySelSet = new Set\(\);/.test(appCode));
 check("S3 the default-checked fact is exactly one line (the decoy hits it)", appCode.split("\n").filter((l) => l.includes('ck.checked = true; ck.setAttribute("data-testid", "batch-check")')).length === 1);
 check("S4 the single-delete window.confirm gate stayed byte-intact (the G family)", /if \(!window\.confirm\(t\("img\.gallery\.confirm\.del"\)\)\) return;/.test(appCode));
+check("S5 the saved-cells batch counter is a SEPARATE var (the `i`-pollution regression lock): the loop keeps `i` a pure index and never appends a class to it", /const batchCls = gallerySelSet\.has\(x\)/.test(appCode) && !/className[^;]*\+\s*i\b/.test(appCode));
 
 /* ── harness: the same stub set as the gallery/fuse gates ── */
 const SEED = [
@@ -125,6 +126,29 @@ console.log("\n=== B4 decoy differential: box UNCHECKED -> index-only removal, N
   await tick(120);
   check("B4c NO recycle fetch fired when un-checked (decoy proves B3 is load-bearing)", env2.RECYCLED.length === 0);
   check("B4d both entries left the index — empty = real intent, the A5 family (3-2=1 left)", api2.galleryMem().length === 1 && api2.gallerySelSet().size === 0);
+}
+
+console.log("\n=== B5 [勾选框多选 2026-11-15b] the Multi toggle: tick boxes appear on every cell, clicking one toggles the set ===");
+{
+  const envB = await freshBoot(SEED);
+  const winB = envB.win, apiB = envB.api;
+  const boxes = () => [...winB.document.querySelectorAll(".img-gallery__cell-check")];
+  const cellBtns = () => [...winB.document.querySelectorAll(".img-gallery__grid button.img-gallery__cell")];
+  check("B5a OFF state: no tick box rendered (the modifier mode is the default)", boxes().length === 0 && cellBtns().length === 3);
+  winB.document.getElementById("img-fusion-multisel").click();   // flip the mode ON
+  check("B5b ON state: every cell grew a tick box (3 boxes, still 3 cells — the box is a CHILD, not a 4th cell)", boxes().length === 3 && cellBtns().length === 3);
+  boxes()[0].click();   // boxes() re-queries: every click repaints, so each click lands on a live node
+  check("B5c clicking a box adds its entry to the set + the batch bar appears", apiB.gallerySelSet().size === 1 && [...apiB.gallerySelSet()][0] === apiB.galleryMem()[0] && !!winB.document.querySelector(".img-gallery__batchbar"));
+  check("B5d the picked box paints the on-state (is-on)", boxes().length === 3 && boxes().some((b) => b.className.includes("is-on")));
+  boxes()[0].click();   // toggle OFF again (fresh query after the repaint)
+  check("B5e clicking the same box again toggles OFF", apiB.gallerySelSet().size === 0);
+  boxes()[1].click(); boxes()[2].click();
+  check("B5f two picks ride the set", apiB.gallerySelSet().size === 2);
+  cellBtns()[0].click();   // in the mode a plain cell click is ALSO a pick (the box AND the cell are both selectors)
+  check("B5g a plain cell click also toggles membership while the mode is ON", apiB.gallerySelSet().size === 3);
+  winB.document.getElementById("img-fusion-multisel").click();   // flip OFF -> the picks drop
+  check("B5h flipping OFF drops the picks (the batch bar leaves, no boxes left)", apiB.gallerySelSet().size === 0 && boxes().length === 0 && !winB.document.querySelector(".img-gallery__batchbar"));
+  check("B5i the mode button is aria-pressed=false again (the toggle state is honest)", winB.document.getElementById("img-fusion-multisel").getAttribute("aria-pressed") === "false");
 }
 
 console.log("\n" + (FAILURES.length ? "BATCH-DELETE-GATE: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "BATCH-DELETE-GATE: ALL GREEN"));

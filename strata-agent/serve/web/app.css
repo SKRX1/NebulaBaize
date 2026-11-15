@@ -1660,3 +1660,10 @@ audio.md-media { height: 38px; }
 .img-promptbook-snap { flex: 0 0 auto; margin-left: auto; font-size: .78em; opacity: .75; white-space: nowrap; }
 .img-promptbook-del, .img-seedbook-del { flex: 0 0 auto; border: 0; background: none; color: inherit; cursor: pointer; font-size: .9em; opacity: .55; padding: 0 4px; }
 .img-promptbook-del:hover, .img-seedbook-del:hover { opacity: 1; color: #d66; }
+/* [勾选框多选 2026-11-15b] the multi-select tick box rides on every rendered cell while the
+   bar's Multi toggle is ON (all three views). The cell is already position:relative; the box
+   is a span (NOT an input — the cell itself is a <button>, nested form controls are illegal). */
+.img-gallery__cell-check{position:absolute;top:4px;left:4px;z-index:2;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:var(--st-r-sm,4px);border:1px solid var(--st-line,rgba(255,255,255,.25));background:rgba(0,0,0,.45);color:transparent;line-height:0;pointer-events:auto}
+.img-gallery__cell-check .st-icon{width:12px;height:12px;display:none}
+.img-gallery__cell-check.is-on{border-color:var(--st-accent,#4c8eff);background:var(--st-accent,#4c8eff);color:#fff}
+.img-gallery__cell-check.is-on .st-icon{display:block}
