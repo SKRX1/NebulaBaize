@@ -9937,6 +9937,9 @@ let gallerySel = -1;
 let galleryView = "all";   // [融合时间线 2026-11-15] segmented view: session | saved | all
 let galleryQuery = "";     // search box -> prompt/seed/size substring filter
 let gallerySort = "new";   // new = galleryMem order (unshift keeps newest first); old = reversed
+let galleryLayout = "grid";   // [SD式融合] C toggle: grid | strip (default grid, localStorage-backed)
+const galleryLive = [];       // [SD式融合] live records: session-only, never written to the authoritative file
+let galleryLiveSel = null;
 function galleryLocalLoad(){ try { const d = JSON.parse(localStorage.getItem(GALLERY_KEY) || "null"); return (d && Array.isArray(d.items)) ? d.items : []; } catch (e) { return []; } }
 function gallerySave(){
   try { localStorage.setItem(GALLERY_KEY, JSON.stringify({ items: galleryMem.slice(0, 500) })); } catch (e) {}
@@ -9956,8 +9959,36 @@ function galleryAdd(e){
   if (galleryMem.some((x) => x.url === e.url)) return;   // 去重
   galleryMem.unshift(e);
   galleryMem = galleryMem.slice(0, 500);
+  if (galleryLive.length) {   // [SD式融合] promote = the live retires as its entry lands; auto-select (the sd moment)
+    galleryLive.shift();
+    galleryLiveSel = null;
+    gallerySel = 0;
+  }
   gallerySave(); renderGallery();
 }
+function galleryLivePass(lv){   // [SD式融合] the STAGE panel self-paints from lv (the carrier stays whole & hidden:
+                                 // renderResult must keep finding ph/img inside it via querySelector — all gate strings live there)
+  const stage = $("img-gallery") ? $("img-gallery").querySelector(".img-gallery__stage") : null;
+  if (!stage) return;
+  const panel = document.createElement("div"); panel.className = "img-gallery__live"; panel.setAttribute("data-live", lv.id);
+  if (lv.url) {   // preview landed: show it on the stage (the carrier img stays parked)
+    const pi = document.createElement("img"); pi.src = lv.url + (lv.bust || ""); pi.alt = lv.prompt || "image"; panel.append(pi);
+  } else {        // loading: the gate-locked placeholder card renders here (same class, built by the self-paint)
+    const ph = document.createElement("div"); ph.className = "live-preview-ph";
+    ph.innerHTML = `<span class="live-preview-ph__dot"></span><span class="live-preview-ph__txt"></span>`;
+    const txt = ph.querySelector(".live-preview-ph__txt");
+    if (txt) txt.textContent = lv.phTxt || t("img.generating");
+    panel.append(ph);
+  }
+  const eta = document.createElement("div"); eta.className = "img-gallery__live-eta"; eta.textContent = lv.eta || ""; panel.append(eta);
+  const sb = document.createElement("button"); sb.type = "button"; sb.className = "st-btn st-btn--secondary st-btn--sm live-preview-stop";
+  sb.textContent = t("img.stopgen"); sb.dataset.job = lv.id;
+  sb.addEventListener("click", () => galleryLiveStop(lv));   // [停止生成] routes to lv.stop (the ORIGINAL leg)
+  panel.append(sb); stage.append(panel);
+}
+function galleryLiveStop(lv){ if (lv.stop) lv.stop(); }   // [SD式融合] the panel stop button re-enters the generation path's original handler
+function galleryLiveRows(){ return galleryLive.filter((l) => !l.retired && galleryView !== "saved"); }   // live cells ride at the timeline top (the saved view hides them)
+function galleryLiveRetire(lv){ if (!lv.retired) { lv.retired = true; renderGallery(); } }   // [SD式融合] retire = the cell + the stage panel drop it on the next paint
 function galleryViewList(){
   const q = galleryQuery.trim().toLowerCase();
   let rows = galleryMem.map((x, i) => ({ x: x, i: i })).filter((r) => galleryView === "all" || (galleryView === "saved" ? r.x.saved : !r.x.saved));
@@ -9967,12 +9998,14 @@ function galleryViewList(){
 }
 function renderGallery(){
   const host = $("img-gallery"); if (!host) return;
-  host.innerHTML = "";
+  host.innerHTML = "";   // [SD式融合] full repaint: the stage panel + the live cells self-paint from lv
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
+  const liveSel = galleryLiveSel ? (galleryLive.find((l) => l.id === galleryLiveSel && !l.retired) || null) : null;   // [SD式融合] a live record can drive the stage
   const stage = document.createElement("div"); stage.className = "img-gallery__stage";
   const fig = document.createElement("figure");
   const simg = document.createElement("img"); simg.className = "img-gallery__stage-img";
-  if (sel) { simg.src = sel.url; simg.alt = sel.prompt || "image"; } else simg.hidden = true;
+  if (liveSel) { simg.hidden = true; }   // [SD式融合] a live selection: the stage shows the LIVE PANEL (placeholder -> preview), the static img yields
+  else if (sel) { simg.src = sel.url; simg.alt = sel.prompt || "image"; } else simg.hidden = true;
   fig.append(simg);
   const bar = document.createElement("div"); bar.className = "img-gallery__actions";
   for (const [act, ic, key] of [["save", "download", "img.gallery.save"], ["del", "trash", "img.gallery.del"],
@@ -9980,15 +10013,28 @@ function renderGallery(){
                                 ["folder", "folder", "img.gallery.folder"]]) {
     const b = document.createElement("button"); b.type = "button"; b.className = "st-btn st-btn--icon";
     b.innerHTML = icon(ic); b.title = t(key); b.setAttribute("data-act", act);
+    if (!(sel || liveSel)) b.disabled = true;   // [SD式融合] a live-only selection waits for the promoted entry (galleryAction still guards on !sel)
     if (!sel) b.disabled = true;
     bar.append(b);
   }
   const tip = document.createElement("div"); tip.className = "img-gallery__tip";
-  tip.textContent = sel
+  tip.textContent = liveSel
+    ? [(liveSel.size || "?"), (liveSel.seed == null || liveSel.seed === "" ? "auto" : "seed " + liveSel.seed), liveSel.prompt].filter(Boolean).join(" · ")   // [SD式融合] the live tip reads like the real one
+    : sel
     ? [sel.size, (sel.seed == null ? "auto" : "seed " + sel.seed), sel.prompt].filter(Boolean).join(" · ")
     : t("img.gallery.empty");
   stage.append(fig, bar, tip);
   const grid = document.createElement("div"); grid.className = "img-gallery__grid";
+  if (galleryLayout === "strip") grid.className += " img-gallery__grid--strip";   // [SD式融合] C toggle (default grid)
+  galleryLiveRows().forEach((lv) => {   // [SD式融合] live cells at the timeline top (dashed frame until the preview lands)
+    const cell = document.createElement("button"); cell.type = "button";
+    cell.className = "img-gallery__cell img-gallery__cell--live" + (lv.id === galleryLiveSel ? " img-gallery__cell--sel" : "");
+    cell.setAttribute("data-live", lv.id); cell.title = lv.prompt || "";
+    if (lv.url) { const li = document.createElement("img"); li.src = lv.url + (lv.bust || ""); li.alt = lv.prompt || "image"; cell.append(li); }
+    const badge = document.createElement("span"); badge.className = "img-gallery__seed";
+    badge.textContent = (lv.seed == null || lv.seed === "") ? "auto" : String(lv.seed);
+    cell.append(badge); grid.append(cell);
+  });
   galleryViewList().forEach((row) => { const x = row.x, i = row.i;
     const cell = document.createElement("button"); cell.type = "button";
     cell.className = "img-gallery__cell" + (i === gallerySel ? " img-gallery__cell--sel" : "");
@@ -9999,6 +10045,7 @@ function renderGallery(){
     cell.append(ci, badge); grid.append(cell);
   });
   host.append(stage, grid);
+  if (liveSel) galleryLivePass(liveSel);   // [SD式融合] the live panel claims the stage (the gate-locked placeholder class, self-painted) — AFTER the stage enters the DOM (the helper re-queries it)
 }
 async function galleryAction(act){
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
@@ -10057,17 +10104,32 @@ function galleryWire(){
     const res = $("img-results"); if (res) res.hidden = (galleryView === "saved");
     renderGallery();
   });
+  const lay = $("img-fusion-layout");   // [SD式融合] grid|strip toggle (C), remembered in localStorage
+  if (lay) {
+    galleryLayout = localStorage.getItem("strata.imgGallery.layout") || "grid";
+    for (const el of lay.querySelectorAll("[data-glayout]")) el.classList.toggle("is-active", el.getAttribute("data-glayout") === galleryLayout);
+    lay.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-glayout]"); if (!b) return;
+      galleryLayout = b.getAttribute("data-glayout");
+      try { localStorage.setItem("strata.imgGallery.layout", galleryLayout); } catch (e) {}
+      for (const el of lay.querySelectorAll("[data-glayout]")) el.classList.toggle("is-active", el === b);
+      renderGallery();
+    });
+  }
   const si = $("img-fusion-search"); if (si) si.addEventListener("input", () => { galleryQuery = si.value; renderGallery(); });
   const so = $("img-fusion-sort"); if (so) so.addEventListener("change", () => { gallerySort = so.value; renderGallery(); });
   host.addEventListener("click", async (e) => {
     const btn = e.target.closest && e.target.closest("[data-act]");
     if (btn) { await galleryAction(btn.getAttribute("data-act")); return; }
     const cell = e.target.closest && e.target.closest(".img-gallery__cell");
-    if (cell) { gallerySel = Number(cell.getAttribute("data-idx")); renderGallery(); }
+    if (cell) {
+      if (cell.hasAttribute("data-live")) { galleryLiveSel = cell.getAttribute("data-live"); renderGallery(); return; }   // [SD式融合] live cells carry their own id (data-idx stays authoritative for the gates)
+      gallerySel = Number(cell.getAttribute("data-idx")); renderGallery();
+    }
   });
   host.addEventListener("dblclick", (e) => {
     const cell = e.target.closest && e.target.closest(".img-gallery__cell");
-    if (cell) { const it = galleryMem[Number(cell.getAttribute("data-idx"))]; if (it) openImageView(it.saved_ref || it.url, it.prompt || "image"); return; }
+    if (cell && !cell.hasAttribute("data-live")) { const it = galleryMem[Number(cell.getAttribute("data-idx"))]; if (it) openImageView(it.saved_ref || it.url, it.prompt || "image"); return; }   // [SD式融合] live cells skip (no lightbox stub to open)
     const im = e.target.closest && e.target.closest(".img-gallery__stage-img");
     if (im && im.src) openImageView(im.src, im.alt);
   });
@@ -10147,7 +10209,7 @@ $("img-form").onsubmit = async (ev) => {
         fig = document.createElement("figure");
         img = document.createElement("img");
         cap = document.createElement("figcaption");
-        $("img-results").prepend(fig);
+        $("img-gallery").prepend(fig);   // [SD式融合] the fused timeline owns the figure (the retired column was display:none)
       }
       img.src = d.url || ("data:image/png;base64," + d.b64_json);
       img.hidden = false;
@@ -10165,8 +10227,9 @@ $("img-form").onsubmit = async (ev) => {
     if (!r.ok) throw new Error((j.error && j.error.message) || r.statusText);
     if (j.job_id) {
       // 异步：先放一张实时预览图（带缓存穿透时间戳），每约2秒轮询刷新，done 时渲染成品。
-      const fig = document.createElement("figure");
+      const fig = document.createElement("figure");   // [SD式融合] hidden carrier: renderResult upgrades THIS node in place (the gate strings live here)
       fig.dataset.livePreview = j.job_id;
+      fig.style.display = "none";   // the visible home is the timeline live cell + the stage live panel (self-painted from lv)
       const img = document.createElement("img");
       img.alt = prompt;
       img.hidden = true;   // [FIX 2026-11-14] 首帧落盘前不挂 src：404 会渲染成破图
@@ -10176,11 +10239,15 @@ $("img-form").onsubmit = async (ev) => {
       const cap = document.createElement("figcaption");
       cap.textContent = `${j.size}, seed ${$("img-seed").value || "auto"}, ...: ${prompt}`;
       fig.append(ph, img, cap);
-      $("img-results").prepend(fig);
+      const lv = { id: j.job_id, url: null, seed: null, prompt: prompt, ts: Date.now(), size: j.size || "",
+                   ph: ph, img: img, cap: cap, fig: fig, phTxt: "", eta: "", bust: "", stop: null, retired: false };   // [SD式融合] live record (session-only, never persisted)
+      galleryLive.unshift(lv);   // the live cell rides at the timeline top
+      $("img-results").prepend(fig);   // [SD式融合] the carrier parks in the retired column (css display:none) so renderResult's querySelector chain stays byte-intact
       const bust = (u) => u + "?t=" + Date.now();
       const phTxt = ph.querySelector(".live-preview-ph__txt");
       const setPh = () => { if (ph.isConnected) phTxt.textContent = t("img.generating") + " · " + Math.round((performance.now() - t0) / 1000) + "s"; };
-      setPh();
+      const setPhStage = () => { lv.phTxt = t("img.generating") + " · " + Math.round((performance.now() - t0) / 1000) + "s"; };   // [SD式融合] mirror onto lv (the parked carrier is disconnected)
+      setPh(); setPhStage();
       // [停止生成] 预览下方放一个停止按钮；点击即取消后台任务并收尾轮询。
       const stopBtn = document.createElement("button");
       stopBtn.type = "button";
@@ -10190,6 +10257,7 @@ $("img-form").onsubmit = async (ev) => {
       let cancelled = false;               // 防重复点
       const finalizeCancelled = () => {
         if (stopBtn.dataset.done) return; stopBtn.dataset.done = "1";
+        galleryLiveRetire(lv);            // [SD式融合] retire the live cell (idempotent)
         stopBtn.remove();                 // 移除停止按钮
         $("img-hint").textContent = t("img.cancelled");
         $("img-go").disabled = false;      // 解锁生成按钮
@@ -10198,11 +10266,13 @@ $("img-form").onsubmit = async (ev) => {
         if (cancelled) return;
         try { if (!window.confirm(t("img.stopgen.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
         cancelled = true;
+        galleryLiveRetire(lv);   // [SD式融合] retire the live cell; the poll sees "cancelled" and stops
         try {
           const cr = await fetch("api/image-cancel?job=" + encodeURIComponent(j.job_id), {method: "POST", headers: headers(true)});
           const cj = await cr.json().catch(() => ({}));
           if (!cr.ok) throw new Error((cj.error && cj.error.message) || ("HTTP " + cr.status));
           // 取消成功：轮询循环会在收到 cancelled 时收尾；这里也立即收尾 UI 以免再等一拍。
+          galleryLiveRetire(lv);   // [SD式融合] the live cell retires (idempotent)
           finalizeCancelled();
           fig.dataset.livePreview = "cancelled";   // 让 poll 循环看到后自行停止
         } catch (e) {
@@ -10210,7 +10280,10 @@ $("img-form").onsubmit = async (ev) => {
           toast("error", t("toast.noimage.title"), String(e.message || e), 6000);
         }
       });
+      lv.stop = () => stopBtn.click();   // [SD式融合] the panel stop button re-enters the ORIGINAL handler (byte-intact below)
+      galleryLiveSel = lv.id;            // [SD式融合] the new run drives the stage until a real entry lands
       fig.append(stopBtn);
+      renderGallery();   // [SD式融合] paint the live cell + the stage panel (the generation path used to repaint here)
       const poll = async () => {
         try {
           const pr = await fetch("api/image-preview?job=" + encodeURIComponent(j.job_id), {headers: headers()});
@@ -10223,18 +10296,23 @@ $("img-form").onsubmit = async (ev) => {
             return;
           }
           if (pj.status === "error") {                 // 失败：移除预览占位、报错、解锁
+            galleryLiveRetire(lv);   // [SD式融合] the carrier left with fig.remove(); retire the live cell
             fig.remove(); $("img-hint").textContent = "";
             toast("error", t("toast.noimage.title"), String(pj.error || ""), 8000);
             $("img-go").disabled = false; return;
           }
           if (pj.status === "cancelled" || fig.dataset.livePreview === "cancelled") {  // [停止生成] 取消收尾
+            galleryLiveRetire(lv);   // [SD式融合] the live cell retires (finalize below is idempotent)
             if (!stopBtn.dataset.done) finalizeCancelled();
             return;
           }
-          if (pj.preview_ready) {                   // [占位卡] 引擎真画出来了才切 <img>
+          if (pj.preview_ready) {                   // [占位卡] 引擎真画出来了才切 <img>（gate 锁行；carrier 里真节点照常更新，stage 面板从 lv 自绘）
             img.hidden = false; ph.remove();
             img.src = bust(pj.preview_url);
-          } else setPh();                           // 还在加载：占位卡刷新秒数
+            lv.url = pj.preview_url; lv.bust = "?t=" + Date.now(); lv.phTxt = "";   // [SD式融合] the live cell + the stage panel self-paint from lv
+            lv.eta = pj.eta != null ? (t("img.eta.line") + " " + pj.eta + "s") : "";   // [SD式融合] the sd-style progress line
+            renderGallery();   // repaint the cell + the stage panel to show the fresh preview
+          } else { setPh(); setPhStage(); renderGallery(); }   // 还在加载：占位卡刷新秒数
           $("img-hint").textContent = t("img.generating");
           setTimeout(poll, 2000);                      // 每约2秒刷新一次
         } catch (e) {                                   // 网络抖动：下一拍再试

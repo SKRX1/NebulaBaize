@@ -658,7 +658,9 @@ main { flex: 1; min-height: 0; display: flex; }
 }
 /* keep the results column pinned while the long form scrolls (desktop only) */
 #view-images .img-results { position: static; }
-/* empty-state placeholder so the results area is visible before the first generation */
+/* empty-state placeholder — [SD式融合 2026-11-15] the column retired to the hidden park
+   (display:none); the gate-locked :empty rule below is inert now but stays byte-intact. */
+#view-images .img-results { display: none; }
 #view-images .img-results:empty::before {
   content: "生成的图片会显示在这里  /  Generated images appear here";
   display: block;
@@ -690,8 +692,17 @@ main { flex: 1; min-height: 0; display: flex; }
 .img-gallery__actions{display:flex;gap:var(--st-s-1);align-items:center;flex-wrap:wrap}
 .img-gallery__actions .st-btn--icon[disabled]{opacity:.4}
 .img-gallery__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--st-s-2)}
+/* [SD式融合 2026-11-15] C toggle: strip mode = one row, horizontal on demand (default grid) */
+.img-gallery__grid--strip{display:grid;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:120px;gap:var(--st-s-2);flex-wrap:nowrap;overflow-x:auto}
 .img-gallery__cell{position:relative;padding:0;border:1px solid transparent;border-radius:var(--st-r-sm);background:transparent;cursor:pointer;line-height:0}
 .img-gallery__cell img{width:100%;height:110px;object-fit:cover;border-radius:var(--st-r-sm);display:block}
+.img-gallery__cell--live{border-style:dashed;border-color:var(--st-line, rgba(255,255,255,.15))}
+/* [SD式融合] the live panel lives INSIDE the stage; the placeholder card (the gate-locked
+   class, built by the self-paint) needs a sized home here */
+.img-gallery__live{display:flex;flex-direction:column;gap:var(--st-s-1);align-items:flex-start}
+.img-gallery__live img{max-height:min(46vh,480px);max-width:100%}
+.img-gallery__live .live-preview-ph{width:min(46vh,420px);min-height:120px}
+.img-gallery__live-eta{font-size:var(--st-fs-sm,13px);color:var(--st-ink-2,inherit)}
 .img-gallery__cell--sel{border-color:var(--st-accent, rgba(255,255,255,.4));box-shadow:0 0 0 1px var(--st-accent, rgba(255,255,255,.4))}
 .img-gallery__seed{position:absolute;right:4px;bottom:4px;font-size:11px;line-height:1;color:var(--st-ink-2, inherit);background:var(--st-surface-2, inherit);padding:2px 4px;border-radius:6px}
 .img-gallery__tip{font-size:var(--st-fs-sm, 13px);color:var(--st-ink-2, inherit)}
