@@ -1,61 +1,58 @@
 {
   "items": [
     {
-      "url": "/data/generated/images/gen_20261115_112033_2fbfdf7c.png",
-      "seed": 682137460,
-      "prompt": "白色神兽白泽，名曰白泽,白色神兽白泽，狮身，通体覆盖雪白长毛，头顶一只通天的金色独角，额前与面颊共六只角，背脊上生有一对眼睛，山羊长须垂胸，牛蹄，额心隐现日月纹，神态慈悲庄严，全身覆盖垂落地面的飘逸长白毛，头顶一对巨大的白色枝状分叉巨角，角尖化作飞散的金色光尘，额心一点金色菱形天眼印记，琥珀金色的双眸，四肢下端渐变为墨染黑色，白色羽毛在空中飘落，身周环绕紫色星云状光环，金色光尘与火星飞舞，暗色烟雾背景，顶部洒下神圣的金色光束，神态睿智宁静祥和，超精细奇幻插画，电影级光影，戏剧性构图，竖版构图",
-      "ts": 1794712834181,
-      "size": "512x512",
-      "saved": false
-    },
-    {
-      "url": "/data/generated/images/gen_20261115_112033_c39f3a86.png",
-      "seed": 682137459,
-      "prompt": "白色神兽白泽，名曰白泽,白色神兽白泽，狮身，通体覆盖雪白长毛，头顶一只通天的金色独角，额前与面颊共六只角，背脊上生有一对眼睛，山羊长须垂胸，牛蹄，额心隐现日月纹，神态慈悲庄严，全身覆盖垂落地面的飘逸长白毛，头顶一对巨大的白色枝状分叉巨角，角尖化作飞散的金色光尘，额心一点金色菱形天眼印记，琥珀金色的双眸，四肢下端渐变为墨染黑色，白色羽毛在空中飘落，身周环绕紫色星云状光环，金色光尘与火星飞舞，暗色烟雾背景，顶部洒下神圣的金色光束，神态睿智宁静祥和，超精细奇幻插画，电影级光影，戏剧性构图，竖版构图",
-      "ts": 1794712834177,
-      "size": "512x512",
-      "saved": false
-    },
-    {
-      "url": "/data/generated/images/gen_20261115_101747_034d6f22.png",
-      "seed": 1954743453,
-      "prompt": "a blue crane standing in shallow water, morning fog",
-      "ts": 1794709102563,
-      "size": "256x256",
-      "saved": false
-    },
-    {
-      "url": "/data/generated/images/gen_20261115_093035_ad889f16.png",
-      "seed": 682137459,
-      "prompt": "白色神兽白泽（真机验收原条目）",
-      "ts": 1794706236209,
-      "size": "448x640",
-      "saved": false
-    },
-    {
-      "url": "/data/generated/images/gen_20261115_095125_e5dfe5b5.png",
-      "seed": 1017137312,
-      "prompt": "a tiny red fox on a mossy rock (seeded)",
-      "ts": 1794708685000,
-      "size": "256x256",
-      "saved": false
-    },
-    {
-      "url": "/data/generated/images/gen_20261115_095125_18534336.png",
-      "seed": null,
-      "prompt": "a tiny red fox on a mossy rock (auto)",
-      "ts": 1794708685000,
-      "size": "256x256",
-      "saved": false
-    },
-    {
-      "url": "/data/generated/images/gen_20261115_095125_4364d1c8.png",
-      "seed": 1017137314,
-      "prompt": "a tiny red fox on a mossy rock (seed+1)",
-      "ts": 1794708685000,
-      "size": "256x256",
+      "url": "/data/saved_images/imp_6fd19bf463185295.png",
+      "prompt": "(本地添加 · gen_20261115_095125_e5dfe5b5.png)",
+      "name": "gen_20261115_095125_e5dfe5b5.png",
+      "ts": 1794789494567,
       "saved": true,
-      "saved_ref": "/data/saved_images/gen_20261115_095125_4364d1c8.png"
+      "source": "import",
+      "category": "saved"
+    },
+    {
+      "url": "/data/saved_images/imp_303b7899507609d9.png",
+      "prompt": "(本地添加 · gen_20261115_095125_18534336.png)",
+      "name": "gen_20261115_095125_18534336.png",
+      "ts": 1794789494547,
+      "saved": true,
+      "source": "import",
+      "category": "saved"
+    },
+    {
+      "url": "/data/saved_images/imp_4897635a3a906a81.png",
+      "prompt": "(本地添加 · gen_20261115_095125_4364d1c8.png)",
+      "name": "gen_20261115_095125_4364d1c8.png",
+      "ts": 1794789494535,
+      "saved": true,
+      "source": "import",
+      "category": "saved"
+    },
+    {
+      "url": "/data/saved_images/imp_22a135c8de0fbcf9.png",
+      "prompt": "(本地添加 · gen_20261115_075452_41c715c0.png)",
+      "name": "gen_20261115_075452_41c715c0.png",
+      "ts": 1794789494468,
+      "saved": true,
+      "source": "import",
+      "category": "saved"
+    },
+    {
+      "url": "/data/saved_images/imp_320e1df65f08ac97.png",
+      "prompt": "(本地添加 · gen_20261114_212833_221f45ea.png)",
+      "name": "gen_20261114_212833_221f45ea.png",
+      "ts": 1794789494444,
+      "saved": true,
+      "source": "import",
+      "category": "saved"
+    },
+    {
+      "url": "/data/saved_images/imp_3053678c199b8e21.png",
+      "prompt": "(本地添加 · _e2e_gen.png)",
+      "name": "_e2e_gen.png",
+      "ts": 1794789494268,
+      "saved": true,
+      "source": "import",
+      "category": "saved"
     }
   ]
 }
