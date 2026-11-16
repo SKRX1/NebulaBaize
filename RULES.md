@@ -155,3 +155,4 @@ jsdom 门禁里点按钮的 selector 就是 UI 契约的一部分：融合/移�
 strata-agent/serve/web/app.js 是 CRLF 文件：用 Python 重写它后必须把全文归一回 CRLF（门禁 test_gallery_import_jsdom.mjs 头部注释明示此约定）
 画廊删除链的观测约定：前端埋点（fe_trash）盖 filter 前的逐条决策、后端 recycle-trace.jsonl 落 request/sync_one/batch_parse——根因未稳定复现前不得拆除，稳定后前端腿可降级为仅 console
 画廊埋点降级已执行（2026-11-16）：fe_trash 前端腿=仅 console 不落盘，后端 jsonl 腿保留；周复盘任务已删；门禁 test_gallery_import_jsdom+test_img_gallery_jsdom 双绿
+行尾甄别基线（2026-11-16 盘点）：i/-text 文本文件只剩 tests/test_ce_text_extract.mjs、tests/test_schedule_contract.mjs、tools/_flash_probe_upstream.py 三个；i/-text 是"本次入库瞬间"态，commit 后 git 重新嗅探会归一（test_img_gallery 实测），numstat 虚高须用 --ignore-cr-at-eol 取真实行数
