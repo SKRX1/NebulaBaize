@@ -10079,7 +10079,7 @@ function renderGallery(){
     if (lv.url) { const li = document.createElement("img"); li.src = lv.url + (lv.bust || ""); li.alt = lv.prompt || "image"; cell.append(li); }
     const badge = document.createElement("span"); badge.className = "img-gallery__seed";
     badge.textContent = (lv.seed == null || lv.seed === "") ? "auto" : String(lv.seed);
-    if (galleryMultiSel) { const cb = document.createElement("span"); cb.className = "img-gallery__cell-check" + (gallerySelSet.has(lv) ? " is-on" : ""); cb.setAttribute("data-cbi", "live"); cb.setAttribute("data-cbref", lv.id); cb.innerHTML = icon("check"); cell.append(cb); }   // [勾选框多选 2026-11-15b] live rows carry their own id into the box (identity refs)
+    if (galleryMultiSel || gallerySelSet.has(lv)) { const cb = document.createElement("span"); cb.className = "img-gallery__cell-check" + (gallerySelSet.has(lv) ? " is-on" : ""); cb.setAttribute("data-cbi", "live"); cb.setAttribute("data-cbref", lv.id); cb.innerHTML = icon("check"); cell.append(cb); }   // [勾选框多选 2026-11-15b] live rows carry their own id into the box (identity refs); [成员视觉契约 2026-11-16] a MEMBER paints its ticked box even in the default mode
     cell.append(badge); grid.append(cell);
   });
   galleryViewList().forEach((row) => { const x = row.x, i = row.i;   // [删除增强] batch counter = a CLASS suffix on a separate var (i stays a pure index: data-idx + the C-family compare)
@@ -10090,7 +10090,7 @@ function renderGallery(){
     const ci = document.createElement("img"); ci.src = x.url; ci.alt = x.prompt || "image";
     const badge = document.createElement("span"); badge.className = "img-gallery__seed";
     badge.textContent = (x.seed == null || x.seed === "") ? "auto" : String(x.seed);
-    if (galleryMultiSel) { const cb = document.createElement("span"); cb.className = "img-gallery__cell-check" + (gallerySelSet.has(x) ? " is-on" : ""); cb.setAttribute("data-cbi", "idx"); cb.setAttribute("data-cbref", String(i)); cb.innerHTML = icon("check"); cell.append(cb); }   // [勾选框多选 2026-11-15b] data-cbref = the plain loop index (i stays authoritat for data-idx)
+    if (galleryMultiSel || gallerySelSet.has(x)) { const cb = document.createElement("span"); cb.className = "img-gallery__cell-check" + (gallerySelSet.has(x) ? " is-on" : ""); cb.setAttribute("data-cbi", "idx"); cb.setAttribute("data-cbref", String(i)); cb.innerHTML = icon("check"); cell.append(cb); }   // [勾选框多选 2026-11-15b] data-cbref = the plain loop index (i stays authoritat for data-idx); [成员视觉契约 2026-11-16] a MEMBER paints its ticked box even in the default mode
     cell.append(ci, badge); grid.append(cell);
   });
   host.append(stage, grid);

@@ -31,6 +31,7 @@ check("S2 the set is INDEPENDENT of gallerySel (the single-select gates stay byt
 check("S3 the default-checked fact is exactly one line (the decoy hits it)", appCode.split("\n").filter((l) => l.includes('ck.checked = true; ck.setAttribute("data-testid", "batch-check")')).length === 1);
 check("S4 [方案A 2026-11-16 融合追加] single + batch share ONE confirm component AND one ENTRY: the batch bar lost its own delete button (appCode has no batch.del call), galleryAction routes a non-empty set to galleryBatchDelete, and the single-delete native window.confirm stays REMOVED", /async function galleryConfirmDelete\(items\)/.test(appCode) && !/window\.confirm\(t\("img\.gallery\.confirm\.del"\)/.test(appCode) && !/t\("img\.gallery\.batch\.del"\)/.test(appCode) && /if \(act === "del" && gallerySelSet\.size\) \{ await galleryBatchDelete\(\); return; \}/.test(appCode) && !/bar\.append\(cnt, fav, del/.test(appCode));
 check("S5 the saved-cells batch counter is a SEPARATE var (the `i`-pollution regression lock): the loop keeps `i` a pure index and never appends a class to it", /const batchCls = gallerySelSet\.has\(x\)/.test(appCode) && !/className[^;]*\+\s*i\b/.test(appCode));
+check("S6 [成员视觉契约 2026-11-16] member cells paint a tick box in the DEFAULT mode: BOTH render gates are mode-OR-membership (exactly two), the MEMBER outline takes --st-info (split from the focus accent), and the FOCUS cell grows an ::after dot", appCode.split("\n").filter((l) => l.includes("if (galleryMultiSel || gallerySelSet.has(")).length === 2 && css.includes(".img-gallery__cell--selset{outline:2px solid var(--st-info)") && css.includes(".img-gallery__cell--sel::after{"));
 
 /* ── harness: the same stub set as the gallery/fuse gates ── */
 const SEED = [
@@ -72,7 +73,7 @@ async function freshBoot(seedItems) {
   return { win, RECYCLED, api: win.__api };
 }
 
-const cells = (win) => [...win.document.querySelectorAll('#img-gallery .img-gallery__grid [class*="img-gallery__cell"]')];   // [删除增强] prefix match: the batch counter class (--selset) decorates membership
+const cells = (win) => [...win.document.querySelectorAll('#img-gallery .img-gallery__grid button[class*="img-gallery__cell"]')];   // [成员视觉契约 2026-11-16] button-scoped: member cells now paint their own tick boxes in the DEFAULT mode too, and the old loose prefix match started swallowing them (the batch-fav gate already used button-scoped selectors)
 const click = (win, el, mods = {}) => el.dispatchEvent(new win.MouseEvent("click", Object.assign({ bubbles: true }, mods)));
 
 console.log("\n=== B1 Ctrl+click toggles the set (entry refs) — the batch bar appears ===");
@@ -81,6 +82,7 @@ const { win, RECYCLED, api } = env;
 check("B1a 3 cells, set empty, no batch bar yet", cells(win).length === 3 && api.gallerySelSet().size === 0 && !win.document.querySelector(".img-gallery__batchbar"));
 click(win, cells(win)[0], { ctrlKey: true });
 check("B1b after Ctrl+click the set holds the cell0 entry and the bar appears", api.gallerySelSet().size === 1 && [...api.gallerySelSet()][0] === api.galleryMem()[0] && !!win.document.querySelector(".img-gallery__batchbar"));
+check("B1f [成员视觉契约] the member cell grew a TICKED box in the default mode (the box IS the member badge), non-members stay bare", !!cells(win)[0].querySelector(".img-gallery__cell-check.is-on") && ![...cells(win)[1].querySelectorAll(".img-gallery__cell-check"), ...cells(win)[2].querySelectorAll(".img-gallery__cell-check")].length);
 check("B1c the batch count reflects the set", win.document.querySelector(".img-gallery__batchcount").textContent.includes("1"));
 click(win, cells(win)[0], { ctrlKey: true });
 check("B1d Ctrl+click again toggles OFF — the bar leaves", api.gallerySelSet().size === 0 && !win.document.querySelector(".img-gallery__batchbar"));

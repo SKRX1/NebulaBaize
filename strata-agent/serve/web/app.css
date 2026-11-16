@@ -1,4 +1,4 @@
-﻿/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
+/* Strata web app - layout on top of tokens.css + components.css (the Strata UI kit). Colours, type, radii and
    shadows come only from the kit's tokens. */
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -699,7 +699,13 @@ main { flex: 1; min-height: 0; display: flex; }
 .img-gallery__cell--live{border-style:dashed;border-color:var(--st-line, rgba(255,255,255,.15))}
 /* [删除增强 2026-11-15] the batch counter outline is a SECOND layer (the selection outline stays
    the accent ring — the A8 lock keeps its var tokens, untouched above) */
-.img-gallery__cell--selset{outline:2px solid var(--st-accent, #4c8eff);outline-offset:-5px}
+/* [成员视觉契约 2026-11-16] the FOCUS cell grows a small accent dot (top-right; the seed badge sits bottom-right)
+   -- the dot is the focus-only badge; a cell that is BOTH focus and member shows dot + tick.
+   [A8-lock-zone] the A8 gate scans from the first "--sel" occurrence to the first "}": no hex below that point. */
+.img-gallery__cell--sel::after{content:"";position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--st-accent);z-index:2}
+/* [成员视觉契约] the MEMBER outline takes the INFO token (focus keeps accent) — the colours split so "which ones" reads at a glance;
+   kept inside the A8 zone so the hex ban is honoured (no fallbacks on these lines). */
+.img-gallery__cell--selset{outline:2px solid var(--st-info);outline-offset:-5px}
 .img-gallery__batchbar{display:flex;gap:var(--st-s-1);align-items:center;padding:var(--st-s-1) 0}
 .img-gallery__batchcount{font-size:var(--st-fs-sm,13px);color:var(--st-ink-2,inherit)}
 .img-gallery__batchconfirm{display:flex;flex-direction:column;gap:var(--st-s-1);padding:var(--st-s-2);border:1px solid var(--st-line, rgba(255,255,255,.15));border-radius:var(--st-r-md,8px)}
