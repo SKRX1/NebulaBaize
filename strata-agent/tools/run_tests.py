@@ -237,6 +237,7 @@ SUITES = [
 
     "tests/test_compact_resume_owner.js",  # 2026-11-08: failed compaction keeps resume snapshot (C1) + finalize honors pendingCompactOwner (C2 differential)
     "tests/test_owner_binding_jsdom.js",   # 2026-11: SEND-LEG owner binding -> cross-session auto-resume lands back on its OWN task (sibling of C2)
+    "tests/test_owner_binding_e2e.js",   # 2026-11: SEND-LEG owner-binding E2E jsdom-behaviour: 3 chains (auto-resume/auto-drive/compaction-resume) x FIX/CONTROL single-variable flip = load-bearing proof (composer text -> send -> chain reacts); ~8s measured wall -> SLOW tier
     "tests/test_compact_resume_guard.mjs",   # 2026-11: settings.compactResume gates the post-compact auto-resume (differential G1/G2)
 
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)
@@ -460,6 +461,7 @@ SUITES = [
 # giving a ~10s wall instead of ~60s. The slow list is DATA-DRIVEN (measured
 # per-suite wall on this machine 2026-11-12, threshold >=3.0s), not name-guessed.
 SLOW_SUITES = [
+    "tests/test_owner_binding_e2e.js",   # measured ~8s jsdom (3x realm boot+flips)
     "tests/test_gateway_http.py",
     "tests/test_auto_resume.mjs",
     "tools/_semantic_summarizer_gate.py",
