@@ -2758,7 +2758,7 @@ function syncStepsSendLabel() {
 }
 // Send the selected suggestions of one message as a single combined turn, keeping whatever the user typed
 // in the composer as an extra instruction instead of overwriting it.
-function sendSelectedSteps(mm, human = true) {
+function sendSelectedSteps(mm, human = true, targetSession = null) {   // owner-binding: forwards the snapshot to send()
   if (busy || !mm || !mm.selSteps || !mm.selSteps.length) return;
   const text = composeStepsMessage(mm.steps, [...mm.selSteps].sort((a, b) => a - b), ceText($("input")));
   if (!text.trim()) return;
@@ -2766,7 +2766,7 @@ function sendSelectedSteps(mm, human = true) {
   const host = $("chat").querySelector(`.st-msg[data-i="${messages.indexOf(mm)}"]`);
   if (host) renderNextSteps(host, mm);
   ceSetText($("input"), text);
-  send(human);
+  send(human, targetSession);
 }
 function renderNextSteps(el, m) {
   const box = el.querySelector(".next-steps");
@@ -2866,13 +2866,14 @@ function maybeAutoDrive(m) {
   }
   m.selSteps = picks;
   autoDriveDepth++;
+  const _driveOwnerSnap = activeSession();            // owner-binding snapshot: taken now, used when the timer fires
   const host = $("chat").querySelector(`.st-msg[data-i="${messages.indexOf(m)}"]`);
   if (host) renderNextSteps(host, m);                 // show the picked chips as selected
   showAutoDrivePill(true);
   autoDriveTimer = setTimeout(() => {                 // brief beat so the user can see / interrupt
     autoDriveTimer = null;
     showAutoDrivePill(false);
-    sendSelectedSteps(m, false);                      // false = NOT a human turn (don't reset the chain)
+    sendSelectedSteps(m, false, _driveOwnerSnap);       // false = NOT a human turn; snapshot = the task this chain belongs to
   }, 900);
 }
 function showAutoDrivePill(on) {
@@ -3247,7 +3248,10 @@ function maybeAutoResume(m) {
   ceSetText($("input"), t("chat.resume.cmd"));
   toast("ok", t("chat.resume.auto"), t("resume.chain", {n: chainN, max: chainMax}), 6000);
   resumeBadge = t("chat.resume.meta");
-  pendingResume = {timer: setTimeout(() => { pendingResume = null; send(false); }, 3000)};
+  // Snapshot the OWNING session NOW (we are still on it) so the 3s-later send lands there even if
+  // the user switches to another task meanwhile (same snapshot pattern as busy.origin).
+  const _ownerSnap = activeSession();
+  pendingResume = {timer: setTimeout(() => { pendingResume = null; send(false, _ownerSnap); }, 3000), owner: _ownerSnap};
   renderInspector();                                  // show the undo affordance on the panel row now
   return true;
 }
@@ -4572,21 +4576,25 @@ function workspaceSystem(ws) {
   }
   return txt;
 }
-function apiMessages() {
+function apiMessages(targetSession = null) {
+  // Owner-binding: the caller's snapshot wins over the global view for persona/workspace lines and
+  // the message list, so a cross-session auto-resume prompt is built from ITS task's context.
+  const _sess = targetSession || activeSession();
+  const _msgs = targetSession ? (targetSession.messages || []) : messages;
   const out = [];
   // F1: always-on base prompt (also enforces Chinese output) — present even with no workspace.
   // 强制中文思考·首因位置：规则放在 BASE_SYSTEM 之前，强化注意力锚定（方案 A）。
   out.push({role: "system", content: (settings.cnThink ? CN_THINK_RULE : "") + BASE_SYSTEM});
   // F2: persistent persona (per-session wins; falls back to the global default in settings).
-  const persona = ((activeSession() || {}).persona || settings.persona || "").trim();
+  const persona = ((_sess || {}).persona || settings.persona || "").trim();
   if (persona) out.push({role: "system", content: "【人设与长期偏好】\n" + persona});
   // Workspace conventions.
-  const ws = (activeSession() || {}).workspace;
+  const ws = (_sess || {}).workspace;
   if (ws) out.push({role: "system", content: workspaceSystem(ws)});
   // F3: knowledge retrieved for this turn (empty unless recall returned something useful).
   if (lastRag && lastRag.trim()) out.push({role: "system", content:
     "【已检索到的相关经验知识（仅供参考，若与当前问题无关请忽略）】\n" + lastRag.trim()});
-  for (const m of messages) {
+  for (const m of _msgs) {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);
       const text = userText(m);
@@ -7280,7 +7288,12 @@ function isCE(el) {
   return !!(el && (el.isContentEditable || el.getAttribute("contenteditable") === "true"));
 }
 
-async function send(human = true) {
+async function send(human = true, targetSession = null) {
+  // Owner-binding (2026-11): the auto-resume / compaction-resume / auto-drive chains may fire the
+  // deferred send() after the user switched to another task to look around. targetSession is the
+  // SESSION SNAPSHOT captured at trigger time (still the originating task); bind it so this turn lands on
+  // the task the interruption belongs to, not on whatever task is on screen when the timer fires.
+  if (targetSession) { activeId = targetSession.id; messages = targetSession.messages || (targetSession.messages = []); loadMemoryState(targetSession.workspace); syncCtxFromSession(); }
   if (busy) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }   // the composer guard now speaks up, like the other 6 guards
   if (chunkedCompacting) return;   // chunked pre-compaction owns the transcript while it folds (kept silent: the auto path must not spam)
   if (human) { autoDriveDepth = 0; autoDriveAbort = false; showAutoDrivePill(false); autoResumeChain = 0; emptyRoundChain = 0; }  // a human turn starts a fresh chain on every lane
@@ -7309,7 +7322,7 @@ async function send(human = true) {
   attachments = [];
   renderAttachments();
   ceSetText($("input"), "");
-  await streamAssistant();
+  await streamAssistant(targetSession);
 }
 
 // A fresh seed for one turn, used when the drawer's field is left empty ("留空 = 随机"). crypto keeps
@@ -7662,7 +7675,9 @@ function maybeAutoVerifyFix(m) {
   toast("success", t("debug.bugbox.autoverified.title"), t("debug.bugbox.autoverified.msg"), 6000);
 }
 
-async function streamAssistant() {
+async function streamAssistant(targetSession = null) {
+  // Owner-binding: send() already bound the view; the param only rides along so busy below can name
+  // the true owner even if this async body later runs after another switch. No arg = today's behaviour.
   const m = {role: "assistant", text: "", reasoning: "", time: Date.now()};
   if (resumeBadge) { m.autoResume = true; m.meta = resumeBadge; resumeBadge = null; }   // this turn is the auto-resume, not human input
   if (pendingFixTs) { m._fixBugTs = pendingFixTs; pendingFixTs = null; }   // one-shot consume (same pattern as resumeBadge)
@@ -7673,7 +7688,7 @@ async function streamAssistant() {
   // A unique id for this stream: sent to the gateway so the Stop button can address it via
   // /api/chat/stop and truly cancel inference on the backend (not just abort the browser fetch).
   const stopId = "s" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
-  busy = {controller, msg: m, stopId, sessionId: activeId, origin: activeSession()};   // tail write-back is attributed to the session that started the stream
+  busy = {controller, msg: m, stopId, sessionId: (targetSession || activeSession() || {}).id || activeId, origin: targetSession || activeSession()};   // tail write-back is attributed to the session that started the stream (owner-binding: the snapshot wins)
   // Step1-F: arm the per-turn capture buffer so a client crash during this
   // stream is recorded with how far we got (which chunk / how many bytes).
   _dbg.turn = m; _dbg.chunkIndex = 0; _dbg.bytes = 0; _dbg.errors = []; _dbg.lastError = null; _dbg._lastTs = 0;
@@ -7690,7 +7705,7 @@ async function streamAssistant() {
     try { const hit = await recallKnowledge(uq); if (hit) lastRag = hit; } catch (e) { /* non-fatal */ }
   }
 
-  const body = {model: requestModel(), messages: apiMessages(), stream: true};
+  const body = {model: requestModel(), messages: apiMessages(targetSession), stream: true};
   const _te = modelThinking();
   if (_te) {
     body.reasoning_effort = _te;             // explicit level (off/low/medium/high)
@@ -7725,7 +7740,7 @@ async function streamAssistant() {
   if (projectionLoaded()) body.experimental_speed_projection = !!settings.esp;
   if (settings.mcp !== false && mcpInfo.tools > 0) body.strata_mcp = true;   // this server may run MCP tools for it
   body.stop_id = stopId;                       // lets the gateway cancel this exact stream on Stop
-  body.strata_session = activeId;              // per-conversation context tracking: keeps the gateway's
+  body.strata_session = (targetSession || activeSession() || {}).id || activeId;   // per-conversation context tracking: keeps the gateway's
                                                // proactive guard from leaking a previous task's occupancy
                                                // into a brand-new (empty) workspace/task
   const _ws = (activeSession() || {}).workspace;
@@ -8101,7 +8116,10 @@ async function streamAssistant() {
       resumeBadge = t("chat.resume.meta");            // badge consumed by the stream the deferred send() starts
       // Undo window (approved 2026-10): send() fires 3s from now; while it waits the panel row
       // carries an undo button, and clicking it clears this timer before any send() happens.
-      pendingResume = { timer: setTimeout(() => { pendingResume = null; send(); }, 3000) };
+      // Owner-binding: this finalize ran ON the owning view, so activeSession() IS the owner; snapshot it
+      // so the deferred send still lands on it after a mid-wait switch (C2's sibling completion).
+      const _ownerSnap = activeSession();
+      pendingResume = { timer: setTimeout(() => { pendingResume = null; send(true, _ownerSnap); }, 3000), owner: _ownerSnap };
       renderInspector();                              // show the undo affordance on the panel row now
     }
   } else {

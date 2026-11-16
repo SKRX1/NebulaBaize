@@ -236,6 +236,7 @@ SUITES = [
 
 
     "tests/test_compact_resume_owner.js",  # 2026-11-08: failed compaction keeps resume snapshot (C1) + finalize honors pendingCompactOwner (C2 differential)
+    "tests/test_owner_binding_jsdom.js",   # 2026-11: SEND-LEG owner binding -> cross-session auto-resume lands back on its OWN task (sibling of C2)
     "tests/test_compact_resume_guard.mjs",   # 2026-11: settings.compactResume gates the post-compact auto-resume (differential G1/G2)
 
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)

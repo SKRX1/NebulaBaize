@@ -21,7 +21,7 @@ const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 // ── static lock: no function-level early return can sit between the function
 //    entry and the finalize line, so a stream cut through catch is GUARANTEED to
 //    reach finalize (this is the contract that locks the edge).
-const fnStart = src.indexOf("async function streamAssistant()");
+const fnStart = src.search(/async function streamAssistant\(/);   // tolerant anchor: the signature now carries an optional owner-binding param
 check("streamAssistant function found", fnStart >= 0);
 const finalizeNeedle = 'if (t.state === "writing" || t.state === "running") { t.state = "skipped"; t.ms = null; }';
 const finalizeAt = src.indexOf(finalizeNeedle);

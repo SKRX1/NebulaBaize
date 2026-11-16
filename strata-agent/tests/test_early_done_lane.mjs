@@ -48,6 +48,7 @@ let tLog=[]; function t(k){tLog.push(k);return k;}
 function toast(kind,k1,k2){tLog.push("TOAST:"+k1+"|"+(k2||""));}
 function renderChat(){} function ceSetText(el,txt){} let pendingResume=null;
 function send(x){tLog.push("SEND:"+x);} let resumeBadge=null; function renderInspector(){} function $(){return {value:""};}
+function activeSession(){return null;}   // owner-binding: the snapshot line resolves to null in this realm
 ${GATE.replace(/\r\n/g, "\n")}
 return { run: function(s, cm0, ce0, ed0, m){ busy=false; settings=s; tLog=[]; autoResumeChain=cm0||0; emptyRoundChain=ce0||0; earlyDoneChain=ed0||0; pendingResume=null; resumeBadge=null; return maybeAutoResume(m); },
          tlog: ()=>tLog };`;
