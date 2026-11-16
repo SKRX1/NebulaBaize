@@ -4303,12 +4303,18 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 with job["lock"]:
                     job["failed"] += len(batch)
                 return
-            ok_paths, not_found = self._recycle_parse_batch(out, batch)
+            # [批量删除回锚修复 2026-11-16b] the OTHER shoe: parse-back keys MUST be the mapped
+            # paths we actually fed to PowerShell — the 11-16 fix mapped the INPUT but left parse-back on RAW
+            # urls, so every OK line missed the wanted-set, ok_paths came back empty (job said done=0,
+            # the ledger logged nothing) even though the files HAD moved. Ledger keys map back to RAW
+            # (the ledger´s cross-platform convention: url shape stays url-shaped).
+            ok_paths, not_found = self._recycle_parse_batch(out, mapped)
+            back = {str(self._recycle_resolve(x)): x for x in batch}
             with job["lock"]:
                 job["done"] += len(ok_paths)
                 job["skipped"] += len(not_found)
             for p in ok_paths:
-                self._recycle_ledger_append(ledger, p)
+                self._recycle_ledger_append(ledger, back.get(p, p))
         with futures.ThreadPoolExecutor(max_workers=_RECYCLE_TRASH_WORKERS) as pool:
             list(pool.map(worker, batches))
         with job["lock"]:

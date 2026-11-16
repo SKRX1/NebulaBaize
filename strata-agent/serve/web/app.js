@@ -10189,6 +10189,15 @@ async function galleryTrashFiles(items){   // [删除增强] shared leg: files -
     const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
     const j = await r.json().catch(() => ({}));
     if (j && j.error) toast("error", t("recycle.err"), String(j.error.message || ""), 4000);
+    else if (j && j.job_id) {   // [批量删除反馈 2026-11-16b] n>threshold = a background job: the old code read it as "nothing deleted" (the collection-vs-generated asymmetry the user hit: n=1 rides the sync leg and toasts truthfully, n=10 got a bare job_id)
+      toast("info", t("img.gallery.batch.file.started"), "", 2500);
+      for (let k = 0; k < 6; k++) {   // poll briefly; the caller never waits on this promise beyond that
+        await new Promise((res) => setTimeout(res, 2000));
+        let pj = null;
+        try { const pr = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "progress", job_id: j.job_id})}); pj = await pr.json(); } catch (e) { break; }
+        if (pj && !pj.error && pj.finished) { toast(pj.done ? "success" : "warn", t(pj.done ? "recycle.done" : "recycle.none").replace("{n}", String(pj.done || 0)), "", 3000); break; }
+      }
+    }
     else toast("success", (j && j.trashed && j.trashed.length) ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"), "", 2500);
   } catch (e) { toast("error", t("recycle.err"), String(e.message || e), 4000); }
 }

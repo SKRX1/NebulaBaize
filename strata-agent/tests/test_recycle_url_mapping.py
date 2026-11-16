@@ -78,5 +78,23 @@ check("R9 NO-slash generated url -> GENERATED_DIR", str(p9) == str(Path(H.GENERA
 p10 = h._recycle_resolve("data/saved_images/noslash.png")             # NO leading slash
 check("R10 NO-slash saved url -> ROOT/data/saved_images", str(p10) == str((Path(H.ROOT) / "data" / "saved_images") / "noslash.png"), f"got={p10}")
 
+# [批量删除回锚修复 2026-11-16b] the batch leg feeds PowerShell MAPPED paths and the
+# script echoes "OK:<the path it saw>" — so parse-back keys MUST be the mapped list. The old code
+# keyed on RAW urls: every OK line missed the wanted-set, ok_paths came back empty (job said done=0,
+# ledger logged nothing) even though the files HAD moved. Two-sides differential, both load-bearing.
+mapped11 = [str(h._recycle_resolve(gen_raw))]                      # what PS actually saw
+fake_out11 = "OK:" + mapped11[0]
+ok11, miss11 = h._recycle_parse_batch(fake_out11, mapped11)        # the FIX
+check("R11 parse-back keyed on MAPPED paths claims the OK line", ok11 == mapped11 and not miss11, f"ok={ok11}")
+# the OLD keying (decoy): a url-shape batch key gets Path()-shaped in by_suffix but stays raw in
+# wanted (the two never overlap on Windows) -> the old code KeyErrors straight through the worker
+# (swallowed by the except -> failed++). The mapped keying (R11) never touches that landmine.
+boom12 = None
+try:
+    h._recycle_parse_batch(fake_out11, [gen_raw])
+except KeyError as e12:
+    boom12 = e12
+check("R12 the OLD raw-keying KeyErrors on a url-shape batch (the differential that makes R11 load-bearing)", isinstance(boom12, KeyError), f"boom={boom12}")
+
 print("\n" + ("RECYCLE-URL-MAP-GATE: " + str(len(FAILURES)) + " FAILED -> " + " | ".join(FAILURES) if FAILURES else "RECYCLE-URL-MAP-GATE: ALL GREEN"))
 sys.exit(1 if FAILURES else 0)
