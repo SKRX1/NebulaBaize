@@ -10177,7 +10177,11 @@ async function galleryBatchFav(){   // [批量收藏 2026-11-16] non-destructive
 async function galleryTrashFiles(items){   // [删除增强] shared leg: files -> the Windows Recycle Bin via /api/recycle (the archive-manager convention)
   const s0 = activeSession();
   const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
-  const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => /^\/?data\/generated\/images\//.test(u) || /^\/?data\/saved_images\//.test(u) || isAbsolutePath(u)).map(galleryResolvePath).filter(Boolean);   // [缺前导斜杠修复 2026-11-16] accept BOTH "/data/..." and "data/..." shapes (stale localStorage generated entries were saved without the leading slash, so the old startsWith dropped them -> index-only delete, file stayed on disk)
+  const _dbg = items.map((it) => { const u = (it.saved_ref || it.url || ""); const pass = /^\/?data\/generated\/images\//.test(u) || /^\/?data\/saved_images\//.test(u) || isAbsolutePath(u); return {url: it.url, saved_ref: it.saved_ref, orig: (it.source === "import" && it.name) ? ("/data/generated/images/" + encodeURIComponent(it.name)) : "", cat: (typeof galleryCategory === "function" ? galleryCategory(it) : "?"), u, pass, resolved: pass ? galleryResolvePath(u) : ""}; });   // [前端埋点 2026-11-16] per-item trace BEFORE the filter (the old blind spot: an empty paths array returned silently)
+  const _pr = _dbg.filter((d) => d.pass).map((d) => d.resolved).filter(Boolean);   // [方案A·原件回链 2026-11-16] import entries also send the generation-dir original matched by name, so the file the user SEES in the folder follows the delete
+  const paths = [...new Set(_pr.concat(_dbg.filter((d) => d.pass && d.orig).map((d) => d.orig)))];
+  try { console.log("[gallery-trace] fe_trash " + JSON.stringify({items: _dbg, paths, ws})); } catch (e0) {}
+  // fe_trash leg downgraded to console-only 2026-11-16: observation period closed (function confirmed working); backend jsonl leg kept.  // [缺前导斜杠修复 2026-11-16] accept BOTH "/data/..." and "data/..." shapes (stale localStorage generated entries were saved without the leading slash, so the old startsWith dropped them -> index-only delete, file stayed on disk)
   if (!paths.length) return;
   // [ws-空修复 2026-11-16] a url-shape path resolves to the INSTALL ROOT and needs NO workspace — the old
   // `if (!ws) return` here silently swallowed the whole file leg on any workspace-less session (that was the
