@@ -148,3 +148,5 @@ sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以�
 commit 须在全套回归绿之后落，且只精确 add 本次相关文件（不裹跨会话笔记/脚手架），中文 message 走 UTF-8 文件 + commit -F。
 回收站删除分两条路径：文件数 ≤ _RECYCLE_TRASH_SYNC_MAX(=3) 走同步（逐条 _recycle_resolve），> 阈值走后台批量 job；任何对 url→安装根映射的修复必须两条路径同时覆盖。
 回收站映射差分锁在 tests/test_recycle_url_mapping.py（R1-R8），改映射逻辑后跑 python -X utf8 tests/test_recycle_url_mapping.py；锁必须含「原始输入不含安装根」的反向差分证 load-bearing。
+改动含「移动代码行到函数顶部」时，必须先核对该函数入口处的卫语句（如 if(!sel) return）是否会拦掉新路径——本次 B4 场景实测抓到
+jsdom 门禁里点按钮的 selector 就是 UI 契约的一部分：融合/移除按钮时同步改点击目标，并把旧结构写成负向锁（grep 不到旧 append 形状）
