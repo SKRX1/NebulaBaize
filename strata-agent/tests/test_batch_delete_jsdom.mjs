@@ -55,7 +55,8 @@ async function freshBoot(seedItems) {
     const u = String(url);
     if (u === "mcp/call") return { ok: true, status: 200, json: async () => ({ ok: true, text: "" }) };
     if (u.endsWith("api/image-gallery") && (!o || !o.method || o.method === "GET")) return { ok: true, status: 200, json: async () => ({ items: seedItems.map((x) => Object.assign({}, x)) }) };
-    if (u.endsWith("api/recycle")) { const b = JSON.parse(o.body); RECYCLED.push(b); return { ok: true, status: 200, json: async () => ({ trashed: b.paths.map(() => "x") }) }; }
+    if (u.endsWith("api/recycle")) { const b = JSON.parse(o.body); if (b.action === "trace") return { ok: true, status: 200, json: async () => ({ logged: true }) };   // [前端埋点 2026-11-16] the fe_trash mirror is telemetry, not a delete: it must not enter RECYCLED
+  RECYCLED.push(b); return { ok: true, status: 200, json: async () => ({ trashed: b.paths.map(() => "x") }) }; }
     if (u.endsWith("settings")) return { ok: true, status: 200, json: async () => ({ shared: false }) };
     return { ok: true, status: 200, json: async () => ({}) };
   };

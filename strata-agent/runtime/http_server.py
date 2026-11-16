@@ -55,6 +55,7 @@ JUDGE_WRITE_LOCK = threading.Lock()
 _RECYCLE_JOBS = {}                # job_id -> {total,done,failed,cancelled,lock,event,finished}
 _RECYCLE_JOBS_LOCK = threading.Lock()
 _RECYCLE_LEDGER_LOCK = threading.Lock()   # serialises concurrent appends to one ledger.jsonl
+_RECYCLE_TRACE_LOCK = threading.Lock()    # [删除诊断日志 2026-11-16] separate lock: trace is appended while the ledger lock is held elsewhere
 # parallel_probe lives in this same runtime/ folder (http_server runs as a script,
 # so sys.path[0] is runtime/ and the bare import resolves at load time, before the constants).
 import parallel_probe   # shared plan-A tiered probe (one source for every consumer)
@@ -4085,6 +4086,20 @@ class GatewayHandler(BaseHTTPRequestHandler):
         ledger = base / ".strata-recycle" / "ledger.jsonl"
         return base, ledger
 
+    def _recycle_trace(self, event, **kw):
+        # [删除诊断日志 2026-11-16] append one JSONL line per trash decision so a silent failure is
+        # diagnosable from logs/recycle-trace.jsonl (gateway stdout logs are empty on this box).
+        try:
+            rec = {"ts": int(time.time()), "event": event}
+            rec.update(kw)
+            d = Path(os.path.join(ROOT, "logs"))
+            d.mkdir(parents=True, exist_ok=True)
+            with _RECYCLE_TRACE_LOCK:
+                io.open(d / "recycle-trace.jsonl", "a", encoding="utf-8"
+                        ).write(json.dumps(rec, ensure_ascii=False) + chr(10))
+        except Exception as e:                      # hygiene: no bare pass — the trace records its own failure
+            self._recycle_trace_broken = repr(e)[:200]
+
     def _recycle_scan(self, req):
         base, ledger = self._recycle_paths(req)
         if base is None or not base.is_dir():
@@ -4173,6 +4188,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if base is None or not isinstance(paths, list) or not paths:
             return 400, {"error": {"message": "paths required"}}
         ledger.parent.mkdir(parents=True, exist_ok=True)
+        self._recycle_trace("request", n=len(paths), branch=("sync" if len(paths) <= _RECYCLE_TRASH_SYNC_MAX else "job"),
+                            raw=[str(x) for x in paths])
         if len(paths) <= _RECYCLE_TRASH_SYNC_MAX:
             # Small batches stay synchronous: a background job + thread pool costs more than
             # it saves when there are only a handful of files.
@@ -4181,6 +4198,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 try:
                     ok = self._recycle_trash_one(raw)
                 except Exception as e:
+                    self._recycle_trace("sync_err", raw=str(raw), err=str(e)[:300])
                     return 500, {"error": {"message": "COM send failed: %s" % e}}
                 if ok:
                     self._recycle_ledger_append(ledger, str(self._recycle_resolve(raw)))
@@ -4236,12 +4254,16 @@ class GatewayHandler(BaseHTTPRequestHandler):
         """Send ONE file to the Recycle Bin via its own PowerShell+COM. True = it moved."""
         f = self._recycle_resolve(raw)
         if not f.exists() or f.name in self.RECYCLE_WHITELIST:
+            self._recycle_trace("sync_skip", raw=str(raw), resolved=str(f), exists=f.exists(),
+                                whitelist=f.name in self.RECYCLE_WHITELIST)
             return False
         folder = str(f.parent); name = f.name
         script = ("$sh=New-Object -ComObject Shell.Application;"
                   "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
                   % (folder.replace("'", "''"), name.replace("'", "''")))
-        return self._recycle_powershell(script) == "OK"
+        res = self._recycle_powershell(script)
+        self._recycle_trace("sync_one", raw=str(raw), resolved=str(f), ps=res)
+        return res == "OK"
 
     def _recycle_batch_script(self, paths):
         """One PowerShell that sends a WHOLE batch via a single COM session.
@@ -4299,7 +4321,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 # the mapped batch to _recycle_batch_script), and the ledger records the mapped path.
                 mapped = [str(self._recycle_resolve(x)) for x in batch]
                 out = self._recycle_powershell(self._recycle_batch_script(mapped))
-            except Exception:
+            except Exception as e:
+                self._recycle_trace("batch_err", batch=[str(x) for x in batch], err=str(e)[:300])
                 with job["lock"]:
                     job["failed"] += len(batch)
                 return
@@ -4309,6 +4332,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             # the ledger logged nothing) even though the files HAD moved. Ledger keys map back to RAW
             # (the ledger´s cross-platform convention: url shape stays url-shaped).
             ok_paths, not_found = self._recycle_parse_batch(out, mapped)
+            self._recycle_trace("batch_parse", mapped=[str(x) for x in mapped],
+                                ps_out=(out or "")[:500], ok=[str(x) for x in ok_paths],
+                                not_found=[str(x) for x in not_found])
             back = {str(self._recycle_resolve(x)): x for x in batch}
             with job["lock"]:
                 job["done"] += len(ok_paths)
@@ -4398,6 +4424,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
         action = req.get("action")
         if action == "scan":
             code, obj = self._recycle_scan(req)
+        elif action == "trace":
+            # [前端埋点 2026-11-16] the browser mirrors its fe_trash decision here so ONE jsonl
+            # tells the whole front-to-back story (the old blind spot: an empty paths array never
+            # reached the backend, so no backend trace line existed for a failed frontend leg).
+            kw = {k: req.get(k) for k in ("items", "paths", "ws") if k in req}
+            self._recycle_trace(str(req.get("event") or "fe"), **kw)
+            code, obj = 200, {"logged": True}
         elif action == "trash":
             code, obj = self._recycle_trash(req)
         elif action == "progress":

@@ -23,7 +23,8 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const gateway = fs.readFileSync(path.join(ROOT, "runtime", "http_server.py"), "utf8");
+const gateway = fs.readFileSync(path.join(ROOT, "runtime", "http_server.py"), "utf8");
+
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
 let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
@@ -88,7 +89,8 @@ win.fetch = async (url, o) => {
   if (u.endsWith("api/saved-image")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ ref: "/data/saved_images/gen_gate1.png" }) }; }
   if (u.endsWith("api/gallery-reveal")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ opened: true }) }; }
   if (u.endsWith("workspace/open")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ opened: true }) }; }
-  if (u.endsWith("api/recycle")) { const b = JSON.parse(o.body); RECYCLED.push(b); return { ok: true, status: 200, json: async () => ({ trashed: b.paths.map(() => "x") }) }; }
+  if (u.endsWith("api/recycle")) { const b = JSON.parse(o.body); if (b.action === "trace") return { ok: true, status: 200, json: async () => ({ logged: true }) };   // [前端埋点 2026-11-16] the fe_trash mirror is telemetry, not a delete: it must not enter RECYCLED
+  RECYCLED.push(b); return { ok: true, status: 200, json: async () => ({ trashed: b.paths.map(() => "x") }) }; }
   if (u.endsWith("gen_gate1.png")) return { ok: true, status: 200, blob: async () => ({ size: 3, type: "image/png" }) };
   if (u.endsWith("settings")) return { ok: true, status: 200, json: async () => ({ shared: false }) };
   return { ok: true, status: 200, json: async () => ({}) };
@@ -175,7 +177,8 @@ console.log("\n=== H. folder leg: api/gallery-reveal fires with the FULL served 
 {
   // re-seed via the mirror path so an entry exists again (server doc is static in this harness)
   win.localStorage.setItem("strata.imgGallery", JSON.stringify({ items: [Object.assign({}, SEED_ITEM)] }));
-  api.galleryMem().push(Object.assign({}, SEED_ITEM));
+  api.galleryMem().push(Object.assign({}, SEED_ITEM));
+
   api.renderGallery();
   win.document.querySelector('.img-gallery__cell[data-idx="0"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
   const before = POSTS.length;

@@ -41,6 +41,9 @@ check("S7 i18n has the import result key WITH {skip} (both langs)", /"img\.galle
 check("S8 the import reuses galleryAdd (url-dedup rides along)", /async function galleryImportFiles\([\s\S]*?galleryAdd\(/.test(appCode));
 check("S9 the dedup gate checks galleryMem for the ref BEFORE galleryAdd (content-dedup)", /if \(galleryMem\.some\(\(x\) => x\.url === j\.ref\)\) \{ skip\+\+; continue; \}/.test(appCode));
 check("S10 the toast threads {skip} through the count", /t\("img\.gallery\.add\.result", \{ ok, fail, skip \}\)/.test(appCode));
+check("S11 [方案A回链] the import entry gains an orig backlink to /data/generated/images/<name> (source==import)", /return \{url: it\.url, saved_ref: it\.saved_ref, orig: \(it\.source === "import" && it\.name\) \? \("\/data\/generated\/images\/" \+ encodeURIComponent\(it\.name\)\) : "", cat:/.test(appCode));
+check("S12 [方案A回链] paths merge copy+orig with Set-dedupe", /const paths = \[\.\.\.new Set\(_pr\.concat\(_dbg\.filter\(\(d\) => d\.pass && d\.orig\)\.map\(\(d\) => d\.orig\)\)\)\];/.test(appCode));
+check("S13 differential: the backlink gate is the source==import guard itself (a NON-import entry gets orig empty)", /const _dbg = items\.map\(\(it\) => \{[^\n]*orig: \(it\.source === "import" && it\.name\)/.test(appCode));   // drop the guard and every entry with a name would backlink — S11 locks the guard shape, this locks it staying conditional
 
 /* ── harness ── */
 const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
