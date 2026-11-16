@@ -1,55 +1,10 @@
 {
   "items": [
     {
-      "url": "/data/saved_images/imp_f2aff564f74f5e7d.png",
-      "prompt": "(本地添加 · gen_20261115_081741_996fe6fb.png)",
-      "name": "gen_20261115_081741_996fe6fb.png",
-      "ts": 1794803863313,
-      "saved": true,
-      "source": "import",
-      "category": "saved"
-    },
-    {
-      "url": "/data/saved_images/imp_ac371330ba657b36.png",
-      "prompt": "(本地添加 · gen_20261115_081729_3d8f4a40.png)",
-      "name": "gen_20261115_081729_3d8f4a40.png",
-      "ts": 1794803863292,
-      "saved": true,
-      "source": "import",
-      "category": "saved"
-    },
-    {
-      "url": "/data/saved_images/imp_b60920a5f25a9b71.png",
-      "prompt": "(本地添加 · _t2gen.png)",
-      "name": "_t2gen.png",
-      "ts": 1794803863120,
-      "saved": true,
-      "source": "import",
-      "category": "saved"
-    },
-    {
-      "url": "/data/saved_images/imp_ea626fa60de17750.png",
-      "prompt": "(本地添加 · gen_20261115_112033_c39f3a86.png)",
-      "name": "gen_20261115_112033_c39f3a86.png",
-      "ts": 1794802351396,
-      "saved": true,
-      "source": "import",
-      "category": "session"
-    },
-    {
-      "url": "/data/saved_images/imp_5d8bfd1e0dc5cfa4.png",
-      "prompt": "(本地添加 · gen_20261115_112033_2fbfdf7c.png)",
-      "name": "gen_20261115_112033_2fbfdf7c.png",
-      "ts": 1794802351372,
-      "saved": true,
-      "source": "import",
-      "category": "session"
-    },
-    {
-      "url": "/data/saved_images/imp_638b969d25bdad80.png",
-      "prompt": "(本地添加 · gen_20261115_101740_32783cd3.png)",
-      "name": "gen_20261115_101740_32783cd3.png",
-      "ts": 1794802351352,
+      "url": "/data/saved_images/imp_303b7899507609d9.png",
+      "prompt": "(本地添加 · gen_20261115_095125_18534336.png)",
+      "name": "gen_20261115_095125_18534336.png",
+      "ts": 1794809207820,
       "saved": true,
       "source": "import",
       "category": "session"
@@ -58,34 +13,16 @@
       "url": "/data/saved_images/imp_6fd19bf463185295.png",
       "prompt": "(本地添加 · gen_20261115_095125_e5dfe5b5.png)",
       "name": "gen_20261115_095125_e5dfe5b5.png",
-      "ts": 1794802351339,
+      "ts": 1794807428091,
       "saved": true,
       "source": "import",
       "category": "session"
     },
     {
-      "url": "/data/saved_images/imp_303b7899507609d9.png",
-      "prompt": "(本地添加 · gen_20261115_095125_18534336.png)",
-      "name": "gen_20261115_095125_18534336.png",
-      "ts": 1794802351324,
-      "saved": true,
-      "source": "import",
-      "category": "session"
-    },
-    {
-      "url": "/data/saved_images/imp_4897635a3a906a81.png",
-      "prompt": "(本地添加 · gen_20261115_095125_4364d1c8.png)",
-      "name": "gen_20261115_095125_4364d1c8.png",
-      "ts": 1794802351310,
-      "saved": true,
-      "source": "import",
-      "category": "session"
-    },
-    {
-      "url": "/data/saved_images/imp_abb583cf6ac02d71.png",
-      "prompt": "(本地添加 · gen_20261115_093035_ad889f16.png)",
-      "name": "gen_20261115_093035_ad889f16.png",
-      "ts": 1794802351296,
+      "url": "/data/saved_images/imp_22a135c8de0fbcf9.png",
+      "prompt": "(本地添加 · gen_20261115_075452_41c715c0.png)",
+      "name": "gen_20261115_075452_41c715c0.png",
+      "ts": 1794807427991,
       "saved": true,
       "source": "import",
       "category": "session"
@@ -116,15 +53,6 @@
       "saved": true,
       "source": "import",
       "category": "session"
-    },
-    {
-      "url": "/data/saved_images/imp_22a135c8de0fbcf9.png",
-      "prompt": "(本地添加 · gen_20261115_075452_41c715c0.png)",
-      "name": "gen_20261115_075452_41c715c0.png",
-      "ts": 1794789494468,
-      "saved": true,
-      "source": "import",
-      "category": "saved"
     }
   ]
 }
