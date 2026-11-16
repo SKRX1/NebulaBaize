@@ -27,7 +27,7 @@ const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 /* ── static locks (anti-drift; the behaviour hangs on these) ── */
 console.log("\n=== A. static locks ===");
 check("S1 the fav button is addressable by data-testid=batch-fav", /fav\.setAttribute\("data-testid", "batch-fav"\)/.test(appCode));
-check("S2 the fav button is appended to the batch bar BETWEEN count and delete", /bar\.append\(cnt, fav, del, clr\)/.test(appCode));
+check("S2 [融合删除入口 2026-11-16] the batch bar is append(cnt, fav, clr) — its own delete button is GONE (the delete entry is unified onto the stage delete button)", /bar\.append\(cnt, fav, clr\)/.test(appCode) && !/bar\.append\(cnt, fav, del/.test(appCode));
 check("S3 fav wires the click to galleryBatchFav", /fav\.addEventListener\("click", \(\) => galleryBatchFav\(\)\)/.test(appCode));
 check("S4 galleryBatchFav posts to the SAME endpoint as single-save (api/saved-image)", /async function galleryBatchFav\(\)[\s\S]*?fetch\("api\/saved-image"/.test(appCode));
 {

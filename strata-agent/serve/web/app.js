@@ -10039,11 +10039,10 @@ function renderGallery(){
     const cnt = document.createElement("span"); cnt.className = "img-gallery__batchcount"; cnt.textContent = t("img.gallery.batch.n").replace("{n}", String(gallerySelSet.size));
     const fav = document.createElement("button"); fav.type = "button"; fav.className = "st-btn st-btn--sm"; fav.setAttribute("data-testid", "batch-fav"); fav.textContent = t("img.gallery.batch.fav");
     fav.addEventListener("click", () => galleryBatchFav());
-    const del = document.createElement("button"); del.type = "button"; del.className = "st-btn st-btn--sm st-btn--danger"; del.textContent = t("img.gallery.batch.del");
-    del.addEventListener("click", () => galleryBatchDelete());
     const clr = document.createElement("button"); clr.type = "button"; clr.className = "st-btn st-btn--sm st-btn--ghost"; clr.textContent = t("img.gallery.batch.clear");
     clr.addEventListener("click", () => { gallerySelSet.clear(); renderGallery(); });
-    bar.append(cnt, fav, del, clr); host.append(bar);
+    bar.append(cnt, fav, clr);   // [融合删除入口 2026-11-16] the batch bar keeps count/fav/clear; the delete entry is unified onto the stage delete button
+    host.append(bar);
   }
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
   const liveSel = galleryLiveSel ? (galleryLive.find((l) => l.id === galleryLiveSel && !l.retired) || null) : null;   // [SD式融合] a live record can drive the stage
@@ -10060,7 +10059,8 @@ function renderGallery(){
     const b = document.createElement("button"); b.type = "button"; b.className = "st-btn st-btn--icon";
     b.innerHTML = icon(ic); b.title = t(key); b.setAttribute("data-act", act);
     if (!(sel || liveSel)) b.disabled = true;   // [SD式融合] a live-only selection waits for the promoted entry (galleryAction still guards on !sel)
-    if (!sel) b.disabled = true;
+    if (!sel) b.disabled = true;   // focus-only actions (the fused delete below excepted)
+    if (act === "del" && gallerySelSet.size) b.disabled = false;   // [融合删除入口 2026-11-16] the ONE delete entry lights up from the selection set too (n>=2), no focus needed   // [融合删除入口] every other action stays focus-only
     bar.append(b);
   }
   const tip = document.createElement("div"); tip.className = "img-gallery__tip";
@@ -10097,6 +10097,7 @@ function renderGallery(){
   if (liveSel) galleryLivePass(liveSel);   // [SD式融合] the live panel claims the stage (the gate-locked placeholder class, self-painted) — AFTER the stage enters the DOM (the helper re-queries it)
 }
 async function galleryAction(act){
+  if (act === "del" && gallerySelSet.size) { await galleryBatchDelete(); return; }   // [融合删除入口 2026-11-16] THE fused entry: a non-empty selection set (n=1 or more) routes to the batch leg BEFORE the focus guard (the leg already handles n=1 byte-identically)
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
   if (!sel) { toast("info", t("img.gallery.tip")); return; }
   if (act === "save") {

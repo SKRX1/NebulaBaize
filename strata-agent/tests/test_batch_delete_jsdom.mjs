@@ -29,7 +29,7 @@ console.log("\n=== A. static locks ===");
 check("S1 the batch bar + summary box css exist", css.includes(".img-gallery__batchbar{") && css.includes(".img-gallery__batchconfirm{"));
 check("S2 the set is INDEPENDENT of gallerySel (the single-select gates stay byte-intact)", /const gallerySelSet = new Set\(\);/.test(appCode));
 check("S3 the default-checked fact is exactly one line (the decoy hits it)", appCode.split("\n").filter((l) => l.includes('ck.checked = true; ck.setAttribute("data-testid", "batch-check")')).length === 1);
-check("S4 [方案A 2026-11-16] single + batch share ONE confirm component (the shared box helper) — the single-delete native window.confirm was REMOVED (it could not carry the checkbox = the root cause)", /async function galleryConfirmDelete\(items\)/.test(appCode) && !/window\.confirm\(t\("img\.gallery\.confirm\.del"\)/.test(appCode));
+check("S4 [方案A 2026-11-16 融合追加] single + batch share ONE confirm component AND one ENTRY: the batch bar lost its own delete button (appCode has no batch.del call), galleryAction routes a non-empty set to galleryBatchDelete, and the single-delete native window.confirm stays REMOVED", /async function galleryConfirmDelete\(items\)/.test(appCode) && !/window\.confirm\(t\("img\.gallery\.confirm\.del"\)/.test(appCode) && !/t\("img\.gallery\.batch\.del"\)/.test(appCode) && /if \(act === "del" && gallerySelSet\.size\) \{ await galleryBatchDelete\(\); return; \}/.test(appCode) && !/bar\.append\(cnt, fav, del/.test(appCode));
 check("S5 the saved-cells batch counter is a SEPARATE var (the `i`-pollution regression lock): the loop keeps `i` a pure index and never appends a class to it", /const batchCls = gallerySelSet\.has\(x\)/.test(appCode) && !/className[^;]*\+\s*i\b/.test(appCode));
 
 /* ── harness: the same stub set as the gallery/fuse gates ── */
@@ -95,7 +95,7 @@ check("B2b the range adds all three (anchor..target inclusive) — set=3", api.g
 check("B2c the batch bar counts 3 now", win.document.querySelector(".img-gallery__batchcount").textContent.includes("3"));
 
 console.log("\n=== B3 the summary box opens DEFAULT-CHECKED -> files ride to the Recycle Bin (real fetch) ===");
-click(win, win.document.querySelector(".img-gallery__batchbar .st-btn--danger"), {});   // the batch-delete button
+click(win, win.document.querySelector('.img-gallery__actions [data-act="del"]'), {});   // [融合删除入口 2026-11-16] the FUSED entry: the stage delete button (the batch bar no longer owns its own)
 await tick();
 const box = win.document.querySelector('[data-testid="batch-confirm"]');
 check("B3a the summary box opened", !!box);
@@ -116,7 +116,7 @@ console.log("\n=== B4 decoy differential: box UNCHECKED -> index-only removal, N
   click(win2, cells(win2)[0], { ctrlKey: true });
   click(win2, cells(win2)[2], { ctrlKey: true });
   check("B4a two members selected", api2.gallerySelSet().size === 2);
-  click(win2, win2.document.querySelector(".img-gallery__batchbar .st-btn--danger"), {});
+  click(win2, win2.document.querySelector('.img-gallery__actions [data-act="del"]'), {});   // [融合删除入口] fused entry
   await tick();
   const box2 = win2.document.querySelector('[data-testid="batch-confirm"]');
   const ck2 = box2 && box2.querySelector('[data-testid="batch-check"]');
