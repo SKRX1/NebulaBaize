@@ -238,6 +238,7 @@ SUITES = [
     "tests/test_compact_resume_owner.js",  # 2026-11-08: failed compaction keeps resume snapshot (C1) + finalize honors pendingCompactOwner (C2 differential)
     "tests/test_owner_binding_jsdom.js",   # 2026-11: SEND-LEG owner binding -> cross-session auto-resume lands back on its OWN task (sibling of C2)
     "tests/test_owner_binding_e2e.js",   # 2026-11: SEND-LEG owner-binding E2E jsdom-behaviour: 3 chains (auto-resume/auto-drive/compaction-resume) x FIX/CONTROL single-variable flip = load-bearing proof (composer text -> send -> chain reacts); ~8s measured wall -> SLOW tier
+    "tests/test_owner_binding_crosssession.js",   # 2026-11: CROSS-SESSION finalize leg -> the resume that finalize arms after the user switched away must land back on the originating task (screenshot bug); jsdom real-realm, ~8s
     "tests/test_compact_resume_guard.mjs",   # 2026-11: settings.compactResume gates the post-compact auto-resume (differential G1/G2)
 
     "tests/test_compact_request_flag.js",   # 2026-10-20: compaction turn tagged strata_compact (guard bypass)

@@ -45,17 +45,17 @@ check("SIG sendSelectedSteps gained targetSession", /function sendSelectedSteps\
 check("SIG apiMessages gained targetSession", /function apiMessages\(targetSession = null\)/.test(SRC_APP));
 check("FORWARD send -> streamAssistant(snapshot)", /await streamAssistant\(targetSession\)/.test(SRC_APP));
 check("FORWARD sendSelectedSteps -> send(human, targetSession)", /send\(human, targetSession\)/.test(SRC_APP));
-check("CHAIN auto-resume: trigger-time snapshot declared", SRC_APP.includes("const _ownerSnap = activeSession();"));
+check("CHAIN auto-resume: trigger-time snapshot declared", SRC_APP.includes("const _ownerSnap = targetSession || activeSession();"));
 check("CHAIN auto-resume: forwards the snapshot into send(false, _ownerSnap)", SRC_APP.includes("send(false, _ownerSnap)"));
 check("CHAIN post-compaction-resume: forwards the snapshot into send(true, _ownerSnap)", SRC_APP.includes("send(true, _ownerSnap)"));
-check("CHAIN auto-drive: snapshot declared", SRC_APP.includes("const _driveOwnerSnap = activeSession();"));
+check("CHAIN auto-drive: snapshot declared", SRC_APP.includes("const _driveOwnerSnap = targetSession || activeSession();"));
 check("CHAIN auto-drive: forwards the snapshot", SRC_APP.includes("sendSelectedSteps(m, false, _driveOwnerSnap)"));
 check("BUSY origin prefers the snapshot", /busy = \{controller, msg: m, stopId, sessionId: \(targetSession \|\| activeSession\(\)/.test(SRC_APP));
 
 // ---------------- BEHAVIORAL extraction anchors (anti-drift: each chain body must still be extractable) ----
-const gm1 = /function maybeAutoResume\(m\) \{[\s\S]*?\n\}/.exec(SRC_JS);
+const gm1 = /function maybeAutoResume\(m(?:, targetSession = null)?\) \{[\s\S]*?\n\}/.exec(SRC_JS);
 check("ANCHOR auto-resume: maybeAutoResume extractable (anti-drift)", !!gm1);
-const gm2 = /function maybeAutoDrive\(m\) \{[\s\S]*?\n\}/.exec(SRC_JS);
+const gm2 = /function maybeAutoDrive\(m(?:, targetSession = null)?\) \{[\s\S]*?\n\}/.exec(SRC_JS);
 check("ANCHOR auto-drive: maybeAutoDrive extractable (anti-drift)", !!gm2);
 // compaction-resume is an inline slice inside streamAssistant(): capture just the owner-binding statement
 // block (comment -> snapshot decl -> pendingResume assignment -> renderInspector), NOT the closing brace.

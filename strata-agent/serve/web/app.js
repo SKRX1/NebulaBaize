@@ -2848,7 +2848,7 @@ function renderNextSteps(el, m) {
  * Guardrails: only when the turn ended cleanly (no error / pending approval / round-limit), only up to
  * AUTO_DRIVE_MAX chain steps, with a brief beat so the user can see / interrupt, and a Stop on the pill.
  */
-function maybeAutoDrive(m) {
+function maybeAutoDrive(m, targetSession = null) {
   if (busy) return;                                  // a turn is already running (shouldn't happen here)
   if (autoDriveAbort) { autoDriveAbort = false; autoDriveDepth = 0; return; }
   if ((m.proposals || []).some((p) => !p.dismissed)) return;  // 2026-10-23: decision card this turn -> do not auto-drive (waiting for the human pick)
@@ -2866,7 +2866,7 @@ function maybeAutoDrive(m) {
   }
   m.selSteps = picks;
   autoDriveDepth++;
-  const _driveOwnerSnap = activeSession();            // owner-binding snapshot: taken now, used when the timer fires
+  const _driveOwnerSnap = targetSession || activeSession();   // owner-binding snapshot: taken now, used when the timer fires
   const host = $("chat").querySelector(`.st-msg[data-i="${messages.indexOf(m)}"]`);
   if (host) renderNextSteps(host, m);                 // show the picked chips as selected
   showAutoDrivePill(true);
@@ -3198,7 +3198,7 @@ function ilogRowHtml(e) {
 // Capped at AUTO_RESUME_MAX consecutive automatic retries, then control goes back to the human, so a
 // permanently wedged engine can't spin forever. Reuses the compaction-resume machinery (badge + 3s
 // undo window), so every automatic retry is still visible and cancellable.
-function maybeAutoResume(m) {
+function maybeAutoResume(m, targetSession = null) {
   if (busy || !m) return false;
   if (!settings.autoresume) return false;               // master switch off -> never auto-resume
   if (m.stopped || m.error) return false;
@@ -3250,7 +3250,7 @@ function maybeAutoResume(m) {
   resumeBadge = t("chat.resume.meta");
   // Snapshot the OWNING session NOW (we are still on it) so the 3s-later send lands there even if
   // the user switches to another task meanwhile (same snapshot pattern as busy.origin).
-  const _ownerSnap = activeSession();
+  const _ownerSnap = targetSession || activeSession();
   pendingResume = {timer: setTimeout(() => { pendingResume = null; send(false, _ownerSnap); }, 3000), owner: _ownerSnap};
   renderInspector();                                  // show the undo affordance on the panel row now
   return true;
@@ -7977,6 +7977,7 @@ async function streamAssistant(targetSession = null) {
   if (ran) m.meta = `${m.meta ? `${m.meta} · ` : ""}${t("chat.toolcalls", {n: ran})}`;
   if (m.limit) m.meta = `${m.meta ? `${m.meta} · ` : ""}${t("chat.toollimit", {n: m.limit})}`;
   const _ownerSid = busy.sessionId, _origin = busy.origin;
+  let _xowner = null;   // cross-session finalize: the originating session the resume chain must land back on
   busy = null;
   setBusy(false);
   if (m && !m.stopped) bumpNebDone();          // 回合正常收尾：星云闪一下「完成」表情
@@ -7992,7 +7993,7 @@ async function streamAssistant(targetSession = null) {
     // the user switched away mid-stream: the finish belongs to the session that
     // started it; the current view is re-rendered from its own saved history.
     const owner = _origin || findSession(_ownerSid);
-    if (owner) { if (!owner.messages.includes(m)) owner.messages.push(m); owner.updatedAt = Date.now(); }
+    if (owner) { _xowner = owner; if (!owner.messages.includes(m)) owner.messages.push(m); owner.updatedAt = Date.now(); }
     saveSessions();
     if (pendingCompact) {
       // C2 (2026-11-08): the turn was started by the ORIGINATING session (_ownerSid). If the pending
@@ -8130,7 +8131,7 @@ async function streamAssistant(targetSession = null) {
     maybeAutoCompact();         // F4: summarise if we're near the context ceiling (if enabled)
     // Interrupted turn -> carry on by itself; otherwise keep driving the suggested next steps.
     // Never both: an automatic resume already puts the task back on the rails.
-    if (!pendingCompact) { if (!maybeAutoResume(m)) maybeAutoDrive(m); }
+    if (!pendingCompact) { if (!maybeAutoResume(m, _xowner)) maybeAutoDrive(m, _xowner); }
     maybeAutoVerifyFix(m);    // auto-verify: verify+eject the bug this turn fixed IF its regression test came back green
   }
 }

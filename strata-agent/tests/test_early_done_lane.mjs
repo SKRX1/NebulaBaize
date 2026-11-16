@@ -29,7 +29,7 @@ const check = (label, cond, extra) => {
 
 // ---- extract the REAL gate body from disk (anti-drift: this is the shipped source, not a copy) ----
 const appSrc = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
-const gm = /function maybeAutoResume\(m\) \{[\s\S]*?\r?\n\}/.exec(appSrc);
+const gm = /function maybeAutoResume\(m(?:, targetSession = null)?\) \{[\s\S]*?\r?\n\}/.exec(appSrc);
 check("maybeAutoResume extractable from app.js (anti-drift anchor)", !!gm);
 if (!gm) { console.log("\nHALTED: gate body not found"); process.exit(1); }
 const GATE = gm[0];
