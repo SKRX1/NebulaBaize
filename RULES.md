@@ -150,3 +150,8 @@ commit 须在全套回归绿之后落，且只精确 add 本次相关文件（�
 回收站映射差分锁在 tests/test_recycle_url_mapping.py（R1-R8），改映射逻辑后跑 python -X utf8 tests/test_recycle_url_mapping.py；锁必须含「原始输入不含安装根」的反向差分证 load-bearing。
 改动含「移动代码行到函数顶部」时，必须先核对该函数入口处的卫语句（如 if(!sel) return）是否会拦掉新路径——本次 B4 场景实测抓到
 jsdom 门禁里点按钮的 selector 就是 UI 契约的一部分：融合/移除按钮时同步改点击目标，并把旧结构写成负向锁（grep 不到旧 append 形状）
+导入项删除的原件回链约定：source==="import" 且 name 在生成目录有实体文件时，删除请求必须同时携带 saved_images 副本 path 与 /data/generated/images/<name> 原件 path（app.js galleryTrashFiles，2026-11-16 方案A）
+改 serve/web/app.js 前先备份 app.js.bak-<主题>，node --check 验语法，跑 test_gallery_import_jsdom + test_img_gallery_jsdom 双门禁后才算完成
+strata-agent/serve/web/app.js 是 CRLF 文件：用 Python 重写它后必须把全文归一回 CRLF（门禁 test_gallery_import_jsdom.mjs 头部注释明示此约定）
+画廊删除链的观测约定：前端埋点（fe_trash）盖 filter 前的逐条决策、后端 recycle-trace.jsonl 落 request/sync_one/batch_parse——根因未稳定复现前不得拆除，稳定后前端腿可降级为仅 console
+画廊埋点降级已执行（2026-11-16）：fe_trash 前端腿=仅 console 不落盘，后端 jsonl 腿保留；周复盘任务已删；门禁 test_gallery_import_jsdom+test_img_gallery_jsdom 双绿
