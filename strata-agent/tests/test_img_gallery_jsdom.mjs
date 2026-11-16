@@ -86,6 +86,7 @@ win.fetch = async (url, o) => {
   if (u.endsWith("api/image-gallery") && (!o || !o.method || o.method === "GET")) return { ok: true, status: 200, json: async () => ({ items: [Object.assign({}, SEED_ITEM)] }) };
   if (u.endsWith("api/image-gallery")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => JSON.parse(o.body) }; }
   if (u.endsWith("api/saved-image")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ ref: "/data/saved_images/gen_gate1.png" }) }; }
+  if (u.endsWith("api/gallery-reveal")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ opened: true }) }; }
   if (u.endsWith("workspace/open")) { POSTS.push({ url: u, body: JSON.parse(o.body) }); return { ok: true, status: 200, json: async () => ({ opened: true }) }; }
   if (u.endsWith("api/recycle")) { const b = JSON.parse(o.body); RECYCLED.push(b); return { ok: true, status: 200, json: async () => ({ trashed: b.paths.map(() => "x") }) }; }
   if (u.endsWith("gen_gate1.png")) return { ok: true, status: 200, blob: async () => ({ size: 3, type: "image/png" }) };
@@ -170,7 +171,7 @@ console.log("\n=== G. [方案A 2026-11-16] single delete shares the in-place box
   check("G3 the empty gallery renders a non-empty hint again", api.gallerySel() === -1 && win.document.querySelector(".img-gallery__tip").textContent.trim().length > 0);
 }
 
-console.log("\n=== H. folder leg: workspace/open fires with the generated-images folder ===");
+console.log("\n=== H. folder leg: api/gallery-reveal fires with the FULL served ref (the bug fix) ===");
 {
   // re-seed via the mirror path so an entry exists again (server doc is static in this harness)
   win.localStorage.setItem("strata.imgGallery", JSON.stringify({ items: [Object.assign({}, SEED_ITEM)] }));
@@ -180,8 +181,9 @@ console.log("\n=== H. folder leg: workspace/open fires with the generated-images
   const before = POSTS.length;
   win.document.querySelector('.img-gallery__actions [data-act="folder"]').dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
   await tick();
-  const hit = POSTS.slice(before).find((p) => p.url.endsWith("workspace/open"));
-  check("H1 workspace/open fired with data/generated/images", !!hit && hit.body.path === "data/generated/images");
+  const hit = POSTS.slice(before).find((p) => p.url.endsWith("api/gallery-reveal"));
+  check("H1 the folder leg posts the FULL ref to api/gallery-reveal (the backend resolves it against the install root)", !!hit && hit.body.ref === "/data/generated/images/gen_gate1.png", hit && JSON.stringify(hit.body));
+  check("H1b the OLD buggy path is gone (no relative-folder string to workspace/open on the folder leg)", !POSTS.slice(before).some((p) => p.url.endsWith("workspace/open") && p.body && p.body.path === "data/generated/images"));
 }
 
 /* ── [融合时间线 2026-11-15 A+C] fused single-scroll panel + segmented views ──

@@ -9986,10 +9986,14 @@ async function galleryImportFiles(files){
       const r = await fetch("api/gallery-import", {method: "POST", headers: headers(true), body: JSON.stringify({ name: f.name || "", dataUrl })});
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.error || !j.ref) { fail++; continue; }
-      const nm = f.name || j.name || "";
-      // [去重 2026-11-15] the backend names files by content hash, so an identical image yields
-      // the SAME ref -> an existing gallery url -> a duplicate. Skip it (content-dedup).
-      if (galleryMem.some((x) => x.url === j.ref)) { skip++; continue; }
+      const nm = f.name || j.name || "";
+
+      // [去重 2026-11-15] the backend names files by content hash, so an identical image yields
+
+      // the SAME ref -> an existing gallery url -> a duplicate. Skip it (content-dedup).
+
+      if (galleryMem.some((x) => x.url === j.ref)) { skip++; continue; }
+
       galleryAdd({ url: j.ref, prompt: t("img.gallery.add.prompt", { name: nm }), name: nm, ts: Date.now(), saved: true, source: "import", category: (galleryView === "all" ? "saved" : galleryView) });   // [分类归属·方案A 2026-11-15] follows the active tab; under 全部 defaults to 收藏
       ok++;
     } catch (e) { fail++; }
@@ -10172,7 +10176,7 @@ async function galleryBatchFav(){   // [批量收藏 2026-11-16] non-destructive
 async function galleryTrashFiles(items){   // [删除增强] shared leg: files -> the Windows Recycle Bin via /api/recycle (the archive-manager convention)
   const s0 = activeSession();
   const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
-  const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => u.startsWith("/data/generated/images/") || u.startsWith("/data/saved_images/") || isAbsolutePath(u)).map(galleryResolvePath).filter(Boolean);   // [删除增强 2026-11-15b] only real files (never localStorage mirrors); urls stay url-shaped, the backend maps them
+  const paths = items.map((it) => (it.saved_ref || it.url || "")).filter((u) => /^\/?data\/generated\/images\//.test(u) || /^\/?data\/saved_images\//.test(u) || isAbsolutePath(u)).map(galleryResolvePath).filter(Boolean);   // [缺前导斜杠修复 2026-11-16] accept BOTH "/data/..." and "data/..." shapes (stale localStorage generated entries were saved without the leading slash, so the old startsWith dropped them -> index-only delete, file stayed on disk)
   if (!paths.length) return;
   // [ws-空修复 2026-11-16] a url-shape path resolves to the INSTALL ROOT and needs NO workspace — the old
   // `if (!ws) return` here silently swallowed the whole file leg on any workspace-less session (that was the
@@ -10202,11 +10206,13 @@ async function galleryFillSlot(it, inputId, mode){
   inp.dispatchEvent(new Event("change", { bubbles: true }));   // 触发既有 _imgFilePreview 预览+尺寸回填
 }
 async function galleryOpenFolder(it){
-  const p = (it.saved_ref ? "data/saved_images"
-           : it.url.startsWith("/data/generated/") ? "data/generated/images" : "");
-  if (!p) { toast("info", t("img.gallery.tip")); return; }
+  // [打开所在文件夹修复 2026-11-15] send the FULL served ref; the backend resolves it against
+  // the INSTALL ROOT (the same mapping the recycle bin uses). The old code sent a RELATIVE
+  // folder string to workspace/open, which the SESSION root resolved to a non-existent path -> 400.
+  const ref = it.saved_ref || it.url || "";
+  if (!ref) { toast("info", t("img.gallery.tip")); return; }
   try {
-    const r = await fetch("workspace/open", {method: "POST", headers: headers(true), body: JSON.stringify({ path: p })});
+    const r = await fetch("api/gallery-reveal", {method: "POST", headers: headers(true), body: JSON.stringify({ ref })});
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error((j.error && j.error.message) || ("HTTP " + r.status)); }
   } catch (e) { toast("error", t("img.gallery.folder"), String(e.message || e), 6000); }
 }
@@ -11158,7 +11164,8 @@ function populateRecycleControls() {
 let galleryMultiSel = false;   // [勾选框多选 2026-11-15b] the bar's multi-select toggle: every rendered cell (any view) shows a tick box; OFF keeps the modifier behaviour byte-identical
 function galleryResolvePath(u){   // [删除增强 2026-11-15b] root-cause fix: a server url (/data/generated/images/..., /data/saved_images/...) maps to the INSTALL ROOT, not to the workspace — the old workspace+url splice missed the strata-agent/ segment and the backend silently skipped every file
   const clean = String(u || "").split("?")[0];
-  if (clean.startsWith("/data/generated/images/") || clean.startsWith("/data/saved_images/")) return clean;   // url shape: the backend maps it
+  const _norm = clean.startsWith("/") ? clean : "/" + clean;   // [缺前导斜杠修复 2026-11-16] normalize a missing leading slash so old localStorage shapes still reach the backend mapping
+  if (_norm.startsWith("/data/generated/images/") || _norm.startsWith("/data/saved_images/")) return _norm;   // url shape: the backend maps it
   const s0 = activeSession();
   const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
   return ws ? ws + clean.replace(/\//g, "/") : "";   // legacy shape: workspace-rooted (the archive-manager convention)

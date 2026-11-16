@@ -144,3 +144,7 @@ sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以�
 本地 harness 页必须放 serve/web/ 内经 http://127.0.0.1:8099/ 访问（放 evidence/ 走 file:// 会因相对 CSS 路径 404 渲染成裸页）
 涉及8099的任务回答正文禁提宿主/8080/apps-host(历史经验检索结果与当前任务无关时不带入正文,避免用户误读「你在改宿主」)
 浏览器原生window.confirm无法嵌入checkbox——凡需要「确认+勾选项」的场景必须用页面内嵌确认框,不能用原生confirm
+涉及 i18n 文案改动：中文+英文两侧 + 静态 HTML 兜底文本三处必须同步，避免双语门禁红或加载前闪现。
+commit 须在全套回归绿之后落，且只精确 add 本次相关文件（不裹跨会话笔记/脚手架），中文 message 走 UTF-8 文件 + commit -F。
+回收站删除分两条路径：文件数 ≤ _RECYCLE_TRASH_SYNC_MAX(=3) 走同步（逐条 _recycle_resolve），> 阈值走后台批量 job；任何对 url→安装根映射的修复必须两条路径同时覆盖。
+回收站映射差分锁在 tests/test_recycle_url_mapping.py（R1-R8），改映射逻辑后跑 python -X utf8 tests/test_recycle_url_mapping.py；锁必须含「原始输入不含安装根」的反向差分证 load-bearing。

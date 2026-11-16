@@ -1811,6 +1811,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/gallery-import":
             self._api_gallery_import()             # [img gallery 添加图片] import one arbitrary file via data URL
             return True
+        if path.rstrip("/") == "/api/gallery-reveal":   # [打开所在文件夹修复 2026-11-15] reveal the file's folder
+            self._api_gallery_reveal()             # in the INSTALL ROOT (same mapping the recycle bin uses)
+            return True
         if path.rstrip("/") == "/api/image-scan-models":
             self._api_image_scan_models()
             return True
@@ -4197,11 +4200,37 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # [删除增强 2026-11-15b] a served url shape maps to the install root (data/generated/images,
         # data/saved_images live OUTSIDE any workspace); everything else is workspace-absolute as before.
         clean = str(raw).split("?")[0]
-        if clean.startswith("/data/generated/images/"):
-            return Path(GENERATED_DIR) / clean[len("/data/generated/images/"):]
-        if clean.startswith("/data/saved_images/"):
-            return Path(ROOT) / "data" / "saved_images" / clean[len("/data/saved_images/"):]   # same mapping the serving branch uses
+        _n = clean if clean.startswith("/") else "/" + clean   # [缺前导斜杠修复 2026-11-16] normalize so a missing leading slash (stale localStorage generated entries) still maps to the install root
+        if _n.startswith("/data/generated/images/"):
+            return Path(GENERATED_DIR) / _n[len("/data/generated/images/"):]
+        if _n.startswith("/data/saved_images/"):
+            return Path(ROOT) / "data" / "saved_images" / _n[len("/data/saved_images/"):]   # same mapping the serving branch uses
         return Path(raw)
+
+    def _api_gallery_reveal(self):
+        """POST /api/gallery-reveal {ref}: open the OS folder that CONTAINS a gallery file.
+        The ref is a served url (/data/generated/images/.. or /data/saved_images/..) — resolved
+        through the SAME install-root mapping the recycle bin uses, so it never lands on the
+        session-root resolution that broke the old relative-path call. Opens the PARENT folder.
+        """
+        import workspace_fs as ws
+        body = self._read_json()
+        ref = (body.get("ref") or "").strip()
+        if not ref:
+            self._json(400, {"error": {"type": "invalid_request", "message": "ref required"}})
+            return
+        target = self._recycle_resolve(ref)   # install-root mapping (url-shape refs only)
+        if not str(ref).startswith("/data/") or not target.is_file():
+            self._json(400, {"error": {"type": "invalid_request",
+                                   "message": "ref must be an existing gallery file url"}})
+            return
+        folder = target.parent   # reveal the CONTAINING folder, not the file itself
+        try:
+            ws.open_folder(str(folder))
+            self._json(200, {"path": str(folder), "opened": True})
+        except (OSError, AttributeError) as e:
+            self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+            return
 
     def _recycle_trash_one(self, raw):
         """Send ONE file to the Recycle Bin via its own PowerShell+COM. True = it moved."""
@@ -4263,7 +4292,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
                     job["cancelled"] += len(batch)
                 return
             try:
-                out = self._recycle_powershell(self._recycle_batch_script(batch))
+                # [批量删除修复 2026-11-16] map url-shape paths to the INSTALL ROOT before
+                # PowerShell sees them — the sync path already did this via _recycle_resolve, but the
+                # batch job fed RAW urls to _recycle_batch_script (missing the strata-agent/ segment),
+                # so every file > the sync threshold silently vanished. Parse-back keys match (we feed
+                # the mapped batch to _recycle_batch_script), and the ledger records the mapped path.
+                mapped = [str(self._recycle_resolve(x)) for x in batch]
+                out = self._recycle_powershell(self._recycle_batch_script(mapped))
             except Exception:
                 with job["lock"]:
                     job["failed"] += len(batch)
