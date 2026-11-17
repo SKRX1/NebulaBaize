@@ -174,3 +174,4 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 改名范围严格二分：指向当前目录的现行引用(配置/启动/规则/说明/资源/ROOT注释)全改；"过去的事实"(WorkBuddy旧绝对路径报错样本、旧root bug叙事、README git身份、退役归档件)保留——改了反而失真
 清理 gitignore 忽略的一次性脚手架用"非 git 跟踪集 = 安全删除集"判据：先 git ls-files 取跟踪清单作保护白名单，删前再对候选逐一反向断言无一被跟踪，逐个点名送 VB DeleteFile(SendToRecycleBin)，保留其中的 *_gate.py 与登记在 run_tests 的在用工具，清后复跑全套回归坐实仍绿
 回归门禁产出的 *_report.txt 是再生型产物（每次跑全量重写、判定已聚合进 stdout、无回读点），run_tests.py 在 main() 末尾 verdict 已定后调用 best-effort purge_transient_reports() 删与 .gitignore tools/*_report.txt 同集合的文件，OSError 静默跳过，绝不影响 CI 判定
+对巨型单体的"纯函数等价迁移"重构：先用 AST 计算每个候选函数的精确行区间+扫描其引用的模块全局名(排除stdlib/局部名/内建)，external-deps 为空或仅彼此/纯stdlib 者才列为"安全叶子"整搬；搬出后立即与原文做 byte-identical 逐字比对作硬证，再仿既有 from serve.X import 的 try/except 双路径接入、调用点保持原名不改
