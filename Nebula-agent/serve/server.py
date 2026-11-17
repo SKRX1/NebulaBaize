@@ -98,6 +98,15 @@ try:
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from req_stats import (add_carry, carry_leg, prompt_tokens_seen, request_stats, request_timings)
 
+# Per-card GPU capability scores (NVIDIA CUDA + AMD KFD) feeding card selection; pure
+# stdlib only (no engine/session state; unlike gpu_vram_mib it has no lazy first-party import).
+# Its theme is shared only by these two, which is why they form this module. server.py
+# re-imports the names unchanged so both call sites stay untouched. Equivalence move.
+try:
+    from serve.gpu_score import gpu_speed_scores, hip_speed_scores
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from gpu_score import gpu_speed_scores, hip_speed_scores
+
 # RAM-budget start-up warnings (experts footprint vs this PC's free RAM; optional psutil
 # imported inside the functions so it stays genuinely optional). Kept in its own module: AST
 # analysis shows it closes only over os + optional psutil -- no engine/session state. The
@@ -2738,57 +2747,6 @@ def hip_visible(cfg: dict) -> list[int]:
         except ValueError:
             pass
     return ordered_gpus(cfg)
-
-
-def gpu_speed_scores(indices: list[int]) -> dict[int, float] | None:
-    """Multiprocessors x max clock for each NVIDIA card, numbered as nvidia-smi numbers them (the CUDA driver API,
-    which every driver ships: no toolkit needed); None when it cannot say for every one of them."""
-    code = (
-        "import ctypes,sys,os\n"
-        "os.environ['CUDA_DEVICE_ORDER']='PCI_BUS_ID'\n"
-        "lib=ctypes.CDLL('nvcuda.dll' if os.name=='nt' else 'libcuda.so.1')\n"
-        "assert lib.cuInit(0)==0\n"
-        "n=ctypes.c_int()\n"
-        "assert lib.cuDeviceGetCount(ctypes.byref(n))==0\n"
-        "for i in range(n.value):\n"
-        "    d=ctypes.c_int()\n"
-        "    assert lib.cuDeviceGet(ctypes.byref(d),i)==0\n"
-        "    sm=ctypes.c_int(); mhz=ctypes.c_int()\n"
-        "    lib.cuDeviceGetAttribute(ctypes.byref(sm),16,d)\n"
-        "    lib.cuDeviceGetAttribute(ctypes.byref(mhz),13,d)\n"
-        "    print(i,sm.value,mhz.value)\n")
-    try:
-        env = dict(os.environ)
-        env["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        env.pop("CUDA_VISIBLE_DEVICES", None)
-        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30, env=env)
-        got = {}
-        for line in r.stdout.splitlines():
-            i, sm, khz = (int(x) for x in line.split())
-            got[i] = float(sm) * float(khz)
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return None
-    return got if all(i in got and got[i] > 0 for i in indices) else None
-
-
-def hip_speed_scores(indices: list[int], root: str = "/sys/class/kfd/kfd/topology/nodes") -> dict[int, float] | None:
-    """AMD on Linux: SIMDs x max engine clock of each card, from the KFD topology (the order setup and the engine use
-    for "gpu" there: the GPU nodes in node order).  None when the files are not there (Windows, no ROCm driver)."""
-    try:
-        nodes = sorted((int(n) for n in os.listdir(root) if n.isdigit()))
-    except OSError:
-        return None
-    cards = []
-    for n in nodes:
-        try:
-            props = dict(line.split() for line in open(os.path.join(root, str(n), "properties")) if len(line.split()) == 2)
-            simd, clk = int(props.get("simd_count", 0)), int(props.get("max_engine_clk_fcompute", 0))
-        except (OSError, ValueError):
-            continue
-        if simd > 0:
-            cards.append(float(simd) * float(clk or 1))
-    got = dict(enumerate(cards))
-    return got if all(i in got for i in indices) else None
 
 
 def gpu_vram_mib(indices: list[int], hip: bool = False) -> dict[int, int] | None:
