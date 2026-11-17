@@ -41,7 +41,7 @@
       "donate.copied": "已复制",
       "donate.thanks": "谢谢每一位捐助支持的朋友。是你们的这份心意，让我能把它继续做下去。",
       "donate.signature": "—— 时空象容",
-      "tab.schedule": "定时任务",
+      "tab.schedule": "定时",
       /* ── Notes (便签) ── */
       "tab.spark": "便签",
       "spark.subtitle": "AI 忙时随手记下亮点想法，等它空闲时按需推给它执行。",
