@@ -163,3 +163,9 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 改 i18n.js 这类被多工作线共改的文件时，用 git add -p 按 hunk 只选本轮 hunk（喂 "n\ny\n..." 决策序列），把别的工作线改动留在工作区不裹入本次提交
 改文件名/全仓引用替换时，扫描必须覆盖磁盘全量（含未跟踪文件）而非只 git ls-files，且镜像解码（utf-8→回退gbk）：GBK 文件用 decode("utf-8") 会被 except 跳过致漏检（本轮 setup.bat/部署说明.md 即如此漏）
 被 .gitignore 显式忽略的文件（如 setup.bat @.gitignore:108）改动只落磁盘即对用户生效，不进 commit——改前先 git check-ignore 判定是否需入库
+改名跨工作区/记忆/代码三处的目录时：先 git grep 摸全量引用面分 A代码/B测试/C配置/D文档/E历史流水，改 A-D 不动 E，测试路径锁必同步否则假红
+工作区被 gitignore 的运行数据目录改名：物理 mv 整个目录即可；其中若有被 git 跟踪的例外文件（如归档 _mirror_parity_gate.py），到新位置需 git add -f 强制跟踪以保持"可 git 还原"语义
+改 .gitignore 把旧目录名换成新名后，各工作区残留的旧名历史数据会暴露进 status；追加旧名忽略行（新旧同存）让历史数据留盘不污染 status，勿删数据
+子工作区残留旧名数据目录改名：先 git ls-files 确认无跟踪文件（运行数据多被 gitignore），是纯磁盘 ren、不进 commit；根级 .gitignore 的 .Nebula-* 模式会覆盖各子目录同名目录，改名后仍被忽略不污染 status
+改名被 gitignore 忽略的子工作区运行数据目录（.Nebula-recycle 等）：纯物理 ren 即可，不产生被跟踪改动、无需 commit；收尾只需 git grep 确认被跟踪文件无旧名引用，勿把别的工作线遗留 M 项混入本轮
+验证涉及"正在运行的 8099 工作区"改名时：必须先实测对应 ledger/数据文件在新名路径完好到位，再跑全套回归，二者都绿才算无损迁移
