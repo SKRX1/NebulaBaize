@@ -1,78 +1,78 @@
 {
   "mcpServers": {
     "filesystem": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\fs_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\fs_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent",
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent",
       "env": {
-        "FS_ROOT": "E:\\星云\\星云智能体\\strata-agent",
-        "FS_ALLOW": "E:\\星云",
-        "FS_ALLOW_FILE": "E:\\星云\\星云智能体\\fs_allowed_roots.txt"
+        "FS_ROOT": "E:\\Nebula\\NebulaBaize\\strata-agent",
+        "FS_ALLOW": "E:\\星云;E:\\Nebula",
+        "FS_ALLOW_FILE": "E:\\Nebula\\NebulaBaize\\fs_allowed_roots.txt"
       }
     },
     "shell": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\shell_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\shell_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent",
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent",
       "env": {
-        "FS_ALLOW_FILE": "E:\\星云\\星云智能体\\fs_allowed_roots.txt"
+        "FS_ALLOW_FILE": "E:\\Nebula\\NebulaBaize\\fs_allowed_roots.txt"
       }
     },
     "websearch": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\websearch_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\websearch_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent",
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent",
       "env": {
-        "STRATA_PROXY": "http://127.0.0.1:10808"
+        "STRATA_PROXY": "http://127.0.0.1:7897"
       }
     },
     "memory": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\memory_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\memory_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent"
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent"
     },
     "browser": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\browser_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\browser_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent"
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent"
     },
     "schedule": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\schedule_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\schedule_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent"
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent"
     },
     "skillhub": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\skillhub_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\skillhub_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent"
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent"
     },
     "registry": {
-      "command": "E:\\星云\\星云智能体\\strata-agent\\.venv\\Scripts\\python.exe",
+      "command": "E:\\Nebula\\NebulaBaize\\strata-agent\\.venv\\Scripts\\python.exe",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\servers\\registry_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\servers\\registry_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent"
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent"
     },
     "example-server": {
       "command": "python",
       "args": [
-        "E:\\星云\\星云智能体\\strata-agent\\skills/example_server.py"
+        "E:\\Nebula\\NebulaBaize\\strata-agent\\skills/example_server.py"
       ],
-      "cwd": "E:\\星云\\星云智能体\\strata-agent\\skills",
+      "cwd": "E:\\Nebula\\NebulaBaize\\strata-agent\\skills",
       "_skill": "example"
     }
   },
@@ -100,10 +100,10 @@
     "entries": [
       {
         "name": "每日代码备份",
-        "task": "cd /d \"E:\\星云\\星云智能体\\strata-agent\" && python tools\\backup-bundle.py --keep 14",
+        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\strata-agent\" && python tools\\backup-bundle.py --ke",
         "approval": "full",
         "roots": [
-          "E:\\星云\\星云智能体"
+          "E:\\Nebula\\NebulaBaize"
         ],
         "deliver": "session_stream",
         "daily_at": "03:00"
