@@ -145,6 +145,9 @@ Nebula-agent/tests/_spark_ids.txt
 !package-lock.json
 # runtime drift: proc-info snapshot written by daemon
 Nebula-agent/proc_info.json
+# runtime drift: health/metrics snapshots written by the monitor daemon
+Nebula-agent/_health.json
+Nebula-agent/_metrics.json
 
 # --- stray root-level serve/ dir: a derived runtime artifact (its only file is
 # _learned_experience_compact.txt, a memory-generated compact export). The real
