@@ -169,3 +169,6 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 子工作区残留旧名数据目录改名：先 git ls-files 确认无跟踪文件（运行数据多被 gitignore），是纯磁盘 ren、不进 commit；根级 .gitignore 的 .Nebula-* 模式会覆盖各子目录同名目录，改名后仍被忽略不污染 status
 改名被 gitignore 忽略的子工作区运行数据目录（.Nebula-recycle 等）：纯物理 ren 即可，不产生被跟踪改动、无需 commit；收尾只需 git grep 确认被跟踪文件无旧名引用，勿把别的工作线遗留 M 项混入本轮
 验证涉及"正在运行的 8099 工作区"改名时：必须先实测对应 ledger/数据文件在新名路径完好到位，再跑全套回归，二者都绿才算无损迁移
+改名被运行进程锁定的目录时：用脱离进程树的分离脚本(Start-Process)原子完成"停栈→git mv→改引用→重启→落盘报告"，脚本自身命令行须不含目标名以免误杀自己；主会话改前先备好文本引用脚本、改后做验证与提交
+改源码根目录名后必查 load-bearing 硬编码：run_all_tests 转发器的 REAL_ROOT=os.path.join(WORKSPACE,"strata-agent") 这类写死子目录名的转发器/fixture，是改名最容易漏的断点
+改名范围严格二分：指向当前目录的现行引用(配置/启动/规则/说明/资源/ROOT注释)全改；"过去的事实"(WorkBuddy旧绝对路径报错样本、旧root bug叙事、README git身份、退役归档件)保留——改了反而失真
