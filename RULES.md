@@ -176,3 +176,4 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 回归门禁产出的 *_report.txt 是再生型产物（每次跑全量重写、判定已聚合进 stdout、无回读点），run_tests.py 在 main() 末尾 verdict 已定后调用 best-effort purge_transient_reports() 删与 .gitignore tools/*_report.txt 同集合的文件，OSError 静默跳过，绝不影响 CI 判定
 对巨型单体的"纯函数等价迁移"重构：先用 AST 计算每个候选函数的精确行区间+扫描其引用的模块全局名(排除stdlib/局部名/内建)，external-deps 为空或仅彼此/纯stdlib 者才列为"安全叶子"整搬；搬出后立即与原文做 byte-identical 逐字比对作硬证，再仿既有 from serve.X import 的 try/except 双路径接入、调用点保持原名不改
 续跑钩子("继续完成被打断的任务")触发时：先用 git status/diff 工具核实真实遗留，区分"未落账的记忆写入(先 diff 补齐)"与"计划里规划但尚未执行的下一步(继续做)"，两类都做完才收尾；对"看似成簇"的重构目标做整搬判定，必须递归一层核实其对簇外定义的依赖是否也纯净、并 grep 簇外定义的其余引用点——簇外依赖纯净且引用点少时可连依赖一并搬、用顶部 import 兜回以保调用点不变，依赖运行时态(如 Service/Event)的函数则留下不强搬
+巨型单体"摘叶子成模块"选下一块时：先 AST 扫描列纯叶子，但成组必须读源码研判真实主题内聚(函数是否共享同一语义)，排除虽纯但异主题(如 RAM 告警 vs 采样校验)或内部 lazy-import 了 first-party 模块(如 gpu_vram_mib 引 serve.telemetry)的成员；调用点须 grep 全量(含被多处调用)由顶部 try/except import 兜回、调用点不改名
