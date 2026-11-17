@@ -1,6 +1,6 @@
 星云前端唯一权威源是工作区 serve/web/，改前端只改这里；Strata-main\serve\web 是 robocopy /MIR 同步的副本，禁止手改
 前端改动后通过双击 deploy_to_strata.bat 同步到寄生模式 Strata-main；后端/skills/mcp_servers.json 改动不需部署，重启进程即生效（寄生模式需重启 Strata）
-含中文路径（星云智能体）的 robocopy 命令行直调会因代码页失败，优先双击 bat 执行；自动化脚本需先 chcp 65001
+含中文路径（星云白泽）的 robocopy 命令行直调会因代码页失败，优先双击 bat 执行；自动化脚本需先 chcp 65001
 部署脚本用 GBK 编码保存，勿用 UTF-8 编辑器另存覆盖，否则中文路径乱码
 前端所有非对话视图(.view)统一由一个内容容器负责滚动，新增视图不要逐名加 overflow-y，避免遗漏
 记忆页等含长内容的标签页：统一「整页滚」或「卡内滚」一种滚动归属，避免双层滚动条
@@ -64,7 +64,7 @@ README 追加前必须 `git ls-files --eol` 核对 index 行尾，写入用与 i
 部署对账=跑 strata-agent/tools/_deploy_mirror.py（权威源 serve/web→E:\Program Files\Strata-main\serve\web 逐文件MD5，幂等，跑完即ALL MATCH即视为一致）；servers/ 不在镜像范围（后端从工作区直跑，无需镜像同步）
 contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 isCE(el)（认 contenteditable=true/DIV），只写 id/tagName===TEXTAREA 会漏整个 contenteditable 家族导致打字键被吞。
 输入框依赖"打字即时刷新"的绑定不能只挂 input：中文输入法落字/粘贴常常不派发标准 input 事件，须统一补 compositionend（必要时 paste）兜底；已覆盖 composer、ws-path、bugbox-search，后续同类刷新点一并遵守。
-星云智能体运行的版本一直是工作区里的独立版不是寄生版,优先修改修复独立版
+星云白泽运行的版本一直是工作区里的独立版不是寄生版,优先修改修复独立版
 命令行内联 python -c/单行命令只做单行；多行逻辑一律写临时 _q_*.py 脚本再跑、用完即删，避免转义踩坑（本轮两次验证）。
 重启 8099 网关 = 自杀型动作（agent 寄生在监听 worker 进程树下），必须用 tools/_restart_8099.ps1 经 Start-Process 分离发射真杀，脚本 netstat 动态发现 listener + CIM 解析父链（绝不写死 PID），完成证据读 C:\Users\sk\strata_snapshots\_restart_8099_report.txt 的 killed-listener + 新监听 PID 换血坐实
 改models.json后需重启8099网关才生效(models.json后端读):杀监听PID→run_standalone.bat的:loop约3秒拉起加载最新磁盘代码
@@ -156,3 +156,10 @@ strata-agent/serve/web/app.js 是 CRLF 文件：用 Python 重写它后必须把
 画廊删除链的观测约定：前端埋点（fe_trash）盖 filter 前的逐条决策、后端 recycle-trace.jsonl 落 request/sync_one/batch_parse——根因未稳定复现前不得拆除，稳定后前端腿可降级为仅 console
 画廊埋点降级已执行（2026-11-16）：fe_trash 前端腿=仅 console 不落盘，后端 jsonl 腿保留；周复盘任务已删；门禁 test_gallery_import_jsdom+test_img_gallery_jsdom 双绿
 行尾甄别基线（2026-11-16 盘点）：i/-text 文本文件只剩 tests/test_ce_text_extract.mjs、tests/test_schedule_contract.mjs、tools/_flash_probe_upstream.py 三个；i/-text 是"本次入库瞬间"态，commit 后 git 重新嗅探会归一（test_img_gallery 实测），numstat 虚高须用 --ignore-cr-at-eol 取真实行数
+Start-Process 分离发射 powershell 真跑脚本（如 _restart_8099.ps1）时，必须用 -ArgumentList 把 -ExecutionPolicy Bypass 传给被启动进程，否则新 powershell 退出码非0、不写 on-disk 报告；DryRun 分支在 self-protection guard 之前可安全直跑
+8099 重启换血的权威证据以 netstat 当前 LISTENING PID 为准（须≠旧 listener），不要信脚本报告里 sleep-8s 时刻的 new-listener 空行（启动器有冷却、滞后）
+改顶层启动器 bat 文件名时，活引用集中在三处须同步：i18n.js 中/英两处 chat.notice.gateway_down 文案里的「双击『X.bat』」、setup_env.py 完成提示 run 提示；用 git mv 改名（参数走 Unicode），i18n 只改 value 不动键名保键数
+bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内的 title/注释是品牌名"Nebula Agent"与文件名无关，不必改；历史 changelog(VERSION_MANIFEST.md)记录旧名属历史事实保留不改
+改 i18n.js 这类被多工作线共改的文件时，用 git add -p 按 hunk 只选本轮 hunk（喂 "n\ny\n..." 决策序列），把别的工作线改动留在工作区不裹入本次提交
+改文件名/全仓引用替换时，扫描必须覆盖磁盘全量（含未跟踪文件）而非只 git ls-files，且镜像解码（utf-8→回退gbk）：GBK 文件用 decode("utf-8") 会被 except 跳过致漏检（本轮 setup.bat/部署说明.md 即如此漏）
+被 .gitignore 显式忽略的文件（如 setup.bat @.gitignore:108）改动只落磁盘即对用户生效，不进 commit——改前先 git check-ignore 判定是否需入库
