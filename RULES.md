@@ -179,3 +179,6 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 巨型单体"摘叶子成模块"选下一块时：先 AST 扫描列纯叶子，但成组必须读源码研判真实主题内聚(函数是否共享同一语义)，排除虽纯但异主题(如 RAM 告警 vs 采样校验)或内部 lazy-import 了 first-party 模块(如 gpu_vram_mib 引 serve.telemetry)的成员；调用点须 grep 全量(含被多处调用)由顶部 try/except import 兜回、调用点不改名
 全套 --full 出现非本轮相关测试 FAIL 时，先单跑该测试(exit0=flaky)+排除 CPU 争用复跑全套取干净绿，勿据 flaky 误判为本轮回归(实测于 shell_timeout/self_suicide_guard 高负载)
 给"等价迁移"拆出的纯模块补单测时，断言须对照被测函数真实契约(读源码确认)，每项配 load-bearing 差异分支，并必单跑——防止把测试写成"我以为的行为"而非真实语义
+判断两函数是否同主题成模块时，按职责性质而非所属子系统：同一子系统的"配置装配"与"启动失败诊断"属异质职责不应合并；反之早前因"与A模块异主题"被排除的函数，常与另几个被同样排除者才是彼此的强内聚组成员，可据此成组
+摘带模块级 os/sys 引用的纯叶子时，扫描按 stdlib 计 out-deps=0，但迁出后新模块顶部仍须补 import os/sys(模块级引用)；函数内 lazy-import 的 optional 依赖(psutil)留在函数内保其"缺件仍能 import 模块"性质
+收尾确认脚本也要送 Windows 回收站，勿用 cmd del 物理删(本轮 _q_final.py 即误用 del)；含 find /c 计 0 时 cmd 返回码 1 属正常非错
