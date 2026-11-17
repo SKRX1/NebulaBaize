@@ -100,7 +100,7 @@
     "entries": [
       {
         "name": "每日代码备份",
-        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\strata-agent\" && python tools\\backup-bundle.py --ke",
+        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\strata-agent\" && python tools\\backup-bundle.py --keep 14",
         "approval": "full",
         "roots": [
           "E:\\Nebula\\NebulaBaize"
