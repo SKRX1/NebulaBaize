@@ -563,6 +563,22 @@ def _route_model(model_id):
     return entry
 
 
+def _wants_local_sibling_loop(entry, tools_here) -> bool:
+    """Route a /v1/chat/completions request to the gateway's OWN agent loop when it is aimed
+    at a LOCAL entry that has a base_url (a sibling on another port) and whose tools are not
+    turned off. _route_model already returns None for an empty base_url (= this gateway's own
+    upstream, handled by the direct_mode branch), so any entry reaching here HAS a base_url.
+
+    The "tools" checkbox is the whole decision: a sibling speaks our protocol but does NOT run
+    our MCP servers, so the tools in the model form mean "run them HERE, against that model".
+    An absent / true tools flag allows it (keeps every pre-existing local entry working, and
+    the empty-base self case is unaffected because it never reaches here); an explicit
+    tools:false leaves the request to the plain proxy, honouring an unticked box. Pure, so the
+    route is unit-testable without starting the loop."""
+    return bool(entry is not None and entry.get("kind") == "local"
+                and entry.get("tools") is not False and tools_here)
+
+
 # ─── Endpoint liveness (what the model switcher shows) ──────────────────────────
 # The model list is pure config. "kind: local" only means "this instance answers for that
 # model" — it stays on paper when the 8080 engine is stopped, so the switcher used to claim
@@ -1420,9 +1436,19 @@ class GatewayHandler(BaseHTTPRequestHandler):
             payload = self._cached_json()
             entry = _route_model(payload.get("model")) if isinstance(payload, dict) else None
             tools_here = bool(self.state.executor and self.state.executor.tools)
-            # an external endpoint cannot run our tools -> our loop (when we have one); a sibling instance
-            # speaks our protocol and runs its own, so it is a plain proxy either way
+            # A model that is not this gateway's own upstream: an external endpoint, or a sibling
+            # instance on another port, cannot run OUR MCP servers -- so when the request wants tools
+            # (the model form's checkbox) the loop runs HERE, pointed at that base. An entry with an
+            # empty base_url is this upstream itself and falls to the direct_mode branch below.
             if entry is not None and entry.get("kind") == "custom" and tools_here:
+                self._model_override = entry
+                self._agent_stream(body=payload)
+                return
+            # A local entry WITH a base_url (a sibling instance on another port): its tools
+            # are OURS, not the sibling's -- the checkbox says "由本机执行 MCP 工具". Run the
+            # gateway's own loop pointed at that base (it honours _model_override's base_url +
+            # model). tools:false is left to the plain proxy below, honouring an unticked box.
+            if _wants_local_sibling_loop(entry, tools_here):
                 self._model_override = entry
                 self._agent_stream(body=payload)
                 return

@@ -267,7 +267,16 @@ SUITES = [
 
     "tests/test_model_registry.py",
 
+    # 2026-11-18: the gateway route decision for a LOCAL entry that names a base_url must run OUR
+    # tools when its tools box is ticked (the "local + address + tools checked -> tools vanished" bug).
+    # A pure predicate, so it runs in quick; the live integration sibling already lives in test_gateway_http.
+    "tests/test_local_sibling_loop.py",
+
     "tests/test_gateway_http.py",
+
+    # 2026-11-18: the live repro of "local instance + typed address + tools checked -> tools
+    # vanished". Starts a real gateway; the sibling local entry must run OUR tools via the loop.
+    "tests/test_local_sibling_e2e.py",
 
     "tests/test_session_compact.py",
 
@@ -467,6 +476,7 @@ SUITES = [
 SLOW_SUITES = [
     "tests/test_owner_binding_e2e.js",   # measured ~8s jsdom (3x realm boot+flips)
     "tests/test_gateway_http.py",
+    "tests/test_local_sibling_e2e.py",   # real gateway subprocess + mock upstream: measured-slow
     "tests/test_auto_resume.mjs",
     "tools/_semantic_summarizer_gate.py",
     "tests/test_daemon.py",
