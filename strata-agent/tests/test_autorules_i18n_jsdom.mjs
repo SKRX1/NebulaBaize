@@ -128,7 +128,7 @@ check("knowledge 走总闸默认 false（对照）", p.B_autoWriteOn_knowledge_d
 console.log("\n=== C. 端到端实跑 propose（默认开=直写 / 关=落draft）===");
 check("默认开：写 RULES.md（直写）", hasWrite(writesOn, "/RULES.md", false), JSON.stringify(writesOn));
 check("默认开：无 draft 写入", !writesOn.some((w) => /draft/.test(w.path)));
-check("默认开：审计 auto-rules.md 写入", hasWrite(writesOn, "/.strata-memory/auto-rules.md", false));
+check("默认开：审计 auto-rules.md 写入", hasWrite(writesOn, "/.Nebula-memory/auto-rules.md", false));
 check("关开关：落 RULES.draft.md（草稿待审）", writesOff.some((w) => /RULES\.draft\.md/.test(w.path)), JSON.stringify(writesOff));
 
 console.log("\n" + (FAILURES.length ? "AUTORULES-I18N-JSDOM: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "AUTORULES-I18N-JSDOM: ALL GREEN"));

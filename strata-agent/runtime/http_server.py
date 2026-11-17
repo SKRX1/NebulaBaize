@@ -4069,7 +4069,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
     # ---- garbage-recycle (debug page card). Sends to the real Windows Recycle Bin via
     # Shell.Application COM (subprocess powershell; pywin32 not installed). Never a physical delete:
     # trash -> InvokeVerb delete, restore -> match-by-name in the bin and CopyHere back to the
-    # recorded origin. An append-only JSONL audit ledger lives under <ws>/.strata-recycle/.
+    # recorded origin. An append-only JSONL audit ledger lives under <ws>/.Nebula-recycle/.
     RECYCLE_WHITELIST = ("RULES.md", "DESIGN.md", "MEMORY.md", "app.js", "app.css", "index.html",
                          "i18n.js", "server.py", "sprite.svg", "tokens.css", "components.css")
     RECYCLE_SCAN_DIRS = ("outputs", "logs", ".pytest_cache")          # whole-dir candidates
@@ -4087,7 +4087,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # root via _recycle_resolve anyway); a fully unresolvable batch stays rejected by its own caller.
         ws = (req.get("workspace") or "").strip()
         base = Path(ws) if ws else Path(ROOT)
-        ledger = base / ".strata-recycle" / "ledger.jsonl"
+        ledger = base / ".Nebula-recycle" / "ledger.jsonl"
         return base, ledger
 
     def _recycle_trace(self, event, **kw):
@@ -4121,7 +4121,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if cats is not None and category not in cats:
                 return
             name = f.name
-            wl = name in self.RECYCLE_WHITELIST or ".strata-memory" in str(f)
+            wl = name in self.RECYCLE_WHITELIST or ".Nebula-memory" in str(f)
             try:
                 st = f.stat()
             except Exception:

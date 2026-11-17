@@ -6,7 +6,7 @@ What broke and what this test locks (the user's "after auto-compaction there are
   ROOT-CAUSE: mountArchiveCard() mounted a card on EVERY message whose body text matched
   the archive-pointer regex. After compaction the messages array is [system-summary, ...tail];
   the system-summary carries the canonical pointer, but tail assistant answers that merely
-  REPEATED the path (the model quoting ".strata-archive/<id>.md" in its own reply) each also
+  REPEATED the path (the model quoting ".Nebula-archive/<id>.md" in its own reply) each also
   matched -> extra cards. There is a per-bubble dedup guard, so this is not a render-dup; the
   gate itself was too wide.
 

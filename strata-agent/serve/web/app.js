@@ -2910,7 +2910,7 @@ function abortStream() {
  * collapsible cards, and STRIPPED from m.text. Because apiMessages()/assistantMessages() only forward
  * m.text to the engine, the verbose pros/cons NEVER enter the model context (zero bloat). The card lives
  * as DOM + m.proposals data only. "存为文件" (data-prop-act=save) writes the full analysis to
- * .strata-memory/proposal-<id>.md (reusing the side-log philosophy) so even the UI text can be offloaded.
+ * .Nebula-memory/proposal-<id>.md (reusing the side-log philosophy) so even the UI text can be offloaded.
  */
 function extractProposalsFromText(m) {
   if (!m || !m.text) return;
@@ -3008,7 +3008,7 @@ async function saveProposalToFile(mm, p) {
     const base = (activeSession() || {}).workspace || "";
     if (!base) { toast("error", t("proposal.savefail"), "未定位到工作区目录"); return; }
     const id = p.id || ("prop_" + Date.now().toString(36));
-    const path = `${base.replace(/\/$/, "")}/.strata-memory/proposal-${id}.md`;
+    const path = `${base.replace(/\/$/, "")}/.Nebula-memory/proposal-${id}.md`;
     await fsWrite(path, proposalMarkdown(p));
     p.savedFile = path;
     toast("ok", t("proposal.saved"), path);
@@ -4037,7 +4037,7 @@ async function maybeAutoLearn(m) {
                  `## 结果摘要\n${(m.text || "").slice(0, 1500)}\n` +
                  (plan ? `\n## 计划\n${plan}\n` : "") +
                  (uniqActs.length ? `\n## 实际操作\n${uniqActs.join("\n")}\n` : "");
-    const path = `${s.workspace.replace(/\/$/, "")}/.strata-memory/${src}.md`;
+    const path = `${s.workspace.replace(/\/$/, "")}/.Nebula-memory/${src}.md`;
     await fsWrite(path, note);                                   // throws when the write fails
     await mcpCall("memory", "ingest", {path, source: src});      // throws when the tool fails
     toast("ok", t("toast.learn.ok"), src);
@@ -4656,11 +4656,11 @@ async function recallKnowledge(query) {
 //   - "global":    lives under GLOBAL_ROOT and applies to EVERY workspace (cross-project).
 // The human promotes/demotes between scopes from the memory panel; the AI never writes the group or
 // global scope directly (that is the safeguard against over-generalising a workspace quirk).
-const GLOBAL_ROOT = "E:/Nebula/NebulaBaize/.strata-memory";   // inside FS_ALLOW (E:/Nebula); auto-created on first write
+const GLOBAL_ROOT = "E:/Nebula/NebulaBaize/.Nebula-memory";   // inside FS_ALLOW (E:/Nebula); auto-created on first write
 const MEMORY_STORES = {
-  rules:      {key: "rules",      title: "rules",      file: "RULES.md",                    gfile: "RULES.md",        re: /```propose-rules\s*\n([\s\S]*?)```/i,      audit: ".strata-memory/auto-rules.md",      maxPerTurn: 5, maxChars: 200, maxLines: 80,  grounding: true},
-  knowledge:  {key: "knowledge",  title: "knowledge",  file: ".strata-memory/knowledge.md",  gfile: "knowledge.md",    re: /```propose-knowledge\s*\n([\s\S]*?)```/i,  audit: ".strata-memory/auto-knowledge.md",  maxPerTurn: 8, maxChars: 300, maxLines: 200, grounding: false},
-  experience: {key: "experience", title: "experience", file: ".strata-memory/experience.md", gfile: "experience.md",  re: /```propose-experience\s*\n([\s\S]*?)```/i, audit: ".strata-memory/auto-experience.md", maxPerTurn: 8, maxChars: 400, maxLines: 300, grounding: false},
+  rules:      {key: "rules",      title: "rules",      file: "RULES.md",                    gfile: "RULES.md",        re: /```propose-rules\s*\n([\s\S]*?)```/i,      audit: ".Nebula-memory/auto-rules.md",      maxPerTurn: 5, maxChars: 200, maxLines: 80,  grounding: true},
+  knowledge:  {key: "knowledge",  title: "knowledge",  file: ".Nebula-memory/knowledge.md",  gfile: "knowledge.md",    re: /```propose-knowledge\s*\n([\s\S]*?)```/i,  audit: ".Nebula-memory/auto-knowledge.md",  maxPerTurn: 8, maxChars: 300, maxLines: 200, grounding: false},
+  experience: {key: "experience", title: "experience", file: ".Nebula-memory/experience.md", gfile: "experience.md",  re: /```propose-experience\s*\n([\s\S]*?)```/i, audit: ".Nebula-memory/auto-experience.md", maxPerTurn: 8, maxChars: 400, maxLines: 300, grounding: false},
 };
 const MEMORY_ORDER = ["rules", "knowledge", "experience"];
 // Group label -> a filesystem-safe directory name (strip path-illegal chars).
@@ -4705,13 +4705,13 @@ async function fsWrite(path, content) {
     throw new Error(String(d.text || `HTTP ${r.status}`).replace(/^error:\s*/, ""));
   }
 }
-// A workspace joins a group by writing its label to `<base>/.strata-memory/group.txt` (first line).
+// A workspace joins a group by writing its label to `<base>/.Nebula-memory/group.txt` (first line).
 async function getGroupLabel(base) {
-  const v = (await fsRead(`${base}/.strata-memory/group.txt`)) || "";
+  const v = (await fsRead(`${base}/.Nebula-memory/group.txt`)) || "";
   return v.split("\n")[0].trim();
 }
 async function setGroupLabel(base, label) {
-  await fsWrite(`${base}/.strata-memory/group.txt`, (label ? label : "").trim() + "\n");
+  await fsWrite(`${base}/.Nebula-memory/group.txt`, (label ? label : "").trim() + "\n");
 }
 // Load the approved rules + any pending draft for a workspace. Safe to call on every workspace switch.
 async function loadMemoryState(ws) {
@@ -4724,8 +4724,8 @@ async function loadMemoryState(ws) {
   }
   const base = ws.replace(/\/$/, "");
   workspaceRules = await fsRead(`${base}/RULES.md`);
-  workspaceKnowledge = await fsRead(`${base}/.strata-memory/knowledge.md`);
-  workspaceExperience = await fsRead(`${base}/.strata-memory/experience.md`);
+  workspaceKnowledge = await fsRead(`${base}/.Nebula-memory/knowledge.md`);
+  workspaceExperience = await fsRead(`${base}/.Nebula-memory/experience.md`);
   const draft = await fsRead(`${base}/RULES.draft.md`);
   pendingDraft = draft ? draft.split("\n").map((l) => l.trim()).filter(Boolean) : [];
   rulesSel = new Set(pendingDraft);               // everything ticked by default
@@ -4735,7 +4735,7 @@ async function loadMemoryState(ws) {
   globalExperience = await fsRead(`${GLOBAL_ROOT}/experience.md`);
   // Dedupe: when this workspace IS the global-memory root parent, the
   // workspace tier already read the same knowledge/experience files.
-  if ((base + "/.strata-memory").replace(/\\/g,"/").toLowerCase() === GLOBAL_ROOT.replace(/\\/g,"/").toLowerCase()) {
+  if ((base + "/.Nebula-memory").replace(/\\/g,"/").toLowerCase() === GLOBAL_ROOT.replace(/\\/g,"/").toLowerCase()) {
     globalKnowledge = ""; globalExperience = "";
   }
   // Group tier: only loaded when this workspace declares a group (the "between workspaces" tier).
@@ -4908,8 +4908,8 @@ async function maybeProposeMemory(m) {
 async function loadPendingDrafts(ws) {
   const base = (ws || "").replace(/\/$/, "");
   if (!base) return { rules: [], knowledge: [], experience: [] };
-  const k = (await fsRead(`${base}/.strata-memory/knowledge.md.draft.md`)) || "";
-  const e = (await fsRead(`${base}/.strata-memory/experience.md.draft.md`)) || "";
+  const k = (await fsRead(`${base}/.Nebula-memory/knowledge.md.draft.md`)) || "";
+  const e = (await fsRead(`${base}/.Nebula-memory/experience.md.draft.md`)) || "";
   return {
     rules: pendingDraft.slice(),
     knowledge: k ? k.split("\n").map((l) => l.trim()).filter(Boolean) : [],
@@ -5346,7 +5346,7 @@ async function generateDesignFromChat() {
 
 // ============================================================ Memory management view ("记忆" tab)
 // One console for the three persistent "memory" stores: knowledge base (semantic.db), workspace
-// RULES.md, auto-learned notes (.strata-memory/*.md), plus a read-only view of the global MEMORY.md.
+// RULES.md, auto-learned notes (.Nebula-memory/*.md), plus a read-only view of the global MEMORY.md.
 // The raw text of a tool result for callers that want plain lines; "" on any failure
 // (the callers here render empty states rather than error banners).
 async function mcpTxt(server, tool, args) {
@@ -5354,20 +5354,20 @@ async function mcpTxt(server, tool, args) {
 }
 
 // Project-scoped global memory file (read-only in the UI; the agent maintains it).
-const PROJECT_MEMORY = "E:/Nebula/NebulaBaize/.strata-memory/MEMORY.md";
+const PROJECT_MEMORY = "E:/Nebula/NebulaBaize/.Nebula-memory/MEMORY.md";
 
 // ============================================================ cold-archive manager
 // The drawer panel (option A: same section as the archiveOn toggle) that lets a user
-// view / edit / delete the verbatim snapshots compaction writes to <ws>/.strata-archive/.
+// view / edit / delete the verbatim snapshots compaction writes to <ws>/.Nebula-archive/.
 // Reuses the notes-card paradigm (mcpTxt list/delete + fsRead view + fsWrite save).
 // Design: view = read-only <pre>; edit unlocks a textarea then fsWrite; delete copies
-// the file to .strata-archive/.trash/ before removing the original (anti-accident).
+// the file to .Nebula-archive/.trash/ before removing the original (anti-accident).
 async function renderArchiveManager() {
   const box = $("archive-mgr-list"); if (!box) return;
   const s = activeSession();
   const base = (s && s.workspace) ? s.workspace.replace(/\/$/, "") : "";
   if (!base) { box.innerHTML = '<div class="muted small">' + esc(t("drawer.archive.mgr.empty")) + '</div>'; return; }
-  const dir = base + "/.strata-archive";
+  const dir = base + "/.Nebula-archive";
   let files = [];
   try {
     const raw = await mcpTxt("filesystem", "list", { path: dir });
@@ -5390,7 +5390,7 @@ async function archiveOnOffSweep() {
   const s0 = activeSession();
   const ws = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
   if (!ws) return;
-  const dir = ws + "/.strata-archive";
+  const dir = ws + "/.Nebula-archive";
   let files = [];
   try {
     const raw = await mcpTxt("filesystem", "list", { path: dir });
@@ -5549,7 +5549,7 @@ $("mem-kb-list").addEventListener("click", async (e) => {
   } else if (save) {
     const src = save.dataset.kbSave; const item = save.closest(".mem-kb-item"); const ta = item && item.querySelector("textarea");
     if (!ta) return; const ws = activeSession() && activeSession().workspace; if (!ws) return;
-    const base = ws.replace(/\/$/, ""); const tmp = base + "/.strata-memory/edit-" + src.replace(/[\\/]/g, "_") + ".md";
+    const base = ws.replace(/\/$/, ""); const tmp = base + "/.Nebula-memory/edit-" + src.replace(/[\\/]/g, "_") + ".md";
     await fsWrite(tmp, ta.value);
     await mcpTxt("memory", "forget", {source: src});
     const r = await mcpTxt("memory", "ingest", {path: tmp, source: src});
@@ -5899,7 +5899,7 @@ async function renderNotesCard() {
   if (tag) tag.textContent = ws ? ws : "";
   if (!ws) { if (empty) empty.hidden = false; if (list) list.innerHTML = ""; return; }
   if (empty) empty.hidden = true;
-  const base = ws.replace(/\/$/, ""); const dir = base + "/.strata-memory";
+  const base = ws.replace(/\/$/, ""); const dir = base + "/.Nebula-memory";
   const files = (await mcpTxt("filesystem", "list", {path: dir})).split("\n").map((x) => x.trim()).filter(Boolean);
   const notes = files.filter((f) => /^auto-.*\.md$/i.test(f));
   if (!notes.length) { if (list) list.innerHTML = '<div class="kb-source muted">' + t("mem.notes.empty") + '</div>'; return; }
@@ -8077,8 +8077,8 @@ async function streamAssistant(targetSession = null) {
       const aid = "ar_" + Math.random().toString(36).slice(2, 14);
       const blob = dropped.map((d) => `${d.role}: ${(typeof d.content === "string" ? d.content : JSON.stringify(d.content))}`).join("\n\n");
       try {
-        await fsWrite(`${abase ? abase + "/" : ""}.strata-archive/${aid}.md`, blob);
-        archivePointer = `\n\n[archived verbatim: full text of the ${dropped.length} dropped messages is in .strata-archive/${aid}.md \u2014 read it back if needed]`;
+        await fsWrite(`${abase ? abase + "/" : ""}.Nebula-archive/${aid}.md`, blob);
+        archivePointer = `\n\n[archived verbatim: full text of the ${dropped.length} dropped messages is in .Nebula-archive/${aid}.md \u2014 read it back if needed]`;
         // whitelist: the last N decision/task-state lines stay resident in the summary block
         const keep = [];
         for (const d of dropped) {
@@ -10132,7 +10132,7 @@ async function galleryAction(act){
   if (act === "del") {
     const ans = await galleryConfirmDelete([sel]);   // [方案A 2026-11-16] single delete shares the batch confirm box (n=1); native window.confirm could NOT carry a checkbox — that was the "勾选项不起作用" root cause
     if (!ans.confirmed) return;   // cancel = the box leaves, nothing deletes
-    gallerySelSet.delete(sel);   // [删除增强] the default-checked box: the file to the Recycle Bin (workspace .strata-recycle ledger; graceful index-only fallback)
+    gallerySelSet.delete(sel);   // [删除增强] the default-checked box: the file to the Recycle Bin (workspace .Nebula-recycle ledger; graceful index-only fallback)
     if (ans.trash) await galleryTrashFiles([sel]);   // [方案A] checked (the default) = the file follows to the Recycle Bin; unchecked = index-only
     galleryMem = galleryMem.filter((x) => x !== sel);   // 空列表也是真实意图
     gallerySel = -1;
@@ -11423,7 +11423,7 @@ function migrateSparkDataPid() {
 try { migrateSparkDataPid(); } catch (e) { /* localStorage read failed: skip migration this boot */ }
 
 // ---- plan-A on-demand archived-history card (pure display layer) ----
-// Data is already lossless in .strata-archive/<id>.md (see the compaction rebuild); this is only the
+// Data is already lossless in .Nebula-archive/<id>.md (see the compaction rebuild); this is only the
 // render path: extract the pointer from the summary text, show a DOM-only card, and read the body back
 // via fsRead on click / auto at scroll-top. NOTHING is pushed onto messages[] or the wire payload.
 // NO top-level const/let here -- mountArchiveCard is called from updateAssistant which runs during
@@ -11451,7 +11451,7 @@ function autoExpandCard(card) {
 function mountArchiveCard(el, m) {
   if (!el.classList.contains("st-msg--system")) return;   // only the compaction-summary block mounts a card; tail answers that merely REPEAT the path must not (triple-card fix)
   var hay = (m && (m.text || m.content)) || "";
-  var mm = hay.match(/\.strata-archive\/([A-Za-z0-9_]+)\.md/);
+  var mm = hay.match(/\.Nebula-archive\/([A-Za-z0-9_]+)\.md/);
   if (!mm) return;
   var bubble = el.querySelector(".st-bubble"); if (!bubble) return;
   if (bubble.querySelector(".arc-hist")) return;        // already mounted (repaint-safe, in-place)
@@ -11474,9 +11474,9 @@ async function loadArchiveSeg(card) {
   body.hidden = false;
   body.textContent = t("drawer.archive.loading");
   var ws = activeSession() ? activeSession().workspace.replace(/\/$/, "") : "";
-  var path = (ws ? ws + "/" : "") + ".strata-archive/" + card.dataset.aid + ".md";
+  var path = (ws ? ws + "/" : "") + ".Nebula-archive/" + card.dataset.aid + ".md";
   var res = await fsRead(path);
-  if (!res) { var fb = (ws ? ws + "/" : "") + ".strata-archive/.trash/" + card.dataset.aid + ".md"; res = await fsRead(fb); }
+  if (!res) { var fb = (ws ? ws + "/" : "") + ".Nebula-archive/.trash/" + card.dataset.aid + ".md"; res = await fsRead(fb); }
   body.textContent = res || t("drawer.archive.unloaded");
   body.dataset.loaded = "1";
 }

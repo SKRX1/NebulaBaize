@@ -10,7 +10,7 @@ Contract (locks the retirement decision, deterministic, ASCII-only output):
   For each parasite-only script, TWO facts must hold:
     1. it must NOT exist at its old authoritative-source path  -> if someone drops it
        back there, the "single frontend source" invariant is violated again (RED);
-    2. it MUST exist under .strata-archive/parasite-retired/   -> the retirement stays
+    2. it MUST exist under .Nebula-archive/parasite-retired/   -> the retirement stays
        one-click reversible; an archive that lost its payload is not reversible (RED).
 
 Pure stdlib, no upstream dependency, deterministic. Run from the strata-agent folder:
@@ -32,7 +32,7 @@ RETIRED = [
     ("tools/deploy_frontend.py", "tools/deploy_frontend.py"),
     ("tools/apply_host_patch.py", "tools/apply_host_patch.py"),
 ]
-ARCHIVE_DIR = os.path.join(WSROOT, ".strata-archive", "parasite-retired")
+ARCHIVE_DIR = os.path.join(WSROOT, ".Nebula-archive", "parasite-retired")
 
 
 def main() -> int:

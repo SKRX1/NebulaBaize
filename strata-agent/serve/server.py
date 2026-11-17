@@ -6179,7 +6179,7 @@ def make_handler(svc: Service):
         # ---- garbage-recycle (debug page card). Sends to the real Windows Recycle Bin via
         # Shell.Application COM (subprocess powershell; pywin32 not installed). Never a physical delete:
         # trash -> InvokeVerb delete, restore -> match-by-name in the bin and CopyHere back to the
-        # recorded origin. An append-only JSONL audit ledger lives under <ws>/.strata-recycle/.
+        # recorded origin. An append-only JSONL audit ledger lives under <ws>/.Nebula-recycle/.
         RECYCLE_WHITELIST = ("RULES.md", "DESIGN.md", "MEMORY.md", "app.js", "app.css", "index.html",
                              "i18n.js", "server.py", "sprite.svg", "tokens.css", "components.css")
         RECYCLE_SCAN_DIRS = ("outputs", "logs", ".pytest_cache")          # whole-dir candidates
@@ -6190,7 +6190,7 @@ def make_handler(svc: Service):
             if not ws:
                 return None, None
             base = Path(ws)
-            ledger = base / ".strata-recycle" / "ledger.jsonl"
+            ledger = base / ".Nebula-recycle" / "ledger.jsonl"
             return base, ledger
 
         def _recycle_scan(self, req):
@@ -6200,7 +6200,7 @@ def make_handler(svc: Service):
             out = []
             def add(f, reason):
                 name = f.name
-                wl = name in self.RECYCLE_WHITELIST or ".strata-memory" in str(f) or ".strata-archive" in str(f)
+                wl = name in self.RECYCLE_WHITELIST or ".Nebula-memory" in str(f) or ".Nebula-archive" in str(f)
                 try:
                     st = f.stat()
                 except Exception:

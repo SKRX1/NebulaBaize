@@ -68,10 +68,10 @@ check("B3 workspace hard-condition is GONE from the gate (differential)",
 // ---- B-symmetry: write path must carry the same empty-guard as the read path so an empty
 //      workspace resolves to the SAME file both ways (write+read zero-loss contract).
 check("C1 fsWrite path uses the empty-guard ternary",
-  /await\s+fsWrite\(`\$\{abase\s*\?\s*abase\s*\+\s*"\/"\s*:\s*""\}\.strata-archive\/\$\{aid\}\.md`/.test(src));
-// C2 NEGATIVE differential: the old bare `${abase}/.strata-archive/` write path (no ternary) is GONE.
+  /await\s+fsWrite\(`\$\{abase\s*\?\s*abase\s*\+\s*"\/"\s*:\s*""\}\.Nebula-archive\/\$\{aid\}\.md`/.test(src));
+// C2 NEGATIVE differential: the old bare `${abase}/.Nebula-archive/` write path (no ternary) is GONE.
 check("C2 old bare ${abase}/ write path is GONE (differential)",
-  !/fsWrite\(`\$\{abase\}\/\.strata-archive\//.test(src));
+  !/fsWrite\(`\$\{abase\}\/\.Nebula-archive\//.test(src));
 
 // ---- summary
 console.log("");

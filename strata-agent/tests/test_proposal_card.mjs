@@ -9,7 +9,7 @@ filesystem, and verifies the contract:
   Out-of-context    the stripped m.text contains no proposal content (what apiMessages forwards).
   Markdown          proposalMarkdown renders a non-empty doc with title + options.
   Render            renderProposals paints a .proposal card into .proposals and hides when empty.
-  Save             saveProposalToFile writes .strata-memory/proposal-<id>.md via the fs mcp.
+  Save             saveProposalToFile writes .Nebula-memory/proposal-<id>.md via the fs mcp.
 
 Run: node tests/test_proposal_card.mjs
 */
@@ -141,7 +141,7 @@ console.log("PROPOSAL CARD:");
   check("not hidden when has cards", host.querySelector(".proposals").hidden === false);
 }
 
-// T6: saveProposalToFile writes .strata-memory/proposal-<id>.md
+// T6: saveProposalToFile writes .Nebula-memory/proposal-<id>.md
 {
   resetDisk();
   api.setWorkspace(WS);
@@ -149,9 +149,9 @@ console.log("PROPOSAL CARD:");
     options: [{ label: "A", verdict: "推荐", pros: ["p"], cons: ["c"] }] }] };
   const p = m.proposals[0];
   await api.saveProposalToFile(m, p);
-  const target = `${WS}/.strata-memory/proposal-p4.md`;
+  const target = `${WS}/.Nebula-memory/proposal-p4.md`;
   const written = writes(target);
-  check("file written to .strata-memory", written.length === 1);
+  check("file written to .Nebula-memory", written.length === 1);
   check("file content has title", written[0] && written[0].includes("Save me"));
   check("p.savedFile recorded", p.savedFile === target);
 }

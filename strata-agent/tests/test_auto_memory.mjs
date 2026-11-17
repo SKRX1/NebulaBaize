@@ -295,7 +295,7 @@ console.log("\n=== 9. scope-aware paths resolve to workspace / group / global ==
   check("global store path", api.storePath("rules", "global", WS) === api.GLOBAL_ROOT + "/RULES.md", api.storePath("rules", "global", WS));
   check("group store path", api.storePath("rules", "group", WS, "nebula") === api.GLOBAL_ROOT + "/groups/nebula/RULES.md", api.storePath("rules", "group", WS, "nebula"));
   check("group dir strips illegal chars", api.groupDir("neb/ula: x") === api.GLOBAL_ROOT + "/groups/nebula x", api.groupDir("neb/ula: x"));
-  check("workspace audit path", api.auditPath("knowledge", "workspace", WS) === WS + "/.strata-memory/auto-knowledge.md", api.auditPath("knowledge", "workspace", WS));
+  check("workspace audit path", api.auditPath("knowledge", "workspace", WS) === WS + "/.Nebula-memory/auto-knowledge.md", api.auditPath("knowledge", "workspace", WS));
   check("global audit path", api.auditPath("experience", "global", WS) === api.GLOBAL_ROOT + "/auto-experience.md", api.auditPath("experience", "global", WS));
   check("group audit path", api.auditPath("experience", "group", WS, "nebula") === api.GLOBAL_ROOT + "/groups/nebula/auto-experience.md", api.auditPath("experience", "group", WS, "nebula"));
 }
@@ -360,7 +360,7 @@ console.log("\n=== 11. global + group memory injected; more specific tiers win =
   api.setGlobalRules("");
 
   // Group tier: persist the group on disk, seed the group files, and load so the vars are populated.
-  DISK.set(WS + "/.strata-memory/group.txt", "nebula\n");
+  DISK.set(WS + "/.Nebula-memory/group.txt", "nebula\n");
   DISK.set(api.storePath("rules", "group", WS, "nebula"), "GROUP-ONLY-CONVENTION\n");
   DISK.set(api.storePath("knowledge", "group", WS, "nebula"), "GROUP-FACT\n");
   await api.loadMemoryState(WS);

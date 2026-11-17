@@ -264,7 +264,7 @@ console.log("\n=== F5: auto-learn writes + ingests a task summary ===");
   await api.maybeAutoLearn(m);
   const write = calls.find((c) => c.server === "filesystem" && c.tool === "write");
   const ingest = calls.find((c) => c.server === "memory" && c.tool === "ingest");
-  check("auto-learn wrote a note via filesystem.write", !!write && /Refactor the parser/.test(write.args.content) && /\.strata-memory\//.test(write.args.path));
+  check("auto-learn wrote a note via filesystem.write", !!write && /Refactor the parser/.test(write.args.content) && /\.Nebula-memory\//.test(write.args.path));
   check("auto-learn ingested the note into the knowledge base", !!ingest && /auto-/.test(ingest.args.source));
   // G3: the note records the actual operation (file written) so future "edited parser.py" recalls can hit it
   check("auto-learn note records the file actually acted on (G3)", !!write && /filesystem__write/.test(write.args.content) && /\/tmp\/proj\/parser\.py/.test(write.args.content));

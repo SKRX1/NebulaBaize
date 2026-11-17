@@ -79,8 +79,8 @@ strata-agent/outputs/
 
 # runtime memory / archive / design stores (autonomous-memory runtime, not source)
 .design/
-.strata-archive/
-.strata-memory/
+.Nebula-archive/
+.Nebula-memory/
 .workbuddy/
 patches/
 
@@ -116,6 +116,11 @@ strata-agent/tools/_scout_*.py
 strata-agent/tools/_verifyast_scan.py
 
 # recycle-bin runtime data dir (com/shell runtime store, not source)
+.Nebula-recycle/
+# legacy dir names (pre .Nebula- rename 2026-11): history data under the old
+# names stays on disk untouched but ignored, so the tree stays clean.
+.strata-archive/
+.strata-memory/
 .strata-recycle/
 
 # --- scratch from the per-hunk attribution round (gate D landing, 2026-11-02) ---

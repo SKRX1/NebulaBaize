@@ -89,7 +89,7 @@ def test_A_small_batch_stays_sync():
         assert code == 200, obj
         assert "job_id" not in obj, f"small batch must stay sync: {obj}"
         assert sorted(obj["trashed"]) == sorted(paths), obj
-        ledger = Path(ws) / ".strata-recycle" / "ledger.jsonl"
+        ledger = Path(ws) / ".Nebula-recycle" / "ledger.jsonl"
         assert ledger.is_file(), "ledger must exist after sync trash"
         lines = [ln for ln in io.open(ledger, encoding="utf-8").read().splitlines() if ln.strip()]
         assert len(lines) == 3, lines
@@ -121,7 +121,7 @@ def test_B_large_batch_is_a_job_and_completes():
         assert prog.get("finished") is True, prog
         assert prog["done"] == 12, prog
         assert prog["cancelled"] == 0 and prog["failed"] == 0, prog
-        ledger = Path(ws) / ".strata-recycle" / "ledger.jsonl"
+        ledger = Path(ws) / ".Nebula-recycle" / "ledger.jsonl"
         lines = [ln for ln in io.open(ledger, encoding="utf-8").read().splitlines() if ln.strip()]
         assert len(lines) == 12, ("ledger must have 12 lines, got", len(lines))
         print("B large-batch job: finished done=%d ledger_lines=%d" % (prog["done"], len(lines)))

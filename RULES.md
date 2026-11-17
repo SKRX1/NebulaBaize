@@ -70,7 +70,7 @@ contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 
 改models.json后需重启8099网关才生效(models.json后端读):杀监听PID→run_standalone.bat的:loop约3秒拉起加载最新磁盘代码
 app.js/models.json改动前先copy备份(.bak_xxx),用逐处断言命中=1次的精确字符串替换脚本落地,改完立即node --check+读回+跑对应jsdom回归
 workspaceSystem() 中 knowledge/experience 通过 _memInject() 注入，超过 LAZY_MEM_THRESHOLD(3000 chars) 走摘要行+按需 memory__recall 检索；rules 保持全文注入
-loadMemoryState() 中 GLOBAL_ROOT 去重：当 workspace/.strata-memory == GLOBAL_ROOT 时清空 globalKnowledge/globalExperience，防重复注入
+loadMemoryState() 中 GLOBAL_ROOT 去重：当 workspace/.Nebula-memory == GLOBAL_ROOT 时清空 globalKnowledge/globalExperience，防重复注入
 tools/ 目录有临时脚本清理机制（_*.py 跑完即被送回收站）：需要"落盘脚本→立即运行"的临时脚本，必须把运行命令接在写入后的同一条 shell 命令里，勿分两个回合（下一回合文件已不在）
 语义合并/压缩类任务先跑数据驱动相似度扫描（difflib.SequenceMatcher，阈值~0.5）列出真实重复簇，禁止凭记忆判重复（怕误删同主题互补事实如 Shell.Application≠pywin32）
 写全量语义合并脚本时守卫只禁"源行被多簇重复使用"，"缺失索引"是合法的原样保留行不得当错误 ABORT
@@ -131,7 +131,7 @@ async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在
 新增静默 except 块（body 仅 pass/continue/docstring/注释）会撞上 tests/test_code_hygiene.py 的棘轮基线；要规避就给 body 放一条真实语句（如 return/记日志），而非靠加注释
 星云白泽前端无 token 时 app.js 会降级隐藏大部分控件，无头截图不能证伪完整版布局；完整版布局需带 token 浏览器实看
 sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以「静态 DOM 结构+选择器命中」读回坐实即可，不必强跑 sim
-批量移动 scratch 到 .strata-recycle 用 Python shutil 时，git status 输出的相对路径分隔符是 /，Windows 下须先 p.replace('/',os.sep) 再拼绝对路径，否则 os.rename/CopyFile2 报 WinError 3
+批量移动 scratch 到 .Nebula-recycle 用 Python shutil 时，git status 输出的相对路径分隔符是 /，Windows 下须先 p.replace('/',os.sep) 再拼绝对路径，否则 os.rename/CopyFile2 报 WinError 3
 量显存峰值用「边跑边每<1s采样 nvidia-smi 抓 max」，sd-cli 进度输出要重定向到文件而非 PIPE，否则进度流填满 pipe buffer 会卡住进程采不到峰值
 前端持久化数据要进备份的，一律走「后端 JSON 权威 + localStorage 镜像」双写（bugBox/interruptLog/promptBook 三处同一模式），纯 localStorage 不进 git/bundle
 给 http_server.py 的新路由加测试时用 STRATA_* 环境变量隔离数据文件（照 STRATA_INTERRUPT_LOG/STRATA_PROMPT_BOOK 惯例），测试绝不碰真实 config/
