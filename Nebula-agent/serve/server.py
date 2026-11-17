@@ -98,6 +98,16 @@ try:
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from req_stats import (add_carry, carry_leg, prompt_tokens_seen, request_stats, request_timings)
 
+# Resolve a configured / user input into the real filesystem path to use (request
+# embeddings location, slot save dir, the engine's option-string file); stdlib only
+# (os/shutil/uuid/pathlib), no engine/session state. See the module docstring's scope
+# note -- this is the loosest plan-B cluster, flagged for review. server.py re-imports the
+# names unchanged so all four call sites stay untouched. Equivalence move (2026-11-17).
+try:
+    from serve.path_locate import combined_embeddings_path, engine_binary, slot_save_dir
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from path_locate import combined_embeddings_path, engine_binary, slot_save_dir
+
 # Human-readable start-up failure diagnostics (why bind / the vision encoder / the engine
 # failed to come up, each a sentence with the fix in it); close over builtins only (the one
 # errno is a function-local import) -- no engine/session state. The three are the same job
@@ -165,23 +175,6 @@ def popen(what: str, args: list, **kw):
                           "& browser control > Smart App Control settings), or - for the image encoder only - run setup "
                           "with --vision no (see docs/TROUBLESHOOTING.md)") from e
         raise
-
-
-def combined_embeddings_path(vision_dir: Path, nbytes: int) -> Path:
-    """#874: where one request's combined image-embeddings file goes.  Every request with images rewrites it (it is
-    deleted after the request), which on a disk is steady heavy writing: on Linux it goes to /dev/shm when that has
-    room (the engine reads it back at once), on Windows the file is opened short-lived (the cache is not forced out
-    to the drive).  Anywhere else, or when /dev/shm is too small (Docker's default is 64 MB), it stays in the encoder's
-    own directory, as before."""
-    name = f"req-{uuid.uuid4().hex[:12]}.sve"
-    shm = Path("/dev/shm")
-    if os.name != "nt" and shm.is_dir() and os.access(shm, os.W_OK):
-        try:
-            if shutil.disk_usage(shm).free > 2 * nbytes + (16 << 20):
-                return shm / f"strata-vision-{os.getpid()}-{name}"
-        except OSError:
-            pass
-    return Path(vision_dir) / name
 
 
 def write_temporary(path: Path, parts: list) -> None:
@@ -2493,20 +2486,6 @@ def gpu_list(cfg: dict) -> list[int]:
     return [int(str(x).strip()) for x in items if str(x).strip() != ""]
 
 
-def engine_binary(exe: str, cfg: dict | None = None) -> str:
-    """The file that holds the engine's own option strings, for a feature check that reads it.  The Intel launcher
-    (sycl/serve/strata-sycl.sh) is a shell script that runs its repo's STRATA_SYCL_BIN (default build-sycl-aot/strata)
-    in a container, so the check reads that binary, not the script.  Any other `exe` is the engine itself."""
-    p = Path(exe)
-    if p.name == "strata-sycl.sh":
-        rel = ((cfg or {}).get("env") or {}).get("STRATA_SYCL_BIN") or os.environ.get("STRATA_SYCL_BIN") \
-            or "build-sycl-aot/strata"
-        b = p.resolve().parents[2] / rel
-        if b.is_file():
-            return str(b)
-    return exe
-
-
 def effort_end_args(cfg: dict, exe: str, tok) -> list[str] | None:
     """#458 (opt-in): the engine arguments for "effort_position": "end" - the id of "system" as --tail-role-token, so
     the engine checkpoints in front of the trailing effort turn - or None when the config leaves it at the top (the
@@ -2970,19 +2949,6 @@ def slot_filename_problem(name) -> str | None:
         return "is not valid Unicode"
     return None
 
-
-def slot_save_dir(value, base: str | None = None) -> str:
-    """The slot save path as one absolute, normalized directory (relative to `base`, else the server's working
-    directory), created private to this user when missing.  ValueError for anything else."""
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError("slot_save_path must be a directory path (a string)")
-    if any(ord(c) < 32 for c in value):
-        raise ValueError("slot_save_path must not contain control characters")
-    path = os.path.abspath(os.path.join(base, value) if base and not os.path.isabs(value) else value)
-    os.makedirs(path, mode=0o700, exist_ok=True)
-    if not os.path.isdir(path):
-        raise ValueError(f"slot_save_path {path} is not a directory")
-    return path
 
 class Service:
     def __init__(self, engine: Engine, tokenizer, template: ChatTemplate, model_name: str = "qwen3.8-flash-next",
