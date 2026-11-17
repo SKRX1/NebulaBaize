@@ -64,6 +64,15 @@ try:
     from serve.workspace_fs import browse_roots, list_dirs, resolve_workspace_folder, open_folder
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from workspace_fs import browse_roots, list_dirs, resolve_workspace_folder, open_folder
+
+# The OpenAI / Anthropic stream-collection helpers. Kept in their own module so the
+# protocol codec is unit-testable without importing the engine + MCP stack (and keeps
+# the 7,789-line server.py leaner). Pure functions -- no server state; same rationale
+# as the workspace_fs split above. Equivalence move, not a rewrite (2026-11-17).
+try:
+    from serve.wire_codec import _is_json, openai_collect, anthropic_collect
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from wire_codec import _is_json, openai_collect, anthropic_collect
 from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, anthropic_to_messages,  # noqa: E402
                             forced_call, images_of, literal_tags, mark_think_literals, openai_to_messages,
                             tool_choice_of, unmark_think_literals)
@@ -4923,50 +4932,6 @@ def openai_chunks(svc: Service, req: dict, ids, thinking, tools, max_new, cancel
             yield last
 
 
-def _is_json(text: str) -> bool:
-    try:
-        json.loads(text)
-        return True
-    except ValueError:
-        return False
-
-
-def openai_collect(chunks) -> dict:
-    content, reasoning, by_index, last, mcp = [], [], {}, None, []
-    for c in chunks:
-        if c is None:                              # a heartbeat
-            continue
-        if c.get("strata_mcp"):
-            mcp.append(c["strata_mcp"])
-        d = c["choices"][0]["delta"]
-        content.append(d.get("content") or "")
-        reasoning.append(d.get("reasoning_content") or "")
-        for tc in d.get("tool_calls") or []:       # streamed calls arrive in pieces: merge them by index
-            cur = by_index.setdefault(tc.get("index", len(by_index)), {"id": None, "type": "function",
-                                                                        "function": {"name": "", "arguments": ""}})
-            cur["id"] = tc.get("id") or cur["id"]
-            fn = tc.get("function") or {}
-            cur["function"]["name"] += fn.get("name") or ""
-            cur["function"]["arguments"] += fn.get("arguments") or ""
-        last = c
-    calls = [by_index[i] for i in sorted(by_index)]
-    if last["choices"][0]["finish_reason"] != "tool_calls":
-        calls = [c for c in calls if _is_json(c["function"]["arguments"])]   # a call the output ended inside (#211)
-    msg = {"role": "assistant", "content": "".join(content) or None}
-    if "".join(reasoning):
-        msg["reasoning_content"] = "".join(reasoning)
-    if calls:
-        msg["tool_calls"] = calls
-    if mcp:
-        msg["strata_mcp"] = mcp
-    out = {"id": last["id"], "object": "chat.completion", "created": last["created"], "model": last["model"],
-           "choices": [{"index": 0, "message": msg, "finish_reason": last["choices"][0]["finish_reason"]}],
-           "usage": last["usage"]}
-    if last.get("timings"):
-        out["timings"] = last["timings"]
-    return out
-
-
 def structured_chunks(chunks, validator):
     """Buffer structured streams so a client never receives unvalidated content."""
     buffered = []
@@ -5063,39 +5028,6 @@ def anthropic_events(svc: Service, req: dict, ids, thinking, tools, max_new, can
             yield "message_stop", {"type": "message_stop"}
 
 
-def anthropic_collect(events) -> dict:
-    msg, blocks = None, []
-    for item in events:
-        if item is None:                           # a heartbeat
-            continue
-        name, e = item
-        if name == "message_start":
-            msg = e["message"]
-        elif name == "content_block_start":
-            blocks.append(dict(e["content_block"]))
-        elif name == "content_block_delta":
-            d, b = e["delta"], blocks[-1]
-            if d["type"] == "text_delta":
-                b["text"] += d["text"]
-            elif d["type"] == "thinking_delta":
-                b["thinking"] += d["thinking"]
-            else:                                  # input_json_delta pieces: parsed when complete
-                b["_json"] = b.get("_json", "") + d["partial_json"]
-        elif name == "content_block_stop" and blocks and "_json" in blocks[-1]:
-            b = blocks[-1]
-            try:
-                b["input"] = json.loads(b.pop("_json") or "{}")
-            except ValueError:                     # a call the output ended inside (#211): it has no input to give
-                blocks.pop()
-        elif name == "message_delta":
-            msg["stop_reason"] = e["delta"]["stop_reason"]
-            msg["stop_sequence"] = e["delta"].get("stop_sequence")
-            msg["usage"].update(e["usage"])
-    msg["content"] = blocks
-    return msg
-
-
-# ------------------------------------------------------------------------------------------------ HTTP
 CHUNKED_BODY_MAX = 256 << 20                # #893: the most a Transfer-Encoding: chunked body may hold (read into memory)
 
 
