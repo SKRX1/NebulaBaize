@@ -6891,6 +6891,16 @@ function modelAcceptsImages() {
   if (m.kind === "local" && !m.base_url) return health.images !== false;
   return m.vision !== false;
 }
+// Tools: the same per-model capability idea as the vision gate, for the model-form "tools"
+// checkbox. An absent entry / absent flag means "allow", so every pre-existing model keeps
+// its old behaviour; only a model explicitly saved with tools:false turns MCP off for it.
+// This is what makes the local-instance tools checkbox a REAL switch (a self entry has no
+// kind/flag special-case: the user's tick is the whole decision, and the upstream runs MCP
+// only for a request that carries strata_mcp).
+function modelAllowsTools() {
+  const m = currentModel();
+  return !m || m.tools !== false;
+}
 function paintModelChip() {
   const btn = $("model-btn"), name = $("model-name");
   if (!btn || !name) return;
@@ -7068,7 +7078,8 @@ function syncModelFormKind() {
   const local = $("mf-kind").value === "local";
   $("mf-url").placeholder = local ? t("model.f.url.local.ph") : t("model.f.url.ph");
   $("mf-key-field").hidden = local;              // no key: it is your own instance
-  $("mf-tools-field").hidden = local;            // its MCP loop is its own; we never run tools for it
+  // the tools checkbox stays visible for BOTH kinds: it is a real per-model switch
+  // (the send gate reads this entry's `tools` flag before asking the server to run MCP)
   if (local) $("mf-test-out").hidden = true;     // and there is nothing to probe when the address is empty
   // say what an empty context field means HERE: this instance knows its own window, a remote one does not
   const self = local && !$("mf-url").value.trim();
@@ -7743,7 +7754,10 @@ async function streamAssistant(targetSession = null) {
   if (settings.max) body.max_tokens = +settings.max;
   if (settings.maxCeiling) body.max_ceiling = +settings.maxCeiling;
   if (projectionLoaded()) body.experimental_speed_projection = !!settings.esp;
-  if (settings.mcp !== false && mcpInfo.tools > 0) body.strata_mcp = true;   // this server may run MCP tools for it
+  // per-model capability (symmetric to the vision gate): the user's "tools" checkbox on this
+  // model decides whether the server may run MCP tools for it. Absent entry/flag => allow,
+  // which keeps every pre-existing model's behaviour unchanged (tools !== false, like vision).
+  if (settings.mcp !== false && mcpInfo.tools > 0 && modelAllowsTools()) body.strata_mcp = true;
   body.stop_id = stopId;                       // lets the gateway cancel this exact stream on Stop
   body.strata_session = (targetSession || activeSession() || {}).id || activeId;   // per-conversation context tracking: keeps the gateway's
                                                // proactive guard from leaking a previous task's occupancy

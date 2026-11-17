@@ -76,7 +76,7 @@ code += `
 ;window.__api = {
   loadModels, currentModel, requestModel, paintModelChip, openModelPop, closeModelPop, renderModelPop,
   selectModel, openModelModal, openModelForm, submitModelForm, renderModelList,
-  modelThinking, modelAcceptsImages, getDoc: () => modelsDoc,
+  modelThinking, modelAcceptsImages, modelAllowsTools, getDoc: () => modelsDoc,
   setSessionThinking: (v) => { settings.thinking = v; },
 };`;
 win.eval(code);
@@ -151,7 +151,8 @@ api.openModelForm("self");
 check("the form opened it as a local instance  " + JSON.stringify($("mf-kind").value), $("mf-kind").value === "local");
 check("the address field is empty", $("mf-url").value === "");
 check("no API Key is asked for", $("mf-key-field").hidden === true);
-check("no tool-calls switch either (its MCP loop is its own)", $("mf-tools-field").hidden === true);
+check("the tool-calls switch IS shown for a local instance (a real per-model MCP switch)",
+      $("mf-tools-field").hidden === false);
 $("mf-name").value = "swift-1.5-iq3_s (本机)";
 const before = posted.length;
 await api.submitModelForm();
@@ -196,6 +197,15 @@ $("mf-think").value = "high";
 const before3 = posted.length;
 await api.submitModelForm();
 check("a default outside the ticked levels is refused  " + `${posted.length} vs ${before3}`, posted.length === before3);
+
+console.log("\n=== T11: the send gate follows the ACTIVE entry's tools flag (real switch) ===");
+await api.selectModel("self");
+check("a local entry WITHOUT a tools flag allows tools (default keep-old-behaviour)", api.modelAllowsTools() === true);
+api.getDoc().models.find((m) => m.id === "self").tools = false;   // the checkbox saved as OFF
+check("the same entry with tools:false turns tools OFF  (load-bearing)", api.modelAllowsTools() === false);
+api.getDoc().models.find((m) => m.id === "self").tools = true;
+check("tools:true allows them again", api.modelAllowsTools() === true);
+api.getDoc().models.find((m) => m.id === "self").tools = undefined;  // restore: drop the key
 
 console.log("");
 if (FAILURES.length) {
