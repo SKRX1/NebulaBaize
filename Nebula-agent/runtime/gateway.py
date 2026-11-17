@@ -690,10 +690,17 @@ def main(argv=None) -> int:
             # Creating a scheduled task IS the consent: nobody is watching a 3 a.m. fire,
             # so "full" and "auto" both run freely (auto = the require_approval list passes
             # by standing consent; the stdin confirm would EOF-deny it -- the old silent
-            # failure that made unattended backups red). "manual" degrades this revision:
-            # there is no push channel from this process to the UI yet (the approval modal
-            # is fed by the ENGINE's SSE stream, and a scheduled run has no such stream),
-            # so a manual-tier run gets a loud event and runs nothing until wired v2.
+            # failure that made unattended backups red). "manual" still CANNOT do a run-
+            # before approval popup (that modal is fed by the ENGINE's SSE stream, and a
+            # scheduled run has no such push channel). But it is NOT a no-op: a manual-tier
+            # job DOES run (it executes under standing consent) -- what was missing was that
+            # its OUTPUT had no return path, so the user could never see what a 'manual' job
+            # produced. v1 now fixes exactly that: a manual job's final answer is reported
+            # through the session outbox (unless the entry already asked for session_stream),
+            # so 'manual' means "runs, and its result is delivered to you to review", not
+            # "runs nothing". A run-BEFORE interactive gate remains the only piece that
+            # needs an engine-side push channel (wired v2); execution + result delivery work
+            # today.
             _sched_auto_confirm = lambda tool, reason: True
 
             _FS_ALLOW = os.path.join(os.path.dirname(ROOT), "fs_allowed_roots.txt")
@@ -737,11 +744,16 @@ def main(argv=None) -> int:
                 print(f"  [sched-fire] {name}: {task[:120]}", file=sys.stderr)
                 entry = _sched_host.raw_by_name.get(name) or {}
                 tier = str(entry.get("approval") or "auto").strip().lower()
-                if tier == "manual":
-                    print(f"  [sched-manual-deferred] {name}: approval tier 'manual' has no "
-                          f"UI channel yet (v1 degrades: running under standing consent)",
+                # A 'manual' job runs (under standing consent, as 'auto' does -- there is no
+                # run-before push channel to ask first), but its result is FORCED to the outbox
+                # so the user actually sees it; that return path is what was missing in v1.
+                _force_report = (tier == "manual")
+                if _force_report:
+                    print(f"  [sched-manual-routed] {name}: approval tier 'manual' has no "
+                          f"run-before UI channel (so it runs under standing consent); its "
+                          f"result is reported to the session outbox for you to review",
                           file=sys.stderr)
-                    tier = "auto"   # v1: manual degrades to auto WITH a loud event (above)
+                    tier = "auto"   # execution proceeds as 'auto'; only the RESULT path differs
                 # Route through model_registry.selected (chat's source of truth): when the
                 # picked model lives at its own base_url (e.g. 47831) the run goes there; an
                 # empty base_url means the boot upstream (8080) -> use the original client.
@@ -804,6 +816,12 @@ def main(argv=None) -> int:
                 # (session_stream is handled by the broadcaster above, not the outbox,
                 #  so it is excluded here to avoid double-injection via the front-end
                 #  EventSource.)
+                # manual wiring (v1): a manual job reports through this same outbox even
+                # when its entry set no deliver -- UNLESS it already asked for session_stream
+                # (the broadcaster already delivered that live, and touching outbox there
+                # would double-inject). session_summary already covers the explicit case.
+                if (_force_report and _deliver not in ("session_summary", "session_stream")):
+                    _deliver = "session_summary"
                 if _deliver == "session_summary":
                     try:
                         _outbox = os.path.join(ROOT, "data", "session_outbox.jsonl")

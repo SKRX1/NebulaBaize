@@ -176,6 +176,54 @@ def test_net_origin_and_key_and_host_name():
     print("NET host_name/allowed_hosts_of: bare+dot-root ok, glob+space raise ValueError")
 
 
+def test_net_api_key_of_and_origins_of():
+    # api_key_of (#725/#213/#1344): the value a config/env holds, as a client can send it.
+    # A header strips surrounding spaces+newlines, so a key stored with them (a CRLF env file,
+    # a quoted " key ") would match no request -> 401 with the RIGHT key. The fix is the
+    # .strip(); these lock that, and that a value that is ONLY such characters raises (it
+    # never means "no key"). A list stays a list (each key stripped), matching key_list.
+    assert NG.api_key_of(None) == ""                            # absent -> "" (no key)
+    assert NG.api_key_of(" secret ") == "secret"               # header-trim parity: spaces gone
+    assert NG.api_key_of("secret\r\n") == "secret"              # a CRLF config/env value
+    assert NG.api_key_of('  " key "  ') == '" key "'          # outer spaces stripped; inner+quotes KEPT
+    assert NG.api_key_of(["a", " b "]) == ["a", "b"]           # a config list, each stripped
+    for only_noise in (",", " ", "\t", ", ,"):                # a value that is ONLY separators/space
+        try:
+            NG.api_key_of(only_noise); raise AssertionError("expected ValueError for %r" % only_noise)
+        except ValueError:
+            pass
+    for empty_list in ([""], ["a", ""], []):                  # any empty element (or none) -> reject
+        try:
+            NG.api_key_of(empty_list); raise AssertionError("expected ValueError for %r" % empty_list)
+        except ValueError:
+            pass
+    print("NET api_key_of: trim/CRLF/quotes-ok, list-stripped, all-noise/empty-list raise")
+
+    # origins_of (#321): a config's origin list -- scheme://host[:port], no path; "*" only
+    # where wildcard allows. A wrong entry stops the start (SystemExit) rather than opening
+    # more or less than the operator meant.
+    assert NG.origins_of(None, "cors_origins", True) == []           # unset -> nothing added
+    assert NG.origins_of("", "cors_origins", True) == []
+    assert NG.origins_of([], "cors_origins", True) == []
+    assert NG.origins_of("https://a.example", "k", False) == ["https://a.example"]   # a bare string wraps
+    assert NG.origins_of(["https://a.example", "https://b.example/"], "k", False) == \
+        ["https://a.example", "https://b.example"]                   # trailing slash stripped
+    assert NG.origins_of(["*"], "cors_origins", True) == ["*"]      # wildcard where allowed
+    for bad in (["*"], ["chat.example.com"], ["http://a/b"], ["https://a/b/c"], ["ftp://a"],
+                ["https://a*b.com"], ["https://"]):
+        try:
+            NG.origins_of(bad, "trusted_origins", False)
+            raise AssertionError("expected SystemExit for %r" % (bad,))
+        except SystemExit:
+            pass
+    try:
+        NG.origins_of(["x", 5], "k", False)                          # non-string element -> SystemExit
+        raise AssertionError("expected SystemExit for a non-string entry")
+    except SystemExit:
+        pass
+    print("NET origins_of: none/string/list/slash-strip/wildcard-ok, 7 bad shapes + non-str raise")
+
+
 # ------------------------------------------------------------------ req_args ----
 def test_req_clean_shared_defaults():
     # correct-typed input: /settings keeps only known keys; temperature/top_p come back
@@ -664,6 +712,7 @@ def main():
     test_wire_anthropic_thinking_and_truncated_tool_dropped()
     test_net_host_allowed()
     test_net_origin_and_key_and_host_name()
+    test_net_api_key_of_and_origins_of()
     test_req_clean_shared_defaults()
     test_req_check_request_sampling()
     test_req_lift_reasoning_effort()
