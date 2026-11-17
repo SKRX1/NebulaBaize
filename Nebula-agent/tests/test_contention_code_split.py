@@ -80,11 +80,21 @@ check("chat.resume.cmd.context_contention present exactly twice (zh+en pair)",
 app = read_text("serve/web/app.js")
 check("continueTask keys only context_overflow for compaction",
       'if (m && m.notice && m.notice.code === "context_overflow") {' in app)
-check("continueTask does NOT special-case context_contention (fall-through is the design)",
-      app.count("context_contention") == 0, "count=%d" % app.count("context_contention"))
-# auto-resume's guard is the mechanism that lets the new code through; lock it is unchanged
-check("auto-resume still excludes ONLY context_overflow (new code flows through it)",
+# Scope "no special-case" to continueTask's OWN body (a slice between its definition and the next
+# function). A whole-file count==0 lock is now wrong: Plan-A (2026-11) deliberately added a
+# context_contention exclusion into maybeAutoResume's mainResumable guard, so the token legitimately
+# appears elsewhere -- but continueTask must STILL continue in place for it (rely on fall-through).
+_ct_start = app.index("function continueTask(")
+_ct_end = app.index("\nfunction ", _ct_start + 1)
+_ct_body = app[_ct_start:_ct_end]
+check("continueTask body does NOT special-case context_contention (fall-through is the design)",
+      "context_contention" not in _ct_body)
+# auto-resume STILL excludes context_overflow; Plan-A additionally excludes context_contention so a
+# shared-pool wall is parked for the human instead of auto-bricked every 3s and spamming the banner.
+check("auto-resume excludes context_overflow (true overflow never auto-resumes)",
       'm.notice.resumable && m.notice.code !== "context_overflow"' in app)
+check("Plan-A: auto-resume ALSO excludes context_contention (no banner-spam loop)",
+      'm.notice.code !== "context_overflow" && m.notice.code !== "context_contention"' in app)
 
 if fails:
     print("\nFAILED: " + ", ".join(fails))

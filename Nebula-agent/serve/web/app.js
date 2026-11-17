@@ -3207,7 +3207,12 @@ function maybeAutoResume(m, targetSession = null) {
   const isEmptyLane = !!(m.notice && m.notice.code === "empty_round");
   const openPlan = (m.plan || []).filter((p) => !p.done).length;   // D(early-done): the model's OWN unchecked checklist - strongest premature-close signal.
   const mainResumable = m.truncated ||
-    (m.notice && m.notice.resumable && m.notice.code !== "context_overflow") || isEmptyLane;
+    // A (2026-11): a contention notice is SHARED-KV-pool pressure, NOT a real cut. The
+    // backend already quietly retried once before emitting it, so the wall will NOT drop on a
+    // 3s-tick resend -- auto-resume would just re-brick the same wall N times and spam the banner.
+    // Park it for the human (close an idle session to free the pool). Manual 「继续」 still works:
+    // continueTask falls through to a plain send() for this code. So EXCLUDE it from auto-resume.
+    (m.notice && m.notice.resumable && m.notice.code !== "context_overflow" && m.notice.code !== "context_contention") || isEmptyLane;
   // D(early-done lane): model wrote what reads like a closing line while its OWN plan checklist still had boxes left -> premature, not done.
   const earlyCap = Math.max(AUTO_RESUME_FLOOR, cap);   // 2026-11 plan A+B: early lane is a NOT-finished lane, so it gets the same big budget as the main chain (floor>=12, default 24) and runs to completion; only the pure-spin empty lane keeps its small anti-spin budget.
   const isEarlyLane = !mainResumable && openPlan > 0 && !!(m.text || "").trim();   // ONLY when no existing lane took it AND its own plan has boxes left AND there is real text -> near-zero misjudge on a genuine short answer
