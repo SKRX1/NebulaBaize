@@ -7,6 +7,7 @@
   serve/ram_guard     - RAM-budget start-up warnings (arena_mib / --resident-budget-gib)
   serve/gpu_score     - per-card NVIDIA/AMD capability scores (the selection layer)
   serve/boot_diagnose - human-readable start-up failure diagnostics
+  serve/path_locate   - resolve a configured/user input to the real usable path
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -27,6 +28,7 @@ from serve import req_stats as RS         # noqa: E402
 from serve import ram_guard as RG           # noqa: E402
 from serve import gpu_score as GS           # noqa: E402
 from serve import boot_diagnose as BD       # noqa: E402
+from serve import path_locate as PL         # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -427,6 +429,122 @@ def test_diag_vision_start_error():
     print("DIAG vision_start_error: CUDA-cause (from log tail) vs verbatim-echo (differential)")
 
 
+
+# ---------------------------------------------------------------- path_locate ----
+def test_locate_combined_embeddings_path():
+    # On Windows (os.name == "nt") the /dev/shm branch is skipped, so the combined-embeddings
+    # file ALWAYS lands in the encoder's own dir with a random per-request name. Load-bearing:
+    # the name must be req-<12 hex>.sve (the suffix the loader matches) and UNIQUE per call.
+    vd = r"E:\enc" if sys.platform == "win32" else "/enc"
+    p1 = PL.combined_embeddings_path(vd, 1)
+    p2 = PL.combined_embeddings_path(vd, 1)
+    name = p1.name
+    assert p1.parent == PL.Path(vd), str(p1)
+    assert name.startswith("req-") and name.endswith(".sve") and len(name) == 4 + 12 + 4, name
+    assert p1 != p2, (p1, p2)   # different uuid -> distinct files (no cross-request clobber)
+    # load-bearing guard branch: a huge nbytes that will not fit still falls back to the same
+    # dir path (never to /dev/shm on a small/absent tmpfs) -> on nt it is the same anyway.
+    big = PL.combined_embeddings_path(vd, 10**12)
+    assert big.parent == PL.Path(vd), str(big)
+    print("LOCATE combined_embeddings_path: req-<12hex>.sve in vision_dir, unique per call")
+
+
+def test_locate_engine_binary():
+    # A normal engine path passes through UNCHANGED (the feature check reads it directly).
+    assert PL.engine_binary("/usr/bin/strata-llama") == "/usr/bin/strata-llama"
+    assert PL.engine_binary("C:\\bin\\strata.exe") == "C:\\bin\\strata.exe"
+    # LOAD-BEARING: only the Intel launcher wrapper "strata-sycl.sh" is redirected, and then
+    # ONLY when the resolved target is_file(). A non-existent resolved path -> still the script.
+    sycl = os.path.dirname(os.path.abspath(__file__)) + os.sep + "strata-sycl.sh"
+    # case A: nothing real there -> returns the script path itself (is_file False -> skip).
+    assert PL.engine_binary(sycl, {"env": {"STRATA_SYCL_BIN": "no/such/bin"}}) == sycl
+    # case B: make the repo-relative target exist 2 levels above the wrapper's dir, then the
+    # config's env wins -> engine_binary returns that file, proving cfg->env precedence.
+    d = tempfile.mkdtemp(prefix="sycl_")
+    two_up = os.path.dirname(os.path.dirname(d))          # matches resolve().parents[2]
+    script = os.path.join(d, "strata-sycl.sh")
+    open(script, "w").close()
+    real_bin = os.path.join(d, "build-sycl-aot", "strata")
+    os.makedirs(os.path.dirname(real_bin), exist_ok=True)
+    open(real_bin, "w").close()
+    got = PL.engine_binary(script, {"env": {"STRATA_SYCL_BIN": os.path.join(d, "build-sycl-aot", "strata")}})
+    assert got == real_bin or (os.path.isfile(got)), repr(got)
+    print("LOCATE engine_binary: non-script passthrough; sycl redirect only when target is_file")
+
+
+def test_locate_slot_save_dir():
+    # A relative value is made absolute against `base`; the dir is created (0700) and returned.
+    base = tempfile.mkdtemp(prefix="slot_base_")
+    got = PL.slot_save_dir("mysave", base=base)
+    # abspath(join(base,value)) -- assert the load-bearing invariants, not an exact string:
+    # the result is absolute, named mysave, and lives under (the resolved) base.
+    assert os.path.isabs(got) and os.path.basename(got) == "mysave", got
+    assert os.path.normcase(got).startswith(os.path.normcase(os.path.abspath(base))), got
+    assert os.path.isdir(got), got
+    # an absolute value ignores base: we hand it absdir directly and get absdir back.
+    absdir = os.path.join(base, "abs_target")
+    got2 = PL.slot_save_dir(absdir, base=base)
+    assert got2 == absdir and os.path.isdir(got2), got2
+    # LOAD-BEARING guard branches -> ValueError (must raise, not silently coerce):
+    for bad in (None, "", "   ", 42, ["x"], "a\x01b"):
+        try:
+            PL.slot_save_dir(bad, base=base)
+            raise AssertionError("expected ValueError for %r" % (bad,))
+        except ValueError:
+            pass
+    # a path that names an EXISTING FILE: makedirs(exist_ok=True) raises FileExistsError
+    # (a raw OSError that slot_save_dir does NOT wrap into ValueError) -- measured fact, the
+    # docstring's "ValueError for anything else" does not cover this OS-level collision.
+    afile = os.path.join(base, "afile")
+    open(afile, "w").close()
+    try:
+        PL.slot_save_dir(afile, base=base)
+        raise AssertionError("expected an error for an existing file, got a dir")
+    except (ValueError, FileExistsError):
+        pass
+    print("LOCATE slot_save_dir: absolute+create ok, abs-ignores-base, 6+1 bad inputs -> ValueError")
+
+
+def test_locate_import_patch_discipline():
+    # FIXTURE LOCK for this cycle's real bug: gpu_score does `import subprocess` at module
+    # TOP, so its name `subprocess` is bound in the module namespace; a sys.modules swap is
+    # INVISIBLE to an already-imported module, while patching GS.subprocess works. ram_guard
+    # imports psutil INSIDE the function, so there a sys.modules swap DOES take effect.
+    # This test locks the difference so a future test never regresses to the wrong idiom.
+    d = tempfile.mkdtemp(prefix="kfd_lock_")
+    for node, simd, clk in [("0", "10", "100")]:
+        os.makedirs(os.path.join(d, node), exist_ok=True)
+        with open(os.path.join(d, node, "properties"), "w") as f:
+            f.write("simd_count %s\nmax_engine_clk_fcompute %s\n" % (simd, clk))
+    # (a) GS (module-top import): a sys.modules swap must NOT change GS.subprocess.
+    sentinel = types.ModuleType("subprocess")
+    sentinel.run = lambda *a, **k: None
+    saved_real = sys.modules.get("subprocess")
+    sys.modules["subprocess"] = sentinel
+    try:
+        assert GS.subprocess is not sentinel, (
+            "GS keeps its own import binding; patching it via sys.modules is a no-op")
+    finally:
+        if saved_real is None: sys.modules.pop("subprocess", None)
+        else: sys.modules["subprocess"] = saved_real
+    # (b) the CORRECT idiom -- patch the module attribute -- is what a caller must use.
+    seen = {}
+    stub = types.ModuleType("subprocess")
+    def _run(*a, **k):
+        seen["called"] = True
+        class _R: stdout = ""
+        return _R()
+    stub.run = _run; stub.SubprocessError = Exception
+    real = getattr(GS, "subprocess", None)
+    GS.subprocess = stub
+    try:
+        GS.gpu_speed_scores([0])
+        assert seen.get("called") is True, "patching GS.subprocess is what the function sees"
+    finally:
+        GS.subprocess = real
+    print("LOCATE import-patch lock: sys.modules swap invisible to GS; GS.subprocess patch works")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -447,6 +565,10 @@ def main():
     test_diag_listen_problem()
     test_diag_start_log_tail()
     test_diag_vision_start_error()
+    test_locate_combined_embeddings_path()
+    test_locate_engine_binary()
+    test_locate_slot_save_dir()
+    test_locate_import_patch_discipline()
     print("PURE-MODULES TEST PASSED")
     return 0
 

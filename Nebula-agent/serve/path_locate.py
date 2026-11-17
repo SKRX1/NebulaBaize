@@ -16,11 +16,15 @@ will actually operate).  AST analysis proved they close over only the stdlib
 (os / shutil / uuid / pathlib.Path) -- no engine / session state.  server.py re-imports the
 names unchanged, so all four call sites stay untouched.
 
-HONEST SCOPE NOTE: this is the loosest cluster of the plan-B series. The three share the
-"resolve a configured input to a usable path" duty, but their side effects differ (one
-probes /dev/shm, one makedirs+validates, one checks is_file) -- so if a future pass wants
-a finer split, slot_save_dir is the one that most cleanly belongs with req_args'
-parameter-validation duty instead.  Flagged so this judgement is reviewable, not silent.
+COHESION REVIEW (2026-11-18, resolved): an earlier draft flagged this as the loosest
+plan-B cluster and asked whether slot_save_dir belongs in req_args instead. On review it is
+LEFT HERE.  req_args is the Chat sampling / reasoning-effort parameter layer (temperature,
+top_p, top_k, seed, reasoning_effort); slot_save_dir validates a SAVE-PATH argument, whose
+subject -- "the real directory a save will actually go to" -- is the same duty as the other
+two functions here, not a sampling parameter.  Moving it would dilute req_args' clear theme
+and split path-resolving logic across two modules for no gain.  The "parameter-validation"
+surface is shared but the subject differs -- and cohesion follows the subject, not the shape
+of the check.
 
 This is an equivalence move, not a rewrite: the bodies are byte-for-byte the originals --
 extracted from server.py here rather than re-typed, so issue refs and escaped strings survive
