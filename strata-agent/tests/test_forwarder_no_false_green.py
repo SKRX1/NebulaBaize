@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tempfile
 
-WS = r"E:\星云\星云智能体"
+WS = r"E:\Nebula\NebulaBaize"
 FWD = os.path.join(WS, "tools", "run_all_tests.py")
 PY = sys.executable
 FAILS = []

@@ -3,7 +3,7 @@ window.__esc = function(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;"
 function esc(s){ return window.__esc(s); }
 function icon(){ return "<svg></svg>"; }
 const t = (k)=>"["+k+"]";
-function activeSession(){ return { workspace: "E:/星云/星云智能体" }; }
+function activeSession(){ return { workspace: "E:/Nebula/NebulaBaize" }; }
 window.__lastPath="none";
 async function fsRead(p){ window.__lastPath=p; return "READBACK_BODY_OK"; }
 function _arcIO(){ return null; }

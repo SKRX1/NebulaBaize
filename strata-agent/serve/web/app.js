@@ -4656,7 +4656,7 @@ async function recallKnowledge(query) {
 //   - "global":    lives under GLOBAL_ROOT and applies to EVERY workspace (cross-project).
 // The human promotes/demotes between scopes from the memory panel; the AI never writes the group or
 // global scope directly (that is the safeguard against over-generalising a workspace quirk).
-const GLOBAL_ROOT = "E:/星云/星云智能体/.strata-memory";   // inside FS_ALLOW (E:/星云); auto-created on first write
+const GLOBAL_ROOT = "E:/Nebula/NebulaBaize/.strata-memory";   // inside FS_ALLOW (E:/Nebula); auto-created on first write
 const MEMORY_STORES = {
   rules:      {key: "rules",      title: "rules",      file: "RULES.md",                    gfile: "RULES.md",        re: /```propose-rules\s*\n([\s\S]*?)```/i,      audit: ".strata-memory/auto-rules.md",      maxPerTurn: 5, maxChars: 200, maxLines: 80,  grounding: true},
   knowledge:  {key: "knowledge",  title: "knowledge",  file: ".strata-memory/knowledge.md",  gfile: "knowledge.md",    re: /```propose-knowledge\s*\n([\s\S]*?)```/i,  audit: ".strata-memory/auto-knowledge.md",  maxPerTurn: 8, maxChars: 300, maxLines: 200, grounding: false},
@@ -5354,7 +5354,7 @@ async function mcpTxt(server, tool, args) {
 }
 
 // Project-scoped global memory file (read-only in the UI; the agent maintains it).
-const PROJECT_MEMORY = "E:/星云/星云智能体/.strata-memory/MEMORY.md";
+const PROJECT_MEMORY = "E:/Nebula/NebulaBaize/.strata-memory/MEMORY.md";
 
 // ============================================================ cold-archive manager
 // The drawer panel (option A: same section as the archiveOn toggle) that lets a user
