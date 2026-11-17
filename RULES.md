@@ -185,3 +185,5 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 用 Python 三引号模板批量生成测试/代码写入磁盘时，禁用 raw(r''')：raw 会让模板内 \n 保持字面反斜杠 n，写出的测试里 f.write(...\n...) 等换行断言失效；模板含 \n 字面须用普通三引号让 Python 还原真换行（本次 raw 误伤 test 夹具，靠读盘+独立诊断坐实）。
 拍板指令里"给当前HEAD打baseline tag"：先完成本轮工作使HEAD前进后，tag落最新HEAD(含全部已完成成果)，正文注明所指SHA是下指令时快照；tag与bundle顺序=先tag后bundle(让新回滚点进--all备份)
 摘"引用模块级字面量常量的纯函数"为净叶子=连常量同搬+re-import三名字；搬前必 grep 全仓确认这些常量无其他引用点，且确认同族 impure 常量未被该函数读取(留原处)
+判断"新增 .gitignore 规则是否误伤已跟踪源码"：带前导斜杠的 /serve/ 只锚定仓库根一级，不匹配 Nebula-agent/serve/；用 git check-ignore -v --no-index <已跟踪文件> 看命中哪条规则（donate-usdc.png 命中 :19 *.png 属既有规则非新规则），并用 git ls-files 确认已跟踪文件集不变——已跟踪文件不会因新增 ignore 规则被剔除，但需确认 status 无意外 D
+.gitignore/RULES.md 等 i/lf w/crlf 文件追加时：Python 二进制读保留 \r\n、追加块用 CRLF；守卫判"规则是否已存在"须按整行 strip()==目标，勿用 substring in raw（会误匹配 Nebula-agent/serve 里的 /serve/ 子串致误跳过）
