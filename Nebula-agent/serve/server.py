@@ -149,6 +149,16 @@ try:
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from gpu_config import gpu_list, layer_split_of
 
+# Is a directory writable, and is this a Linux graphical (Wayland/X) session; pure env
+# probes (tempfile / os.environ) with no engine/session state -- AST proved the pair closes
+# only over builtins/stdlib and lazy-imports nothing first-party. server.py re-imports the
+# names unchanged so all call sites (hip_env_guard's temp-dir sanitizer, the desktop-VRAM
+# note caller) stay untouched. Equivalence move, not a rewrite (2026-11-17).
+try:
+    from serve.env_probe import _dir_writable, linux_desktop
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from env_probe import _dir_writable, linux_desktop
+
 # The OpenAI / Anthropic stream-collection helpers. Kept in their own module so the
 # protocol codec is unit-testable without importing the engine + MCP stack (and keeps
 # the 7,789-line server.py leaner). Pure functions -- no server state; same rationale
@@ -2738,14 +2748,6 @@ def child_env(cfg: dict) -> dict:
     if cfg.get("backend") == "hip":
         hip_env_guard(env, cfg)
     return env
-
-
-def _dir_writable(p: str) -> bool:
-    try:
-        with tempfile.TemporaryFile(dir=p):
-            return True
-    except OSError:
-        return False
 
 
 def hip_env_guard(env: dict, cfg: dict) -> list[str]:
@@ -6688,12 +6690,6 @@ class Server(ThreadingHTTPServer):
 
 DESKTOP_FREE_MIB = 2048          # #560 #516: below this, an AMD card that also drives a Linux desktop can run out
 DESKTOP_RESERVE_MIB = 3072       # what kept KDE/Wayland alive beside a full expert cache in both reports
-
-
-def linux_desktop(env=None) -> bool:
-    """A graphical session on Linux (Wayland or X): its compositor, browser and apps take VRAM after the model has."""
-    env = os.environ if env is None else env
-    return os.name != "nt" and sys.platform != "darwin" and bool(env.get("WAYLAND_DISPLAY") or env.get("DISPLAY"))
 
 
 def desktop_vram_note(backend, vram_free_mib, args: list, desktop: bool) -> str:

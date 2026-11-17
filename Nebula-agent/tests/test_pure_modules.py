@@ -9,6 +9,7 @@
   serve/boot_diagnose - human-readable start-up failure diagnostics
   serve/path_locate   - resolve a configured/user input to the real usable path
   serve/gpu_config    - the config's GPU list / whether naming several is a split
+  serve/env_probe     - is a dir writable / is this a Linux desktop session
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -31,6 +32,7 @@ from serve import gpu_score as GS           # noqa: E402
 from serve import boot_diagnose as BD       # noqa: E402
 from serve import path_locate as PL         # noqa: E402
 from serve import gpu_config as GC          # noqa: E402
+from serve import env_probe as EP           # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -588,6 +590,45 @@ def test_gpu_cfg_layer_split_of():
           "short-circuit guards missing args key")
 
 
+def test_env_dir_writable():
+    # A real writable temp dir -> True; missing / unwritable path -> False (never raises).
+    import tempfile
+    d = tempfile.mkdtemp()
+    try:
+        assert EP._dir_writable(d) is True           # freshly created writable dir
+    finally:
+        import shutil; shutil.rmtree(d, ignore_errors=True)
+    assert EP._dir_writable(os.path.join(d, "gone")) is False   # path now removed -> False, no raise
+    assert EP._dir_writable("/nonexistent/definitely/not/here") is False
+    # LOAD-BEARING: the just-deleted dir must be False, proving the probe actually hits the
+    # filesystem rather than always trusting a string that "looks" like a path.
+    print("ENV _dir_writable: writable=True / missing=False (no raise) ok")
+
+
+def test_env_linux_desktop():
+    # The probe reads its module's os.name / sys.platform, so we monkeypatch THOSE on EP
+    # (not the real globals) to reach every branch deterministically, then restore.
+    import types
+    real_os, real_sys = EP.os, EP.sys
+    try:
+        EP.os = types.SimpleNamespace(name="posix", environ={})
+        EP.sys = types.SimpleNamespace(platform="linux")
+        assert EP.linux_desktop({"DISPLAY": ":0"}) is True         # X11
+        assert EP.linux_desktop({"WAYLAND_DISPLAY": "wayland-0"}) is True  # Wayland
+        assert EP.linux_desktop({}) is False                        # headless: no display
+        assert EP.linux_desktop({"OTHER": "1"}) is False           # unrelated var is not a display
+        EP.sys = types.SimpleNamespace(platform="darwin")
+        assert EP.linux_desktop({"DISPLAY": ":0"}) is False        # macOS is excluded by name
+        EP.os = types.SimpleNamespace(name="nt", environ={})
+        assert EP.linux_desktop({"DISPLAY": ":0"}) is False        # Windows is excluded by os.name
+    finally:
+        EP.os, EP.sys = real_os, real_sys
+    # LOAD-BEARING: on this (Windows) interpreter, os.name=="nt" short-circuits every call to
+    # False -- the desktop-VRAM note must never misfire on Windows.
+    assert EP.linux_desktop({"DISPLAY": ":0"}) is False
+    print("ENV linux_desktop: X11/Wayland->True, headless/mac/nt->False, win-shortcircuit ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -614,6 +655,8 @@ def main():
     test_locate_import_patch_discipline()
     test_gpu_cfg_gpu_list()
     test_gpu_cfg_layer_split_of()
+    test_env_dir_writable()
+    test_env_linux_desktop()
     print("PURE-MODULES TEST PASSED")
     return 0
 
