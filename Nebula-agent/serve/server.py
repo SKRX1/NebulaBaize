@@ -98,6 +98,16 @@ try:
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from req_stats import (add_carry, carry_leg, prompt_tokens_seen, request_stats, request_timings)
 
+# Human-readable start-up failure diagnostics (why bind / the vision encoder / the engine
+# failed to come up, each a sentence with the fix in it); close over builtins only (the one
+# errno is a function-local import) -- no engine/session state. The three are the same job
+# from its three entry points, which is why they form this module. server.py re-imports the
+# names unchanged so every call site stays untouched. Equivalence move, not a rewrite (2026-11-17).
+try:
+    from serve.boot_diagnose import listen_problem, start_log_tail, vision_start_error
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from boot_diagnose import listen_problem, start_log_tail, vision_start_error
+
 # Per-card GPU capability scores (NVIDIA CUDA + AMD KFD) feeding card selection; pure
 # stdlib only (no engine/session state; unlike gpu_vram_mib it has no lazy first-party import).
 # Its theme is shared only by these two, which is why they form this module. server.py
@@ -155,25 +165,6 @@ def popen(what: str, args: list, **kw):
                           "& browser control > Smart App Control settings), or - for the image encoder only - run setup "
                           "with --vision no (see docs/TROUBLESHOOTING.md)") from e
         raise
-
-
-def listen_problem(host: str, port: int, e: OSError) -> str:
-    """#769: why the server cannot listen.  Only an address that is taken says "already in use"; anything else (a port
-    Windows keeps reserved, an address this PC does not have, no permission) says what the OS said."""
-    import errno
-    code = getattr(e, "winerror", None) or e.errno
-    if code in (errno.EADDRINUSE, 10048):
-        return (f"port {port} is already in use - is Strata (or another server) already running? "
-                f"Close it, or start this one with a different --port")
-    what = e.strerror or str(e)
-    if code in (10013, errno.EACCES):
-        hint = ("Windows may keep this port for itself (see `netsh int ipv4 show excludedportrange protocol=tcp`) "
-                "or a firewall rule forbids it: start this one with a different --port")
-    elif code in (10049, errno.EADDRNOTAVAIL):
-        hint = f"{host} is not an address of this PC: check \"host\" in the model's strata-<model>.json or --host"
-    else:
-        hint = "check --host and --port"
-    return f"cannot listen on {host}:{port}: {what} [{code}]. {hint}"
 
 
 def combined_embeddings_path(vision_dir: Path, nbytes: int) -> Path:
@@ -482,28 +473,6 @@ def start_failure_hint(log: str | None, offset: int) -> str:
     return ". mtp: " + DRAFT_HEAD_FAIL + ". " + (" ".join(said) if said else "Hint: " + DRAFT_HEAD_HINT)
 
 
-def start_log_tail(log: str | None, offset: int, n: int = 20) -> str:
-    """#496: the last n lines this start wrote to the engine log, for the error when the engine ended before READY -
-    whatever the failure, the engine's own reason is in them (people posted the traceback without the log).  "" when
-    there is no log or nothing in it from this start."""
-    if not log:
-        return ""
-    try:
-        with open(log, "rb") as f:
-            f.seek(0, 2)
-            start = max(offset, f.tell() - 64 * 1024)   # enough for 20 lines, never an earlier start's
-            f.seek(start)
-            text = f.read().decode("utf-8", "replace")
-    except (OSError, ValueError):
-        return ""
-    lines = text.splitlines()[1 if start > offset else 0:]   # not a line cut in half
-    lines = [x.rstrip() for x in lines if x.strip()][-n:]
-    if not lines:
-        return ""
-    return "\nthe engine log's last lines:\n" + "\n".join("  " + x for x in lines)
-
-
-# Windows NTSTATUS exit codes of a process the system ended (a crash, not an error the engine reported)
 _WIN_CRASH = {0xC000001D: "illegal instruction (the CPU lacks an instruction the program uses)",
               0xC0000005: "access violation", 0xC0000409: "stack buffer overrun / fast-fail",
               0xC0000135: "a DLL the program needs was not found", 0xC0000139: "entry point not found in a DLL",
@@ -2242,31 +2211,6 @@ def network_path(path: str) -> bool:
     enough) and signs in with the user's NTLM credentials.  \\?\ and \??\ name local files too; no client needs them."""
     p = path.replace("/", "\\")
     return p.startswith("\\\\") or p.startswith("\\??\\")
-
-
-def vision_start_error(line: str, log=None) -> str:
-    """The message when the image encoder answered something other than READY.  #1445: a card in the Exclusive_Process
-    compute mode (or one another process holds) refuses the encoder's CUDA context with "busy or unavailable"; that
-    cause is named instead of leaving the user the first line of a traceback.  `log` is the encoder's stderr file, whose
-    tail is searched too (the CUDA error is printed there)."""
-    text = line.strip()
-    tail = ""
-    try:
-        name = getattr(log, "name", None)
-        if name:
-            with open(name, "rb") as f:
-                f.seek(0, 2)
-                f.seek(max(0, f.tell() - 16384))
-                tail = f.read().decode("utf-8", "replace")
-    except (OSError, ValueError):
-        pass
-    if "busy or unavailable" in (text + tail).lower():
-        return ("the vision encoder did not start: the GPU refused a second CUDA context (\"CUDA-capable device(s) "
-                "is/are busy or unavailable\"). This is usually the compute mode Exclusive_Process: only one process "
-                "may use the card, and the engine already holds it. Check with: nvidia-smi --query-gpu=compute_mode "
-                "--format=csv; set it back with: sudo nvidia-smi -c DEFAULT (or run the encoder on another card). "
-                "First line from the encoder: " + (text or "(none)"))
-    return "the vision encoder did not start: " + text
 
 
 class Vision:
