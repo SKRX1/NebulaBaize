@@ -103,7 +103,7 @@ def main():
 
     log("")
     log("[setup] DONE. interpreter in use: " + VENV_PY)
-    log("[setup] Next step: run 启动星云智能体.bat")
+    log("[setup] Next step: run 星云白泽.bat")
 
 
 if __name__ == "__main__":

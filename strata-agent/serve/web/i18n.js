@@ -1394,7 +1394,7 @@
       "chat.archive.expand": "展开归档正文",
       "chat.archive.collapse": "收起归档正文",
       "chat.archive.note": "归档历史（按需加载，不计入上下文）",
-      "chat.notice.gateway_down": "连接中断，本轮未跑完{tool}。检测到网关（8099）已停止，看门狗会自动重启它——稍候片刻，待其恢复后点「继续」即可接着做；若迟迟未自动恢复，可双击「星云智能体.bat」手动打开。已写入磁盘的内容不会丢。",
+      "chat.notice.gateway_down": "连接中断，本轮未跑完{tool}。检测到网关（8099）已停止，看门狗会自动重启它——稍候片刻，待其恢复后点「继续」即可接着做；若迟迟未自动恢复，可双击「星云白泽.bat」手动打开。已写入磁盘的内容不会丢。",
       "chat.notice.context_overflow": "上下文已超出模型上下文窗口，上游拒绝生成。请开启自动压缩或发送 /compact 精简历史后点「继续」。",
       /* ── 摄入文件提示 ── */
       "toast.ingest.ok": "已摄入：{name}",
@@ -2755,7 +2755,7 @@
       "chat.archive.expand": "Expand archived history",
       "chat.archive.collapse": "Collapse archived history",
       "chat.archive.note": "Archived history (loaded on demand, not counted in context)",
-      "chat.notice.gateway_down": "Connection was cut — this turn did not finish{tool}. The gateway (8099) stopped; the watchdog restarts it automatically — wait a moment, then press Continue once it is back. If it does not come back on its own, double-click 「星云智能体.bat」 to start it. Nothing already written to disk is lost.",
+      "chat.notice.gateway_down": "Connection was cut — this turn did not finish{tool}. The gateway (8099) stopped; the watchdog restarts it automatically — wait a moment, then press Continue once it is back. If it does not come back on its own, double-click 「星云白泽.bat」 to start it. Nothing already written to disk is lost.",
       "chat.notice.context_overflow": "The context exceeds the model's window and the upstream refused to generate. Enable auto-compact or send /compact to trim history, then press Continue.",
       "toast.ingest.ok": "Ingested: {name}",
       "toast.ingest.msg": "File processed",
