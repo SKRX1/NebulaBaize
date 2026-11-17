@@ -3566,7 +3566,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
                             time.sleep(1.0)          # let the engine finish the eviction it just did
                             continue                 # same messages, same round -- quiet resend
                         if _act == "notice_contention":
-                            notice("context_overflow", text=_CONTENTION_TEXT)
+                            # A low-occupancy refusal is SHARED-KV-pool contention, not a full window.
+                            # Use a DISTINCT code (not context_overflow): the frontend keys context_overflow
+                            # on "compact first"; contention must continue in place (compaction is a no-op
+                            # against pool pressure) and may auto-resume quietly. See continueTask.
+                            notice("context_contention", text=_CONTENTION_TEXT)
                             break
                         # "compact": near the ceiling for real -- a resend would 400 again.
                         notice("context_overflow",

@@ -433,6 +433,7 @@ SUITES = [
     "tests/test_sparkmax_setting.mjs",   # 2026-11-13: SPARK_MAX_BARS is now a settings-page slider (default 24). Load-bearing single-variable differential: settings.sparkMaxBars MOVES the drawn-bar count (8 -> 8, 12 -> 12, 24 -> 24 on the SAME 40-bar input); cap-above-length shows all; default fallback 24; below-cap boundary guard. Real app.js jsdom-boot.
 
     "tests/test_resident_retry.py",   # 2026-10-24: resident-contention vs true-overflow split (quiet retry, budget is one)
+    "tests/test_contention_code_split.py",   # 2026-11: low-occupancy 400 is KV-pool CONTENTION not overflow; distinct notice code so the frontend does not force a no-op compaction and auto-resume flows (differential source lock)
 
     "tests/test_vision_degrade.py",  # 2026-10-31: [VISION-DEGRADE] pure-helper grab: image->text placeholder + narrow vision-failure predicate (pos/neg differential)
 
