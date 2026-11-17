@@ -159,6 +159,18 @@ try:
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from env_probe import _dir_writable, linux_desktop
 
+# The frozen-engine watchdog predicate + its two thresholds; a TRUE net leaf (the
+# two literals move with the predicate so it reads no global).  #1317 part 2: a quiet
+# engine that also uses no CPU and moves no I/O in the stall window is frozen (a CUDA
+# deadlock / driver stall), not merely slow, so it is ended. AST proved the trio closes
+# only over its own module-level literals, no engine/session state. server.py re-imports
+# all three names unchanged so the single call site (the watchdog below) stays put.
+# Equivalence move, not a rewrite (2026-11-17).
+try:
+    from serve.engine_stall import engine_frozen, STALL_CPU_EPS_S, STALL_IO_EPS_B
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from engine_stall import engine_frozen, STALL_CPU_EPS_S, STALL_IO_EPS_B
+
 # The OpenAI / Anthropic stream-collection helpers. Kept in their own module so the
 # protocol codec is unit-testable without importing the engine + MCP stack (and keeps
 # the 7,789-line server.py leaner). Pure functions -- no server state; same rationale
@@ -327,13 +339,6 @@ def _timeout_env(name: str, default: float) -> float | None:
 # still working is never ended by this, only reported once (the recommendation: engine_silence_s, or this variable).
 # STRATA_ENGINE_STALL_S overrides it (0 = off).  Needs psutil (setup installs it); without it nothing is ended.
 ENGINE_STALL_S = _timeout_env("STRATA_ENGINE_STALL_S", 90.0)
-STALL_CPU_EPS_S = 0.5       # CPU seconds the engine may use in the whole stall window and still count as frozen
-STALL_IO_EPS_B = 1 << 20    # bytes read or written in that window
-
-
-def engine_frozen(base: tuple[float, int], now: tuple[float, int]) -> bool:
-    """#1317: True when two (cpu seconds, io bytes) samples of the engine show no work between them."""
-    return (now[0] - base[0]) <= STALL_CPU_EPS_S and (now[1] - base[1]) <= STALL_IO_EPS_B
 
 
 VISION_READY_S = _timeout_env("STRATA_VISION_READY_S", 300.0)

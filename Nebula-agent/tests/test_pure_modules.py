@@ -1,4 +1,4 @@
-"""Unit tests for the nine pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the eleven pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -10,6 +10,7 @@
   serve/path_locate   - resolve a configured/user input to the real usable path
   serve/gpu_config    - the config's GPU list / whether naming several is a split
   serve/env_probe     - is a dir writable / is this a Linux desktop session
+  serve/engine_stall  - the frozen-engine watchdog predicate + its two thresholds
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -33,6 +34,7 @@ from serve import boot_diagnose as BD       # noqa: E402
 from serve import path_locate as PL         # noqa: E402
 from serve import gpu_config as GC          # noqa: E402
 from serve import env_probe as EP           # noqa: E402
+from serve import engine_stall as ES         # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -629,6 +631,31 @@ def test_env_linux_desktop():
     print("ENV linux_desktop: X11/Wayland->True, headless/mac/nt->False, win-shortcircuit ok")
 
 
+def test_stall_threshold_constants():
+    # The two literals the predicate reads are pinned -- moving them with the predicate is
+    # the whole point, so a silent change here would quietly widen/narrow the stall window.
+    assert ES.STALL_CPU_EPS_S == 0.5            # CPU-seconds tolerance
+    assert ES.STALL_IO_EPS_B == 1 << 20         # 1 MiB of moved I/O
+    print("STALL consts: cpu_eps=0.5 / io_eps=1MiB ok")
+
+
+def test_stall_engine_frozen():
+    # base/now are (cpu_seconds, io_bytes) sample pairs. A quiet engine that ALSO used no
+    # CPU and moved no I/O within the tolerances is FROZEN (True); a working-slow one is not.
+    E = ES.STALL_IO_EPS_B
+    assert ES.engine_frozen((10.0, 1000), (10.4, 1000 + E)) is True    # both at the bound -> True
+    assert ES.engine_frozen((10.0, 0), (10.0, 0)) is True               # fully frozen
+    # LOAD-BEARING (CPU): just over the CPU tolerance -> never frozen, even with zero I/O.
+    assert ES.engine_frozen((10.0, 0), (10.0 + ES.STALL_CPU_EPS_S, 0)) is True       # == bound -> True
+    assert ES.engine_frozen((10.0, 0), (10.0 + ES.STALL_CPU_EPS_S + 0.01, 0)) is False
+    # LOAD-BEARING (I/O): just over the I/O tolerance -> never frozen, even with idle CPU.
+    assert ES.engine_frozen((10.0, 0), (10.1, E + 1)) is False
+    # BOTH must be under tolerance to flag frozen: a busy CPU but idle I/O -> False.
+    assert ES.engine_frozen((5.0, 100), (5.2, 100)) is True             # cpu 0.2<=0.5, io 0 -> True
+    assert ES.engine_frozen((5.0, 100), (5.6, 100)) is False            # cpu 0.6>0.5 -> False
+    print("STALL engine_frozen: idle->True, cpu-busy/io-busy/over-bound->False (differential) ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -657,6 +684,8 @@ def main():
     test_gpu_cfg_layer_split_of()
     test_env_dir_writable()
     test_env_linux_desktop()
+    test_stall_threshold_constants()
+    test_stall_engine_frozen()
     print("PURE-MODULES TEST PASSED")
     return 0
 
