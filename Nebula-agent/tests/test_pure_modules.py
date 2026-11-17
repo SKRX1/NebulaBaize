@@ -1,9 +1,12 @@
-"""Unit tests for the four pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the seven pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
-  serve/wire_codec  - openai_collect / anthropic_collect stream reassembly
-  serve/net_gate    - host / origin / api-key admission gate
-  serve/req_args    - request / config sampling-parameter sanitization
-  serve/req_stats   - per-request token / timing accounting
+  serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
+  serve/net_gate      - host / origin / api-key admission gate
+  serve/req_args      - request / config sampling-parameter sanitization
+  serve/req_stats     - per-request token / timing accounting
+  serve/ram_guard     - RAM-budget start-up warnings (arena_mib / --resident-budget-gib)
+  serve/gpu_score     - per-card NVIDIA/AMD capability scores (the selection layer)
+  serve/boot_diagnose - human-readable start-up failure diagnostics
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -21,6 +24,9 @@ from serve import wire_codec as WC        # noqa: E402
 from serve import net_gate as NG          # noqa: E402
 from serve import req_args as RA          # noqa: E402
 from serve import req_stats as RS         # noqa: E402
+from serve import ram_guard as RG           # noqa: E402
+from serve import gpu_score as GS           # noqa: E402
+from serve import boot_diagnose as BD       # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -244,6 +250,183 @@ def test_stats_carry_and_agg():
     print("STATS request_stats: reused/prompt_read from first, generated/decode summed")
 
 
+
+# ------------------------------------------------------------------- ram_guard ----
+import io, contextlib, tempfile, types  # noqa: E402  (test-only helpers for this section)
+
+
+class _FakeVM:
+    def __init__(self, total, available):
+        self.total = total; self.available = available
+
+
+def _fake_psutil(total_gib, available_gib):
+    """A stub psutil so the RAM warnings are deterministic regardless of this PC's real
+    memory. virtual_memory() returns the total/available we ask for, in BYTES (the real
+    psutil contract)."""
+    mod = types.ModuleType("psutil")
+    tot = int(total_gib * 2**30); avail = int(available_gib * 2**30)
+    mod.virtual_memory = lambda: _FakeVM(tot, avail)
+    return mod
+
+
+@contextlib.contextmanager
+def _stubbed(**mods):
+    saved = {}
+    try:
+        for name, mod in mods.items():
+            saved[name] = sys.modules.get(name)
+            sys.modules[name] = mod
+        yield
+    finally:
+        for name, prev in saved.items():
+            if prev is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = prev
+
+
+def test_ram_warn_tight_ram():
+    # Guard branch: non-int / <=0 never reads psutil and never prints (returns None).
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), _stubbed(psutil=_fake_psutil(1000, 999)):
+        for bad in (None, 0, -5, "", 3.0, [4]):
+            assert RG.warn_tight_ram(bad) is None, bad
+    assert buf.getvalue() == "", repr(buf.getvalue())
+    print("RAM warn_tight_ram guard: non-int/<=0 -> silent, psutil untouched")
+
+    # Real branch: experts that leave < 6 GB beside them -> a WARNING is printed (print-only,
+    # returns None by contract). 8000 MiB experts on a 10 GiB box leaves ~2 GB -> must warn.
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), _stubbed(psutil=_fake_psutil(10, 9)):
+        assert RG.warn_tight_ram(8000) is None
+    out = buf.getvalue()
+    assert "WARNING: RAM is tight" in out and "7.8 GB" in out, repr(out)   # experts = 8000/1024 GB
+    print("RAM warn_tight_ram warn: 8000 MiB on 10 GiB -> 'RAM is tight', experts GB shown")
+
+    # LOAD-BEARING differential: plenty of room -> NO warning. 100 MiB experts on a 64 GiB
+    # box leaves ~63 GB (>= 6) -> prints nothing. The 6 GB threshold is what flips.
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), _stubbed(psutil=_fake_psutil(64, 60)):
+        RG.warn_tight_ram(100)
+    assert buf.getvalue() == "", repr(buf.getvalue())
+    print("RAM warn_tight_ram ok: 100 MiB on 64 GiB -> no warning (differential)")
+
+
+def test_ram_warn_budget_over_ram():
+    # No --resident-budget-gib in args -> None (no parse, no psutil, no print).
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), _stubbed(psutil=_fake_psutil(8, 4)):
+        assert RG.warn_budget_over_ram(["--resident-experts", "8"]) is None
+    assert buf.getvalue() == ""
+
+    # LOAD-BEARING at the boundary (a roomy 64/60 box): budget 40 <= free 60 AND <=
+    # total-6=58 -> None, silent; budget 100 > free -> warns and returns the exact
+    # sentence with the numbers. One stub, both branches, so the threshold is the only var.
+    msg = None
+    with contextlib.redirect_stdout(io.StringIO()), _stubbed(psutil=_fake_psutil(64, 60)):
+        assert RG.warn_budget_over_ram(["--resident-budget-gib", "40"]) is None
+        msg = RG.warn_budget_over_ram(["--resident-budget-gib", "100"])
+    assert msg and "100 GiB" in msg and "60 GiB free of 64 GiB" in msg, repr(msg)
+    print("RAM warn_budget_over_ram: 40-no-warn vs 100-warn (differential), numbers in msg")
+
+
+# -------------------------------------------------------------------- gpu_score ----
+def test_gpu_hip_speed_scores():
+    # root is injectable -> a throwaway KFD topology dir makes this fully deterministic.
+    d = tempfile.mkdtemp(prefix="kfd_")
+    for node, simd, clk in [("0", "120", "1700"), ("1", "64", "1500"), ("2", "0", "999")]:
+        os.makedirs(os.path.join(d, node), exist_ok=True)
+        with open(os.path.join(d, node, "properties"), "w") as f:
+            f.write("simd_count %s\nmax_engine_clk_fcompute %s\nextra junk line\n" % (simd, clk))
+    got = GS.hip_speed_scores([0, 1], root=d)
+    assert got == {0: 120.0 * 1700.0, 1: 64.0 * 1500.0}, got        # simd*clk; node2 simd=0 skipped
+    # LOAD-BEARING differential: an index NOT present -> None (never a partial dict), so the
+    # caller falls back to another probe.
+    assert GS.hip_speed_scores([5], root=d) is None
+    assert GS.hip_speed_scores([0], root=os.path.join(d, "does-not-exist")) is None  # OSError -> None
+    print("GPU hip_speed_scores: exact {0:204000,1:96000}; absent-index + missing-root -> None")
+
+
+def test_gpu_nvidia_speed_scores_stubbed():
+    # Stub subprocess.run so the CUDA-driver probe is testable without a GPU. The child
+    # prints "index sm khz" per card; got[i] = sm*khz. The env must force PCI_BUS_ID order
+    # and CLEAR CUDA_VISIBLE_DEVICES so the probe sees every card regardless of the parent.
+    class _R:
+        stdout = "0 128 1900\n1 80 1500\n"
+    def fake_run(argv, **kw):
+        assert kw.get("env", {}).get("CUDA_DEVICE_ORDER") == "PCI_BUS_ID", kw.get("env")
+        assert "CUDA_VISIBLE_DEVICES" not in kw.get("env", {}), kw.get("env")
+        return _R()
+    # Patch the name INSIDE the loaded module, not sys.modules: gpu_score imported
+    # subprocess at top, so its global `subprocess` is what the function resolves. A
+    # sys.modules swap would not be seen by an already-imported module.
+    stub = types.ModuleType("subprocess")
+    stub.run = fake_run; stub.SubprocessError = Exception
+    real = getattr(GS, "subprocess", None)
+    try:
+        GS.subprocess = stub
+        got = GS.gpu_speed_scores([0, 1])
+        assert got == {0: 128.0 * 1900.0, 1: 80.0 * 1500.0}, got
+        # LOAD-BEARING differential: a card the child did not report -> all(...) False -> None
+        assert GS.gpu_speed_scores([0, 7]) is None
+    finally:
+        if real is None:
+            del GS.subprocess
+        else:
+            GS.subprocess = real
+    print("GPU gpu_speed_scores (stubbed CUDA): exact {0:243200,1:120000}; missing-card -> None")
+
+
+# ----------------------------------------------------------------- boot_diagnose ----
+def test_diag_listen_problem():
+    assert "already in use" in BD.listen_problem("127.0.0.1", 8099, OSError(10048, "x"))
+    assert "netsh" in BD.listen_problem("0.0.0.0", 443, OSError(10013, "x"))          # Windows reserved
+    e = OSError(); e.errno = 10049; e.strerror = "no"
+    txt = BD.listen_problem("9.9.9.9", 80, e)                                          # no such address
+    assert "not an address" in txt and "9.9.9.9" in txt, txt
+    # LOAD-BEARING differential: an unmapped errno falls through to the generic hint, but the
+    # OS strerror + code are ALWAYS included so the user is never left a bare traceback.
+    e2 = OSError(); e2.errno = 77777; e2.strerror = "odd thing"
+    g = BD.listen_problem("h", 1, e2)
+    assert "odd thing" in g and "77777" in g and "check --host and --port" in g, g
+    print("DIAG listen_problem: in-use/reserved/no-address/generic branches, errno always surfaced")
+
+
+def test_diag_start_log_tail():
+    assert BD.start_log_tail(None, 0) == ""                                           # no log
+    d = tempfile.mkdtemp(prefix="englog_")
+    path = os.path.join(d, "engine.log")
+    with open(path, "wb") as f:
+        f.write(b"line one\nline two\nline three\n")
+    tail = BD.start_log_tail(path, 0, n=2)
+    assert "the engine log's last lines" in tail, repr(tail)
+    assert "line three" in tail and "line two" in tail and "line one" not in tail, repr(tail)  # last n only
+    assert BD.start_log_tail(os.path.join(d, "nope.log"), 0) == ""                   # missing file -> ""
+    print("DIAG start_log_tail: last-n only; no-log / missing -> ''")
+
+
+def test_diag_vision_start_error():
+    # The CUDA "busy or unavailable" cause is named with its fix command (from the log tail),
+    # not the first line of a traceback.
+    d = tempfile.mkdtemp(prefix="viserr_")
+    path = os.path.join(d, "stderr.log")
+    with open(path, "wb") as f:
+        f.write(b"Traceback\nCUDA-capable device(s) is/are busy or unavailable\n")
+    fh = open(path, "rb")
+    try:
+        msg = BD.vision_start_error("something else", log=fh)
+    finally:
+        fh.close()
+    assert "Exclusive_Process" in msg and "nvidia-smi" in msg, msg
+    # LOAD-BEARING differential: an unrelated failure is echoed verbatim with the prefix,
+    # NOT the CUDA advice.
+    plain = BD.vision_start_error("disk full")
+    assert plain == "the vision encoder did not start: disk full", repr(plain)
+    assert "Exclusive_Process" not in plain
+    print("DIAG vision_start_error: CUDA-cause (from log tail) vs verbatim-echo (differential)")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -257,6 +440,13 @@ def main():
     test_req_lift_reasoning_effort()
     test_stats_request_timings_and_seen()
     test_stats_carry_and_agg()
+    test_ram_warn_tight_ram()
+    test_ram_warn_budget_over_ram()
+    test_gpu_hip_speed_scores()
+    test_gpu_nvidia_speed_scores_stubbed()
+    test_diag_listen_problem()
+    test_diag_start_log_tail()
+    test_diag_vision_start_error()
     print("PURE-MODULES TEST PASSED")
     return 0
 
