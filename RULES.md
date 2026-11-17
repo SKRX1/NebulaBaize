@@ -183,3 +183,5 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 摘带模块级 os/sys 引用的纯叶子时，扫描按 stdlib 计 out-deps=0，但迁出后新模块顶部仍须补 import os/sys(模块级引用)；函数内 lazy-import 的 optional 依赖(psutil)留在函数内保其"缺件仍能 import 模块"性质
 收尾确认脚本也要送 Windows 回收站，勿用 cmd del 物理删(本轮 _q_final.py 即误用 del)；含 find /c 计 0 时 cmd 返回码 1 属正常非错
 用 Python 三引号模板批量生成测试/代码写入磁盘时，禁用 raw(r''')：raw 会让模板内 \n 保持字面反斜杠 n，写出的测试里 f.write(...\n...) 等换行断言失效；模板含 \n 字面须用普通三引号让 Python 还原真换行（本次 raw 误伤 test 夹具，靠读盘+独立诊断坐实）。
+拍板指令里"给当前HEAD打baseline tag"：先完成本轮工作使HEAD前进后，tag落最新HEAD(含全部已完成成果)，正文注明所指SHA是下指令时快照；tag与bundle顺序=先tag后bundle(让新回滚点进--all备份)
+摘"引用模块级字面量常量的纯函数"为净叶子=连常量同搬+re-import三名字；搬前必 grep 全仓确认这些常量无其他引用点，且确认同族 impure 常量未被该函数读取(留原处)
