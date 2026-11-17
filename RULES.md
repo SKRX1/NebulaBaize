@@ -33,11 +33,11 @@ i18n 测试是键数对账制：新增键必须中英成对，测试自动覆盖
 建议决策卡铁律：给用户的改动/优化建议须先实证其好坏处（读代码/跑测试/测量），用 ```proposal 围栏输出结构化决策卡（含 verified/evidence 字段）；未实测标 verified:false 且好坏处注明“初步分析”。详细好坏处禁止写进散文回复——只进提案卡，避免撑大上下文
 (空——本次暂不新增规则，待落地验证后再沉淀)
 PowerShell 5.1 用 -File 执行无 BOM 的 UTF-8 脚本时会按 GBK 解码，脚本内中文（含中文路径）当场乱码——含中文的 .ps1 必须存为 UTF-8 with BOM（canary 黄灯项 ps-file-nobom，2026-10-21 实测坐实）；纯 ASCII 的 -Command 传入中文参数则依赖代码页，跨代码页脚本优先 ASCII 匹配串+UTF-8 BOM 文件
-常驻运行脚本（bat/py）统一落 strata-agent\tools\；执行前先核对引用路径与实际落点一致（工作区根 tools\ 是另一个目录）
+常驻运行脚本（bat/py）统一落 Nebula-agent\tools\；执行前先核对引用路径与实际落点一致（工作区根 tools\ 是另一个目录）
 thinkOpen 优先级链（2026-10-21 定案）：手动意图 > (live∥最新消息)&&show开关 > 默认折叠——手动折叠（含 fold-all 写入的 false）必须能压过自动展开
 凡含多步骤的任务，回答最后一个动作必须是回填「全勾的 plan 清单 + 一段完成总结」；被上下文压缩打断或多轮接力时同样适用——接力收尾轮不许只干活不回填，宁可重跑验证也要把清单勾满并给总结
 任务完成度前端兜底：plan 面板空闲态发现未勾项时追加提醒行（i18n 键 insp.plan.reminder，中英成对），流动态 planLive 不画保 live 测试；提醒行 CSS 复用 info 语义色与进度条呼应，断言用纯 ASCII 词 unticked
-8099 独立版排查前端问题时，一切读码/修改落点默认工作区 strata-agent/serve/web/；对账 Strata-main 只是只读镜像确认，不得演变成修改动作
+8099 独立版排查前端问题时，一切读码/修改落点默认工作区 Nebula-agent/serve/web/；对账 Strata-main 只是只读镜像确认，不得演变成修改动作
 gateway.py 的 Executor.tools 是 property，tool_log_dir 开着就永含合成工具 recall_tool_log，故"工具表空"自检须按 server 判（not any(srv.tools for srv in servers)）而非字面 not executor.tools，否则形同虚设
 Windows cmd 里 Python 单行 -c 含双引号会被解析破坏（"unbalanced double quotes"）；复杂脚本改写进 .py 文件再执行，别用 -c 内联双引号。
 确定性出前端像素样本：复制真实 index.html 去 web/ 前缀、注入结构化 steps 数组直喂 renderNextSteps（不走 markdown 解析避开转义），先 browser__render 读 DOM 确认注入脚本跑通（看 title 探针）再 screenshot。
@@ -50,7 +50,7 @@ i18n data-i18n-attr 多属性分隔符是逗号(如 "placeholder:key,title:key")
 前端 JS 契约测试：调用未定义符号语法合法、node --check 查不出，必须用 jsdom boot 断言 helper 是真 function 且在最小输入上跑出正确结果，静态层再锁「定义+调用点」成对存在
 在 core.autocrlf=true 的 Windows 仓库里用 Python 脚本写回源文件前，必须先 `git ls-files --eol <file>` 查真实行尾；判据不能只看字节数猜，否则会把 index=LF 的文件整文件规范化成 CRLF、git diff 虚高成全文件改动（实测虚报 5742 行 vs 真实 52 行）
 校验"改动是否干净"用 `git diff --numstat`（默认 autocrlf 行为）：应只剩你真正插入/删除的行数；若某文件 diff 接近全文行数即行尾污染信号，须从 HEAD blob 重建还原
-前端权威源现在只有工作区strata-agent/serve/web一处，改前端不再需要deploy_frontend.py镜像到Strata-main（该脚本已退役归档）
+前端权威源现在只有工作区Nebula-agent/serve/web一处，改前端不再需要deploy_frontend.py镜像到Strata-main（该脚本已退役归档）
 setup_env.py改写清单现只剩mcp_servers.json+run_standalone.bat两项（deploy_to_strata/deploy_host_patch已归档，死条目已清）
 任务完成轮必须输出 next-steps 建议条（哪怕本轮只是单步收尾/选定项执行）：漏发=疏漏非渲染bug——面板完成徽标与底部绿勾只在我输出的 next-steps 围栏被渲染时才亮，围栏不发徽标就永远不出，此为坐实根因（2026-10-25）
 凡多步任务，回答开头即用 ```plan 围栏写清单（边做边勾）；任何收尾轮（含单步收尾）都必须给出建议条：决策卡/等拍板轮用 ? 档作停等闸、绿黄只填被误跑也无害的动作，绝不整块漏发
@@ -61,7 +61,7 @@ README 追加前必须 `git ls-files --eol` 核对 index 行尾，写入用与 i
 删除一律送 Windows 系统回收站（Shell.Application COM），绝不物理删除，保留还原机会；临时脚本用毕也送回收站
 前端删除类动作一律走 /api/recycle（机制A COM 送真回收站），禁止 fsWrite 副本+物理删的伪回收站写法
 对超大文件(如 serve/web/app.js 520KB)做单行替换时,禁用 filesystem__write(其默认 overwrite 会把整个文件覆盖成传入片段),须用 python 脚本读全文+精确 replace+断言命中次数
-部署对账=跑 strata-agent/tools/_deploy_mirror.py（权威源 serve/web→E:\Program Files\Strata-main\serve\web 逐文件MD5，幂等，跑完即ALL MATCH即视为一致）；servers/ 不在镜像范围（后端从工作区直跑，无需镜像同步）
+部署对账=跑 Nebula-agent/tools/_deploy_mirror.py（权威源 serve/web→E:\Program Files\Strata-main\serve\web 逐文件MD5，幂等，跑完即ALL MATCH即视为一致）；servers/ 不在镜像范围（后端从工作区直跑，无需镜像同步）
 contenteditable 输入框的全局快捷键守卫豁免判断，必须同时认 isCE(el)（认 contenteditable=true/DIV），只写 id/tagName===TEXTAREA 会漏整个 contenteditable 家族导致打字键被吞。
 输入框依赖"打字即时刷新"的绑定不能只挂 input：中文输入法落字/粘贴常常不派发标准 input 事件，须统一补 compositionend（必要时 paste）兜底；已覆盖 composer、ws-path、bugbox-search，后续同类刷新点一并遵守。
 星云白泽运行的版本一直是工作区里的独立版不是寄生版,优先修改修复独立版
@@ -82,7 +82,7 @@ python 锚点编辑脚本：锚点字符串里出现 JS 字面 `\n`（如 `split
 jsdom 契约测试里 app.js 顶层 let/const（如 mcpInfo/t/编辑态）跨 win.eval 不可见（每个 eval 独立作用域）——所有 realm-internal 状态必须在同一个 boot eval 里用闭包暴露到 window.__api
 本前端加顶部标签页必须三处同步：index.html tab按钮+view section配对(aria-controls/labelledBy)、app.js showTab 顶部 whitelist 数组、showTab 可见性 for-of 数组——test_nav_tabs_level.mjs 的 L4 会锁死三集一致，漏任一处即红
 扫描 git 跟踪文件中的中文字符串时，PowerShell 逐文件 Select-String 会因 git 中文文件名八进制转义而报 PathNotFound，应改用 Python 对 git ls-files -z 的字节级扫描（tools/_q_* 探针系列）
-全套回归跑 strata-agent\tools\run_tests.py（约190项含post-green钩子）；工作区根 tools\run_all_tests.py 的 ROOT 硬编码指向旧路径 E:\WorkBuddy\...，输出 TOTAL 0 属假绿不可采信
+全套回归跑 Nebula-agent\tools\run_tests.py（约190项含post-green钩子）；工作区根 tools\run_all_tests.py 的 ROOT 硬编码指向旧路径 E:\WorkBuddy\...，输出 TOTAL 0 属假绿不可采信
 创建定时任务时（凡我代拟任务名/任务内容），name 与 task 语言跟随主人本轮指令的主体语言（中文→中文、English→英文、其他语言→对应语言，混合取主体）；前端弹窗手填天然满足无需改码；编辑/重命名保持原语言，主人主动换才换；schedule 链路已验证 Unicode 安全（后端无字符集校验、前端 esc+dataset，中文任务名有活样本在跑）
 定时任务的 task 字段是实际执行的 shell 命令（不可翻译，翻译即执行失败）；"按语言创建任务"的约定只落在显示名 name 上——中文名/英文名按主人指令语言，task 命令本体保持可执行原样
 app.js 里被 updateAssistant 等 boot 期函数调用的新函数，禁止用顶层 const/let 承载（TDZ 会让 jsdom 测试崩），改 function 声明+惰性 window 缓存
@@ -105,7 +105,7 @@ code_hygiene 护栏抓到的新增 silent-except-swallow，优先「真处理」
 在 runtime/http_server.py 等受 hygiene 守卫的文件里新增 except 块时，body 不能只有 pass/continue（会被 test_code_hygiene 计入 silent swallow 回归），必须带一行日志（print 到 stderr 或调用 audit）。
 多文件 commit 前只 git add 本轮目标文件，用 git status 甄别工作区无关漂移（如 config/*.json 运行态漂移），不裹入本次 commit
 git add 后先查 git diff --cached --numstat 确认入库行数无 CRLF 翻转虚高，再 commit
-新增门禁测试必须显式登记进 strata-agent/tools/run_tests.py 的 SUITES 列表（硬编码，不登记就不跑），并在行尾注释写明它锁什么
+新增门禁测试必须显式登记进 Nebula-agent/tools/run_tests.py 的 SUITES 列表（硬编码，不登记就不跑），并在行尾注释写明它锁什么
 前端 CSS 新样式只用 var(--st-*) token，禁止硬编码颜色，保证暗/亮双主题免维护
 全项目 app.js 保持零 inline handler（onerror=/onclick=），破损/降级路径一律走纯 CSS
 像素 fixture 必须内嵌真实 index.html 骨架（不能裸 body 只有 #chat）——app.js 在 $("theme-btn").onclick 拿 null 即崩，连带顶层 const/let（esc/inline/messages）全没初始化，探针撞 TDZ；纯沙箱跑大型 app.js 同理只能验 DOM 接线，行为级须 jsdom（runScripts:outside-only + win.eval 暴露 __api）
@@ -152,7 +152,7 @@ commit 须在全套回归绿之后落，且只精确 add 本次相关文件（�
 jsdom 门禁里点按钮的 selector 就是 UI 契约的一部分：融合/移除按钮时同步改点击目标，并把旧结构写成负向锁（grep 不到旧 append 形状）
 导入项删除的原件回链约定：source==="import" 且 name 在生成目录有实体文件时，删除请求必须同时携带 saved_images 副本 path 与 /data/generated/images/<name> 原件 path（app.js galleryTrashFiles，2026-11-16 方案A）
 改 serve/web/app.js 前先备份 app.js.bak-<主题>，node --check 验语法，跑 test_gallery_import_jsdom + test_img_gallery_jsdom 双门禁后才算完成
-strata-agent/serve/web/app.js 是 CRLF 文件：用 Python 重写它后必须把全文归一回 CRLF（门禁 test_gallery_import_jsdom.mjs 头部注释明示此约定）
+Nebula-agent/serve/web/app.js 是 CRLF 文件：用 Python 重写它后必须把全文归一回 CRLF（门禁 test_gallery_import_jsdom.mjs 头部注释明示此约定）
 画廊删除链的观测约定：前端埋点（fe_trash）盖 filter 前的逐条决策、后端 recycle-trace.jsonl 落 request/sync_one/batch_parse——根因未稳定复现前不得拆除，稳定后前端腿可降级为仅 console
 画廊埋点降级已执行（2026-11-16）：fe_trash 前端腿=仅 console 不落盘，后端 jsonl 腿保留；周复盘任务已删；门禁 test_gallery_import_jsdom+test_img_gallery_jsdom 双绿
 行尾甄别基线（2026-11-16 盘点）：i/-text 文本文件只剩 tests/test_ce_text_extract.mjs、tests/test_schedule_contract.mjs、tools/_flash_probe_upstream.py 三个；i/-text 是"本次入库瞬间"态，commit 后 git 重新嗅探会归一（test_img_gallery 实测），numstat 虚高须用 --ignore-cr-at-eol 取真实行数

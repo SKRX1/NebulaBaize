@@ -1,0 +1,130 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\fs_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent",
+      "env": {
+        "FS_ROOT": "E:\\Nebula\\NebulaBaize\\Nebula-agent",
+        "FS_ALLOW": "E:\\星云;E:\\Nebula",
+        "FS_ALLOW_FILE": "E:\\Nebula\\NebulaBaize\\fs_allowed_roots.txt"
+      }
+    },
+    "shell": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\shell_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent",
+      "env": {
+        "FS_ALLOW_FILE": "E:\\Nebula\\NebulaBaize\\fs_allowed_roots.txt"
+      }
+    },
+    "websearch": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\websearch_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent",
+      "env": {
+        "STRATA_PROXY": "http://127.0.0.1:7897"
+      }
+    },
+    "memory": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\memory_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+    },
+    "browser": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\browser_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+    },
+    "schedule": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\schedule_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+    },
+    "skillhub": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\skillhub_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+    },
+    "registry": {
+      "command": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\servers\\registry_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+    },
+    "example-server": {
+      "command": "python",
+      "args": [
+        "E:\\Nebula\\NebulaBaize\\Nebula-agent\\skills/example_server.py"
+      ],
+      "cwd": "E:\\Nebula\\NebulaBaize\\Nebula-agent\\skills",
+      "_skill": "example"
+    }
+  },
+  "mcp": {
+    "timeout_s": 330,
+    "max_result_chars": 60000,
+    "max_rounds": 1000,
+    "server_timeout_s": 0,
+    "turn_budget_s": 3600,
+    "idle_timeout_s": 180
+  },
+  "session": {
+    "strategy": "llm",
+    "max_chars": 16384,
+    "keep_tail_min": 6,
+    "tail_budget_ratio": 0.4,
+    "frozen_cap_ratio": 0.5,
+    "frozen_refold_budget": null,
+    "tool_result_cap": 60000,
+    "tool_head_lines": 15,
+    "tool_tail_lines": 15,
+    "tool_keep_recent": 3
+  },
+  "schedule": {
+    "entries": [
+      {
+        "name": "每日代码备份",
+        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\Nebula-agent\" && python tools\\backup-bundle.py --keep 14",
+        "approval": "full",
+        "roots": [
+          "E:\\Nebula\\NebulaBaize"
+        ],
+        "deliver": "session_stream",
+        "daily_at": "03:00"
+      }
+    ]
+  },
+  "verify": {
+    "command": ".venv\\Scripts\\python.exe tests\\test_undefined_names.py && .venv\\Scripts\\python.exe tests\\test_code_hygiene.py",
+    "max_retries": 6,
+    "timeout_s": 120,
+    "checks": [
+      {
+        "page": "tests/_c_probe_page.html",
+        "steps": 3,
+        "probes": {
+          "rendered": "document.getElementById('x').innerText"
+        },
+        "expect": {
+          "rendered": "RENDERED_BY_JS"
+        }
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # Strata workspace git baseline — track core assets, ignore noise.
-# Tracked: source under strata-agent/ (.py/.js/.mjs/.cjs/.css/.html/.svg/.json/.yaml/.woff2),
+# Tracked: source under Nebula-agent/ (.py/.js/.mjs/.cjs/.css/.html/.svg/.json/.yaml/.woff2),
 #   fonts/, the persistent GATE locks, core config, the agent entry points, DESIGN.md,
 #   RULES.md, and the top-level deploy docs/scripts.
 # Ignored: caches, backups, screenshots, run logs/outputs, scratch, one-shot scripts.
@@ -13,69 +13,69 @@ __pycache__/
 # backups (anchor-edit tooling) + nested config backup dir
 *.bak
 *.bak-*
-strata-agent/config/.backups/
+Nebula-agent/config/.backups/
 
 # screenshots / images / run artifacts
 *.png
 *.log
 out/
-strata-agent/tests/tests/
-strata-agent/tests/_scratch_*/
-strata-agent/tools/_backup/
+Nebula-agent/tests/tests/
+Nebula-agent/tests/_scratch_*/
+Nebula-agent/tools/_backup/
 
-# one-shot tooling under strata-agent/tools/
-strata-agent/tools/_patch_*
-strata-agent/tools/_read_*
-strata-agent/tools/_verify_*
-strata-agent/tools/*_report.txt
-strata-agent/tools/_ab_*.py
-strata-agent/tools/_archive_design_stub.py
-strata-agent/tools/_baseline_probe.py
-strata-agent/tools/_cache_experiment.py
-strata-agent/tools/_dbg_paste.py
-strata-agent/tools/_deep_probe*.py
-strata-agent/tools/_deploy_*.py
-strata-agent/tools/_fix_i18n_comma.py
-strata-agent/tools/_full_run7.txt
-strata-agent/tools/_gw_precheck.py
-strata-agent/tools/_i18n_audit.cjs
-strata-agent/tools/_inject_size.py
-strata-agent/tools/_live_vision.py
-strata-agent/tools/_measure_schema.py
-strata-agent/tools/_ondemand_quality_stub.py
-strata-agent/tools/_overhead_probe.py
-strata-agent/tools/_pid_probe.ps1
-strata-agent/tools/_reforge_*.py
-strata-agent/tools/_semantic_summarize_stub.py
-strata-agent/tools/_show_session.py
-strata-agent/tools/_switch_llm.py
-strata-agent/tools/_usage_probe.py
+# one-shot tooling under Nebula-agent/tools/
+Nebula-agent/tools/_patch_*
+Nebula-agent/tools/_read_*
+Nebula-agent/tools/_verify_*
+Nebula-agent/tools/*_report.txt
+Nebula-agent/tools/_ab_*.py
+Nebula-agent/tools/_archive_design_stub.py
+Nebula-agent/tools/_baseline_probe.py
+Nebula-agent/tools/_cache_experiment.py
+Nebula-agent/tools/_dbg_paste.py
+Nebula-agent/tools/_deep_probe*.py
+Nebula-agent/tools/_deploy_*.py
+Nebula-agent/tools/_fix_i18n_comma.py
+Nebula-agent/tools/_full_run7.txt
+Nebula-agent/tools/_gw_precheck.py
+Nebula-agent/tools/_i18n_audit.cjs
+Nebula-agent/tools/_inject_size.py
+Nebula-agent/tools/_live_vision.py
+Nebula-agent/tools/_measure_schema.py
+Nebula-agent/tools/_ondemand_quality_stub.py
+Nebula-agent/tools/_overhead_probe.py
+Nebula-agent/tools/_pid_probe.ps1
+Nebula-agent/tools/_reforge_*.py
+Nebula-agent/tools/_semantic_summarize_stub.py
+Nebula-agent/tools/_show_session.py
+Nebula-agent/tools/_switch_llm.py
+Nebula-agent/tools/_usage_probe.py
 
 # GATE locks under tools/ — must stay tracked (run_tests SUITES depends on them).
-!strata-agent/tools/_seg_scroll_baseline.py
-!strata-agent/tools/_semantic_summarizer_gate.py
-!strata-agent/tools/_archive_gate.py
+!Nebula-agent/tools/_seg_scroll_baseline.py
+!Nebula-agent/tools/_semantic_summarizer_gate.py
+!Nebula-agent/tools/_archive_gate.py
 
 # one-shot verification pages / recon snapshots
-strata-agent/serve/_*.html
-strata-agent/serve/seg_scroll_verify.html
-strata-agent/serve/web/_recon*.txt
-strata-agent/serve/web/*.newtmp
-strata-agent/tests/_c_probe_page.html
+Nebula-agent/serve/_*.html
+Nebula-agent/serve/seg_scroll_verify.html
+Nebula-agent/serve/web/_recon*.txt
+Nebula-agent/serve/web/*.newtmp
+Nebula-agent/tests/_c_probe_page.html
 
 # runtime-generated data + native/bin build output + sharded artifacts (not source)
-strata-agent/data/
-strata-agent/logs/
-strata-agent/native
-strata-agent/bin
-strata-agent/parts/
-strata-agent/_incoming/
-strata-agent/selftest.txt
-strata-agent/_grep_ins_out.txt
-strata-agent/_seg.txt
+Nebula-agent/data/
+Nebula-agent/logs/
+Nebula-agent/native
+Nebula-agent/bin
+Nebula-agent/parts/
+Nebula-agent/_incoming/
+Nebula-agent/selftest.txt
+Nebula-agent/_grep_ins_out.txt
+Nebula-agent/_seg.txt
 
 # historical zip snapshots (git is now the snapshot mechanism; zip backups are noise)
-strata-agent/outputs/
+Nebula-agent/outputs/
 
 # runtime memory / archive / design stores (autonomous-memory runtime, not source)
 .design/
@@ -111,9 +111,9 @@ patches/
 RULES.draft.md
 
 # one-shot landing/scout tooling from recycle-paging round (transient, kept on disk)
-strata-agent/tools/_land_*.py
-strata-agent/tools/_scout_*.py
-strata-agent/tools/_verifyast_scan.py
+Nebula-agent/tools/_land_*.py
+Nebula-agent/tools/_scout_*.py
+Nebula-agent/tools/_verifyast_scan.py
 
 # recycle-bin runtime data dir (com/shell runtime store, not source)
 .Nebula-recycle/
@@ -133,10 +133,10 @@ strata-agent/tools/_verifyast_scan.py
 /_rt_backup_mixed.txt
 # per-hunk attribution round one-shot scripts (transient; test_pill_closeout_align.mjs is NOT here
 # on purpose -- it belongs to the pill-closeout round, not this scratch cleanup)
-strata-agent/tools/_anchor_patch.py
-strata-agent/tests/_diag_acts.mjs
-strata-agent/tests/_diff_spark_render.mjs
-strata-agent/tests/_spark_ids.txt
+Nebula-agent/tools/_anchor_patch.py
+Nebula-agent/tests/_diag_acts.mjs
+Nebula-agent/tests/_diff_spark_render.mjs
+Nebula-agent/tests/_spark_ids.txt
 
 # --- jsdom recovery channel: track the workspace-root node_modules so a fresh
 # clone carries the package the 91 jsdom tests resolve through NODE_PATH (2026-11).
@@ -144,4 +144,4 @@ strata-agent/tests/_spark_ids.txt
 !package.json
 !package-lock.json
 # runtime drift: proc-info snapshot written by daemon
-strata-agent/proc_info.json
+Nebula-agent/proc_info.json
