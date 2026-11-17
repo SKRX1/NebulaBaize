@@ -138,6 +138,17 @@ try:
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from ram_guard import warn_budget_over_ram, warn_tight_ram
 
+# Which GPUs a config names, and whether that is a layer split; pure builtins only
+# (the "gpu" key -> nvidia-smi-numbered card list; several cards minus a --peer-device
+# reassignment -> split). layer_split_of calls gpu_list, which moves with it, so the pair
+# closes only over builtins. AST proved neither references engine/session state nor
+# lazy-imports anything first-party. server.py re-imports the names unchanged so all
+# call sites stay untouched. Equivalence move, not a rewrite (2026-11-17).
+try:
+    from serve.gpu_config import gpu_list, layer_split_of
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from gpu_config import gpu_list, layer_split_of
+
 # The OpenAI / Anthropic stream-collection helpers. Kept in their own module so the
 # protocol codec is unit-testable without importing the engine + MCP stack (and keeps
 # the 7,789-line server.py leaner). Pure functions -- no server state; same rationale
@@ -2476,16 +2487,6 @@ class Vision:
         shutil.rmtree(self.dir, ignore_errors=True)
 
 
-def gpu_list(cfg: dict) -> list[int]:
-    """The config's "gpu": one card (2), or several for a layer split ([0, 2] or "0,2"), numbered as nvidia-smi
-    numbers them; [] when it names none."""
-    g = cfg.get("gpu")
-    if g is None or g == "":
-        return []
-    items = g if isinstance(g, (list, tuple)) else str(g).split(",")
-    return [int(str(x).strip()) for x in items if str(x).strip() != ""]
-
-
 def effort_end_args(cfg: dict, exe: str, tok) -> list[str] | None:
     """#458 (opt-in): the engine arguments for "effort_position": "end" - the id of "system" as --tail-role-token, so
     the engine checkpoints in front of the trailing effort turn - or None when the config leaves it at the top (the
@@ -2553,12 +2554,6 @@ def layer_split_value(cfg: dict) -> str:
     if vals[0] < 2 or any(b <= a for a, b in zip(vals, vals[1:])):
         raise ValueError(f"{hint}; got {v!r}, which does not rise from 2 or more")
     return ",".join(str(x) for x in vals)
-
-
-def layer_split_of(cfg: dict) -> bool:
-    """Several GPUs in the config are a layer split, unless the args put the later card(s) to another use: with
-    --peer-device the second card is an expert-cache tier, and the engine refuses that beside --layer-split (#665)."""
-    return len(gpu_list(cfg)) > 1 and "--peer-device" not in cfg["args"]
 
 
 def engine_args(cfg: dict) -> list[str]:
@@ -7214,3 +7209,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

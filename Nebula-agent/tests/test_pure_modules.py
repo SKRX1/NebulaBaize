@@ -1,4 +1,4 @@
-"""Unit tests for the seven pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the nine pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -8,6 +8,7 @@
   serve/gpu_score     - per-card NVIDIA/AMD capability scores (the selection layer)
   serve/boot_diagnose - human-readable start-up failure diagnostics
   serve/path_locate   - resolve a configured/user input to the real usable path
+  serve/gpu_config    - the config's GPU list / whether naming several is a split
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -29,6 +30,7 @@ from serve import ram_guard as RG           # noqa: E402
 from serve import gpu_score as GS           # noqa: E402
 from serve import boot_diagnose as BD       # noqa: E402
 from serve import path_locate as PL         # noqa: E402
+from serve import gpu_config as GC          # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -545,6 +547,47 @@ def test_locate_import_patch_discipline():
     print("LOCATE import-patch lock: sys.modules swap invisible to GS; GS.subprocess patch works")
 
 
+# ----------------------------------------------------------------- gpu_config ----
+def test_gpu_cfg_gpu_list():
+    # The config's "gpu" key -> the nvidia-smi-numbered card list, in every accepted shape.
+    assert GC.gpu_list({}) == []                       # no key
+    assert GC.gpu_list({"gpu": None}) == []            # explicit none
+    assert GC.gpu_list({"gpu": ""}) == []              # empty string -> none
+    assert GC.gpu_list({"gpu": 2}) == [2]              # a bare int is str() -> one card
+    assert GC.gpu_list({"gpu": "2"}) == [2]            # single string
+    assert GC.gpu_list({"gpu": "0,2"}) == [0, 2]       # CSV string -> ordered list
+    assert GC.gpu_list({"gpu": " 2 , 1 "}) == [2, 1]   # whitespace around items is stripped
+    assert GC.gpu_list({"gpu": [1, 3]}) == [1, 3]      # a list passes through as ints
+    assert GC.gpu_list({"gpu": (0, 1, 2)}) == [0, 1, 2]  # a tuple too
+    assert GC.gpu_list({"gpu": "2,,3"}) == [2, 3]      # empty CSV tokens are dropped
+    # LOAD-BEARING: a non-numeric token raises ValueError (never silently coerced to 0), so a
+    # malformed config fails loud rather than silently targeting card 0.
+    try:
+        GC.gpu_list({"gpu": "a,2"})
+        raise AssertionError("expected ValueError for a non-numeric card token")
+    except ValueError:
+        pass
+    print("GPU-CFG gpu_list: none/int/csv/strip/list/tuple/empty-drop ok; non-numeric -> ValueError")
+
+
+def test_gpu_cfg_layer_split_of():
+    # Several named cards AND no --peer-device on the later card(s) => a layer split.
+    assert GC.layer_split_of({"gpu": [0, 2], "args": []}) is True
+    assert GC.layer_split_of({"gpu": "0,1,2", "args": ["--layer-split", "99"]}) is True  # already-split is still a split
+    # LOAD-BEARING differential 1: a single card is NOT a split (len <= 1 -> False).
+    assert GC.layer_split_of({"gpu": 2, "args": []}) is False
+    assert GC.layer_split_of({"gpu": [1], "args": []}) is False
+    # LOAD-BEARING differential 2: --peer-device reassigns the second card to an expert tier,
+    # so several cards + that flag is NOT a split (the engine refuses --layer-split beside it, #665).
+    assert GC.layer_split_of({"gpu": [0, 2], "args": ["--peer-device", "k/q5"]}) is False
+    # LOAD-BEARING guard: with a single card the `and` short-circuits, so a config that has NO
+    # "args" key at all must NOT raise -- the split check never touches cfg["args"].
+    assert GC.layer_split_of({"gpu": 1}) is False
+    assert GC.layer_split_of({"gpu": []}) is False
+    print("GPU-CFG layer_split_of: multi-card True, single-card/--peer-device False, "
+          "short-circuit guards missing args key")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -569,6 +612,8 @@ def main():
     test_locate_engine_binary()
     test_locate_slot_save_dir()
     test_locate_import_patch_discipline()
+    test_gpu_cfg_gpu_list()
+    test_gpu_cfg_layer_split_of()
     print("PURE-MODULES TEST PASSED")
     return 0
 
