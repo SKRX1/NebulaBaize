@@ -808,8 +808,8 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 #ins-files-sec .ins-sec__title { color: var(--st-gen-text); }
 #ins-tests-sec .ins-sec__title { color: var(--st-test-text); }
 #ins-session .ins-sec__title { color: var(--st-stat-text); }
-#ins-files-sec .ins-file-list li:not(.muted) { color: color-mix(in srgb, var(--st-gen-text) 40%, var(--st-ink-soft)); }
-#ins-tests-sec .ins-test-list li:not(.muted) { color: color-mix(in srgb, var(--st-test-text) 40%, var(--st-ink-soft)); }
+#ins-files-sec .ins-file-list li:not(.muted) { color: var(--st-ink); }
+#ins-tests-sec .ins-test-list li:not(.muted) { color: var(--st-ink); }
 #ins-session .ins-stat__v { color: var(--st-stat-text); }
 /* ---------------- workspace tree: a workspace owns the tasks started inside it ---------------- */
 .st-ws { display: flex; flex-direction: column; }
