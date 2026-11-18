@@ -139,7 +139,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .nebula[data-state="generating"] .neb-swirl,
 .nebula[data-state="reading"] .neb-swirl,
 .nebula[data-state="queued"] .neb-swirl,
-.nebula[data-state="tool"] .neb-swirl { animation: neb-spin calc(var(--neb-spin) * 1.6) steps(240) infinite; }
+.nebula[data-state="tool"] .neb-swirl { opacity: .55; animation: neb-spin calc(var(--neb-spin) * 1.6) steps(240) infinite; }
 .nebula[data-state="generating"] .neb-halo,
 .nebula[data-state="reading"] .neb-halo,
 .nebula[data-state="queued"] .neb-halo,
@@ -295,16 +295,16 @@ main { flex: 1; min-height: 0; display: flex; }
   content: ""; display: inline-block; width: 17px; height: 17px; margin-left: 6px; vertical-align: -3px;
   border-radius: 50%;
  background:
-   radial-gradient(circle 7.5px at 50% 50%, rgba(227,155,11,0) 0 45%, color-mix(in srgb, #e39b0b 34%, transparent) 78%, rgba(227,155,11,0) 100%),
-   radial-gradient(circle 1.5px at 50% 11%,  color-mix(in srgb, var(--wu-mu) 95%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.2px at 85% 60%,  color-mix(in srgb, var(--wu-huo) 88%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.7px at 24% 78%,  color-mix(in srgb, var(--wu-tu) 90%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.1px at 73% 27%,  color-mix(in srgb, var(--wu-jin) 92%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 1.3px at 15% 41%,  color-mix(in srgb, var(--wu-shui) 90%, transparent) 99%, transparent 100%),
-   radial-gradient(circle 3.1px at 50% 50%, var(--wu-eye) 0 35%, color-mix(in srgb, var(--wu-eye) 60%, transparent) 90%, transparent 100%),
-   radial-gradient(ellipse 7.5px 2.3px at 50% 50%, color-mix(in srgb, var(--st-info) 48%, transparent) 0 55%, transparent 72%),
-   radial-gradient(ellipse 2.3px 7.5px at 50% 50%, color-mix(in srgb, var(--st-info-text) 44%, transparent) 0 55%, transparent 72%);
- filter: drop-shadow(0 0 3.5px color-mix(in srgb, var(--st-info) 55%, transparent));
+   radial-gradient(circle 7.5px at 50% 50%, rgba(227,155,11,0) 0 45%, color-mix(in srgb, #e39b0b 40%, transparent) 78%, rgba(227,155,11,0) 100%),
+   radial-gradient(circle 1.5px at 50% 11%,  #facc15 99%, transparent 100%),
+   radial-gradient(circle 1.2px at 85% 60%,  #ffe9a8 99%, transparent 100%),
+   radial-gradient(circle 1.7px at 24% 78%,  #e39b0b 99%, transparent 100%),
+   radial-gradient(circle 1.1px at 73% 27%,  #ffe9a8 99%, transparent 100%),
+   radial-gradient(circle 1.3px at 15% 41%,  #facc15 99%, transparent 100%),
+   radial-gradient(circle 3.1px at 50% 50%, #e39b0b 0 35%, color-mix(in srgb, #e39b0b 60%, transparent) 90%, transparent 100%),
+   radial-gradient(ellipse 7.5px 2.3px at 50% 50%, color-mix(in srgb, #facc15 55%, transparent) 0 55%, transparent 72%),
+   radial-gradient(ellipse 2.3px 7.5px at 50% 50%, color-mix(in srgb, #ffe9a8 50%, transparent) 0 55%, transparent 72%);
+ filter: drop-shadow(0 0 3.5px color-mix(in srgb, #e39b0b 60%, transparent));
   animation: neb-caret 6s linear infinite;
 }
 /* the paragraph rule above already put it on the last line - don't paint a second one below */
