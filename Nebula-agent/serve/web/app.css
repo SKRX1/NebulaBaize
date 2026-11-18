@@ -292,19 +292,18 @@ main { flex: 1; min-height: 0; display: flex; }
      · 末尾是工具卡 / 还没有任何内容 → 挂在气泡流末尾兜底，任何时刻都有一个“她在干活”的标记 */
 .cursor::after,
 .cursor > .ans > .ans-md:last-child p:last-child::after {
-  content: ""; display: inline-block; width: 22px; height: 22px; margin-left: 6px; vertical-align: -4px;
+  content: ""; display: inline-block; width: 26px; height: 26px; margin-left: 6px; vertical-align: -6px;
   border-radius: 50%;
  background:
-   radial-gradient(circle 10px at 50% 50%, rgba(227,155,11,0) 0 70%, color-mix(in srgb, #e39b0b 16%, transparent) 86%, rgba(227,155,11,0) 100%),
-   radial-gradient(circle 2.7px at 50% 16%,  var(--wu-mu) 92%, color-mix(in srgb, var(--wu-mu) 55%, transparent) 100%),
-   radial-gradient(circle 2.5px at 81.5% 39.5%,  var(--wu-huo) 92%, color-mix(in srgb, var(--wu-huo) 55%, transparent) 100%),
-   radial-gradient(circle 2.6px at 69.4% 76.5%,  var(--wu-tu) 92%, color-mix(in srgb, var(--wu-tu) 55%, transparent) 100%),
-   radial-gradient(circle 2.4px at 30.6% 76.5%,  var(--wu-jin) 92%, color-mix(in srgb, var(--wu-jin) 55%, transparent) 100%),
-   radial-gradient(circle 2.5px at 18.5% 39.5%,  var(--wu-shui) 92%, color-mix(in srgb, var(--wu-shui) 55%, transparent) 100%),
-   radial-gradient(circle 2.2px at 50% 50%, color-mix(in srgb, #1b1f27 90%, transparent) 0 30%, color-mix(in srgb, #1b1f27 45%, transparent) 80%, transparent 100%),
-   radial-gradient(ellipse 10px 3px at 50% 50%, color-mix(in srgb, var(--st-info) 50%, transparent) 0 55%, transparent 72%),
-   radial-gradient(ellipse 3px 10px at 50% 50%, color-mix(in srgb, var(--st-info) 45%, transparent) 0 55%, transparent 72%);
- filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.45));
+   radial-gradient(circle 3.6px at 50% 11%, var(--wu-mu) 90%, rgba(58,167,109,0) 100%),
+   radial-gradient(circle 3.6px at 88% 38%, var(--wu-huo) 90%, rgba(224,74,63,0) 100%),
+   radial-gradient(circle 3.6px at 74% 83%, var(--wu-tu) 90%, rgba(217,165,33,0) 100%),
+   radial-gradient(circle 3.6px at 26% 83%, var(--wu-jin) 90%, rgba(74,134,214,0) 100%),
+   radial-gradient(circle 3.6px at 12% 38%, var(--wu-shui) 90%, rgba(238,244,255,0) 100%),
+   radial-gradient(ellipse 11px 2.6px at 50% 50%, color-mix(in srgb, var(--st-info) 40%, transparent) 0 55%, transparent 72%),
+   radial-gradient(ellipse 2.6px 11px at 50% 50%, color-mix(in srgb, var(--st-info) 35%, transparent) 0 55%, transparent 72%),
+   radial-gradient(circle 2px at 50% 50%, #05070b 0 40%, rgba(5,7,11,0) 100%);
+ filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.5));
   animation: neb-caret 6s linear infinite;
 }
 /* the paragraph rule above already put it on the last line - don't paint a second one below */
