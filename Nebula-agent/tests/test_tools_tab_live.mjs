@@ -12,8 +12,25 @@
  */
 import { createRequire } from "module";
 
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
-const { chromium } = require("playwright");
+// Resolve Playwright LOCALLY first (Node walks up from this file into the repo-root
+// node_modules, the same one the jsdom recovery channel uses) so a plain `npm i playwright`
+// is enough on any machine. Only if that misses do we fall back to the legacy managed
+// workspace; a real miss prints the exact fix command. The chromium.launch() below is left
+// as-is (these smoke tests target a running gateway and their own browser).
+let chromium;
+try {
+  ({ chromium } = createRequire(import.meta.url)("playwright"));
+} catch (e) {
+  try {
+    ({ chromium } = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/")("playwright"));
+  } catch (e2) {
+    console.error(
+      "playwright is not installed here. From the repo root run:\n" +
+      "    npm i playwright\n" +
+      "(a pure-JS package, a few MB; it does NOT pull a browser). Then run this test again.");
+    process.exit(2);
+  }
+}
 
 const BASE = "http://127.0.0.1:8080";
 const FAILURES = [];
