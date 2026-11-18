@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Session anomaly scanner.
 
-Reads the per-turn (turns.jsonl) and per-round (rounds.jsonl) diagnostic logs the
+Reads the per-turn (turn.jsonl) and per-round (rounds.jsonl) diagnostic logs the
 gateway writes, and flags the "silent failure" signatures that previously surfaced
 only as a user complaint + a screenshot:
 
@@ -113,7 +113,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description="Scan gateway session logs for silent-failure signatures.")
     ap.add_argument("--dir", default=default_dir,
-                    help="directory containing turns.jsonl / rounds.jsonl")
+                    help="directory containing turn.jsonl / rounds.jsonl")
     ap.add_argument("--strict", action="store_true",
                     help="treat SOFT findings as failures too")
     ap.add_argument("--json", action="store_true", help="emit JSON instead of text")
@@ -122,7 +122,7 @@ def main() -> int:
     if not os.path.isdir(args.dir):
         print(f"scan_session: no log dir {args.dir} -- nothing to scan")
         return 0
-    turns = _load(os.path.join(args.dir, "turns.jsonl"))
+    turns = _load(os.path.join(args.dir, "turn.jsonl"))
     rounds = _load(os.path.join(args.dir, "rounds.jsonl"))
     judges = _load(os.path.join(args.dir, "judge_stream.jsonl"))
     if not turns and not rounds and not judges:

@@ -28,7 +28,7 @@ def check(name, cond, extra=""):
 
 
 def _logs(d, turns, rounds):
-    with open(os.path.join(d, "turns.jsonl"), "w", encoding="utf-8") as f:
+    with open(os.path.join(d, "turn.jsonl"), "w", encoding="utf-8") as f:
         for r in turns:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     with open(os.path.join(d, "rounds.jsonl"), "w", encoding="utf-8") as f:
@@ -38,7 +38,7 @@ def _logs(d, turns, rounds):
 
 def _scan(d):
     return scan_session.scan(
-        scan_session._load(os.path.join(d, "turns.jsonl")),
+        scan_session._load(os.path.join(d, "turn.jsonl")),
         scan_session._load(os.path.join(d, "rounds.jsonl")))
 
 

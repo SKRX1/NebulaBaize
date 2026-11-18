@@ -5,7 +5,7 @@ Runs the three slow checks end to end and aggregates their verdicts:
 
   1. soak          — long-session stress (live against 8099+8080 if up, else in-process)
   2. behavior_judge — per-turn soft-instruction adherence (heuristics + LLM if configured)
-  3. scan_session  — parse turns.jsonl / rounds.jsonl / judge_stream.jsonl for silent failures
+  3. scan_session  — parse turn.jsonl / rounds.jsonl / judge_stream.jsonl for silent failures
 
 Designed to be safe to run anywhere:
   * live soak degrades to in-process when the engine is down (no hard failure),
@@ -76,7 +76,7 @@ def main() -> int:
     # (and the running gateway's async judge) repopulate them during this run, so the
     # scan afterwards reflects only the nightly window — not stale synthetic failures.
     if not args.no_rotate:
-        for fn in ("turns.jsonl", "rounds.jsonl", "judge_stream.jsonl"):
+        for fn in ("turn.jsonl", "rounds.jsonl", "judge_stream.jsonl"):
             _rotate(os.path.join(LOGS, fn))
 
     hard_fail = False
@@ -101,7 +101,7 @@ def main() -> int:
             hard_fail = hard_fail or (rc != 0)
 
     # 2) behavior judge on the live soak turns (if produced)
-    soak_turns = os.path.join(LOGS, "soak_turns.jsonl")
+    soak_turns = os.path.join(LOGS, "soak_turn.jsonl")
     if os.path.exists(soak_turns):
         judge_cmd = [PY, "tools/behavior_judge.py", soak_turns]
         if known:
