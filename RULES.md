@@ -141,6 +141,7 @@ sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以�
 门禁测试锁定 run_all_tests.py 转发器：定位失败必红（非零+诚实stderr）、委托退出码必透传、参数必转发——防工作区根假绿旧病复发
 前端行为门禁被本轮拍板正当推翻时（如控件形态改变），更新断言锁住「事实」（默认值/行为），不锁旧形态
 无头浏览器截图工具等待窗<2.8s：harness 的自动交互脚本要安排在 ≤300ms 触发，长等待探针交给 browser__sim/jsdom
+浏览器类 e2e（*_live.mjs、test_local_sibling_browser.mjs 等）默认 chromium.launch({channel:"msedge"}) 复用系统已装 Edge，免下载自带的 Chromium（PW_CHANNEL=chromium 才回退自带构建）；但 playwright 这个纯 JS 库本身仍需在装有 npm 的机器上安装——省的是浏览器二进制，不是库。
 本地 harness 页必须放 serve/web/ 内经 http://127.0.0.1:8099/ 访问（放 evidence/ 走 file:// 会因相对 CSS 路径 404 渲染成裸页）
 涉及8099的任务回答正文禁提宿主/8080/apps-host(历史经验检索结果与当前任务无关时不带入正文,避免用户误读「你在改宿主」)
 浏览器原生window.confirm无法嵌入checkbox——凡需要「确认+勾选项」的场景必须用页面内嵌确认框,不能用原生confirm
