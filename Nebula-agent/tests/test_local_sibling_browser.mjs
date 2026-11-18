@@ -22,10 +22,12 @@
  * test_local_sibling_e2e.py), isolated registry + isolated output file; the real config/ is
  * never touched.
  *
- * Run: node tests/test_local_sibling_browser.mjs        (requires the Playwright library —
- *       a pure-JS package, a few MB — plus ANY system browser. By default it drives the
- *       installed Microsoft Edge via channel:"msedge", so Playwright never downloads its own
- *       Chromium (PW_CHANNEL=chromium opts back into the bundled build).
+ * Run: from the repo root `npm i playwright` once (a pure-JS package, a few MB; no browser
+ *       is pulled — it lands in the repo-root node_modules the jsdom tests already share),
+ *       then `node tests/test_local_sibling_browser.mjs`. It resolves Playwright locally and
+ *       drives your installed Microsoft Edge via channel:"msedge", so it never downloads its
+ *       own Chromium (PW_CHANNEL=chromium opts back into the bundled build). On a fresh box
+ *       the ONLY prerequisites are npm + Edge — both are already assumed present.
  *       NOT registered in run_tests, like the other *_live.mjs -- those run manually against
  *       a live install, not in the headless CI pool).
  */
@@ -36,10 +38,28 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "module";
 
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
-const { chromium } = require("playwright");
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Resolve Playwright LOCALLY first so a plain `npm i playwright` is enough on any machine:
+// requiring from this test file's own directory makes Node walk up into the repo-root
+// node_modules (the same one the jsdom recovery channel uses). Only if that misses do we
+// fall back to the legacy managed workspace. A real miss prints the exact fix command.
+let chromium;
+try {
+  ({ chromium } = createRequire(import.meta.url)("playwright"));
+} catch (e) {
+  try {
+    ({ chromium } = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/")("playwright"));
+  } catch (e2) {
+    console.error(
+      "playwright is not installed here. From the repo root run:\n" +
+      "    npm i playwright\n" +
+      "(a pure-JS package, a few MB; it does NOT pull a browser). Then this test drives your\n" +
+      "installed Microsoft Edge via channel:\"msedge\" — no Chromium download.\n" +
+      "Set PW_CHANNEL=chromium only if you deliberately want Playwright's own browser.");
+    process.exit(2);
+  }
+}
 const ROOT = path.resolve(__dirname, "..");                 // Nebula-agent
 const RT = path.join(ROOT, "runtime");
 const PY = process.env.PY || "python";
