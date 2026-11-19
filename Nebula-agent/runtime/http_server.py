@@ -1867,6 +1867,31 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/interrupt-log":
             self._api_interrupt_log(method)
             return True
+        if path.rstrip("/") == "/api/version":
+            # the web app's brand badge: single-source VERSION file (ROOT/VERSION) + the
+            # last commit's short sha and date (git runs with cwd=ROOT). On any failure the
+            # commit fields come back null and the badge keeps its static fallback text.
+            ver = None
+            try:
+                vf = os.path.join(ROOT, "VERSION")
+                if os.path.isfile(vf):
+                    ver = io.open(vf, encoding="utf-8").read().strip() or None
+            except Exception:
+                ver = None   # VERSION unreadable -> keep the static badge text
+            sha = date = None
+            git = shutil.which("git")
+            if git:
+                try:
+                    out = subprocess.run([git, "log", "-1", "--format=%h|%ci"],
+                                         cwd=ROOT, capture_output=True, text=True,
+                                         timeout=2).stdout.strip()
+                    if "|" in out:
+                        sha, date = out.split("|", 1)
+                        date = date.split(" ")[0]   # drop the timezone offset
+                except Exception:
+                    sha = date = None   # git unavailable -> tooltip shows version only
+            self._json(200, {"version": ver, "commit": sha, "date": date})
+            return True
         if path.rstrip("/") == "/api/parallel-probe":
             self._api_parallel_probe()
             return True
