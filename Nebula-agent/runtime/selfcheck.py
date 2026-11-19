@@ -184,7 +184,7 @@ def check_models_contract(source_root: Optional[str]) -> dict:
 
 
 def check_logs_dir(source_root: Optional[str]) -> dict:
-    """The diagnostics layer (turns.jsonl / rounds.jsonl) must be writable."""
+    """The diagnostics layer (turn.jsonl / rounds.jsonl) must be writable."""
     if not source_root:
         return _check("logs_dir", True, "skipped (no source_root)", level="INFO")
     log_dir = os.path.join(source_root, "logs")
