@@ -16,7 +16,7 @@ A one-line picture of “what this repo ships” vs “what it runs on top of”
 
 ```
 +--------------------------------------------------------+
-|  Nebula Baize / 星云白洽  (THIS repository)             |   <- original application layer / 原创应用层
+|  Nebula Baize / 星云白泽  (THIS repository)             |   <- original application layer / 原创应用层
 |  gateway · runtime · skills · scheduler · memory · tools   |      (MIT, (c) 2026 时空象容)
 |  web frontend (serve/web)                               |
 +--------------------------------------------------------+
