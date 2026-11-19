@@ -48,6 +48,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .brand-ai     { color: #a855f7; font-weight: 600; }
 .brand-sep { color: var(--st-line); }
 .brand-tag { color: var(--st-yellow); font-weight: 600; }
+.brand-version { color: var(--st-ink-muted); font-size: var(--st-fs-xs); font-weight: 600; letter-spacing: .3px; user-select: none; }
 /* animated mark: golden nebula -- a glowing core, a spinning swirl, breathing halo, orbiting dust */
 .brand-mark { width: 34px; height: 34px; flex: none; display: block;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--st-info) 32%, transparent)); }
