@@ -32,6 +32,28 @@ const fmtDur = (secs) => {
   return m === 0 ? `${r}秒` : `${m}分${String(r).padStart(2, "0")}秒`;
 };
 // a one-decimal seconds readout for tooltips
+// Brand badge version: single source = the server's /api/version (VERSION file + last
+// commit). Keep the static fallback text if the fetch fails; refresh text + tooltip when live.
+(function brandVersion() {
+  const run = async () => {
+    const el = document.getElementById("brand-version");
+    if (!el) return;
+    try {
+      const r = await fetch("api/version", { headers: headers() });
+      if (!r.ok) return;
+      const j = await r.json();
+      const v = j && j.version ? String(j.version) : "";
+      if (v) el.textContent = "v" + v;
+      const parts = [];
+      if (v) parts.push("Nebula Baize " + v);
+      if (j && j.date) parts.push("built " + j.date);
+      if (j && j.commit) parts.push(j.commit);
+      if (parts.length) el.title = parts.join("  \u00b7  ");
+    } catch (e) {}
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+  else run();
+})();
 const fmtDurLong = (secs) => {
   if (secs == null) return "–";
   const s = Math.max(0, secs), m = Math.floor(s / 60), r = s - m * 60;

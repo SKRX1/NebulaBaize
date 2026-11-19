@@ -5232,6 +5232,32 @@ def make_handler(svc: Service):
                     # the last 12 requests; `?requests=all` every one kept (the Monitor's "Show all", issue #35)
                     self._json(200, svc.metrics(all_requests="requests=all" in self.path))
                 return
+            if path == "/api/version":
+                # the web app's brand badge: single-source VERSION file + the last commit's
+                # short sha and date (git runs with cwd=ROOT). On any failure the commit
+                # fields come back null and the badge keeps its static fallback text.
+                if self._authorized():
+                    ver = None
+                    try:
+                        vf = ROOT / "VERSION"
+                        if vf.is_file():
+                            ver = vf.read_text(encoding="utf-8").strip() or None
+                    except Exception:
+                        pass
+                    sha = date = None
+                    git = shutil.which("git")
+                    if git:
+                        try:
+                            out = subprocess.run([git, "log", "-1", "--format=%h|%ci"],
+                                                 cwd=str(ROOT), capture_output=True,
+                                                 text=True, timeout=2).stdout.strip()
+                            if "|" in out:
+                                sha, date = out.split("|", 1)
+                                date = date.split(" ")[0]   # drop the timezone offset
+                        except Exception:
+                            pass
+                    self._json(200, {"version": ver, "commit": sha, "date": date})
+                return
             if path == "/api/requests":
                 if self._authorized():
                     request_id = parse_qs(urlsplit(self.path).query).get("id", [None])[0]
