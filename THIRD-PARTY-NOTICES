@@ -1,0 +1,42 @@
+THIRD-PARTY NOTICES
+====================
+This file lists the third-party components that are actually bundled/distributed
+with the Nebula Baize release, together with their license types (verified against
+the LICENSE files actually present under .venv/). All of them are permissive
+licenses that allow closed-source redistribution, provided their copyright /
+license notices are retained (this file).
+
+BUNDLED RUNTIME DEPENDENCIES (permissive)
+-----------------------------------------
+These are the packages physically present in the workspace venv
+(Nebula-agent/.venv/Lib/site-packages/). Their licenses are all permissive;
+reproducing the full text of each is recommended in your distribution.
+
+  Pillow 13.0.0           PIL License (HPND / MIT-style permissive)
+                          (c) 1997-2011 Secret Labs AB / Fredrik Lundh and contributors
+
+  pip 26.2.1              MIT License
+                          (c) 2008-present The pip developers
+
+  psutil 7.2.2            BSD 3-Clause License
+                          (c) 2009, Jay Loden, Dave Daeschler, Giampaolo Rodola
+
+  PySocks 1.7.1           BSD 3-Clause License
+                          (c) 2006 Dan-Haim
+
+NOTE: pip's own vendored libraries (under pip/_vendor/) carry MIT / Apache-2.0 /
+BSD / HPND as appropriate; if you ship the full venv you should retain those
+notices as well (they are all permissive, no copyleft among them).
+
+NOT BUNDLED — RUNTIME PREREQUISITE (no notice owed BY THIS RELEASE when not shipped)
+-------------------------------------------------------------------------------------
+Strata inference engine — MIT (c) 2026 Niko1221 and the Strata contributors.
+  This workspace does NOT ship the Strata engine or its native backend; it
+  connects to a separately-installed instance at runtime over the network
+  (--url http://127.0.0.1:8080/v1). Therefore, when the engine is NOT included in
+  the distribution, no Strata source-notice is triggered. Only IF you decide to
+  bundle the engine with your release must you add the Strata MIT text and the
+  per-component native licenses (ggml, llama.cpp, stb, xxhash, etc.) here.
+  A trademark-only note: "Strata" is not licensed as a trademark by MIT — do not
+  present the product as official Strata; use your own name (Nebula Baize) and a
+  "powered by / based on Strata" credit line.

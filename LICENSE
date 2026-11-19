@@ -1,0 +1,46 @@
+星云白泽 (Nebula Baize) — Original Application Layer
+Copyright (c) 2026 时空象容
+
+SPDX-License-Identifier: MIT
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+SCOPE OF THIS LICENSE (please read)
+-------------------------------------------------------------------------------
+This license covers ONLY the original application-layer code authored for
+Nebula Baize (the agent gateway, runtime, skills, serve/ web frontend, tools,
+and configs in this workspace).
+
+It does NOT cover the Strata inference engine. This workspace is a pure
+application layer that connects to a separately-installed Strata engine at
+runtime over a network endpoint (--url http://127.0.0.1:8080/v1, see
+run_standalone.bat). The Strata engine and its native backend (src/, include/,
+metal/, sycl/, third_party/) are NOT bundled or shipped inside this release,
+so no Strata source copy travels with the distribution and no upstream source
+notice is triggered for it.
+
+The engine, if you choose to ship it WITH your package, is licensed under MIT
+(c) 2026 Niko1221 and the Strata contributors, and its native backend carries
+its own per-component licenses. In that case, list them in THIRD-PARTY-NOTICES
+and keep their notices. If you keep the engine as a runtime prerequisite (user
+supplies Strata, or it runs on your server), you owe no Strata notice — only the
+permissive-license attribution for the bundled Python dependencies below.
+
+See THIRD-PARTY-NOTICES for the bundled runtime dependencies' licenses.
