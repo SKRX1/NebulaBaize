@@ -319,5 +319,14 @@ class ScheduleServer(McpServerBase):
         raise Exception(f"unknown tool: {name}")
 
 
+def main() -> int:
+    """入口：源码版由 __main__ 调它；闭源产物里由 `gateway --server <name>` 调它。
+
+    闭源版把 servers/*.py 编成 <name>.pyd（Nuitka --mode=module），扩展模块里
+    `__name__` 是模块名而非 "__main__"，故必须由编译后的 gateway 显式调用本函数。
+    """
+    return ScheduleServer().run()
+
+
 if __name__ == "__main__":
-    sys.exit(ScheduleServer().run())
+    sys.exit(main())

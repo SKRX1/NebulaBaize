@@ -30,7 +30,8 @@ import socket
 import sys
 from typing import Optional
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from config_loader import project_root as _project_root
+ROOT = _project_root(__file__)   # one definition, both layouts; see runtime/gateway.py
 
 
 def _check(name: str, ok: bool, detail: str = "", level: str = "ERROR") -> dict:
@@ -157,8 +158,16 @@ def check_models_contract(source_root: Optional[str]) -> dict:
     """
     if not source_root:
         return _check("models_contract", True, "skipped (no source_root)", level="INFO")
+    # This guard READS source files, which by definition do not exist in a closed-source
+    # build (gateway and its modules are compiled). The contract is still enforced there --
+    # it was enforced when that binary was built from exactly this source. Reporting
+    # "missing <path>" would be a phantom failure hiding any REAL one, so state the reason.
     http_mod = os.path.join(source_root, "runtime", "http_server.py")
     reg_mod = os.path.join(source_root, "serve", "model_registry.py")
+    if not (os.path.isfile(http_mod) and os.path.isfile(reg_mod)):
+        return _check("models_contract", True,
+                      "skipped: no readable source here (a compiled build ships no .py; "
+                      "the contract was enforced at build time)", level="INFO")
     problems = []
     if os.path.isfile(http_mod):
         with open(http_mod, "r", encoding="utf-8", errors="replace") as fh:

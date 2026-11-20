@@ -44,7 +44,13 @@ from checkpoint import CheckpointStore
 
 
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The compiled release's __file__ sits one level shallower than a source checkout, so that
+# naive expression points OUTSIDE the release dir in a build -- which breaks config/, web/
+# and data/ at once (observed in an unpacked CI artifact: a "missing config" selfcheck
+# failure two directories up, plus 404 for every frontend path). project_root() decides
+# from the layout instead, and returns the identical path in a source checkout.
+from config_loader import project_root as _project_root
+ROOT = _project_root(__file__)
 
 
 
@@ -132,13 +138,51 @@ def main(argv=None) -> int:
 
                     help="HTTP port for --serve mode (default 8099)")
 
+    ap.add_argument("--server", default=None,
+                    help="run ONE MCP server in this process and exit. This is the "
+                         "entry the CLOSED-SOURCE build uses: there the servers are "
+                         "compiled with `nuitka --mode=module` into <name>.pyd, and "
+                         "an extension module's __name__ is the module name - never "
+                         "'__main__' - so the `if __name__ == '__main__'` guard in "
+                         "every *_server.py can never fire. `gateway --server "
+                         "fs_server` is what `python fs_server.py` does in the source "
+                         "build; the release config then needs no second interpreter "
+                         "and no absolute paths.")
     ap.add_argument("--resume", action="store_true",
 
                     help="resume a long task from data/checkpoint.json if present")
 
     args = ap.parse_args(argv)
 
-
+    # A compiled .pyd can never satisfy `if __name__ == "__main__"`. The release
+    # (C-form) config therefore starts every MCP server as
+    # `gateway.exe --server <module>`: import it and call its main() right here. The
+    # search paths below cover both worlds - a standalone build puts the compiled .pyd
+    # files next to this executable, a source checkout has plain .py under servers/,
+    # runtime/ and skills/. Kept before any config/executor work on purpose: an MCP
+    # server is a stdio JSON-RPC process, so nothing else may touch stdout first.
+    if args.server:
+        import importlib
+        for _cand in (os.path.dirname(os.path.abspath(sys.executable)), ROOT,
+                      os.path.join(ROOT, "servers"), os.path.join(ROOT, "runtime"),
+                      os.path.join(ROOT, "skills")):
+            if os.path.isdir(_cand) and _cand not in sys.path:
+                sys.path.insert(0, _cand)
+        _mod_name = str(args.server).strip().replace("-", "_")
+        try:
+            _mod = importlib.import_module(_mod_name)
+        except Exception as _e:
+            # stderr only - a startup diagnostic on stdout would corrupt the protocol.
+            print("[gateway] --server %s: cannot import (searched %s): %s"
+                  % (_mod_name, sys.path[0], _e), file=sys.stderr)
+            return 2
+        _entry = getattr(_mod, "main", None)
+        if not callable(_entry):
+            print("[gateway] --server %s: module exposes no callable main(); every "
+                  "*_server.py must define one so a compiled build can start it" 
+                  % _mod_name, file=sys.stderr)
+            return 2
+        return int(_entry() or 0)
 
     raw_cfg = load_yaml_or_json(args.config)
 

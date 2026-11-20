@@ -81,8 +81,12 @@ from registry import RegistryError
 import executor as _executor          # module-level tunables (DEFAULTS / SERVER_TIMEOUT_S)
 from executor import is_error, error_code
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WEB_DIR = os.environ.get("WEB_DIR", os.path.join(ROOT, "serve", "web"))
+from config_loader import project_root as _project_root, find_web_dir as _find_web_dir
+ROOT = _project_root(__file__)   # one definition, both layouts; see runtime/gateway.py
+# A release build carries the frontend as web/ (the Nuitka data-dir target name); a source
+# checkout has serve/web/. find_web_dir() takes whichever one exists. An explicit WEB_DIR
+# environment override still wins, as it did before.
+WEB_DIR = os.environ.get("WEB_DIR") or _find_web_dir(ROOT)
 # Generated images persist here (survives refresh/restart) and are served via _serve_static's data/generated/ route. Created lazily by _gen_local.
 GENERATED_DIR = os.path.join(ROOT, "data", "generated", "images")
 # [Turbo 官方默认档] 前后端留空即用这两个值（Qwen-Image-2.1-Turbo: 8 steps, CFG 1）

@@ -463,7 +463,8 @@ SUITES = [
     "tools/_flash_probe_upstream.py",   # flash-crash MAIN-CHANNEL gate: real subprocess gateway + fake slow-SSE upstream; node client mirrors fetch->reader->abort; falsifiable P1(forwarded)/P2(AbortError->m.stopped=true)/P3(upstream saw disconnect); all three must light green
 
     "tests/test_monitor_custom_api_landing.py",   # 2026-11-05: custom-API monitor landing (A1 tok-tuple / A2 duration_s read-key / A3 est-vs-real decode / A4 declared window / B5 stream_options / C6 i18n), differential gate,
-    "tools/image_e2e_sentinel.py"   # 2026-11-14: image gen e2e sentinel - live-if-up; fast 512/non-empty-b64 + ratio lock (measured 1.2x, cap 3x)
+    "tools/image_e2e_sentinel.py",   # 2026-11-14: image gen e2e sentinel - live-if-up; fast 512/non-empty-b64 + ratio lock (measured 1.2x, cap 3x)
+    "tools/_closed_source_gate.py",   # closed-source release paths: project_root/find_web_dir resolve BOTH layouts (source == legacy two-dirnames byte-for-byte; a Nuitka build whose __file__ is one level shallower must land on the release dir, with the OLD formula as the load-bearing differential), plus text locks on the CI step ORDER, on 3b compiling every *_server.py AND the runtime deps it imports (missing one = a MISSING-MODULE red in CI), and on the artifact config being the self-locating @SELF/@ROOT one
 ]
 
 

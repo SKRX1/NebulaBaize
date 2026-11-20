@@ -16,6 +16,61 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+
+
+# What identifies "this project's directory" is not a directory name that could occur
+# by coincidence one level up, but the two files the runtime cannot work without.
+_ROOT_MARKERS = (os.path.join("config", "mcp_servers.json"),
+                 os.path.join("web", "index.html"),
+                 os.path.join("serve", "web", "index.html"))
+
+
+def _holds_project(d: str) -> bool:
+    """True when `d` really is a project/release root (one of the markers is inside)."""
+    return bool(d) and any(os.path.isfile(os.path.join(d, m)) for m in _ROOT_MARKERS)
+
+
+def project_root(module_file: str = "", exe_path: str = "") -> str:
+    """Where this project keeps config/ web/ data/ -- derived from the layout, never stored.
+
+    Two layouts exist and the naive two-dirnames expression only fits one of them:
+      source checkout  : runtime/gateway.py, so the root IS two levels up, and <root>/config
+                       exists to confirm it -- exactly today's behaviour, unchanged.
+      Nuitka standalone: the MAIN module's __file__ is emulated as <dist>/gateway.py, one
+                       level shallower than the source layout, so two dirnames land OUTSIDE
+                       the release dir and every config/web/data path is wrong there (proved
+                       by unpacking a CI artifact: "missing config" two directories up, and
+                       the HTTP layer answering 404 for all of web/). In a build the
+                       directory of sys.executable IS that release dir.
+
+    Nothing is guessed from a "frozen" flag: the answer is whichever candidate really
+    CONTAINS one of _ROOT_MARKERS. exe_path is a parameter only so this is testable
+    without launching a compiled build; every real caller leaves it empty and gets
+    sys.executable. If no candidate qualifies, fall back to the source expression.
+    """
+    src = os.path.dirname(os.path.dirname(os.path.abspath(module_file))) if module_file else ""
+    if _holds_project(src):
+        return src
+    exe = exe_path or sys.executable
+    exe_dir = os.path.dirname(os.path.abspath(exe)) if exe else ""
+    if _holds_project(exe_dir):
+        return exe_dir
+    return src or exe_dir or os.getcwd()
+
+
+def find_web_dir(root: str) -> str:
+    """The frontend directory inside `root`, tolerating both layouts.
+
+    A source checkout keeps it at serve/web/ (the single source of truth). A release ships
+    it under the data-dir target name web/ (what --include-data-dir=dist/web=web produces;
+    index.html references web/app.js accordingly). Checking which one EXISTS -- again not
+    guessing a flag -- is what lets one codebase serve both.
+    """
+    for cand in (os.path.join(root, "serve", "web"), os.path.join(root, "web")):
+        if os.path.isfile(os.path.join(cand, "index.html")):
+            return cand
+    return os.path.join(root, "serve", "web")   # source-shaped default when neither exists
 
 
 def _scalar(tok: str):

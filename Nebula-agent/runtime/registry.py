@@ -33,7 +33,7 @@ import sys
 import time
 from typing import Any, Optional
 
-from config_loader import load_config
+from config_loader import load_config, project_root as _project_root
 
 # Server and skill names surface as dict keys, as tool prefixes (`<server>__<tool>`), and
 # in file names. A conservative alphabet keeps them from escaping any of those contexts.
@@ -521,4 +521,51 @@ def resolve_servers(cfg: dict, skills_dir: Optional[str] = None) -> dict:
     for entry in s.values():
         if isinstance(entry, dict) and entry.get("command") == "python":
             entry["command"] = sys.executable
+    _expand_release_tokens(s)
     return s
+
+
+RELEASE_TOKENS = ("@SELF", "@ROOT")
+
+
+def release_root() -> str:
+    """The directory a release build keeps everything in, derived from THIS file.
+
+    A source checkout gives <repo>/Nebula-agent; a Nuitka standalone build gives the
+    dist dir that holds gateway(.exe), because __file__ is emulated as <dist>/runtime/
+    registry.py there. Either way it is derived, never stored — which is the point:
+    the shipped config can live without a single absolute path.
+    """
+    # The same single definition every other module uses: a source checkout gives
+    # <repo>/Nebula-agent, a compiled build gives the release dir that holds gateway.exe
+    # together with its config/ and web/. See config_loader.project_root for the why.
+    return _project_root(__file__)
+
+
+def _expand_release_tokens(servers: dict) -> None:
+    """Rewrite @SELF / @ROOT in server entries in place (the closed-source form).
+
+    A release ships config/mcp_servers.json with
+        {"command": "@SELF", "args": ["--server", "fs_server"], "cwd": "@ROOT"}
+    because the install location is unknown at build time and the interpreter is the
+    compiled gateway itself. @SELF is the running executable, @ROOT the directory it
+    lives in — so the entry works from ANY install path and ANY launch cwd.
+    A source config contains neither token, so this is a no-op there.
+    """
+    root = release_root()
+    me = sys.executable
+    for entry in servers.values():
+        if not isinstance(entry, dict):
+            continue
+        cmd = entry.get("command")
+        if isinstance(cmd, str) and cmd.strip() == "@SELF":
+            entry["command"] = me
+        elif isinstance(cmd, str) and "@ROOT" in cmd:
+            entry["command"] = cmd.replace("@ROOT", root)
+        cwd = entry.get("cwd")
+        if isinstance(cwd, str) and "@ROOT" in cwd:
+            entry["cwd"] = cwd.replace("@ROOT", root)
+        args = entry.get("args")
+        if isinstance(args, list):
+            entry["args"] = [a.replace("@ROOT", root) if isinstance(a, str) else a
+                              for a in args]
