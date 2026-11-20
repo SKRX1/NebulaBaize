@@ -572,7 +572,13 @@ main { flex: 1; min-height: 0; display: flex; }
 .debug-item--bug[data-bugtoggle] { cursor: pointer; }
 .debug-item--bug.is-collapsed > :not(.debug-item__head) { display: none; }
 .debug-item--bug.is-collapsed .debug-item__head { margin-bottom: 0; }
-#bugbox-list .debug-item--bug { content-visibility: auto; contain-intrinsic-size: auto 32px; }   // perf: off-screen rows skip layout/paint (aligns memory page #mem-kb-list)
+/* perf: off-screen rows skip layout/paint (aligns memory page #mem-kb-list).
+   The comment used to be written "// ...", which CSS does not parse as a comment: the
+   stray token swallows the NEXT rule's prelude, so .debug-bug__verdict below lost its
+   background/padding entirely. Proved on the running 8099 build: computed style was
+   bg=rgba(0,0,0,0) pad=0px (VERDICT-UNSTYLED); with /* */ it is applied. CSS comments
+   in this file are always /* */ -- that is the convention, and now the file follows it. */
+#bugbox-list .debug-item--bug { content-visibility: auto; contain-intrinsic-size: auto 32px; }
 .debug-bug__verdict { margin-top: 6px; padding: 6px 8px; border-radius: var(--st-r-md);
   background: color-mix(in srgb, var(--st-amber, #b7791f) 12%, transparent); font-size: 12px; color: var(--st-ink); }
 .debug-bug__acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
