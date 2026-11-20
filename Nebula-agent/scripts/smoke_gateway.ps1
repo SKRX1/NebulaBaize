@@ -29,8 +29,17 @@ if (-not (Test-Path -LiteralPath $exe)) {
 }
 
 Write-Output "== artifact: $dist =="
-$served = Get-ChildItem -LiteralPath $dist -Filter '*_server.pyd' -ErrorAction SilentlyContinue
-if (-not $served) {
+# NOT -Filter '*_server.pyd': that is the Win32 legacy wildcard and needs the NAME to END
+# with _server.pyd, but real Windows builds carry an ABI tag (fs_server.cp313-win_amd64.pyd
+# ends in _win_amd64.pyd), so that pattern matches NOTHING and reports the nine landed .pyd
+# as missing. FileInfo.BaseName strips only the FINAL .pyd, leaving a name that does NOT
+# end in _server, so even a BaseName -like '*_server' matches nothing. The only predicate
+# that hits the tagged names is on .Name (*_server*) -- the same
+# predicate the CI bash step uses (ls *.pyd | grep server == 9). _mcp_base has no _server
+# in its base name, so it is correctly excluded from the want-9 count.
+$served = @(Get-ChildItem -LiteralPath $dist -Filter '*.pyd' -ErrorAction SilentlyContinue |
+             Where-Object { $_.Name -like '*_server*' })
+if ($served.Count -eq 0) {
     Write-Output 'RED: no compiled *_server.pyd in the artifact (step 3b did not land)'
     exit 1
 }
