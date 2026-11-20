@@ -111,21 +111,39 @@ jobs:
         working-directory: Nebula-agent
         shell: bash
         run: |
-          python -m nuitka --mode=module --assume-yes-for-downloads \
-            --output-dir=gateway.dist \
-            servers/_mcp_base.py servers/fs_server.py servers/shell_server.py \
-            servers/websearch_server.py servers/memory_server.py \
-            servers/browser_server.py servers/schedule_server.py \
-            servers/skillhub_server.py servers/registry_server.py 
+          # Nuitka 的 --mode=module 只接受【一个】positional（CI 实测 FATAL：
+          # "specify only one positional argument unless --run is specified"）。
+          # 所以逐文件循环：这同时消灭了"多行续行符漏一个"这类错——上一轮就是这么
+          # 让 skills/example_server.py 从命令里掉出去的（YAML 仍然合法，肉眼看不出）。
+          MODULES="
+            servers/_mcp_base.py
+            servers/fs_server.py
+            servers/shell_server.py
+            servers/websearch_server.py
+            servers/memory_server.py
+            servers/browser_server.py
+            servers/schedule_server.py
+            servers/skillhub_server.py
+            servers/registry_server.py
             skills/example_server.py
-          python -m nuitka --mode=module --assume-yes-for-downloads \
-            --output-dir=gateway.dist \
-            runtime/config_loader.py runtime/textenc.py runtime/skills_loader.py \
-            runtime/executor.py runtime/registry.py runtime/audit.py \
-            runtime/scheduler.py runtime/corpus.py \
-            runtime/memory/__init__.py runtime/memory/episodic.py \
+            runtime/config_loader.py
+            runtime/textenc.py
+            runtime/skills_loader.py
+            runtime/executor.py
+            runtime/registry.py
+            runtime/audit.py
+            runtime/scheduler.py
+            runtime/corpus.py
+            runtime/memory/__init__.py
+            runtime/memory/episodic.py
             runtime/memory/semantic.py
-          # 若报缺依赖：在此就近追加 --include-module=<name>。
+          "
+          for f in $MODULES; do
+            echo "--- compiling $f"
+            python -m nuitka --mode=module --assume-yes-for-downloads \
+              --output-dir=gateway.dist "$f"
+          done
+          # 若报缺依赖：在对应文件的编译行就近追加 --include-module=<name>。
           ls gateway.dist | head -40
 
       # 3c) 产物内的自定位 config：绝对路径全部换成 @SELF/@ROOT token。
