@@ -16,7 +16,11 @@ import sys, os, json, re, subprocess
 AGENT = os.path.dirname(os.path.abspath(__file__))      # .../Nebula-agent
 ROOT = os.path.dirname(AGENT)                            # .../星云智能体
 VENV = os.path.join(AGENT, ".venv")
-VENV_PY = os.path.join(VENV, "Scripts", "python.exe")
+# venv layout is platform-specific: Windows uses Scripts/python.exe, POSIX uses
+# bin/python. Derive both from sys.platform so `setup` runs on Win11/Linux/macOS.
+_BIN = "Scripts" if sys.platform == "win32" else "bin"
+_EXE = "python.exe" if sys.platform == "win32" else "python"
+VENV_PY = os.path.join(VENV, _BIN, _EXE)
 
 
 def log(msg):
