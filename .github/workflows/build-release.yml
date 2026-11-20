@@ -197,6 +197,13 @@ jobs:
           # 里只有磁盘这一份（编译期不再内嵌 config），它若被 cp 漏掉、或被带绝对路径的开发版
           # 污染，gateway 起来就读到错 command——正是本轮 CI 暴露的时序缺陷。这里把它交给
           # 同一个 make_release_entries（--verify-config）判，从"我写的对"升级为"产物里那份对"。
+          # 规范（勿破坏）：验证类参数——本处的 --verify-config、以及将来任何 --verify-*
+          # 复证参数——都必须在 make_release_entries.py 顶部 parse_args 后立即早退
+          # （见 _verify_only）：只读那份"已生成好的产物 config"、跑 token 判据、报告即返回，
+          # 绝不接到 main 末尾的生成/probe 流程里。一旦接回主流程，它就会重走完整生成、
+          # 因这里不传 --runtime-modules（那是生成流程的前置）而对每个 server 误报
+          # MISSING-RUNTIME-MODULE——这正是 run 44738032692 的 macos step10 真实失败。
+          # 新增复证项请复用同一个早退入口，别另起一份挂在 main 末尾的 if 块。
           python scripts/make_release_entries.py gateway.dist --out entries.verify \
             --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
             --verify-config gateway.dist/config/mcp_servers.json
