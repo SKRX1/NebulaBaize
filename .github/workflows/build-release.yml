@@ -134,15 +134,22 @@ jobs:
             runtime/audit.py
             runtime/scheduler.py
             runtime/corpus.py
-            runtime/memory/__init__.py
-            runtime/memory/episodic.py
-            runtime/memory/semantic.py
           "
           for f in $MODULES; do
             echo "--- compiling $f"
             python -m nuitka --mode=module --assume-yes-for-downloads \
               --output-dir=gateway.dist "$f"
           done
+          # memory 必须按【包】编，不能逐文件：
+          #   servers/memory_server.py 写的是包限定名 `from memory.episodic import ...`；
+          #   scripts/make_release_entries.py:108 又要求产物里存在 memory.<pyd/.so>。
+          # 逐文件 --mode=module 只会得到 __init__.pyd / episodic.pyd / semantic.pyd——
+          # 前者没有 memory 这个名字（3c 直接 MISSING-MODULE），后者也不带子模块
+          # （memory.episodic 依然解析不了）。--mode=package 把整包编成一个扩展模块，
+          # 子模块在其内，两个条件同时满足。以后别把它"顺手统一"回上面的循环。
+          echo "--- packaging runtime/memory (mode=package)"
+          python -m nuitka --mode=package --assume-yes-for-downloads \
+            --output-dir=gateway.dist runtime/memory
           # 若报缺依赖：在对应文件的编译行就近追加 --include-module=<name>。
           ls gateway.dist | head -40
 

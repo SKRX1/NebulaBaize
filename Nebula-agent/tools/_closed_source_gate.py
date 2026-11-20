@@ -14,6 +14,7 @@
 门禁不能依赖它。它的实测是一次性的（见 tools/_root_artifact_gate.py，用完即删）。
 """
 import os
+import re
 import sys
 import tempfile
 
@@ -117,12 +118,34 @@ if os.path.isfile(YML):
     want += ["skills/example_server.py",
              "runtime/config_loader.py", "runtime/textenc.py", "runtime/skills_loader.py",
              "runtime/executor.py", "runtime/registry.py", "runtime/audit.py",
-             "runtime/scheduler.py", "runtime/corpus.py",
-             "runtime/memory/__init__.py", "runtime/memory/episodic.py",
-             "runtime/memory/semantic.py"]
+             "runtime/scheduler.py", "runtime/corpus.py"]
+    # runtime/memory 不在此列：它必须以【包】形态编译（理由见下方 G8b/G8c 的两环事实）。
     miss = [w for w in want if w not in seg]
+    # memory 必须按【包】编：servers/memory_server.py 用的是包限定名 from memory.episodic，
+    # 而 scripts/make_release_entries.py:108 要求产物里有 memory.<pyext> 并真 import 它。
+    # Nuitka 的 module 模式逐文件编 runtime/memory/*.py 只会得到 __init__/episodic/semantic
+    # 三个名字：既没有 memory 这个名字（3c 直接 MISSING-MODULE），单模块也不带子模块。
+    # 所以这里锁"包形态"这个事实，而不是上一版的"逐文件列出三个 .py"——那一版被 CI 实测
+    # （FATAL: one positional）与上面两环共同证伪。
+    PKGRE = r"--mode=package[^\n]*\n[^\n]*runtime/memory"
+    pkg_ok = bool(re.search(PKGRE, seg))
+    loop = seg.split('MODULES="', 1)[1].split('"', 1)[0] if 'MODULES="' in seg else ""
+    mem_out_of_loop = "runtime/memory" not in loop
     ck("G8 3b compiles every server AND every runtime dep the servers import",
        bool(seg) and not miss, "files=%d missing=%s" % (len(want), sorted(miss) or "none"))
+    ck("G8b runtime/memory is compiled as a PACKAGE (the only form yielding memory.<pyext>)",
+       pkg_ok, "saw --mode=package for runtime/memory = %s" % pkg_ok)
+    ck("G8c memory is NOT in the per-file module list (guards a future 'unify it back')",
+       mem_out_of_loop, "runtime/memory in module list = %s" % (not mem_out_of_loop))
+    # 变异差分：证明 G8b/G8c 是 load-bearing —— 旧形态（无 package）必须红。
+    legacy = re.sub(PKGRE, "--mode=module --output-dir=gateway.dist runtime/memory/__init__.py",
+                    seg, count=1)
+    ck("G8d MUTATION: dropping the package form turns G8b RED",
+       pkg_ok and not bool(re.search(PKGRE, legacy)),
+       "legacy pkg_ok=%s (must be False)" % bool(re.search(PKGRE, legacy)))
+    regressed = loop + "\n  runtime/memory/episodic.py\n"
+    ck("G8e MUTATION: putting memory back into the loop turns G8c RED",
+       mem_out_of_loop and "runtime/memory" in regressed)
     # 产物 config 必须是 token 版（这是"能搬到任何机器"的前提）
     ck("G9 the artifact config is the self-locating one (@SELF/@ROOT)",
        "@SELF" in text and "make_release_entries.py" in text
