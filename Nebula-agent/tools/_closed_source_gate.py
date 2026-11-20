@@ -9,6 +9,8 @@
   G4 find_web_dir 在两布局下各取 serve/web 与 web/
   G5 .github/workflows/build-release.yml 的步骤顺序与 3b 编译清单没漂移
      （用纯文本顺序断言，不依赖 PyYAML —— 本项目的 venv 按设计不装它）
+  G12 scripts/build_modules.sh 的并行度分配规则没被改回"一个并发度打天下"
+     （实测 Windows runner 只有 2 核、Linux 4 核，同一参数一边 6 倍收益一边 1.6 倍退化）
 
 真产物（temp/release-smoke/…）不在范围内：那是我手工下载的运行时资源，会被清掉，
 门禁不能依赖它。它的实测是一次性的（见 tools/_root_artifact_gate.py，用完即删）。
@@ -168,6 +170,42 @@ if os.path.isfile(YML):
        and "cp entries.dist gateway.dist/config/mcp_servers.json" in text)
     ck("G10 the front-end smoke runs on the OBFUSCATED copy, not serve/web",
        "node scripts/smoke_web.js dist/web" in text)
+    # ── G12 并行度分配规则（实测驱动，勿凭直觉改回去）──────────────────────
+    # 事实来源：run 44755424385 vs 44772654417 的实测。Windows runner 打印 cores=2 /
+    # MemTotal 8.3GB，ubuntu 是 4 核。同一组 "3 路 x min(nproc,4)"：Linux 3b 519s->87s，
+    # Windows 反而 216s->350s（4 个 cl.exe 挤 2 核，调度损耗盖过重叠收益）。所以脚本必须
+    # 按平台分岔：MSVC 上总 C 编译进程数 <= 核数，gcc/clang 上保留超发（实测净收益）。
+    PLAT_RE = r'plat="\$\(uname -s'
+    JOBRULE_RE = (r'case "\$plat" in[\s\S]{0,400}?MINGW\*[\s\S]{0,400}?'
+                  r'jobs=\$\(\(cores / CONC\)\)')
+    CEIL_RE = r'jobs="\$JOBS_MAX"'
+    # 判据绝不能用 $OS/$OSNAME：它们在 Git-bash 里恒为 Windows_NT，会让"本地复现的
+    # Linux 分支"与真实 Linux 不可分（本轮就先判错过一次，靠桩 uname 的差分才测出来）。
+    BAD_TEST_RE = r'\[\s*"?\$(OS|OSNAME)\b'
+    plat_ok = bool(re.search(PLAT_RE, sh_text))
+    job_ok = bool(re.search(JOBRULE_RE, sh_text))
+    ceil_ok = bool(re.search(CEIL_RE, sh_text))
+    bad_ok = not re.search(BAD_TEST_RE, sh_text)
+    ck("G12a the platform test is `uname -s` (not $OS/$OSNAME, always Windows_NT in Git-bash)",
+       plat_ok and bad_ok, "uname=%s no-$OS-test=%s" % (plat_ok, bad_ok))
+    ck("G12b MSVC branch caps total C-compiler processes at the core count (cores // CONC)",
+       job_ok, job_ok)
+    ck("G12c non-Windows keeps the JOBS_MAX ceiling (the measured win: Linux 519s -> 87s)",
+       ceil_ok, ceil_ok)
+    # 变异差分：证明两条分支各自 load-bearing。
+    m_flat = re.sub(r'jobs=\$\(\(cores / CONC\)\)', 'jobs="$JOBS_MAX"', sh_text, count=1)
+    ck("G12d MUTATION: making the MSVC branch flat again turns G12b RED",
+       job_ok and not bool(re.search(JOBRULE_RE, m_flat)),
+       "flat job_ok=%s (must be False)" % bool(re.search(JOBRULE_RE, m_flat)))
+    m_os = re.sub(PLAT_RE, 'plat="$OS', sh_text, count=1)
+    ck("G12e MUTATION: switching the platform test back to $OS turns G12a RED",
+       plat_ok and (not bool(re.search(PLAT_RE, m_os)) or bool(re.search(BAD_TEST_RE, m_os))),
+       "switched: uname=%s bad=%s" % (bool(re.search(PLAT_RE, m_os)),
+                                      bool(re.search(BAD_TEST_RE, m_os))))
+    # 并发本身也不能退回串行（那正是本轮要修的 216s/519s）。
+    par_ok = ('&\n' in sh_text or ' & ' in sh_text) and 'wait' in sh_text
+    ck("G12f the module loop still runs batches in parallel (serial = the measured 519s)",
+       par_ok, par_ok)
 else:
     ck("G7 CI workflow file exists", False, YML)
 
