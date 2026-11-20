@@ -1,0 +1,95 @@
+# 星云白泽（Nebula Baize / Nebula-agent）闭源三平台构建
+# 设计要点（详见 Nebula-agent/scripts/CLOSED_SOURCE_BUILD.md）：
+#   - 只在 CI 里编译，绕开本机缺 C 编译器与网络下载损坏的问题；
+#     windows-latest 自带 MSVC、ubuntu/macos 自带 gcc/clang。
+#   - 前端混淆只对 dist 副本做，serve/web/ 权威源零改动（见 scripts/obfuscate_web.js）。
+#   - Python 依赖不写死：由 setup_env.py / 冻结清单在 CI 内生成后安装（见 README 已知坑）。
+# ⚠️ 这是【闭源构建配方草案】：Nuitka 的 --include-package/--include-data-dir
+#    等参数需首次 CI 实跑按报错微调（已在下方就近注释）。CI 真绿前视为未验证。
+name: build-closed-source
+
+on:
+  workflow_dispatch:        # 手动触发；将来可改 push tag 自动构建
+  push:
+    tags: ["v*"]
+
+env:
+  PYTHON_VERSION: "3.13"    # 闭源运行时版本。已证 3.14 可被 Nuitka 翻译；此默认取保守稳定版，按需上调。
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: nebula-baize-windows-x64
+          - os: ubuntu-latest
+            artifact: nebula-baize-linux-x64
+          - os: macos-latest
+            artifact: nebula-baize-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 1) 前端：复制 serve/web -> dist/web 后只在 dist 副本里混淆；serve/web 不动。
+      - name: Obfuscate frontend (dist copy only)
+        working-directory: Nebula-agent
+        run: node scripts/obfuscate_web.js serve/web dist/web
+
+      # 2) Python 依赖：读 Nebula-agent/requirements.txt 这份显式 lock（已据 8099
+      #    实际运行的 venv 逐字节坐实，pin 死版本）。CI 在全新 runner 上没有本地 venv
+      #    可冻结，"现场 pip freeze"会随机器漂移，故闭源用这份锁；setup_env.py 仍只在
+      #    本地开发用。可选依赖(PyYAML/send2trash/strata_tokenizer)按设计不装=走降级。
+      - name: Install Python deps (from pinned lock)
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install nuitka
+
+      # 3) Nuitka 编译 gateway（HTTP 网关主进程）为 standalone。
+      #    产物打包的是【混淆后的】 dist/web，而非 serve/web。
+      - name: Compile with Nuitka
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          python -m nuitka \
+            --standalone \
+            --assume-yes-for-downloads \
+            --include-data-dir=dist/web=web \
+            --include-data-dir=config=config \
+            --include-package=serve \
+            --include-package=runtime \
+            runtime/gateway.py
+          # 若 Nuitka 报缺模块：追加 --include-package=<name>；
+          # 若 data 路径不符：调整 --include-data-dir 的源/目标。首次实跑按 stderr 微调。
+
+      # 4) 产物打包成归档（standalone 是目录，压成 zip/tar 分发）。
+      - name: Package artifact
+        shell: bash
+        run: |
+          cd Nebula-agent
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell -NoProfile -Command "Compress-Archive -Path gateway.dist\\* -DestinationPath $GITHUB_WORKSPACE/${{ matrix.artifact }}.zip"
+          else
+            tar -czf "$GITHUB_WORKSPACE/${{ matrix.artifact }}.tar.gz" -C gateway.dist .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
+          if-no-files-found: warn

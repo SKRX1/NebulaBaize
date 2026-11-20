@@ -1,0 +1,21 @@
+# Nebula-agent runtime — authoritative third-party dependencies (CLOSED-SOURCE / CI lock)
+# ---------------------------------------------------------------------------
+# Ground truth = the venv that 8099 actually runs (.venv\Scripts\python.exe, verified
+# via CIM). Versions pinned for reproducible closed-source builds across win/linux/macos
+# (all three ship wheels for these). Keep in sync with what the code truly imports.
+#
+# HARD runtime deps (imported unconditionally in serve/runtime/servers):
+pillow==13.0.0      # image decode/encode (PIL) for gallery/image endpoints
+psutil==7.2.2       # process & VRAM sampling (runtime/http_server.py)
+PySocks==1.7.1      # socks / sockshandler (servers/websearch_server.py proxy)
+
+# ---------------------------------------------------------------------------
+# OPTIONAL (guarded import; code degrades gracefully if absent — NOT listed here):
+#   PyYAML      runtime/gateway.py & config_loader.py: import yaml inside try + a
+#               minimal fallback. Add "PyYAML" only if you want native YAML parsing.
+#   send2trash  runtime/http_server.py: behind importlib find_spec("send2trash") guard.
+#   strata_tokenizer  serve/server.py: lazy import only when a real vocab.json is
+#               present; falls back to ByteTokenizer(). Project-optional, not on PyPI.
+# ---------------------------------------------------------------------------
+# Build-only (installed separately in CI, intentionally NOT a runtime dep):
+#   nuitka
