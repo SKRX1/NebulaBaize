@@ -45,21 +45,45 @@
 
 `dist/`、`gateway.build/`、`gateway.dist/` 都是**构建期再生型临时产物**，已在仓库根 `.gitignore` 忽略，绝不入库、也不代表源码。
 
-## 六、拿到 GitHub 远端后的推送与触发（本机当前无 remote / 无 gh / 无 token，需主人提供其一）
+## 六、发布到 GitHub 并触发三平台 CI（首选：一条命令，无需打开网页）
 
-workflow 触发方式是 `on: push tags v*` 或 `workflow_dispatch`（手动）。推送一次即触发，
-或推一个 tag 触发：
+本机实测：无 gh CLI、Windows 凭据管理器里 GitHub 条目为 0、无 GH_TOKEN、工具侧无头
+浏览器无登录态——**但 api.github.com 从本机可达**。因此不必去网页点 Create：只要一个
+PAT，`tools/_gh_publish.py` 就能经 REST API 全程代办（建仓 → remote → push → 打 tag 触发 CI）。
 
 ```bash
-# 0) 先在 GitHub 建一个【空】仓库（不要勾选自动初始化 README/.gitignore，否则 push 会冲突）
-# 1) 绑定远端并推送当前分支（master）——首次 push 即触发 workflow_dispatch 之外的 tag 构建需另打 tag
-git remote add origin https://github.com/<owner>/<repo>.git
-git push -u origin master
-# 2) 触发闭源三平台构建（打版本 tag）
-git tag v0.1.0
-git push origin v0.1.0
-# 之后可在 GitHub → Actions → build-closed-source 看三平台日志；按某平台的 Nuitka
-# stderr 回到本文件第四节校准 --include-package/--include-data-dir，再 push 更新 tag。
+# 一次性：设好凭据（classic PAT，scope 勾 repo + workflow）
+set GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+
+# 预览要做什么（不联网写、不改 git 配置）——已实测可用
+python Nebula-agent\tools\_gh_publish.py --owner <你的GitHub登录名> --dry-run --tag v0.1.0 --private
+
+# 真发布：建【空】仓库 NebulaBaize(auto_init:false，故不会生成 README/.gitignore/LICENSE，
+# 也就不会 push 冲突；LICENSE 由仓库自带) → 加/改 remote → push master → push tags(v* 即触发 CI)
+python Nebula-agent\tools\_gh_publish.py --owner <你的GitHub登录名> --tag v0.1.0 --private
 ```
 
-或用 `gh` 手动触发（免打 tag）：`gh workflow run build-release.yml`。
+脚本性质（已 py_compile + dry-run + 无 token 守门 三项实测）：**幂等**（仓库已存在则跳过
+创建）、**日志绝不回显 token 本体**、无 token 时以 rc=2 守门退出、可反复重跑。
+
+### 怎么拿到 owner 与 PAT
+
+- **owner**：你 GitHub 账号的登录名，就是浏览器地址栏 `https://github.com/<这一段>` 里那一段。
+- **PAT**：GitHub → Settings → Developer settings → **Fine-grained / Personal tokens** →
+  Personal traditional (classic) → 勾 scope **`repo` + `workflow`** → 生成后复制（只显示一次）。
+  直达：<https://github.com/settings/tokens/new?scopes=repo,workflow>
+
+CI 跑完后去 `https://github.com/<owner>/NebulaBaize/actions` 看三平台日志；按某平台的
+Nuitka stderr 回到本文件第四节校准 `--include-package` / `--include-data-dir`，再重跑同一
+条命令即可（幂等，只 push 增量）。
+
+<details><summary>手工替代路径（无 PAT 时）</summary>
+
+```bash
+# 网页建一个【空】仓库（README/.gitignore/license 三项都不勾，否则 push 冲突），然后：
+git remote add origin https://github.com/<owner>/NebulaBaize.git
+git push -u origin master
+git tag v0.1.0 && git push origin v0.1.0      # 推 v* tag 即触发 build-release.yml
+```
+或已装 gh 时手动触发：`gh workflow run build-release.yml`。
+</details>
