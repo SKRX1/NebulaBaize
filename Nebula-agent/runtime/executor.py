@@ -207,6 +207,17 @@ class StdioServer:
 
     def start(self):
         exe = shutil.which(self.command) or self.command
+        # Resolve-diagnostic for the closed-source WinError 2 (run 44725430352): a compiled
+        # gateway resolving @SELF/@ROOT differently than a source run is only observable from
+        # the compiled build itself. Print the ACTUAL resolved exe/cwd, but ONLY when one is
+        # genuinely missing -- a normal launch stays silent (no noise on the happy path). This
+        # is a visible action on the failure, not a control-flow change, and adds no except.
+        if not os.path.isfile(exe) or (self.cwd and not os.path.isdir(self.cwd)):
+            print("[executor] resolve diag: command=%r -> exe=%r exe_exists=%s | "
+                  "cwd=%r cwd_exists=%s | args=%r"
+                  % (self.command, exe, os.path.isfile(exe), self.cwd,
+                     os.path.isdir(self.cwd) if self.cwd else "(none)", self.args),
+                  file=sys.stderr)
         full = [exe] + list(self.args)
         # encoding="utf-8" is load-bearing, not cosmetic: with bare `text=True` the pipes
         # used the locale codec (GBK on a Chinese Windows) while every MCP peer speaks
