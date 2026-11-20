@@ -184,6 +184,15 @@ def main(argv=None) -> int:
             return 2
         return int(_entry() or 0)
 
+    # 闭源产物启动诊断（run 44740904755 的 windows step11 真实失败）：产物 gateway
+    # 运行时若把 ROOT 解析到开发机根，就会加载那份带 venv 绝对路径的开发版 config，
+    # 8 个 server 的 command 在 CI runner 上不存在 → WinError 2 → FATAL no MCP tools。
+    # 这条只在闭源冒烟设了 STRATA_SELFCHECK 时发声（正常开发启动不带它，零噪声），
+    # 把"实际加载的 config 绝对路径 + ROOT + 自身 exe"打到 stderr，下次失败一眼定位
+    # 是 project_root 解析分支错（ROOT 落在 exe 目录之外），还是 config 内容本身错。
+    if os.environ.get("STRATA_SELFCHECK"):
+        print("[gateway] config-resolve diag: ROOT=%r exe=%r -> will-load-config=%r config-exists=%s" % (ROOT, sys.executable, os.path.abspath(args.config),
+                      os.path.isfile(os.path.abspath(args.config))), file=sys.stderr)
     raw_cfg = load_yaml_or_json(args.config)
 
     servers_cfg = resolve_servers(raw_cfg, skills_dir=args.skills_dir)
