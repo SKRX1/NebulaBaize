@@ -23,6 +23,8 @@
         --inherit config/mcp_servers.json
 """
 import argparse
+import glob
+import importlib.machinery
 import json
 import os
 import subprocess
@@ -52,6 +54,33 @@ SERVERS = [
 
 # 从 --inherit 的原 config 里只搬这几段（session/mcp 是纯参数，不含任何路径）
 INHERIT_SECTIONS = ("mcp", "session")
+
+
+def find_module_file(build_dir, mod, pyext):
+    """返回产物目录里该模块【真实】的文件名（含 abi tag 的也算），找不到返回 None。
+
+    为什么不能死拼 mod+pyext：Linux/macOS 的 CPython 扩展模块带 abi tag，真实落盘名是
+    mod.cpython-313-x86_64-linux-gnu.so（见 step 9 "Successfully created ..." 的实测；Windows
+    的 .pyd 不带 tag，故只有 win job 之前侥幸通过）。这里的后缀候选取解释器自己 import 时
+    用的规则（importlib.machinery.EXTENSION_SUFFIXES），与 probe_module 里 importlib.import_module
+    的查找严格一致——构建期说的"有没有"必须等于运行时说的"能不能 import"，否则就是假报缺。
+    pyext 仍作首选以兼容既有 --pyext 语义；末尾再按 tag 形态 glob 兜底（abi3/cp3xx/平台串）。
+    """
+    cand = [mod + pyext]                                   # 调用方显式指定的首选（如 .pyd）
+    for suf in importlib.machinery.EXTENSION_SUFFIXES:     # ['.cpython-313-...-linux-gnu.so', '.abi3.so', '.so'...]
+        cand.append(mod + suf)
+    for pat in (mod + ".abi3" + pyext, mod + ".*" + pyext, mod + ".cpython-*" + pyext):
+        # basename() 统一成裸文件名：与上面 mod+pyext / EXTENSION_SUFFIXES 两个候选分支同构
+        # （它们返回的是相对 build_dir 的名字）。否则这里会漏出完整路径、语义不一致。
+        cand += [os.path.basename(p) for p in sorted(glob.glob(os.path.join(build_dir, pat)))]
+    seen, out = set(), []
+    for c in cand:
+        if c not in seen:
+            seen.add(c); out.append(c)
+    for c in out:
+        if os.path.isfile(os.path.join(build_dir, c)):
+            return c
+    return None
 
 
 def probe_module(build_dir, name, pyext):
@@ -104,9 +133,10 @@ def main(argv=None) -> int:
 
     problems, entries = [], {}
     for name, mod in SERVERS:
-        # 1) .pyd 在位 + 可 import + 有 main()
-        if not os.path.isfile(os.path.join(build_dir, mod + a.pyext)):
-            problems.append("MISSING-MODULE %s%s (build dir has no such file)" % (mod, a.pyext))
+        # 1) 模块在位 + 可 import + 有 main()。"在位"按真实落盘名判定（含 abi tag），
+        #    绝不死拼 mod+pyext——那样在非 Windows 平台会把已成功编译的 .so 误报为缺。
+        if find_module_file(build_dir, mod, a.pyext) is None:
+            problems.append("MISSING-MODULE %s (%s%s not found under any interpreter suffix)" % (mod, mod, a.pyext))
             continue
         rc, out = probe_module(build_dir, mod, a.pyext)
         if rc != 0 or not out.startswith("OK"):
@@ -131,8 +161,8 @@ def main(argv=None) -> int:
         "args": ["--server", "example_server"],
         "cwd": "@ROOT",
     })
-    if not os.path.isfile(os.path.join(build_dir, "example_server" + a.pyext)):
-        problems.append("MISSING-MODULE example_server%s" % a.pyext)
+    if find_module_file(build_dir, "example_server", a.pyext) is None:
+        problems.append("MISSING-MODULE example_server (no interpreter-suffixed file for it)")
 
     doc = {"mcpServers": entries}
     if a.inherit and os.path.isfile(a.inherit):
