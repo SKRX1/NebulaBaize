@@ -1,25 +1,53 @@
 星云白泽 (Nebula Baize) — Original Application Layer
 Copyright (c) 2026 时空象容
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: LicenseRef-Proprietary-Free-Use
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+"NEBULA BAIZE" FREE-USE (SOURCE-AVAILABLE / CLOSED) LICENSE
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This is a proprietary, free-to-use license. It is NOT an open-source license
+in the OSI sense: the work is provided free of charge for use, but the source
+code is not licensed for modification or redistribution of modified works.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. GRANT. You are granted a free, non-exclusive, non-transferable licence to:
+   a) run and use this software (as compiled binaries or as provided source)
+      for any purpose, including commercial use, at no charge;
+   b) copy and distribute UNMODIFIED copies of the software, in source form or
+      as compiled binaries, in whole, provided the whole notice block below and
+      this license file accompany every copy;
+   c) quote short excerpts (a few lines) with attribution for documentation.
+
+2. CONDITIONS.
+   a) The copyright notice and this entire license must be preserved and
+      included in all copies or substantial portions of the software.
+   b) You may charge a fee for the physical act of distribution (hosting,
+      packaging), but you may not sell the software itself, sublicense it, or
+      collect a per-seat licence fee from downstream recipients: it stays free.
+   c) You may not imply endorsement or affiliation by your use or distribution.
+
+3. RESTRICTIONS (the "closed" part).
+   a) You may NOT publicly distribute, publish, or sublicense a modified or
+      derivative version of the source code.
+   b) You may NOT reverse-engineer, decompile, disassemble, or otherwise
+      attempt to derive the source code from compiled binaries distributed by
+      you or anyone, EXCEPT to the extent that applicable law (e.g. EU
+      Directive 2009/24/EC, or other local rules) permits decompilation
+      solely to achieve interoperability, and that permission cannot be
+      waived by this section.
+   c) Third-party component source obtained by you by decompilation stays
+      subject to its own upstream licences (see THIRD-PARTY-NOTICES).
+
+4. THIRD-PARTY CODE. Third-party dependencies retain their own licenses;
+   see THIRD-PARTY-NOTICES. Where a third-party licence is more permissive
+   than this license, that third-party licence governs that component.
+
+5. NO WARRANTY. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+   NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+   DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -------------------------------------------------------------------------------
 SCOPE OF THIS LICENSE (please read)
@@ -40,7 +68,7 @@ The engine, if you choose to ship it WITH your package, is licensed under MIT
 (c) 2026 Niko1221 and the Strata contributors, and its native backend carries
 its own per-component licenses. In that case, list them in THIRD-PARTY-NOTICES
 and keep their notices. If you keep the engine as a runtime prerequisite (user
-supplies Strata, or it runs on your server), you owe no Strata notice — only the
-permissive-license attribution for the bundled Python dependencies below.
+supplies Strata, or it runs on your server), you owe no Strata notice — only
+the permissive-license attribution for the bundled Python dependencies below.
 
 See THIRD-PARTY-NOTICES for the bundled runtime dependencies' licenses.
