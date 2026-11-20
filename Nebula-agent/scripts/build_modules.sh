@@ -30,12 +30,40 @@ OUT="${3:-gateway.dist}"
 
 cd "$(dirname "$0")/.." || exit 1   # -> Nebula-agent 根：下面的模块路径按仓库根书写
 
-# 与真实资源取 min：写死的上限只在 runner 更小时起作用，更大机器上自动放大。
+# 并行度的分配规则（一次 CI 实跑修正过的，勿凭直觉再改回去）：
+# 实测 windows-latest 只有 2 核（probe 步打印 cores=2、MemTotal 8.3GB），ubuntu 是 4 核。
+# 于是同一组"3 路 × min(nproc,4)"在两种机器上的含义完全不同：
+#   - 4 核 Linux：实测 519s -> 87s。gcc 很轻，超发无代价（每个模块只有几个 .c，
+#     且每个 nuitka 进程的大部分时间是单进程的 Python->C 编译阶段，那期间 CPU 本来闲着）。
+#   - 2 核 Windows：实测 216s -> 350s，反而更慢。cl.exe 每次启动都要拉起 vctip/链接器，
+#     进程开销按核数成倍地抢，4 个 C 编译进程挤 2 核时调度损耗盖过了重叠收益。
+# 所以这里按"总 C 编译进程数 ≈ 核数"来分配 jobs：MSVC 上 jobs = cores // CONC（至少 1），
+# 其余平台维持 JOBS_MAX 封顶（超发在 gcc/clang 上是净收益，已由上面那组数字证明）。
+# 关键点：多个 nuitka 进程之间能重叠的是它们各自的单进程阶段（Python->C 生成、链接），
+# 这正是并发要拿的收益；把 C 编译进程数钉在核数内，是为了这份收益不以调度抖动为代价。
 cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
 case "$cores" in ''|*[!0-9]*) cores=1 ;; esac
 [ "$cores" -ge 1 ] || cores=1
-jobs="$JOBS_MAX"; [ "$cores" -lt "$jobs" ] && jobs="$cores"
 [ "$CONC" -gt "$cores" ] && CONC="$cores"
+
+# 平台判据用 uname -s：MSYS/Git-bash 返回 MINGW*/MSYS_NT*，Linux 返回 Linux，macOS 返回
+# Darwin。不用 $OS/$OSNAME —— 它们在 Git-bash 里恒为 Windows_NT，会让本地验证与真实
+# Linux 分支不可分（本轮就是这样先判错过一次）。
+plat="$(uname -s 2>/dev/null || echo unknown)"
+case "$plat" in
+  MINGW*|MSYS*|CYGWIN*) on_windows=1 ;;
+  *) on_windows=0 ;;
+esac
+
+jobs="$JOBS_MAX"
+if [ "$on_windows" = "1" ]; then
+  # MSVC：把总 C 编译进程数钉在核数内（见上）。
+  jobs=$((cores / CONC))
+  [ "$jobs" -lt 1 ] && jobs=1
+  [ "$jobs" -gt "$JOBS_MAX" ] && jobs="$JOBS_MAX"
+fi
+[ "$jobs" -gt "$cores" ] && jobs="$cores"
+echo "[build_modules] plat=$plat on_windows=$on_windows"
 echo "[build_modules] cores=$cores conc=$CONC jobs=$jobs out=$OUT"
 
 # 这份清单不是猜的：按各 server 的真实 import 与它们的一层传递依赖逐个坐实（详见

@@ -66,6 +66,55 @@
 - `pagesim/`、`skillhub_catalog.json`、`skills/*.yaml` 等数据目录继续走 `--include-data-dir`；
 - 若将来允许"用户自己加 MCP server"，则 `.pyd` 形态会挡住第三方 .py 插件——届时保留 B 作为逃生开关（`--servers=source` 模式产物）。
 
+### 4.6 三平台编译提速（已落地，附前后实测）
+
+编译占闭源 CI 的 95%+ 时长，所以提速只针对两步：`Compile with Nuitka`（gateway）与
+`Compile MCP servers to native modules`（3b）。其余步骤（混淆/冒烟/装依赖/打包/上传）合计 <50s。
+
+**改了什么**
+- `scripts/build_modules.sh`：3b 的 18 次 `--mode=module` 调用由 for 串行改为分批并发。
+  清单只在这一个脚本里维护（`_closed_source_gate.py` 的 G11 锁死这点）；每次 nuitka
+  调用的参数语义不变 —— `--mode=module` 一次只吃一个 positional 是 CI 实测的硬约束。
+  每路日志各自落 `.build-logs/<path>.log`、退出码落同名 `.rc`，结束后按清单顺序回放并
+  点名失败模块：并发不牺牲可诊断性。
+- 显式 `--jobs`：分配规则见下。
+- `actions/cache` 持久化 `CCACHE_DIR`/`CLCACHE_DIR`/`NUITKA_CACHE_DIR` 三目录（钉到
+  `$RUNNER_TEMP/build-cache`）。注入点读 Nuitka 源码 `nuitka/build/SconsCaching.py` 坐实：
+  两处都是 `if "…_DIR" not in os.environ` 才自选目录，导出即照用。Windows 走的是 Nuitka
+  自带的 **clcache**（不是 ccache），所以两个变量都必须钉。
+
+**实测前后（同仓库、同配方，仅这两步；单位秒）**
+
+| 步骤 | Windows 前 | Windows 后 | Linux 前 | Linux 后 | macOS 前 | macOS 后 |
+|---|---|---|---|---|---|---|
+| Compile gateway | 882 | 1263 | 623 | 457 | 309 | 223 |
+| Compile servers (3b) | 216 | 350 | 519 | 87 | 90 | 35 |
+| job 结论 | failure(4a) | failure(4a，同因) | failure(3b) | **success** | failure(3b) | **success** |
+
+基线 = run 44755424385，改后 = run 44772654417。
+
+**从这两个 run 坐实的三件事（都已写进 build_modules.sh 的注释）**
+1. **runner 规格不对称**：Windows 侧 probe 步打印 `cores=2`、`MemTotal 8.3GB`；Linux/macOS
+   是 4 核以上。所以"一个并发度打天下"必然错 —— 同一组 3 路 × min(nproc,4) 在 2 核
+   Windows 上变成 4 个 cl.exe 挤 2 核，3b 反而 216→350s；在 4 核 Linux 上是 519→87s。
+2. **分配规则改为按平台**：MSVC（`uname -s` 为 MINGW*/MSYS*/CYGWIN*）上
+   `jobs = cores // conc`（总 C 编译进程数 ≤ 核数）；gcc/clang 上保留
+   `jobs = min(nproc, BUILD_JOBS_MAX)` 的超发，因为实测它是净收益。判据用 `uname -s`
+   而不是 `$OS`/`$OSNAME` —— 后者在 Git-bash 里恒为 `Windows_NT`，会让本地验证与真实
+   Linux 分支不可分（本轮先判错过一次，靠"四组合 × 桩 getconf/uname"的差分测出）。
+3. **ccache/clcache 确实接上了**：改后 Windows 日志出现 `clcache with 2 cache hits`（基线
+   从未出现 hit），macOS 出现 `Cached C files (using ccache) … cache hit`；Linux 侧基线曾
+   报 `You are not using ccache`，现由 probe 步 best-effort 安装补上。"只改前端/config 的
+   重建近乎免费"这条收益要**第二次构建**才体现（首跑是在建缓存，所以本轮 gateway 的时间
+   仍是冷缓存值；Windows 那 1263s 同理叠加了"2 核机器上被并发抢占"，见第 1 条）。
+
+**顺带坐实一个非本轮引入的事实**：两轮的 Windows 都在步骤 4a（真起 gateway 的 smoke）以
+完全相同的 `[executor] server * failed to start: [WinError 2]` 失败，且基线的 3b 是 success、
+"9 个 .pyd 都在"的断言也过 —— 即产物里有 .pyd、gateway 却找不到要 spawn 的东西。这是
+**产物 config / 入口路径**那条既有线的问题，与编译提速无关（两个 run 同因，改前改后一致）。
+
+**没做的**：GPU 加速方向已排除 —— cl.exe/gcc/clang 的编译过程不使用 GPU，且 GitHub hosted
+runner 没有 GPU；三平台发布要的是三台不同 CPU 架构的机器，不是显卡。
 ## 五、产物边界
 
 `dist/`、`gateway.build/`、`gateway.dist/` 都是**构建期再生型临时产物**，已在仓库根 `.gitignore` 忽略，绝不入库、也不代表源码。
