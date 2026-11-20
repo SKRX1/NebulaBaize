@@ -49,13 +49,25 @@ def project_root(module_file: str = "", exe_path: str = "") -> str:
     without launching a compiled build; every real caller leaves it empty and gets
     sys.executable. If no candidate qualifies, fall back to the source expression.
     """
-    src = os.path.dirname(os.path.dirname(os.path.abspath(module_file))) if module_file else ""
-    if _holds_project(src):
-        return src
+    # The candidate that is RUNNING right now is the strongest signal, so it is judged
+    # FIRST. In a compiled (Nuitka standalone) build sys.executable IS gateway.exe in the
+    # release dir, while the module's __file__ is FROZEN to the developer's checkout —
+    # which on CI carries the dev config (absolute venv paths). If src were judged first
+    # the frozen checkout would win and the artifact would load that wrong config, so
+    # every MCP server command would point at a python.exe that does not exist on the
+    # runner -> WinError 2 -> "no MCP server tools" (the real root cause of the windows
+    # step11 red, run 44740904755). In a source checkout sys.executable is the plain
+    # interpreter (its directory holds none of the markers), so it is skipped here and
+    # the src expression below is returned unchanged — byte-for-byte the old behaviour.
     exe = exe_path or sys.executable
     exe_dir = os.path.dirname(os.path.abspath(exe)) if exe else ""
     if _holds_project(exe_dir):
         return exe_dir
+    src = os.path.dirname(os.path.dirname(os.path.abspath(module_file))) if module_file else ""
+    if _holds_project(src):
+        return src
+    # Neither candidate holds a marker: deterministic fallback (the source expression),
+    # never a guess. Same order-independent result as before.
     return src or exe_dir or os.getcwd()
 
 
