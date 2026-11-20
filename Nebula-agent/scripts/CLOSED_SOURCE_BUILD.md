@@ -83,17 +83,26 @@
   两处都是 `if "…_DIR" not in os.environ` 才自选目录，导出即照用。Windows 走的是 Nuitka
   自带的 **clcache**（不是 ccache），所以两个变量都必须钉。
 
-**实测前后（同仓库、同配方，仅这两步；单位秒）**
+**实测三轮对照（同仓库、同配方，只有并行度不同；单位秒。基线 run 44755424385 →
+第一轮 44772654417 = 统一超发 → 第二轮 44780930155 = 现行的按平台分配）**
 
-| 步骤 | Windows 前 | Windows 后 | Linux 前 | Linux 后 | macOS 前 | macOS 后 |
-|---|---|---|---|---|---|---|
-| Compile gateway | 882 | 1263 | 623 | 457 | 309 | 223 |
-| Compile servers (3b) | 216 | 350 | 519 | 87 | 90 | 35 |
-| job 结论 | failure(4a) | failure(4a，同因) | failure(3b) | **success** | failure(3b) | **success** |
+| 平台（核数） | 基线（3b 串行、无缓存） | 第一轮：统一超发 3×min(nproc,4) | 第二轮：按平台分配（现行） |
+|---|---|---|---|
+| Windows（2 核） | gateway 882 / 3b 216 | 1263 / **350（退化）** | 769 / **205** |
+| Linux（4 核） | 623 / 519 | 457 / **87** | 57 / **24** |
+| macOS（4 核 arm） | 309 / 90 | 223 / 35 | 146 / **22** |
+| 该 job 结论 | Win failure(4a)、Linux/macOS failure(3b) | Linux/macOS success | Linux/macOS success |
 
-基线 = run 44755424385，改后 = run 44772654417。
+**怎么读这张表（归因边界要写清，别把缓存的功劳记到并发上）**
+- **3b 这一列才是并发的直接效果**，三轮都是同一段代码只改并发：Windows 216→350（超发把
+  2 核挤爆）→ 205（按核数封顶后**消除了退化**，且略优于串行基线）；Linux 519→87→24、
+  macOS 90→35→22 走的是保留超发那一支，未受影响。
+- **gateway 那一列不能整列记给并发**：那一步的参数三轮未变，其升降里混着缓存命中与 runner
+  负载噪声（Linux 57s、macOS 146s 同时受第二轮暖缓存影响——见下条的 cache hit 证据）。
+  能确定的是"三平台 3b 都优于基线"这一条。
+- 第一轮是**建缓存的首跑**，所以它的 gateway 数仍是冷缓存值；第二轮才有 hit 可吃。
 
-**从这两个 run 坐实的三件事（都已写进 build_modules.sh 的注释）**
+**从这三轮坐实的三件事（都已写进 build_modules.sh 的注释与 _closed_source_gate 的 G12）**
 1. **runner 规格不对称**：Windows 侧 probe 步打印 `cores=2`、`MemTotal 8.3GB`；Linux/macOS
    是 4 核以上。所以"一个并发度打天下"必然错 —— 同一组 3 路 × min(nproc,4) 在 2 核
    Windows 上变成 4 个 cl.exe 挤 2 核，3b 反而 216→350s；在 4 核 Linux 上是 519→87s。
@@ -102,16 +111,18 @@
    `jobs = min(nproc, BUILD_JOBS_MAX)` 的超发，因为实测它是净收益。判据用 `uname -s`
    而不是 `$OS`/`$OSNAME` —— 后者在 Git-bash 里恒为 `Windows_NT`，会让本地验证与真实
    Linux 分支不可分（本轮先判错过一次，靠"四组合 × 桩 getconf/uname"的差分测出）。
-3. **ccache/clcache 确实接上了**：改后 Windows 日志出现 `clcache with 2 cache hits`（基线
-   从未出现 hit），macOS 出现 `Cached C files (using ccache) … cache hit`；Linux 侧基线曾
-   报 `You are not using ccache`，现由 probe 步 best-effort 安装补上。"只改前端/config 的
-   重建近乎免费"这条收益要**第二次构建**才体现（首跑是在建缓存，所以本轮 gateway 的时间
-   仍是冷缓存值；Windows 那 1263s 同理叠加了"2 核机器上被并发抢占"，见第 1 条）。
+3. **ccache/clcache 确实接上了**：第一轮 Windows 日志就出现 `clcache with 2 cache hits`
+   （基线从未出现 hit），macOS 出现 `Cached C files (using ccache) … cache hit`；Linux 侧
+   基线曾报 `You are not using ccache`，现由 probe 步 best-effort 安装补上。这条收益只在
+   **第二次及以后的构建**体现：第一轮是建缓存（所以它的 gateway 反而比基线慢），第二轮才
+   吃到 hit —— 这正是表里 Linux 457→57、macOS 223→146、Windows 1263→769 的另一半成因，
+   也是为什么读表要把 3b 列与 gateway 列分开归因。
 
-**顺带坐实一个非本轮引入的事实**：两轮的 Windows 都在步骤 4a（真起 gateway 的 smoke）以
-完全相同的 `[executor] server * failed to start: [WinError 2]` 失败，且基线的 3b 是 success、
-"9 个 .pyd 都在"的断言也过 —— 即产物里有 .pyd、gateway 却找不到要 spawn 的东西。这是
-**产物 config / 入口路径**那条既有线的问题，与编译提速无关（两个 run 同因，改前改后一致）。
+**顺带坐实一个非本配方引入、也尚未修的事实**：三个 run 的 Windows 都在步骤 4a（真起
+gateway 的 smoke）以完全相同的 `[executor] server * failed to start: [WinError 2]` 失败，
+而基线的 3b 是 success、"9 个 .pyd 都在"的断言也过 —— 产物里 .pyd 齐、gateway 却找不到要
+spawn 的东西。这是**产物 config / 入口路径**那条独立线上还没收口的问题，与并行度无关
+（三个 run 同因、改前改后一致），下一轮应从 Windows 侧的 entries.dist 路径与 spawn 解析查起。
 
 **没做的**：GPU 加速方向已排除 —— cl.exe/gcc/clang 的编译过程不使用 GPU，且 GitHub hosted
 runner 没有 GPU；三平台发布要的是三台不同 CPU 架构的机器，不是显卡。
