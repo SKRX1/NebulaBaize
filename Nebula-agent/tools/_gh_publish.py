@@ -41,9 +41,9 @@ def run_git(args, dry, echo=True):
         return 0, ""
     p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
                        errors="replace", stdin=subprocess.DEVNULL, timeout=600)
+    out = ((p.stdout or "") + (p.stderr or "")).strip()
     if echo:
-        out = ((p.stdout or "") + (p.stderr or "")).strip()
-        # 绝不回显 token 本体
+        # 绝不回显 token 本体（远端 URL 含 token，输出行按长度截断即可）
         print("git %s -> rc=%s" % (" ".join(args), p.returncode))
         for line in out.splitlines()[:12]:
             print("   ", line[:160])
