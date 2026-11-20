@@ -74,7 +74,6 @@ jobs:
             --standalone \
             --assume-yes-for-downloads \
             --include-data-dir=dist/web=web \
-            --include-data-dir=config=config \
             --include-package=serve \
             --include-package=runtime \
             runtime/gateway.py
@@ -164,21 +163,43 @@ jobs:
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
             EP=gateway.dist/gateway.exe
+            PYEXT=.pyd; WFLAG="--windows"
             python scripts/make_release_entries.py gateway.dist --out entries.dist \
-              --entrypoint "$EP" --pyext .pyd --windows \
+              --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
               --runtime-modules config_loader,textenc,skills_loader,executor,registry,audit,scheduler,corpus,memory \
               --inherit config/mcp_servers.json
           else
             EP=gateway.dist/gateway
+            PYEXT=.so; WFLAG=""
             python scripts/make_release_entries.py gateway.dist --out entries.dist \
-              --entrypoint "$EP" --pyext .so \
+              --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
               --runtime-modules config_loader,textenc,skills_loader,executor,registry,audit,scheduler,corpus,memory \
               --inherit config/mcp_servers.json
           fi
-          # 覆盖掉 --include-data-dir=config=config 打进来的开发版 config：它带的是开发机的
-          # 绝对解释器路径（用户机器上不存在），留着就等于产物里两份 config 语义不一致。
-          # 同目录的 approval/sandbox/models 等是纯参数，不动。
+          # 注意：编译期不内嵌 config（曾因 --include-data-dir=config=config 把仓库开发版
+          # config 打进 exe，运行时读到的是那份带绝对路径的旧内嵌副本，本步覆盖到磁盘的
+          # @SELF 版反而失效——静态 grep 读磁盘仍见 @SELF、运行时却起不来，正是这次 CI 根因。
+          # 故 config 只在运行期由 gateway 按 ROOT 从磁盘读这一份，绝不在编译期 include。
+          # 编译期不再内嵌 config（见上），所以这里自己建产物 config 目录，并把运行期真正
+          # 需要的配置原样带上：gateway 读 approval.yaml/sandbox.yaml/models.json，HTTP 层读
+          # image_settings.json/prompt_book.json/image_gallery.json。排除 *.bak（备份不属于产物）。
+          mkdir -p gateway.dist/config
+          for f in config/*.json config/*.yaml; do
+            case "$f" in *.bak) continue ;; esac
+            base=$(basename "$f")
+            # 这份要换成 @SELF，下面单独覆盖（用 if-then 而非裸 && ：GH 的 bash step 带
+            # set -e，"[ = ] && continue" 在条件为假时整行退出码非零会被 -e 终止整个 step）。
+            if [ "$base" = mcp_servers.json ]; then continue; fi
+            cp "$f" "gateway.dist/config/$base"
+          done
           cp entries.dist gateway.dist/config/mcp_servers.json
+          # 第②条：对"运行时真读的那份 config"复证同样的 token/绝对路径判据。方案A 后产物
+          # 里只有磁盘这一份（编译期不再内嵌 config），它若被 cp 漏掉、或被带绝对路径的开发版
+          # 污染，gateway 起来就读到错 command——正是本轮 CI 暴露的时序缺陷。这里把它交给
+          # 同一个 make_release_entries（--verify-config）判，从"我写的对"升级为"产物里那份对"。
+          python scripts/make_release_entries.py gateway.dist --out entries.verify \
+            --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
+            --verify-config gateway.dist/config/mcp_servers.json
 
       # 4a) 打包前的断言：这一步同时兜住"改了编译、忘了打包"这类静默漏项。
       #     Windows 上还真起一次 --serve：证明编译产物能服务前端。它不要求任何上游

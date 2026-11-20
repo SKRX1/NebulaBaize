@@ -88,6 +88,50 @@ def main():
     ck("T7 example_server (also flagged MISSING in CI) resolves",
        got6 == ex, "got=%r" % got6)
 
+    # ---- 项8：自证判据 _config_token_flaws —— 正确的产物 config 必须 0 flaws ----
+    # 方案A 后产物里只有磁盘这一份 @SELF 形态（编译期不再内嵌）。_config_token_flaws 既是
+    # make_release_entries 对自身 a.out 的自证，也是 --verify-config 对"运行时真读的那份"的复证
+    # ——它的语义就是这条防复发锁的承重，正确形态必须放过。
+    good = {"mcpServers": {
+        "filesystem": {"command": "@SELF", "args": ["--server", "fs_server"], "cwd": "@ROOT"},
+        "example-server": {"command": "@SELF", "args": ["--server", "example_server"], "cwd": "@ROOT"},
+    }}
+    ck("T8 a correct @SELF/@ROOT config has zero token flaws",
+       mre._config_token_flaws(good) == [], "got=%r" % (mre._config_token_flaws(good),))
+
+    # ---- 项9：本轮 CI 根因形态——开发机绝对 venv 路径写进 command 必须报 flaw ----
+    # 真实失败：产物 config 的 command=E:\...\Nebula-agent\.venv\Scripts\python.exe，gateway
+    # 运行时读到它、9 个子进程全部 [WinError 2]。"command 不是 @SELF" 这条 flaw 跨平台稳定
+    # （不依赖 os.path.isabs 的平台判定），所以三平台都能锁住这个根因。
+    dev = {"mcpServers": {
+        "filesystem": {"command": "E:\\Nebula\\NebulaBaize\\.venv\\Scripts\\python.exe",
+                       "args": ["-m", "serve.fs_server"], "cwd": "E:\\Nebula\\NebulaBaize"},
+    }}
+    g9 = mre._config_token_flaws(dev)
+    ck("T9 DIFFERENTIAL: the REAL root-cause config (absolute venv path as command) is flagged",
+       len(g9) >= 1 and any("expected @SELF" in f for f in g9), "got=%r" % (g9,))
+    ck("T9b same bad config also flags the non-@ROOT cwd",
+       any("expected @ROOT" in f for f in g9), "got=%r" % (g9,))
+
+    # ---- 项10：absolute-path 这条腿单独锁（POSIX / 开头，isabs 三平台一致为真）----
+    # 绕开 Windows 盘符在不同平台 isabs 不一致的陷阱；证明 isabs 分支 load-bearing。args 同时
+    # 不以 --server 起头，也应被报。
+    # isabs 的绝对路径要按当前平台构造：nt 只认盘符/反斜杠，POSIX 只认 /。一个跨平台字面量
+    # 做不到（Windows 上 os.path.isabs("/x") 是 False）。command/cwd 保持 token、args 以
+    # --server 起头，这样此处唯一能触发的就是绝对路径分支 —— 纯锁 isabs 这条腿 load-bearing。
+    abs_arg = "C:\\abs\\run.sh" if os.name == "nt" else "/abs/path/run.sh"
+    mix = {"mcpServers": {
+        "shell": {"command": "@SELF", "args": ["--server", abs_arg], "cwd": "@ROOT"},
+    }}
+    g10 = mre._config_token_flaws(mix)
+    ck("T10 an absolute path anywhere in a server entry is flagged (leaks an absolute path)",
+       any("leaks an absolute path" in f for f in g10), "got=%r" % (g10,))
+    # T10b：args 不以 --server 起头（如 ["-m", mod]）必须被报 —— 锁 args 结构这条腿。
+    g10b = mre._config_token_flaws({"mcpServers": {
+        "shell": {"command": "@SELF", "args": ["-m", "x"], "cwd": "@ROOT"}}})
+    ck("T10b args not starting with --server is flagged too",
+       any("expected [--server" in f for f in g10b), "got=%r" % (g10b,))
+
     print("\nMAKE-RELEASE-ENTRIES:", "ALL GREEN" if not FAILS else "RED: " + ", ".join(FAILS))
     return 0 if not FAILS else 1
 

@@ -103,6 +103,25 @@ def probe_module(build_dir, name, pyext):
     return p.returncode, out
 
 
+# 自证判据（抽成函数供"对自己写的 a.out"和"对产物运行时读到的那份"两处复用）。
+# 逐条核对：command/cwd 必须是 @SELF/@ROOT token、args 以 --server 起头、且任何字段
+# 都不是绝对路径（os.path.isabs：Windows 盘符与 / 开头都判真，不用正则）。返回 flaws。
+def _config_token_flaws(cfg):
+    flaws = []
+    for sname, ent in (cfg.get("mcpServers") or {}).items():
+        if ent.get("command") != "@SELF":
+            flaws.append("%s.command=%r expected @SELF" % (sname, ent.get("command")))
+        if ent.get("cwd") != "@ROOT":
+            flaws.append("%s.cwd=%r expected @ROOT" % (sname, ent.get("cwd")))
+        alist = ent.get("args") or []
+        if alist[:1] != ["--server"]:
+            flaws.append("%s.args=%r expected [--server, <module>]" % (sname, alist))
+        for v in [ent.get("command"), ent.get("cwd")] + list(alist):
+            if isinstance(v, str) and os.path.isabs(v):
+                flaws.append("%s leaks an absolute path: %r" % (sname, v))
+    return flaws
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("build_dir", help="nuitka --mode=module --output-dir 的产物目录")
@@ -115,6 +134,8 @@ def main(argv=None) -> int:
                     help="已编译进产物的 runtime 模块名（逗号分隔）")
     ap.add_argument("--inherit", default="",
                     help="可选：从这份开发 config 里搬 mcp/session 两段纯参数")
+    ap.add_argument("--verify-config", default="",
+                    help="可选：对这份（产物运行时实际读到的）config 复证同样的 token/绝对路径判据")
     a = ap.parse_args(argv)
 
     build_dir = os.path.abspath(a.build_dir)
@@ -183,27 +204,33 @@ def main(argv=None) -> int:
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, indent=2)
         f.write("\n")
-    # 自证（承重）：读回自己写的文件逐字段核对 —— command/cwd 必须是 token，
-    # 且任何一个字段都不是绝对路径。这是"产物能搬到任意目录"的硬条件，
-    # 用 os.path.isabs 判定（Windows 上盘符与 / 开头都为真），不用正则。
-    back = json.load(open(a.out, encoding="utf-8"))
-    flaws = []
-    for sname, ent in (back.get("mcpServers") or {}).items():
-        if ent.get("command") != "@SELF":
-            flaws.append("%s.command=%r expected @SELF" % (sname, ent.get("command")))
-        if ent.get("cwd") != "@ROOT":
-            flaws.append("%s.cwd=%r expected @ROOT" % (sname, ent.get("cwd")))
-        alist = ent.get("args") or []
-        if alist[:1] != ["--server"]:
-            flaws.append("%s.args=%r expected [--server, <module>]" % (sname, alist))
-        for v in [ent.get("command"), ent.get("cwd")] + list(alist):
-            if isinstance(v, str) and os.path.isabs(v):
-                flaws.append("%s leaks an absolute path: %r" % (sname, v))
+    # 自证（承重）：读回自己写的文件逐字段核对（判据见 _config_token_flaws）——
+    # command/cwd 必须是 token、args 以 --server 起头、任何字段都不是绝对路径。
+    flaws = _config_token_flaws(json.load(open(a.out, encoding="utf-8")))
     if flaws:
         for f in flaws:
             print("FAIL " + f, file=sys.stderr)
         print("ENTRIES: RED after write (%d)" % len(flaws), file=sys.stderr)
         return 1
+
+    # 第②条扩展：对"产物运行时实际会读到的那份 config"复证同样的判据。方案A 后产物里
+    # 只有磁盘这一份（编译期不再内嵌），它是运行时唯一真值；若 cp 没生效、或它被带绝对
+    # 路径的开发版污染，gateway 起来就会读到错 command——正是本轮 CI 暴露的时序缺陷。把判据
+    # 套到 --verify-config（通常是 gateway --config 默认路径下那份），即从"我写的对"升级到
+    # "产物里那份对"，把这条缺陷永久锁死在构建期。
+    if a.verify_config:
+        if not os.path.isfile(a.verify_config):
+            print("FAIL verify-config: %s not found" % a.verify_config, file=sys.stderr)
+            print("ENTRIES: RED (shipped runtime config is missing)", file=sys.stderr)
+            return 1
+        vflaws = _config_token_flaws(json.load(open(a.verify_config, encoding="utf-8-sig")))
+        if vflaws:
+            for f in vflaws:
+                print("FAIL verify-config " + f, file=sys.stderr)
+            print("ENTRIES: RED (the config the release actually reads is not the " 
+                  "self-locating one: %d flaws)" % len(vflaws), file=sys.stderr)
+            return 1
+        print("verify-config OK: %s matches the self-locating form" % a.verify_config)
     print("ENTRIES: GREEN %d servers -> %s (all command/cwd as @SELF/@ROOT; "
           "entrypoint %s is validated only, not embedded)" % (len(entries), a.out, ep_name))
     return 0
