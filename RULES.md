@@ -189,3 +189,7 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 判断"新增 .gitignore 规则是否误伤已跟踪源码"：带前导斜杠的 /serve/ 只锚定仓库根一级，不匹配 Nebula-agent/serve/；用 git check-ignore -v --no-index <已跟踪文件> 看命中哪条规则（donate-usdc.png 命中 :19 *.png 属既有规则非新规则），并用 git ls-files 确认已跟踪文件集不变——已跟踪文件不会因新增 ignore 规则被剔除，但需确认 status 无意外 D
 .gitignore/RULES.md 等 i/lf w/crlf 文件追加时：Python 二进制读保留 \r\n、追加块用 CRLF；守卫判"规则是否已存在"须按整行 strip()==目标，勿用 substring in raw（会误匹配 Nebula-agent/serve 里的 /serve/ 子串致误跳过）
 路由/能力开关类改动涉及多类条目（self 空 base / 外部端点 / 带 base_url 的兄弟本地实例）时，改前必须读实每条分支对该能力的真实处理，并确保同一能力对所有条目类型行为一致；旧注释里对某类条目能力的隐含假设（如“兄弟实例自带工具故纯代理”）是这类静默失效的高发来源。
+需要 ROOT 的新模块一律 `from config_loader import project_root; ROOT = project_root(__file__)`，禁止再各自写 dirname 两层（产物里必偏一层）
+登记新 suite 到 run_tests.py 的三条硬验：位置在 SUITES 主区（不在 SLOW_SUITES）、前一项必须以逗号结尾、全套输出里必须真出现该 suite 的 PASS 行
+给带行尾注释的列表项补尾逗号时，逗号必须插在闭合引号之后、`#` 之前；在行尾 append 只会改到注释文本
+插入"列表条目 / YAML 步骤"这类顺序敏感的改动，验收一律用语义求值（AST 求列表、解析后比对步骤顺序），不能只凭 py_compile 或"YAML 可解析"

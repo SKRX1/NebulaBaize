@@ -64,7 +64,16 @@ if (fs.existsSync(indexHtml)) {
     const clean = raw.split('?')[0].split('#')[0];
     if (!clean) continue;
     refs++;
-    const target = path.resolve(abs, clean);
+    // Map the ref the way the server does. index.html references assets as
+    // 'web/app.js' on purpose (the 8080 host path form); _serve_static strips that
+    // prefix (http_server.py: 'clean.startswith("web/")' -> rel = clean[4:]). The
+    // smoke must follow the SAME mapping or it reports a perfectly good build as
+    // MISSING -- which is exactly what the first CI run did (7/7 'missing', while
+    // the parse stage was green).
+    let rel = clean;
+    if (rel.startsWith('web/')) rel = rel.slice(4);
+    if (process.env.SMOKE_WEB_LEGACY === '1') rel = clean;   // pre-fix behaviour, for the differential lock
+    const target = path.resolve(abs, rel);
     if (!fs.existsSync(target)) problems.push('MISSING ' + raw + ' (referenced by index.html)');
   }
   console.log('index.html: checked ' + refs + ' local asset ref(s)');
