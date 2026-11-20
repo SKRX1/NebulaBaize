@@ -115,14 +115,45 @@
    （基线从未出现 hit），macOS 出现 `Cached C files (using ccache) … cache hit`；Linux 侧
    基线曾报 `You are not using ccache`，现由 probe 步 best-effort 安装补上。这条收益只在
    **第二次及以后的构建**体现：第一轮是建缓存（所以它的 gateway 反而比基线慢），第二轮才
-   吃到 hit —— 这正是表里 Linux 457→57、macOS 223→146、Windows 1263→769 的另一半成因，
-   也是为什么读表要把 3b 列与 gateway 列分开归因。
+   吃到 hit —— 这正是表里 Linux 457→57、macOS 223→146 的另一半成因，也是为什么读表要把
+   3b 列与 gateway 列分开归因。**Windows 当时不在其列**：下面那次 run 44829615496 查明它的
+   `actions/cache` 从未保存成功，所以它每次都是冷编译；表里 Windows 1263→769 那段此后
+   只能记作 runner 负载噪声，不是缓存收益（这段归因是 run 44829615496 之后纠正的，原先写错了）。
 
-**顺带坐实一个非本配方引入、也尚未修的事实**：三个 run 的 Windows 都在步骤 4a（真起
-gateway 的 smoke）以完全相同的 `[executor] server * failed to start: [WinError 2]` 失败，
-而基线的 3b 是 success、"9 个 .pyd 都在"的断言也过 —— 产物里 .pyd 齐、gateway 却找不到要
-spawn 的东西。这是**产物 config / 入口路径**那条独立线上还没收口的问题，与并行度无关
-（三个 run 同因、改前改后一致），下一轮应从 Windows 侧的 entries.dist 路径与 spawn 解析查起。
+**再一轮实测：run 44829615496（@SELF 修复 cea0d65 之后；配方零改动，目的就是去验那个修复）**
+
+（上面那张表按"改配方的次数"编号；44829615496 没改配方，所以不参与那个编号，本节下文一律用 run 号称呼它。）
+
+上一段那个"三个 run 全灭在 4a"的问题已被 cea0d65（registry 把 `@SELF` 解析成磁盘上真实
+存在的程序）收口，44829615496 就是它的验收跑。顺带第一次拿到了**跨 run 暖缓存**的真数据。时长口径
+同前表：runner 自己记的 started_at/completed_at，不是猜的。
+
+| 平台 | gateway / 3b（44829615496） | actions/cache 那一侧发生了什么 | 该 job 结论 |
+|---|---|---|---|
+| Linux | 74s / **24s** | **HIT**：`Cache restored from key: build-cache-Linux-py3.13-44780930155`，post 保存 `Cache saved with key …44829615496` | success |
+| macOS | 160s / **27s** | **HIT**：`… build-cache-macOS-py3.13-44780930155`，同样保存成功 | success |
+| Windows | **1187s / 304s** | `Cache not found`（连续第 7 次），且 post 保存步整排 `skipped` | failure（换了一步） |
+
+**这一轮坐实的三件事**
+1. **`@SELF` 修复确实起效**（那次 run 的主目的，判据是"以前全灭的那一步现在逐项绿"）：同一个
+   Windows job 里 `ENTRIES: GREEN 9 servers -> entries.dist (all command/cwd as @SELF/@ROOT)`、
+   `VERIFY: GREEN … 匹配 @SELF/@ROOT 形态`、`compiled *_server.pyd present: 9 (want 9)`、
+   `== 1. CLI parses == OK`，六个 run 都出现的 `[WinError 2]` 不再出现。失败点整体**前移**
+   到了此前根本执行不到的地方——修复有效的最强证据不是"绿了"，而是"错误换了"。
+2. **下一层根因是控制台编码，与产物无关**：冒烟在 44829615496 里真把 gateway 拉起来了，它却在
+   `http_server.py` 往 stderr 写含 `→` 的日志时抛
+   `UnicodeEncodeError: 'charmap' codec can't encode character '\u2192'`（Windows runner 的
+   控制台是 cp1252），进程随即退出、从未监听端口。即 .pyd 齐、config 形态对、入口解析通
+   三层都已打通，卡在"往被接管的管道写非 ASCII"。修法：启动期把 stdout/stderr 兜成
+   UTF-8 + `errors='replace'`，让编码永远不该掀翻服务（下一轮做）。
+3. **Windows 的构建缓存从来没保存成功过，跨 run 对它无效**：仓库现存 5 个缓存条目，键名
+   清一色 `build-cache-Linux-*` / `build-cache-macOS-*`，**一个 `build-cache-Windows-*` 都没
+   有**。机制在日志里读实：保存动作发生在 job 结束后的 post 步，而 Windows job 一旦以
+   exit 1 失败，post 保存步就整排被 `skipped`（44829615496 的 step 27–30 即如此）——于是"建不起缓存
+   → 下一次必然冷 → 更容易被判失败"自成闭环。44829615496 的 Windows 1187s 比上一个 run（44780930155）的 769s 还慢，也印证了
+   它没有 hit 可吃。**顺序结论：先修失败步，Windows 才会第一次真正用上缓存**，别反过来
+   为了提速去调缓存参数。顺带记下产物里还有 19 个 `*.build/scons-debug.py` 混进 .py 清单
+   （WARN "should be zero"），属打包排除项，与该 run 的失败无关。
 
 **没做的**：GPU 加速方向已排除 —— cl.exe/gcc/clang 的编译过程不使用 GPU，且 GitHub hosted
 runner 没有 GPU；三平台发布要的是三台不同 CPU 架构的机器，不是显卡。
