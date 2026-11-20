@@ -6,54 +6,49 @@ title Nebula Agent - 一键启动
 setlocal
 
 REM ============================================================
-REM  Nebula Agent one-click launcher
-REM  - start 8099 gateway FIRST (boot does not depend on 8080; dead upstream
-REM    only yields 502 until engine is ready; see gateway.py:497)
-REM  - then start 8080 engine (Strata-main, s or xxs)
-REM  - already-running components are skipped (safe to re-run)
-REM  - also launches gw_watchdog.bat (single-instance) for window-closed recovery
-REM  - switch model: change MODEL below to s or xxs
+REM  Nebula Agent one-click launcher  (启动顺序调整 2026-11)
+REM  两步：
+REM  [1] 先启动 gw_watchdog（单实例）——它内部每 10s 探 8099，缺失且无
+REM      .gw_stop.flag 就自行拉起 run_standalone.bat，即看门狗顺带把 8099
+REM      网关带起来（不再单独显式起网关）。
+REM  [2] 再启动推理引擎：E:\Nebula\Strata模型安装\run-iq3_s_abliterated.bat
+REM  - 已运行的组件会被跳过（重复运行安全）。
 REM ============================================================
 
-set MODEL=s
-
-set ENGINE_BAT="E:\Program Files\Strata-main\run-swift-iq3_%MODEL%.bat"
-set STANDALONE="E:\Nebula\NebulaBaize\Nebula-agent\run_standalone.bat"
+set WATCHDOG="E:\Nebula\NebulaBaize\Nebula-agent\gw_watchdog.bat"
+set ENGINE_BAT="E:\Nebula\Strata模型安装\run-iq3_s_abliterated.bat"
 
 echo ===================================================
-echo  Nebula Agent 一键启动  [model=%MODEL%]
+echo  Nebula Agent 一键启动
 echo ===================================================
 
-REM ---------- 1) 8099 独立版网关 ----------
-netstat -ano | findstr /i ":8099" | findstr /i "LISTENING" >nul 2>&1
-if not errorlevel 1 (
-    echo [1/2] 8099 已在运行, 跳过网关启动.
+REM ---------- 1) 看门狗（内部拉起并自愈 8099 网关；单实例，重复启动自动跳过）----------
+if exist %WATCHDOG% (
+    echo [1/2] 启动网关看门狗（它会自动拉起 8099 网关，已在运行则跳过）...
+    start "Nebula Watchdog" cmd /c %WATCHDOG%
+    echo       看门狗启动中, 网关将由其在数秒内拉起 http://127.0.0.1:8099
+    echo       （此时 8080 引擎尚未就绪, 请求会 502, 引擎起来后自动恢复）
 ) else (
-    echo [1/2] 8099 未运行, 启动网关: %STANDALONE%
-    if not exist %STANDALONE% (
-        echo   错误: 找不到 %STANDALONE%
-        pause
-        exit /b 1
-    )
-    start "Nebula Gateway 8099" cmd /c %STANDALONE%
-    echo       网关启动中, 浏览器将在数秒后打开 http://127.0.0.1:8099
-    echo       （此时 8080 尚未就绪, 请求会 502, 引擎起来后自动恢复）
+    echo [1/2] 错误: 未找到看门狗脚本 %WATCHDOG%
+    echo       它是 8099 网关的拉起源, 缺少则无法启动, 已中止.
+    pause
+    exit /b 1
 )
 
-REM ---------- 2) 8080 推理引擎 ----------
+REM ---------- 2) 8080 推理引擎（run-iq3_s_abliterated）----------
 netstat -ano | findstr /i ":8080" | findstr /i "LISTENING" >nul 2>&1
 if not errorlevel 1 (
     echo [2/2] 8080 已在运行, 跳过引擎启动.
-    echo       注意: 当前 8080 上跑的模型可能与本脚本 MODEL=%MODEL% 不一致.
-    echo       s 与 xxs 互斥（共用单卡 + 8080 端口）; 若要切换模型, 请先手动停止当前引擎,
-    echo       再运行本脚本, 或改 MODEL 后重启引擎, 并在前端「模型」下拉里改选对应项.
+    echo       注意: 当前 8080 上跑的模型可能与本脚本预期不一致;
+    echo       若要切换模型, 请先手动停止当前引擎, 再运行本脚本.
     goto :done
 )
 echo [2/2] 8080 未运行, 启动引擎: %ENGINE_BAT%
 if not exist %ENGINE_BAT% (
-    echo   错误: 找不到 %ENGINE_BAT%
+    echo   错误: 找不到引擎脚本 %ENGINE_BAT%
+    echo   （不影响已启动的 8099 网关，仅本地推理不可用）
     pause
-    exit /b 1
+    goto :done
 )
 start "Strata Engine 8080" cmd /c %ENGINE_BAT%
 echo       等待 8080 端口就绪 ...
@@ -65,25 +60,16 @@ if not errorlevel 1 goto :engine_ok
 if %N% geq 60 (
     echo   超时: 8080 未在 60 秒内就绪, 请检查引擎启动日志
     pause
-    exit /b 1
+    goto :done
 )
 timeout /t 1 >nul
 goto :wait8080
 :engine_ok
 echo       8080 就绪.
 
-REM ---------- 3) 8099 网关看门狗（单实例，重复启动自动跳过） ----------
-set WATCHDOG="E:\Nebula\NebulaBaize\Nebula-agent\gw_watchdog.bat"
-if exist %WATCHDOG% (
-    echo [3/3] 启动网关看门狗（崩溃/关窗自愈，已在运行则跳过）...
-    start "Nebula Watchdog" cmd /c %WATCHDOG%
-) else (
-    echo [3/3] 未找到看门狗脚本 %WATCHDOG%, 跳过.
-)
-
 :done
 echo ===================================================
-echo  完成. 引擎@8080 + 网关@8099 + 看门狗 均已在线.
-echo  停止: 关闭对应的引擎窗口、网关窗口、看门狗窗口即可.
+echo  完成. 看门狗(含 8099 网关) + 引擎@8080 均已尝试拉起.
+echo  停止: 关闭对应的看门狗窗口、引擎窗口即可.
 echo ===================================================
 endlocal
