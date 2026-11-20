@@ -15,6 +15,13 @@ on:
 
 env:
   PYTHON_VERSION: "3.13"    # 闭源运行时版本。已证 3.14 可被 Nuitka 翻译；此默认取保守稳定版，按需上调。
+  # 编译并行度（拍板值：3 路并发、单进程 --jobs = min(nproc,4)）。这两个数只是【上限】：
+  # scripts/build_modules.sh 里还会再和 runner 真实核数取 min，所以在更大的机器上不会失控，
+  # 在 4 核 / 约 7GB 的 free windows runner 上也不会超发（超发的表现是 cl.exe 以怪异的
+  # 退出码失败 = OOM，而不是干净的 Nuitka FATAL）。要不要上调，看下面 "Probe build
+  # parallelism" 步打印的 cores / 内存——只有那两项显示余量充足才值得改这两个数。
+  BUILD_CONC: "3"
+  BUILD_JOBS_MAX: "4"
 
 jobs:
   build:
@@ -64,14 +71,79 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install nuitka
 
+      # 2b) C 编译器缓存（B 方案）：把 ccache/clcache/Nuitka 自己的 cache 目录存进
+      #     Actions 缓存，让"只改前端或 config、Python 没动"的重建几乎免费——编译期
+      #     那 600~900s 里绝大部分是把 .c 喂给 C 编译器，而这一步的结果只取决于源码内容。
+      #     为什么这三目录能安全复用（读 Nuitka 源码 nuitka/build/SconsCaching.py 坐实，
+      #     不是猜）：
+      #       - Windows 走的是 Nuitka 自带的 **clcache**（不是 ccache）：enableClcache() 里
+      #         `if "CLCACHE_DIR" not in os.environ:` 才自己挑目录 —— 我们导出它就照用；
+      #       - Linux/macOS 走 ccache，同样受 `if "CCACHE_DIR" not in os.environ:` 支配；
+      #       - NUITKA_CACHE_DIR 是它自己的 bytecode/下载缓存根（getCacheDir 的落点）。
+      #     所以三个目录都要钉到固定可知的路径，actions/cache 才存得对、下次找得回。
+      #     key 里带 run_id（每次都能新存一份）+ restore-keys 前缀（找得到最近一次），
+      #     这样缓存会随每次构建向前滚，不会锁死在旧内容上。
+      - name: Restore C-compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/build-cache/ccache
+            ${{ runner.temp }}/build-cache/clcache
+            ${{ runner.temp }}/build-cache/nuitka
+          key: build-cache-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ github.run_id }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+            build-cache-${{ runner.os }}-
+
+      # 2c) 并行度与缓存目录的取证步。打印 cores/内存有两个用途：(a) 证明本次真的用上了
+      #     并行（把 --jobs 的实际上限写进日志）；(b) 给"要不要把并发调到 4"提供唯一
+      #     的判据。顺带坐实一个此前被我误判的事实（读 Nuitka 源码
+      #     nuitka/options/Options.py 的 isLowMemory()）：它只等于"显式传了 --low-memory"，
+      #     Nuitka 不会自动探测低内存 —— 也就是说 --jobs 的默认值一直是 CPU 核数，
+      #     不存在"默认已退化成单核"。真正的浪费只在"多次 Nuitka 调用之间是串行的"，
+      #     那是本文件步骤 3b 与下面 --jobs 要解决的事。
+      - name: Probe build parallelism (cores / memory)
+        shell: bash
+        run: |
+          echo "cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo unknown)"
+          if [ -r /proc/meminfo ]; then
+            grep -E '^(MemTotal|MemFree|MemAvailable)' /proc/meminfo
+          else
+            echo "mem: no /proc/meminfo readable on this runner"
+          fi
+          echo "requested: BUILD_CONC=${{ env.BUILD_CONC }} BUILD_JOBS_MAX=${{ env.BUILD_JOBS_MAX }}"
+          # 缓存目录钉死（见上一步的注释）。这里用 >> $GITHUB_ENV 导出，后续所有 step 继承。
+          for d in ccache clcache nuitka; do
+            mkdir -p "$RUNNER_TEMP/build-cache/$d" || exit 1
+          done
+          echo "CCACHE_DIR=$RUNNER_TEMP/build-cache/ccache"           >> "$GITHUB_ENV"
+          echo "CLCACHE_DIR=$RUNNER_TEMP/build-cache/clcache"         >> "$GITHUB_ENV"
+          echo "NUITKA_CACHE_DIR=$RUNNER_TEMP/build-cache/nuitka"     >> "$GITHUB_ENV"
+          # ccache 只有装着才生效（Windows 不需要：clcache 由 Nuitka 自带）。ubuntu/macOS
+          # 的 hosted 镜像自带 ccache；万一没有，best-effort 装一次，装不上也不算错——
+          # 只是这一步的缓存对那次平台无用，编译本身照旧。
+          if ! command -v ccache >/dev/null 2>&1; then
+            echo "ccache not on PATH; best-effort install"
+            (sudo apt-get update -qq && sudo apt-get install -y -qq ccache) >/dev/null 2>&1               || brew install ccache >/dev/null 2>&1 || true
+          fi
+          echo "ccache: $(command -v ccache || echo none)"
+
       # 3) Nuitka 编译 gateway（HTTP 网关主进程）为 standalone。
       #    产物打包的是【混淆后的】 dist/web，而非 serve/web。
       - name: Compile with Nuitka
         working-directory: Nebula-agent
         shell: bash
         run: |
+          # --jobs 的默认值本来就是核数（见 2c 步的源码结论），这里【显式】写出是为了
+          # 两件事：把实际上限打印进日志可核对，以及给 min(nproc,4) 这个上限封顶——
+          # Windows 上 cl.exe 每个 job 都吃内存，4 核机上不封顶时峰值内存最容易顶到 OOM。
+          cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+          jobs=${{ env.BUILD_JOBS_MAX }}
+          [ "$cores" -lt "$jobs" ] && jobs="$cores"
+          echo "gateway compile: cores=$cores --jobs=$jobs"
           python -m nuitka \
             --standalone \
+            --jobs="$jobs" \
             --assume-yes-for-downloads \
             --include-data-dir=dist/web=web \
             --include-package=serve \
@@ -114,31 +186,15 @@ jobs:
           # "specify only one positional argument unless --run is specified"）。
           # 所以逐文件循环：这同时消灭了"多行续行符漏一个"这类错——上一轮就是这么
           # 让 skills/example_server.py 从命令里掉出去的（YAML 仍然合法，肉眼看不出）。
-          MODULES="
-            servers/_mcp_base.py
-            servers/fs_server.py
-            servers/shell_server.py
-            servers/websearch_server.py
-            servers/memory_server.py
-            servers/browser_server.py
-            servers/schedule_server.py
-            servers/skillhub_server.py
-            servers/registry_server.py
-            skills/example_server.py
-            runtime/config_loader.py
-            runtime/textenc.py
-            runtime/skills_loader.py
-            runtime/executor.py
-            runtime/registry.py
-            runtime/audit.py
-            runtime/scheduler.py
-            runtime/corpus.py
-          "
-          for f in $MODULES; do
-            echo "--- compiling $f"
-            python -m nuitka --mode=module --assume-yes-for-downloads \
-              --output-dir=gateway.dist "$f"
-          done
+          # 清单在 scripts/build_modules.sh 里（那份按真实 import 坐实的清单原样搬过去，
+          # 别在两处各维护一份）。这里只负责并发调度：
+          #   为什么必须 N 次调用（不能合并）：--mode=module 只接受一个 positional（CI
+          #     实测 FATAL）——这一点没变；
+          #   变的是什么：原先这 N 次调用【之间】是 for 循环串行的，实测白等
+          #     216s(Windows)/519s(Linux)；现在按 BUILD_CONC 分批并发，每路日志各自落
+          #     .build-logs/<path>.log、退出码落同名 .rc，结束后按清单顺序回放并点名失败项
+          #     ——并发不牺牲可诊断性，也不改变任何一次 nuitka 调用的语义。
+          bash scripts/build_modules.sh "${{ env.BUILD_CONC }}" "${{ env.BUILD_JOBS_MAX }}" gateway.dist
           # memory 必须按【包】编，不能逐文件：
           #   servers/memory_server.py 写的是包限定名 `from memory.episodic import ...`；
           #   scripts/make_release_entries.py:108 又要求产物里存在 memory.<pyd/.so>。
@@ -147,7 +203,10 @@ jobs:
           # （memory.episodic 依然解析不了）。--mode=package 把整包编成一个扩展模块，
           # 子模块在其内，两个条件同时满足。以后别把它"顺手统一"回上面的循环。
           echo "--- packaging runtime/memory (mode=package)"
-          python -m nuitka --mode=package --assume-yes-for-downloads \
+          cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+          jobs=${{ env.BUILD_JOBS_MAX }}
+          [ "$cores" -lt "$jobs" ] && jobs="$cores"
+          python -m nuitka --mode=package --jobs="$jobs" --assume-yes-for-downloads \
             --output-dir=gateway.dist runtime/memory
           # 若报缺依赖：在对应文件的编译行就近追加 --include-module=<name>。
           ls gateway.dist | head -40

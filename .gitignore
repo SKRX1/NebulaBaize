@@ -162,3 +162,5 @@ Nebula-agent/gateway.dist/
 
 # Local secrets (tokens/keys) — NEVER commit; contents are credentials.
 .Nebula-secrets/
+# parallel module build logs (scripts/build_modules.sh)
+.build-logs/

@@ -99,6 +99,8 @@ if os.path.isfile(YML):
     ORDER = [
         "name: Obfuscate frontend",
         "name: Front-end smoke",
+        "name: Restore C-compiler cache",
+        "name: Probe build parallelism",
         "name: Compile with Nuitka",
         "name: Compile MCP servers to native modules",
         "name: Build self-locating release config",
@@ -111,7 +113,19 @@ if os.path.isfile(YML):
     # 3b 与 3c 之间那段必须覆盖 servers/ 全部 + runtime 依赖闭包
     a = text.find("name: Compile MCP servers")
     b = text.find("name: Build self-locating release config")
-    seg = text[a:b] if a >= 0 and b > a else ""
+    seg_yml = text[a:b] if a >= 0 and b > a else ""
+    # 逐文件的编译清单从 yml 迁到了 scripts/build_modules.sh（为的是能在 shell 层分批并发——
+    # Nuitka 的 --mode=module 一次只吃一个 positional，原先那 N 次调用【之间】是 for 串行
+    # 的，实测白等 216s/519s）。清单内容逐字未改，只是换了个文件，所以搜索面也随之跟着
+    # 变成"yml 的 3b 段 + 那个脚本"。这不是放宽 G8：下面 G11 会反向锁死"清单只有一份"，
+    # 一旦有人把文件列表又抄回 yml（两处各自漂移），G11 立刻红。
+    SHF = os.path.join(ROOT, "scripts", "build_modules.sh")
+    sh_text = open(SHF, encoding="utf-8").read() if os.path.isfile(SHF) else ""
+    ck("G11 the module list lives in exactly ONE place (scripts/build_modules.sh)",
+       bool(sh_text) and 'MODULES="' in sh_text and 'MODULES="' not in seg_yml,
+       "sh_has_list=%s yml_has_second_list=%s" % (bool(sh_text) and 'MODULES="' in sh_text,
+                                                  'MODULES="' in seg_yml))
+    seg = seg_yml + "\n" + sh_text
     srv_dir = os.path.join(ROOT, "servers")
     want = ["servers/" + f for f in sorted(os.listdir(srv_dir))
             if f.endswith(".py") and ".bak" not in f]
@@ -128,8 +142,10 @@ if os.path.isfile(YML):
     # 所以这里锁"包形态"这个事实，而不是上一版的"逐文件列出三个 .py"——那一版被 CI 实测
     # （FATAL: one positional）与上面两环共同证伪。
     PKGRE = r"--mode=package[^\n]*\n[^\n]*runtime/memory"
-    pkg_ok = bool(re.search(PKGRE, seg))
-    loop = seg.split('MODULES="', 1)[1].split('"', 1)[0] if 'MODULES="' in seg else ""
+    # 只看 yml 段：包形态这条命令仍留在 workflow 里（它是一次调用，不参与并发），
+    # 若把面扩到 .sh，未来某个无关文件里出现同样两行就会假绿。
+    pkg_ok = bool(re.search(PKGRE, seg_yml))
+    loop = sh_text.split('MODULES="', 1)[1].split('"', 1)[0] if 'MODULES="' in sh_text else ""
     mem_out_of_loop = "runtime/memory" not in loop
     ck("G8 3b compiles every server AND every runtime dep the servers import",
        bool(seg) and not miss, "files=%d missing=%s" % (len(want), sorted(miss) or "none"))
@@ -139,7 +155,7 @@ if os.path.isfile(YML):
        mem_out_of_loop, "runtime/memory in module list = %s" % (not mem_out_of_loop))
     # 变异差分：证明 G8b/G8c 是 load-bearing —— 旧形态（无 package）必须红。
     legacy = re.sub(PKGRE, "--mode=module --output-dir=gateway.dist runtime/memory/__init__.py",
-                    seg, count=1)
+                    seg_yml, count=1)
     ck("G8d MUTATION: dropping the package form turns G8b RED",
        pkg_ok and not bool(re.search(PKGRE, legacy)),
        "legacy pkg_ok=%s (must be False)" % bool(re.search(PKGRE, legacy)))
