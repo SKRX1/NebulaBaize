@@ -116,6 +116,72 @@ _ASCII_CACHE_LOCK = threading.Lock()   # serialises first-copy into the ASCII mo
 _WEB_BUILD_CACHE = None
 
 
+def _recycle_send_to_bin(folder, name):
+    """Move ONE file to the platform's recycle destination. Returns "OK" on success,
+    "NOITEM" when the file is not found. Windows keeps the existing Shell.Application COM
+    path (a real Recycle Bin with restore); POSIX prefers the optional send2trash, else
+    falls back to a physical move into a sibling .Nebula-recycle/ folder (never a bare
+    physical delete). Kept module-level and side-effect-free so the dispatch is testable
+    without a live handler (see tests/test_recycle_xplat_dispatch.py)."""
+    target = os.path.join(folder, name)
+    if not os.path.exists(target):
+        return "NOITEM"
+    if sys.platform == "win32":
+        script = ("$sh=New-Object -ComObject Shell.Application;"
+                  "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
+                  % (folder.replace("'", "''"), name.replace("'", "''")))
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", script],
+                           capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout or "").strip()[:400])
+        return (r.stdout or "").strip()
+    # POSIX: prefer send2trash when it is installed. find_spec guards the optional import
+    # (no try/except-pass, so the code-hygiene ratchet is untouched); absent it the module
+    # still imports and we fall through to the physical-move fallback below.
+    import importlib.util
+    if importlib.util.find_spec("send2trash") is not None:
+        import send2trash
+        send2trash.send2trash(target)
+        return "OK"
+    # No send2trash on this box: degrade to a physical MOVE (not delete) into a sibling
+    # .Nebula-recycle/ folder so the file is still recoverable.
+    dest_dir = os.path.join(folder, ".Nebula-recycle")
+    os.makedirs(dest_dir, exist_ok=True)
+    shutil.move(target, os.path.join(dest_dir, name))
+    return "OK"
+
+
+def _recycle_restore_file(origin, name):
+    """POSIX restore: move a file back out of its sibling .Nebula-recycle/ folder into
+    origin. Returns "OK" on success, "NOITEM" when it is not staged there. The Windows
+    COM/Recycle-Bin restore stays at the call site (a real bin holds the item; POSIX
+    staged it via _recycle_send_to_bin's physical-move fallback)."""
+    src = os.path.join(origin, ".Nebula-recycle", name)
+    if not os.path.exists(src):
+        return "NOITEM"
+    dest = os.path.join(origin, name)
+    if os.path.exists(dest):
+        return "NOITEM"
+    shutil.move(src, dest)
+    return "OK"
+
+
+def _recycle_send_batch(paths):
+    """POSIX batch recycle: send each path through _recycle_send_to_bin and emit one
+    'OK:<path>' / 'NOITEM:<path>' line per path — byte-for-byte the shape the Windows
+    PowerShell batch script produces, so the SAME _recycle_parse_batch maps the output
+    back. Windows keeps its single-COM-session path unchanged (see _recycle_trash_run)."""
+    lines = []
+    for p in paths:
+        folder = os.path.dirname(p); name = os.path.basename(p)
+        try:
+            r = _recycle_send_to_bin(folder, name)
+        except Exception:
+            r = "NOITEM"
+        lines.append(("OK:" if r == "OK" else "NOITEM:") + p)
+    return "\n".join(lines)
+
+
 def _web_build() -> str:
     global _WEB_BUILD_CACHE
     if _WEB_BUILD_CACHE is None:
@@ -4313,10 +4379,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                                 whitelist=f.name in self.RECYCLE_WHITELIST)
             return False
         folder = str(f.parent); name = f.name
-        script = ("$sh=New-Object -ComObject Shell.Application;"
-                  "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
-                  % (folder.replace("'", "''"), name.replace("'", "''")))
-        res = self._recycle_powershell(script)
+        res = _recycle_send_to_bin(folder, name)
         self._recycle_trace("sync_one", raw=str(raw), resolved=str(f), ps=res)
         return res == "OK"
 
@@ -4375,7 +4438,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 # so every file > the sync threshold silently vanished. Parse-back keys match (we feed
                 # the mapped batch to _recycle_batch_script), and the ledger records the mapped path.
                 mapped = [str(self._recycle_resolve(x)) for x in batch]
-                out = self._recycle_powershell(self._recycle_batch_script(mapped))
+                if sys.platform == "win32":
+                    out = self._recycle_powershell(self._recycle_batch_script(mapped))
+                else:
+                    out = _recycle_send_batch(mapped)
             except Exception as e:
                 self._recycle_trace("batch_err", batch=[str(x) for x in batch], err=str(e)[:300])
                 with job["lock"]:
@@ -4445,14 +4511,17 @@ class GatewayHandler(BaseHTTPRequestHandler):
             origin = rec.get("origin")
             if not origin or not Path(origin).is_dir():
                 continue
-            script = ("$sh=New-Object -ComObject Shell.Application;$bin=$sh.Namespace(10);"
-                      "$hit=$null;foreach($i in $bin.Items()){if($i.Name -eq '%s'){$hit=$i;break}}"
-                      "if($hit){$d=$sh.Namespace('%s');$d.CopyHere($hit.Path,16);'OK'}else{'NOITEM'}"
-                      % (name.replace("'", "''"), origin.replace("'", "''")))
-            try:
-                res = self._recycle_powershell(script)
-            except Exception as e:
-                return 500, {"error": {"message": "COM restore failed: %s" % e}}
+            if sys.platform == "win32":
+                script = ("$sh=New-Object -ComObject Shell.Application;$bin=$sh.Namespace(10);"
+                          "$hit=$null;foreach($i in $bin.Items()){if($i.Name -eq '%s'){$hit=$i;break}}"
+                          "if($hit){$d=$sh.Namespace('%s');$d.CopyHere($hit.Path,16);'OK'}else{'NOITEM'}"
+                          % (name.replace("'", "''"), origin.replace("'", "''")))
+                try:
+                    res = self._recycle_powershell(script)
+                except Exception as e:
+                    return 500, {"error": {"message": "COM restore failed: %s" % e}}
+            else:
+                res = _recycle_restore_file(origin, name)
             if res != "OK":
                 continue
             rec2 = {"action": "restore", "name": name, "path": rec.get("path"), "origin": origin, "ts": int(time.time())}

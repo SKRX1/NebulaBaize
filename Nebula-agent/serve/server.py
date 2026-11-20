@@ -195,6 +195,56 @@ IM_END = "<|im_end|>"
 IMAGE_PAD = "<|image_pad|>"
 
 
+def _recycle_send_to_bin(folder, name):
+    """Move ONE file to the platform's recycle destination. Returns "OK" on success,
+    "NOITEM" when the file is not found. Windows keeps the existing Shell.Application COM
+    path (a real Recycle Bin with restore); POSIX prefers the optional send2trash, else
+    falls back to a physical move into a sibling .Nebula-recycle/ folder (never a bare
+    physical delete). Kept module-level and side-effect-free so the dispatch is testable
+    without a live handler (see tests/test_recycle_xplat_dispatch.py)."""
+    target = os.path.join(folder, name)
+    if not os.path.exists(target):
+        return "NOITEM"
+    if sys.platform == "win32":
+        script = ("$sh=New-Object -ComObject Shell.Application;"
+                  "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
+                  % (folder.replace("'", "''"), name.replace("'", "''")))
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", script],
+                           capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout or "").strip()[:400])
+        return (r.stdout or "").strip()
+    # POSIX: prefer send2trash when it is installed. find_spec guards the optional import
+    # (no try/except-pass, so the code-hygiene ratchet is untouched); absent it the module
+    # still imports and we fall through to the physical-move fallback below.
+    import importlib.util
+    if importlib.util.find_spec("send2trash") is not None:
+        import send2trash
+        send2trash.send2trash(target)
+        return "OK"
+    # No send2trash on this box: degrade to a physical MOVE (not delete) into a sibling
+    # .Nebula-recycle/ folder so the file is still recoverable.
+    dest_dir = os.path.join(folder, ".Nebula-recycle")
+    os.makedirs(dest_dir, exist_ok=True)
+    shutil.move(target, os.path.join(dest_dir, name))
+    return "OK"
+
+
+def _recycle_restore_file(origin, name):
+    """POSIX restore: move a file back out of its sibling .Nebula-recycle/ folder into
+    origin. Returns "OK" on success, "NOITEM" when it is not staged there. The Windows
+    COM/Recycle-Bin restore stays at the call site (a real bin holds the item; POSIX
+    staged it via _recycle_send_to_bin's physical-move fallback)."""
+    src = os.path.join(origin, ".Nebula-recycle", name)
+    if not os.path.exists(src):
+        return "NOITEM"
+    dest = os.path.join(origin, name)
+    if os.path.exists(dest):
+        return "NOITEM"
+    shutil.move(src, dest)
+    return "OK"
+
+
 def popen(what: str, args: list, **kw):
     """#735: subprocess.Popen, but Windows' refusal to start a program (WinError 4551, or 1260 when a policy blocks it:
     Smart App Control on a clean Windows 11 blocks an exe that is not signed) is said in words instead of a bare
@@ -6053,13 +6103,10 @@ def make_handler(svc: Service):
                 if f.name in self.RECYCLE_WHITELIST:
                     continue
                 folder = str(f.parent); name = f.name
-                script = ("$sh=New-Object -ComObject Shell.Application;"
-                          "$it=$sh.Namespace('%s').ParseName('%s');if($it){$it.InvokeVerb('delete');'OK'}else{'NOITEM'}"
-                          % (folder.replace("'", "''"), name.replace("'", "''")))
                 try:
-                    res = self._recycle_powershell(script)
+                    res = _recycle_send_to_bin(folder, name)
                 except Exception as e:
-                    return 500, {"error": {"message": "COM send failed: %s" % e}}
+                    return 500, {"error": {"message": "recycle send failed: %s" % e}}
                 if res != "OK":
                     continue
                 rec = {"action": "trash", "path": str(f), "name": name, "size": None,
@@ -6091,14 +6138,17 @@ def make_handler(svc: Service):
                 origin = rec.get("origin")
                 if not origin or not Path(origin).is_dir():
                     continue
-                script = ("$sh=New-Object -ComObject Shell.Application;$bin=$sh.Namespace(10);"
-                          "$hit=$null;foreach($i in $bin.Items()){if($i.Name -eq '%s'){$hit=$i;break}}"
-                          "if($hit){$d=$sh.Namespace('%s');$d.CopyHere($hit.Path,16);'OK'}else{'NOITEM'}"
-                          % (name.replace("'", "''"), origin.replace("'", "''")))
-                try:
-                    res = self._recycle_powershell(script)
-                except Exception as e:
-                    return 500, {"error": {"message": "COM restore failed: %s" % e}}
+                if sys.platform == "win32":
+                    script = ("$sh=New-Object -ComObject Shell.Application;$bin=$sh.Namespace(10);"
+                              "$hit=$null;foreach($i in $bin.Items()){if($i.Name -eq '%s'){$hit=$i;break}}"
+                              "if($hit){$d=$sh.Namespace('%s');$d.CopyHere($hit.Path,16);'OK'}else{'NOITEM'}"
+                              % (name.replace("'", "''"), origin.replace("'", "''")))
+                    try:
+                        res = self._recycle_powershell(script)
+                    except Exception as e:
+                        return 500, {"error": {"message": "COM restore failed: %s" % e}}
+                else:
+                    res = _recycle_restore_file(origin, name)
                 if res != "OK":
                     continue
                 rec2 = {"action": "restore", "name": name, "path": rec.get("path"), "origin": origin, "ts": int(time.time())}
