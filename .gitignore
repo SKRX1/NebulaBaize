@@ -159,3 +159,6 @@ Nebula-agent/_metrics.json
 Nebula-agent/dist/
 Nebula-agent/gateway.build/
 Nebula-agent/gateway.dist/
+
+# Local secrets (tokens/keys) — NEVER commit; contents are credentials.
+.Nebula-secrets/

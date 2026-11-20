@@ -41,6 +41,31 @@
 - **入口是 gateway，不是整应用**：星云是多进程（gateway + 各 MCP server 子进程 + 外部 native 引擎）。当前只编译了 gateway 主进程；servers 子进程如何随产物分发（各自 also Nuitka 编译？还是随源码带？）**待你拍板后补**。
 - **前端混淆后请人工冒烟**：app.js 700KB 单文件，minify 后建议 CI 加一步 smoke（加载页面断言无语法错），防混淆器对极端代码误处理。
 
+### 4.5 servers/ 各 MCP 子进程在闭源产物里的分发形态（待拍板，附实测依据）
+
+实测三条硬事实（不是估计）：
+
+1. **形态**：`config/mcp_servers.json` 里 9 个条目（filesystem/shell/websearch/memory/browser/schedule/skillhub/registry + skills/example_server）全部是
+   `command=<绝对路径>\.venv\Scripts\python.exe`、`args=<绝对路径>servers\xxx_server.py`——即每个 server 都是 gateway 运行时 **spawn 的独立子进程**，不在 gateway 进程内，所以 Nuitka 编译 gateway **不会**把它们带进二进制。
+2. **依赖**：逐个 AST 扫描，8 个 `servers/*.py` 的第三方依赖 = **0**（只有 stdlib + 项目自身模块 `_mcp_base` 等；唯一外部 `socks` 来自已 pin 的 PySocks）。→ 编译它们不需要额外 native 依赖，成本低。
+3. **体积基准**：CI 实跑的 macOS 产物 = **20.6 MB**（已含一份 Python 运行时 + 混淆前端 + PIL/psutil native）。
+
+三个形态的取舍：
+
+| 形态 | 做法 | 源码保护 | 体积 | 复杂度 |
+|---|---|---|---|---|
+| A 各编独立 exe | 每个 server 各跑一次 `nuitka --standalone` | 最强（9 份原生码） | **最差：9 × ≈20 MB ≈ 180 MB**（每个 standalone 都自带完整 Python 运行时） | 高（9 次编译、CI 时间×9） |
+| B 随源码带 `.py` | 产物内附 `servers/*.py` + 一份嵌入式 Python 运行时，json 改指产物内相对路径 | 最弱（**server 源码明文可见**） | 好：≈20 MB + 9 个脚本（共约 200 KB） | 低 |
+| C **模块编译 `.pyd`**（推荐） | `nuitka --mode=module`（原 `--module`）把每个 `servers/*.py` 编成平台原生 `.pyd/.so`，产物带**一份**嵌入式 Python 运行时，json 的 command 指该运行时、args 指 `.pyd` | 好：`.pyd` 是原生码，等同 gateway 的保护级别，不可反编译回源码 | 好：≈20 MB 运行时 + 9 个几百 KB 的 `.pyd`（总增量约几 MB，远小于 A） | 中：一次 CI 里 9 次 module 编译（module 模式远快于 standalone，不复制运行时） |
+
+**推荐 C**，理由：A 的 180 MB 与 9 倍 CI 时间换来的增量保护≈0（B/C 已不暴露源码）；B 最省事但违背"禁止反编译源码"的初衷——server 层虽薄，也是源码。C 用"一份运行时 + N 个 `.pyd`"同时拿到保护与体积。
+
+落地要点（选 C 后我来做）：
+- CI 增加一步：对 `servers/*.py` 批量 `python -m nuitka --mode=module --output-dir=dist/modules`；
+- 产物内 `mcp_servers.json` 不能再带绝对路径：改为**首启动生成**（现 `setup_env.py` 已在做"把 command 重写为 venv python"，同一逻辑改成产物内的相对/自定位路径即可，天然可移植）；
+- `pagesim/`、`skillhub_catalog.json`、`skills/*.yaml` 等数据目录继续走 `--include-data-dir`；
+- 若将来允许"用户自己加 MCP server"，则 `.pyd` 形态会挡住第三方 .py 插件——届时保留 B 作为逃生开关（`--servers=source` 模式产物）。
+
 ## 五、产物边界
 
 `dist/`、`gateway.build/`、`gateway.dist/` 都是**构建期再生型临时产物**，已在仓库根 `.gitignore` 忽略，绝不入库、也不代表源码。
