@@ -93,3 +93,6 @@ jobs:
             ${{ matrix.artifact }}.zip
             ${{ matrix.artifact }}.tar.gz
           if-no-files-found: warn
+
+# Nudge: this commit exists to make Actions register/scan this
+# workflow on a fresh repo (first-push registration quirk); harmless comment.
