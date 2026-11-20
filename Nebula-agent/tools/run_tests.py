@@ -61,6 +61,9 @@ NODE_PATH_DIR = os.path.join(WSROOT, "node_modules")
 # is what makes them resolve against the tracked workspace-root node_modules.
 
 NODE = shutil.which("node") or r"C:\Users\sk\.workbuddy\binaries\node\versions\22.22.2-6\node.exe"
+# PowerShell for the .ps1 suites (the smoke_gateway artifact filter). PATH first, then
+# the absolute System32 host as fallback (pwsh is not installed on this box).
+POWERSHELL = shutil.which("powershell") or r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.EXE"
 
 
 
@@ -466,7 +469,8 @@ SUITES = [
     "tools/image_e2e_sentinel.py",   # 2026-11-14: image gen e2e sentinel - live-if-up; fast 512/non-empty-b64 + ratio lock (measured 1.2x, cap 3x)
     "tools/_closed_source_gate.py",   # closed-source release paths: project_root/find_web_dir resolve BOTH layouts (source == legacy two-dirnames byte-for-byte; a Nuitka build whose __file__ is one level shallower must land on the release dir, with the OLD formula as the load-bearing differential), plus text locks on the CI step ORDER, on 3b compiling every *_server.py AND the runtime deps it imports (missing one = a MISSING-MODULE red in CI), and on the artifact config being the self-locating @SELF/@ROOT one
     "tests/test_smoke_web_asset_map.mjs",   # 2026-11-20 ROOT-CAUSE gate for scripts/smoke_web.js (the closed-source CI front-end smoke): run 44711200649 went RED on all three platforms at that very step while the PARSE stage was green -- index.html refs assets as "web/app.js" ON PURPOSE (_serve_static strips that prefix, http_server.py), the smoke joined the ref under the web root instead and reported 7 real assets MISSING. The fix mirrors the server mapping, behind SMOKE_WEB_LEGACY=1. M1 the server-style layout is GREEN (the CI shape), M2/M3 DECOY the old mapping is RED with one MISSING per ref (proves M1 is load-bearing, not a weakened check), M4 both runs parse the same js set (only the mapping differs), M5/M6 ANTI-DEGRADE a truly deleted asset is still named under the NEW mapping (guards the degenerate check-disabled-always-green),
-    "tests/test_make_release_entries.py",   # abi-tag fix for the closed-source build (run 44716363016 RED on linux+macos: make_release_entries died-spelled mod+pyext and reported 9 "MISSING-MODULE *_server.so" that step 9 had actually produced as fs_server.cpython-313-x86_64-linux-gnu.so; windows .pyd carries no tag so only it passed). find_module_file now resolves via the interpreter's own EXTENSION_SUFFIXES + glob so "build-time present" == "runtime importable". T1 linux tag / T3 darwin tag / T4 abi3 resolve, T5 plain --pyext still wins first, T6 absent returns None, T2 DIFFERENTIAL the old isfile(mod+pyext) is False on the SAME dir (proves the fix load-bearing).
+    "tests/test_make_release_entries.py",   # abi-tag fix for the closed-source build (run 44716363016 RED on linux+macos: make_release_entries died-spelled mod+pyext and reported 9 "MISSING-MODULE *_server.so" that step 9 had actually produced as fs_server.cpython-313-x86_64-linux-gnu.so; windows .pyd carries no tag so only it passed). find_module_file now resolves via the interpreter's own EXTENSION_SUFFIXES + glob so "build-time present" == "runtime importable". T1 linux tag / T3 darwin tag / T4 abi3 resolve, T5 plain --pyext still wins first, T6 absent returns None, T2 DIFFERENTIAL the old isfile(mod+pyext) is False on the SAME dir (proves the fix load-bearing).,
+    "tests/test_smoke_gateway_filter.ps1",   # 2026-11-20 ROOT-CAUSE (windows-only CI run 44719608183 step 11): smoke_gateway.ps1 asserted the build landed by listing files matching the legacy -Filter *_server.pyd -- a Win32 wildcard that needs the NAME to END in _server.pyd, but Windows CPython builds carry an ABI tag (fs_server.cp313-win_amd64.pyd ends in _win_amd64.pyd), so it matched 0 and reported nine already-compiled servers as missing. The fix matches Name with *_server*. Locks THREE differing predicates on the real tagged names as load-bearing differentials: OLD legacy -Filter=0 (the bug), BAD BaseName (strips only the final .pyd, so a *-_server suffix) =0, GOOD Name wildcard=9 (8 server + example; _mcp_base/config_loader/memory excluded). run_suite grew a powershell dispatch for .ps1; runs on the real PS engine.
 ]
 
 
@@ -524,7 +528,9 @@ def run_suite(rel: str) -> tuple[bool, str]:
     p = os.path.join(ROOT, rel)
 
     is_node = rel.endswith((".mjs", ".js"))
-    cmd = [NODE if is_node else PY, p]
+    is_ps = rel.endswith(".ps1")
+    cmd = ([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", p]
+           if is_ps else [NODE if is_node else PY, p])
     env = dict(os.environ)
     if is_node:
         env["NODE_PATH"] = NODE_PATH_DIR
