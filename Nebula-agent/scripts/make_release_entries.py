@@ -122,6 +122,25 @@ def _config_token_flaws(cfg):
     return flaws
 
 
+def _verify_only(path):
+    # 纯验证模式（CI 在 cp 之后复用时调用）：只核对"产物运行时真读到的那份 config"的
+    # token/绝对路径判据后即返回。不生成、不 probe .pyd、也不需要 --runtime-modules ——
+    # 那些是生成流程的前置，对"已生成好的磁盘 config 复证"无关，硬要 probe 只会误报缺模块。
+    if not os.path.isfile(path):
+        print("FAIL verify-config: %s not found" % path, file=sys.stderr)
+        print("VERIFY: RED (shipped runtime config is missing)", file=sys.stderr)
+        return 1
+    vflaws = _config_token_flaws(json.load(open(path, encoding="utf-8-sig")))
+    if vflaws:
+        for f in vflaws:
+            print("FAIL verify-config " + f, file=sys.stderr)
+        print("VERIFY: RED (the config the release actually reads is not the "
+              "self-locating one: %d flaws)" % len(vflaws), file=sys.stderr)
+        return 1
+    print("VERIFY: GREEN %s matches the self-locating @SELF/@ROOT form" % path)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("build_dir", help="nuitka --mode=module --output-dir 的产物目录")
@@ -137,6 +156,11 @@ def main(argv=None) -> int:
     ap.add_argument("--verify-config", default="",
                     help="可选：对这份（产物运行时实际读到的）config 复证同样的 token/绝对路径判据")
     a = ap.parse_args(argv)
+    # 第②条：给了 --verify-config 就只"验证产物运行时真读到的那份 config"，立即返回，
+    # 不生成 entries、不 probe .pyd、也不需要 --runtime-modules（见 _verify_only）。否则
+    # 它会重走生成流程并因缺 runtime-modules 误报 MISSING-RUNTIME-MODULE。
+    if a.verify_config:
+        return _verify_only(a.verify_config)
 
     build_dir = os.path.abspath(a.build_dir)
     if not os.path.isdir(build_dir):
@@ -212,25 +236,6 @@ def main(argv=None) -> int:
             print("FAIL " + f, file=sys.stderr)
         print("ENTRIES: RED after write (%d)" % len(flaws), file=sys.stderr)
         return 1
-
-    # 第②条扩展：对"产物运行时实际会读到的那份 config"复证同样的判据。方案A 后产物里
-    # 只有磁盘这一份（编译期不再内嵌），它是运行时唯一真值；若 cp 没生效、或它被带绝对
-    # 路径的开发版污染，gateway 起来就会读到错 command——正是本轮 CI 暴露的时序缺陷。把判据
-    # 套到 --verify-config（通常是 gateway --config 默认路径下那份），即从"我写的对"升级到
-    # "产物里那份对"，把这条缺陷永久锁死在构建期。
-    if a.verify_config:
-        if not os.path.isfile(a.verify_config):
-            print("FAIL verify-config: %s not found" % a.verify_config, file=sys.stderr)
-            print("ENTRIES: RED (shipped runtime config is missing)", file=sys.stderr)
-            return 1
-        vflaws = _config_token_flaws(json.load(open(a.verify_config, encoding="utf-8-sig")))
-        if vflaws:
-            for f in vflaws:
-                print("FAIL verify-config " + f, file=sys.stderr)
-            print("ENTRIES: RED (the config the release actually reads is not the " 
-                  "self-locating one: %d flaws)" % len(vflaws), file=sys.stderr)
-            return 1
-        print("verify-config OK: %s matches the self-locating form" % a.verify_config)
     print("ENTRIES: GREEN %d servers -> %s (all command/cwd as @SELF/@ROOT; "
           "entrypoint %s is validated only, not embedded)" % (len(entries), a.out, ep_name))
     return 0
