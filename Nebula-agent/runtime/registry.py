@@ -518,9 +518,11 @@ def resolve_servers(cfg: dict, skills_dir: Optional[str] = None) -> dict:
     # Deploy robustness, carried over from gateway: a bare "python" must resolve to the
     # running interpreter, because the managed runtime usually is not on PATH. Without
     # this the reload path would start servers that startup would have resolved fine.
+    # self_command(), not sys.executable directly: in a compiled build that name does not
+    # exist on disk (it is emulated), and this alias would reproduce the same WinError 2.
     for entry in s.values():
         if isinstance(entry, dict) and entry.get("command") == "python":
-            entry["command"] = sys.executable
+            entry["command"] = self_command()
     _expand_release_tokens(s)
     return s
 
@@ -542,6 +544,49 @@ def release_root() -> str:
     return _project_root(__file__)
 
 
+# What a release ships its main program as. @SELF has to land on one of these in a
+# compiled build (see self_command); a source checkout never reaches this list.
+RELEASE_ENTRY_NAMES = ("gateway.exe", "gateway")
+
+
+def self_command(root: str = "", exe: str = "") -> str:
+    """The program `@SELF` means: the one that is ACTUALLY RUNNING, not a name that
+    merely looks like an interpreter.
+
+    A source checkout: sys.executable is the real interpreter -> returned unchanged,
+    byte-for-byte the old behaviour.
+
+    A Nuitka standalone build (the case this fixes): sys.executable is EMULATED as
+    <dist>/python.exe, but no such file exists -- the program on disk is gateway.exe.
+    Spawning the emulated path gives [WinError 2] on every MCP server and a tool-less
+    boot (proved by the executor's own "resolve diag ... exe_exists=False" line in run
+    44780930155). So when sys.executable does not exist on disk, fall back to the entry
+    program sitting next to it, located through the release root (which is itself derived
+    from markers that must really be present -- never guessed).
+
+    `root`/`exe` are parameters ONLY so both branches are testable without launching a
+    compiled build; every real caller leaves them empty.
+    """
+    exe = exe or sys.executable
+    if exe and os.path.isfile(exe):
+        return exe                                  # source run: unchanged behaviour
+    base = root or release_root()
+    if exe:                                          # same stem next door, if any
+        stem = os.path.splitext(os.path.basename(exe))[0]
+        for cand in (stem, stem + '.exe'):
+            p = os.path.join(base, cand)
+            if os.path.isfile(p):
+                return p
+    for name in RELEASE_ENTRY_NAMES:                 # the release's own entry point
+        p = os.path.join(base, name)
+        if os.path.isfile(p):
+            return p
+    # Nothing on disk matches. Return the emulated path so the caller's own diagnostic
+    # (executor.start prints the resolved exe + exists flag) names what is missing,
+    # instead of us inventing a path that was never there.
+    return exe
+
+
 def _expand_release_tokens(servers: dict) -> None:
     """Rewrite @SELF / @ROOT in server entries in place (the closed-source form).
 
@@ -553,7 +598,7 @@ def _expand_release_tokens(servers: dict) -> None:
     A source config contains neither token, so this is a no-op there.
     """
     root = release_root()
-    me = sys.executable
+    me = self_command(root)
     for entry in servers.values():
         if not isinstance(entry, dict):
             continue
