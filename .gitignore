@@ -106,6 +106,10 @@ patches/
 /_vmod.txt
 /selftest.txt
 /setup.bat
+# 2026-11-22 纳入跟踪：让 clone 后能跑 setup.bat/.sh 引导 venv
+# (venv 本体由 Nebula-agent/.venv/ 内的 .gitignore 隔离, 不入库)
+!setup.bat
+!setup.sh
 
 # draft rule file (official is RULES.md; draft is a transient working copy)
 RULES.draft.md
