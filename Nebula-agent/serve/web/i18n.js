@@ -578,6 +578,13 @@
       "cfg.mcp.timeout_s": "单个 MCP 工具调用超时（秒，清空=默认 60）",
       "cfg.mcp.max_result_chars": "回传给模型的一次工具结果最大字符数（清空=默认 20000）；调大可让模型看到更完整的文件/命令输出",
       "about.lang": "界面语言",
+      "about.license": "许可与项目",
+      "about.license.desc": "本项目以 AGPL-3.0 开源发布，并提供商业授权。自托管免费使用，捐助支持其持续维护。",
+      "about.license.license": "许可证",
+      "about.license.dual": "（双许可）",
+      "about.license.source": "源码",
+      "about.license.donate": "支持开发",
+      "about.license.donate.local": "本地收款码",
 
       /* ── Sampling drawer ── */
       "drawer.title": "采样",
@@ -1943,6 +1950,13 @@
              (see the zh block), so a server-side wording change needs no update
              here. ── */
       "about.lang": "Interface language",
+      "about.license": "License & project",
+      "about.license.desc": "Open source under AGPL-3.0; commercial licensing available. Free forever for self-hosting — donations keep it alive.",
+      "about.license.license": "License",
+      "about.license.dual": "(dual-licensed)",
+      "about.license.source": "Source code",
+      "about.license.donate": "Support the project",
+      "about.license.donate.local": "Local QR codes",
 
       /* ── Sampling drawer ── */
       "drawer.title": "Sampling",
