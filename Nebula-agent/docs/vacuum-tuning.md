@@ -1,5 +1,11 @@
 # semantic.db VACUUM 调参说明
 
+> **当前基线（2026-11-21 实测）**：库 ≈ 49.3 MB（51,703,808 字节 / 12,623 页 / free 405），
+> 碎片率 frag ≈ 3.21%，远低于 25% 阈值——当前每天走 SKIP 分支、几乎零成本，门控参数
+> 无需调整。等库增长到页数远超 2000、frag 逐步逼近阈值时，再按下方「怎么按库增长调」调整。
+> 复核基线：`python tools\maintain_semantic_db.py`（打印 pages/free/frag），
+> 看趋势：`python tools\review_semantic_log.py --include-archive`。
+
 `tools/maintain_semantic_db.py` 每天 04:30 由调度器唤醒，对 `data/semantic.db` 做一次
 **碎片门控检查**：满足门控才真·VACUUM（整文件重写回收空闲页），否则 SKIP（只读 3 个
 PRAGMA + 追加一行日志，不开写锁）。检查廉价、动作昂贵，所以门控参数按库增长情况调。
