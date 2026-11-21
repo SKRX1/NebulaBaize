@@ -243,3 +243,41 @@
  accent=焦点 / info=成员。两徽标独立渲染，焦点格同时是成员时【叠加显示】——
  「你正看着哪张」和「你选了哪几张」是两件事，各画各的。
 ```
+
+
+---
+
+## §6 上游契约：发送边界归一 content=None，历史内部表示不变（2026-11-21 落地，README 同轨登记）
+
+**日期**：2026-11-21　**状态**：已落地（fix commit `4186264` + docs commit `049cdbe`）
+
+### 背景
+OpenAI 规范允许带 `tool_calls` 的 assistant 消息 `content` 为 `null`，网关两条 agent
+loop（`runtime/loop.py` 与 `runtime/http_server.py` 的 Loop B）历来以 `content=None`
+存「只调工具、无正文」的工具轮，历史上一直相安无事。但**严格 OpenAI 兼容上游**
+（llama.cpp 风格 8080）对每条消息强制 `content` 必须是字符串或 parts 数组——一旦这种
+轮进入被重放的历史，该会话**每次发送都会 400**
+`messages[i].content must be a string or an array of content parts`。
+索引很深（实测 `messages[157]`）= 旧轮被重放，故表现为「模型突然不可用」，
+升级/换上游即触发。
+
+### 决策（边界归一，与 README knowledge 同轨）
+在**发送边界**（构造请求体处）做归一，历史内部表示不动：
+1. `llm_client.py` 新增共享 helper `normalize_wire_messages()`：`content=None` → `""`；
+   **浅拷贝、无改动时返回原对象保持引用恒等**（调用方依赖列表对象稳定用于缓存）。
+2. 两个上游出口都过滤：`llm_client.StrataClient.chat` 与 `http_server._llm_stream`。
+3. **历史内部表示不变**——只改上线字节，不改内存历史；卡住的旧会话立即解卡。
+
+### 实测依据（工具实测）
+- 门禁 `tests/test_wire_content_normalize.py`（R1-R5，R5 为 load-bearing 差分），常驻 SUITES。
+- 端到端真机复验 PASS：含 `content=null` 工具轮的历史重放 → 无 400、`round=1` 真触发
+  `shell__exec`。
+- 生效条件：后端 `llm_client.py`/`http_server.py` 改动需**重启独立版 8099** 加载。
+
+### 锁（防退化的常驻门禁，已并入 run_tests）
+- `tests/test_wire_content_normalize.py`：归一语义（None→""、非 None 不动、无改动返回原对象）
+  + 两出口接线静态锁 + R5 单一变量差分证 load-bearing。
+
+### 代价（诚实记录）
+- 归一只发生在 wire 边界，内存历史仍存 `content=None`——展示层语义不受影响，
+  但读代码时须知「历史里的 None 是合法内部表示，非缺陷」。
