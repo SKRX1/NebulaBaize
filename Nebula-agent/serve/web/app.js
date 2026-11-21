@@ -6123,6 +6123,21 @@ function sparkHtmlToText(html) {
   const d = document.createElement("div");
   d.innerHTML = html || "";
   d.querySelectorAll("br").forEach((b) => b.replaceWith("\n"));
+  // 2026-11 round 2: same root cause as the fixed ceText bug — a pasted <a href="URL">TITLE</a>
+  // carries the URL ONLY in the href ATTRIBUTE, and the textContent read below silently drops it,
+  // so a TEXT-ONLY spark pushed into chat (sparkToPush no-image branch) lost the link. Degrade
+  // each anchor to lossless plain text "TITLE (URL)" here (same rule as ceTextFromDom's A branch:
+  // bare-URL anchors stay single, #fragment/relative hrefs carry no URL). Done as a pre-pass on
+  // purpose: routing the body through ceTextFromDom would add [img:N] anchors for a spark's
+  // data-pid thumbnails and break the "pure-image body -> truly empty text" contract that
+  // addSpark's image-only branch and test_spark_image_only_save depend on.
+  d.querySelectorAll("a[href]").forEach((n) => {
+    const href = n.getAttribute("href") || "";
+    const inner = (n.textContent || "").trim();
+    const external = /^(https?:|mailto:)/i.test(href);
+    const flat = (external && href !== inner) ? (inner ? inner + " (" + href + ")" : href) : (inner || href);
+    n.replaceWith(document.createTextNode(flat));
+  });
   d.querySelectorAll("div,p,li").forEach((b) => b.appendChild(document.createTextNode("\n")));
   return (d.textContent || "").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{2,}/g, "\n").trim();
 }

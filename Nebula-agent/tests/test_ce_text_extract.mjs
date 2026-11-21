@@ -46,7 +46,7 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
-;window.__api = { ceText, ceSetText, isCE, insertPlaceholder, removePlaceholder, attachNextPid };`;
+;window.__api = { ceText, ceSetText, isCE, insertPlaceholder, removePlaceholder, attachNextPid, sparkHtmlToText };`;
 win.eval(appCode);
 const api = win.__api;
 
@@ -172,6 +172,29 @@ check("N5 in-page #fragment anchor gets NO URL appended (negative control)", (()
   inp.appendChild(a);
   const txt = api.ceText(inp);
   return txt === "jump to section 2";
+})());
+
+
+// ---- differential arm (2026-11, round 2): spark's plain-text extractor sparkHtmlToText has the
+//      SAME root cause as the old ceText bug: it reads d.textContent, so a pasted <a href="URL">
+//      TITLE</a> loses the URL when a TEXT-ONLY spark is pushed into chat (sparkToPush no-image
+//      branch, app.js:6412). Fix: the same "TITLE (URL)" lossless degradation. P10 is RED on the
+//      pre-fix code; N6/N7 are the same negative controls as N4/N5.
+check("P10 sparkHtmlToText keeps the URL of a pasted <a href> (spark push bug; RED pre-fix)", (() => {
+  const html = '<div>please read: <a href="https://github.com/Niko1221/Strata/releases/tag/v0.2.17">Release Strata 0.2.17 \u00b7 Niko1221/Strata</a> thanks</div>';
+  const out = api.sparkHtmlToText(html);
+  return out.includes("https://github.com/Niko1221/Strata/releases/tag/v0.2.17")
+      && out.includes("Release Strata 0.2.17");
+})());
+
+check("N6 sparkHtmlToText does NOT duplicate a bare-URL anchor (negative: href == text)", (() => {
+  const out = api.sparkHtmlToText('<div><a href="https://example.com/a">https://example.com/a</a></div>');
+  return (out.match(/https:\/\/example\.com\/a/g) || []).length === 1;
+})());
+
+check("N7 sparkHtmlToText appends NO URL for #fragment anchors (negative control)", (() => {
+  const out = api.sparkHtmlToText('<div><a href="#section-2">jump to section 2</a></div>');
+  return out === "jump to section 2";
 })());
 
 
