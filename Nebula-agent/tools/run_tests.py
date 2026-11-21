@@ -394,6 +394,7 @@ SUITES = [
 
     "tests/test_loop_finalize_resume.py",  # 2026-10-25: loop.py finalize-branch resume (the 8099 agent chain), driven through the real AgentLoop + shared toolcall_parse discriminators
     "tests/test_loop_none_maxrounds.py",  # 2026-11-11: loop.py run() opens range(1, max_rounds+1) and must tolerate None -- the scheduled agent-turn crash (dynamic + static + differential lock)
+    "tests/test_wire_content_normalize.py",   # 2026-11-27 upstream 400 "messages[i].content must be a string or an array of content parts": both loops store tool-call-only assistant turns with content=None (OpenAI spec allows it, strict llama.cpp-style servers reject it), so EVERY later send in that conversation 400s once the round is replayed history. normalize_wire_messages() fixes it at the wire boundary (llm_client.chat + http_server._llm_stream); locks R1 None->"" + tool_calls survive / R2 clean list returns the SAME object (cache identity) / R3 string+list parts untouched / R4 tool-role None too / R5 load-bearing differential: the strict validator rejects the untouched list and accepts the normalized one. Pure stdlib, direct calls.
 
     "tests/test_turn_budget.py",
 

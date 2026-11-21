@@ -4033,7 +4033,16 @@ class GatewayHandler(BaseHTTPRequestHandler):
         base = str((entry or {}).get("base_url") or self.state.upstream_url).rstrip("/")
         model = (entry or {}).get("model") or self.state.model
         url = base + ("/chat/completions" if base.endswith("/v1") else "/v1/chat/completions")
-        body = {"model": model, "messages": messages, "stream": True,
+        # Upstream-strictness guard: the OpenAI spec allows an assistant message
+        # with tool_calls to carry content: null (both agent loops store such turns),
+        # but strict OpenAI-compatible servers 400 it with "messages[i].content must
+        # be a string or an array of content parts" -- which then breaks EVERY later
+        # send in that conversation, since the tool round sits in the replayed
+        # history. Normalize at the wire boundary only; history is untouched.
+        # Lazy import: http_server has no top-level llm_client dependency (it uses
+        # raw urllib), and llm_client sits in this same runtime/ folder.
+        from llm_client import normalize_wire_messages
+        body = {"model": model, "messages": normalize_wire_messages(messages), "stream": True,
                 "max_tokens": int(max_tokens or DEFAULT_OUTPUT_TOKENS)}
         # Forwarded, never pinned: an unknown value makes the upstream answer 400, so anything
         # outside REASONING_EFFORTS was already dropped and we simply let the engine choose.

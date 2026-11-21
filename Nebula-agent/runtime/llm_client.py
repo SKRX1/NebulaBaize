@@ -24,6 +24,29 @@ class AssistantTurn:
     usage: dict = field(default_factory=dict)   # token accounting when the API returns it
 
 
+def normalize_wire_messages(messages: list[dict]) -> list[dict]:
+    """Return an upstream-safe copy of `messages` for the request body.
+
+    The OpenAI spec allows an assistant message with tool_calls to carry
+    `content: null`, and both gateway loops store tool-call-only assistant
+    turns that way (loop.py, http_server.py). Strict OpenAI-compatible
+    servers (llama.cpp-style) reject such a message with
+    400 "messages[i].content must be a string or an array of content parts",
+    which breaks EVERY later send in that conversation once the tool round
+    is in the replayed history. Normalize null -> "" at the wire boundary
+    only; the in-memory history keeps its own representation.
+    Identity-preserving: returns the original object when nothing needs
+    fixing (callers rely on the list object staying stable for caching).
+    """
+    out = None
+    for i, m in enumerate(messages):
+        if isinstance(m, dict) and "content" in m and m.get("content") is None:
+            if out is None:
+                out = list(messages)
+            out[i] = {**m, "content": ""}
+    return messages if out is None else out
+
+
 class StrataClient:
     def __init__(self, base_url: str = "http://127.0.0.1:8080/v1",
                  model: str = "strata", effort: str = "medium",
@@ -89,7 +112,7 @@ class StrataClient:
         """
         body = {
             "model": self.model,
-            "messages": messages,
+            "messages": normalize_wire_messages(messages),
             "stream": stream,
             "max_tokens": self.max_tokens,
             "reasoning_effort": effort or self.effort,
