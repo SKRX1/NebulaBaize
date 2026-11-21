@@ -202,3 +202,10 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 GitHub 凭据托管首选 gh CLI(winget install GitHub.cli; gh auth login --with-token 走 stdin 喂 token; gh auth setup-git 接管),它写 host 级 credential.https://github.com.helper 而非全局 credential.helper——核查 helper 生效要看 git config --get-all credential.https://github.com.helper,读全局 credential.helper 会误判仍是 manager
 前端把某配置项塞进共用 store 键（如 settings→sampling）= 它会被整对象写连带落盘，易被旧标签页陈旧快照交叉覆盖；需要独立持久化语义的字段应拆独立 store 键并加 Array.isArray/undefined 回退守卫
 baseline 回滚 tag 命名沿用 v-baseline-YYYY-MM-DD-字母(如 v-baseline-2026-11-21-a);打 tag 前先 git tag -l "v-baseline-<今天>*" 确认无冲突,git tag -a <名> <sha> -m "..." 在指定 commit 打带注释 tag,git rev-list -n1 <tag> 核对指向(git rev-parse 的 ^{commit} 在 cmd 下会被转义破坏,用 rev-list 规避)
+前端 serve/web 改动收尾：node --check 验 app.js/i18n.js 语法 → 跑对应 jsdom 门禁(含 decoy) → tools\run_tests.py 全套 ALL GREEN → git diff --numstat 与 --ignore-cr-at-eol 必须相等(零行尾污染)才落 commit
+侧栏工作区排序模型(方案C)：pinned 强制浮顶 + loose 无工作区桶强制最底 = 不可拖拽/不可作落点的分层墙；中间层按 workspaces 数组序自由拖拽；默认顺序快照 = 注册顺序(ws.order.default)
+Nebula-agent/data/ 下运行态数据(semantic.db/episodic.jsonl/uploads)已 gitignore：体积/数据优化只动代码与数据文件本身，绝不 git add 这些；落账精确暂存代码文件并排除别线(RULES.md/fs_allowed_roots.txt)漂移
+改 runtime/semantic.py 或 servers/memory_server.py 后收尾必跑全套回归(含 test_policy.py)——memory 契约锁集中在此，改默认行为极易触发 RED，numstat==--ignore-cr-at-eol 才落 commit
+加调度任务时 task 命令必须带 cd /d "绝对路径" && 前缀 + 配 roots，对齐既有备份任务格式：调度器不在 Nebula-agent cwd 下跑，裸相对路径 python tools\... 会找不到脚本形同虚设，加完必模拟跑一次该命令坐实可执行
+给 commit message 含特殊字符（> < & | 等 shell 元字符）时禁用 PowerShell 内联字符串拼接（外层 cmd 会把 >= 当重定向切正文+凭空生成文件），改用 python io.open 写 message 文件 + git commit -F，写完 git log 探针验证正文完整
+向含别工作线未提交漂移的共享文件追加本轮条目时，插在 committed 区中部(与末尾漂移被≥3行上下文分隔)使成本轮独立 hunk，再 git add -p 喂 y(本轮)/n(别线)决策串拆分；提交后用 git diff --cached --numstat 核验 staged 行数恰=本轮真实改动数(防裹入别线)
