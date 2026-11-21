@@ -116,6 +116,15 @@
         "roots": [
           "E:\\Nebula\\NebulaBaize\\Nebula-agent"
         ]
+      },
+      {
+        "name": "记忆库周复盘摘要",
+        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\Nebula-agent\" && python tools\\review_semantic_log.py --include-archive >> data\\semantic_review.log 2>&1",
+        "weekly_at": "1:05:00",
+        "roots": [
+          "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+        ],
+        "approval": "full"
       }
     ]
   },
