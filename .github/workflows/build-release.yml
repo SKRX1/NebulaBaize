@@ -292,6 +292,8 @@ jobs:
              #      UnicodeEncodeError 'charmap' can't encode '\u2192'（这是"无 MCP 工具"
              #      症状的第四独立根因：executor.py 早钉了 MCP 线路，唯一没人钉的是网关
              #      自己的 stdout/stderr；本地复现窄码页管道不算数，只有 CI 现场坐实）。
+             #      机制侧的本地复验套件（14 断言，钉死管道/差分/replace/knob/接线）：
+             #      tests/test_stdio_utf8_pin.py（冒烟只证“起得来”，这套件锁“为什么起得来”）。
              #  (2) CSS-guard：app.css 行尾 `//` 会被 CSS 解析吞掉下一条选择器（实测
              #      pad=0px→改 /* */ 后 pad=6px）。它由本地 quick 套件
              #      tests/test_css_no_line_comments.py 复验，不在本步冒烟内，此处仅作记录。
