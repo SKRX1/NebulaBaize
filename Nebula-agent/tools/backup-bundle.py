@@ -12,7 +12,7 @@ This script is self-verifying:
   2. git bundle verify              (git's own integrity check)
   3. clone-from-bundle rehearsal    (clone to a temp dir, prove it is identical:
                                      same HEAD sha, same total commit count,
-                                     same tag count, master reachable)
+                                     same tag count, current branch reachable)
 Exit 0 = all green, non-zero = RED (a gate you can chain).
 
 Usage:
@@ -60,9 +60,9 @@ def prune_old(dest, keep):
     return removed
 
 
-def rehearse_from_bundle(bundle, head, cnt, tags, label="primary"):
+def rehearse_from_bundle(bundle, head, cnt, tags, branch, label="primary"):
     """Clone-from-bundle rehearsal: clone `bundle` into a temp dir and prove it reproduces the
-    repo exactly (same HEAD sha, same master commit count, same tag count, master reachable).
+    repo exactly (same HEAD sha, same branch commit count, same tag count, current branch reachable).
     Returns (red, lines): red = number of failed checks (0 = green), lines = human-readable
     result lines. Shared by the primary bundle AND the cross-drive mirror so BOTH copies are
     proven openable -- a backup you have never restored is not a backup. Importable + testable
@@ -75,7 +75,7 @@ def rehearse_from_bundle(bundle, head, cnt, tags, label="primary"):
         return 1, ["  [%s] clone-from-bundle FAILED: %s" % (label, out.strip()[:200])]
     _, rhead = sh(["git", "rev-parse", "HEAD"], cwd=clone)
     rhead = rhead.strip()
-    _, rcnt = sh(["git", "rev-list", "--count", "refs/heads/master"], cwd=clone)
+    _, rcnt = sh(["git", "rev-list", "--count", "refs/heads/" + branch], cwd=clone)
     rcnt = rcnt.strip()
     _, rtagraw = sh(["git", "tag", "-l"], cwd=clone)
     rtags = [x for x in rtagraw.splitlines() if x.strip()]
@@ -86,7 +86,7 @@ def rehearse_from_bundle(bundle, head, cnt, tags, label="primary"):
         ("HEAD sha matches", rhead == head, "%s == %s" % (rhead[:12], head[:12])),
         ("commit count matches", rcnt == cnt, "%s == %s" % (rcnt, cnt)),
         ("tag count matches", len(rtags) == len(tags), "%d == %d" % (len(rtags), len(tags))),
-        ("master reachable", rb == "master", rb),
+        ("%s reachable" % branch, rb == branch, rb),
     ]
     red = 0
     lines = []
@@ -129,10 +129,14 @@ def main():
     # repo HEAD + commit count + tag count (the ground truth we restore against)
     _, head = sh(["git", "rev-parse", "HEAD"], cwd=repo)
     head = head.strip()
-    # Count the PORTABLE formal history (refs/heads/master), NOT --all: --all pulls in
+    # Resolve the CURRENT branch once, then use it everywhere instead of a hardcoded "master",
+    # so this gate works on any repo whose default branch is main (or anything else).
+    _, branch = sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo)
+    branch = branch.strip()
+    # Count the PORTABLE formal history (refs/heads/<current-branch>), NOT --all: --all pulls in
     # refs/stash, whose WIP/index commits a `git clone` deliberately does NOT restore
-    # (expected git behaviour, not data loss). master covers every baseline tag on its chain.
-    _, cnt = sh(["git", "rev-list", "--count", "refs/heads/master"], cwd=repo)
+    # (expected git behaviour, not data loss). The branch covers every baseline tag on its chain.
+    _, cnt = sh(["git", "rev-list", "--count", "refs/heads/" + branch], cwd=repo)
     cnt = cnt.strip()
     _, tagraw = sh(["git", "tag", "-l"], cwd=repo)
     tags = [x for x in tagraw.splitlines() if x.strip()]
@@ -165,7 +169,7 @@ def main():
         return 1
 
     # 3) clone-from-bundle rehearsal -> prove the bundle reproduces the repo
-    red, lines = rehearse_from_bundle(bundle, head, cnt, tags, "primary")
+    red, lines = rehearse_from_bundle(bundle, head, cnt, tags, branch, "primary")
     for ln in lines:
         print(ln)
     if red:
@@ -194,7 +198,7 @@ def main():
         # The mirror is only a real backup if the COPY is openable on the OTHER disk, not just
         # byte-identical. Run the SAME clone rehearsal against the F-side bundle: a drive that
         # silently corrupts, a partial write, an unfetchable clone all land here as RED.
-        mred, mlines = rehearse_from_bundle(mb, head, cnt, tags, "mirror(F)")
+        mred, mlines = rehearse_from_bundle(mb, head, cnt, tags, branch, "mirror(F)")
         for ln in mlines:
             print(ln)
         if mred:
