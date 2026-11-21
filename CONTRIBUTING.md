@@ -107,6 +107,7 @@ node Nebula-agent\tests\test_xxx.mjs
 
 - Issue / PR 在本仓库；商业授权合作请走 `COMMERCIAL-LICENSE.md`。
 - 行为准则：Contributor Covenant v2.1（简明版：尊重、建设性、不人身攻击）。
+- sk0327@qq.com
 
 ---
 
