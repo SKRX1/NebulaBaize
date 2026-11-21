@@ -89,6 +89,8 @@ SUITES = [
 
     "tests/test_policy.py",
 
+    "tests/test_maintain_semantic_db.py",   # 2026-11-21: lock the semantic.db VACUUM gate (threshold + min-pages proven load-bearing) so the size-guard predicate cannot drift
+
     "tests/test_i18n.mjs",
 
     "tests/test_spark.mjs",

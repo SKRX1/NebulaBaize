@@ -107,6 +107,15 @@
         ],
         "deliver": "session_stream",
         "daily_at": "03:00"
+      },
+      {
+        "name": "记忆库体积守护 VACUUM",
+        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\Nebula-agent\" && python tools\\maintain_semantic_db.py",
+        "daily_at": "04:30",
+        "approval": "full",
+        "roots": [
+          "E:\\Nebula\\NebulaBaize\\Nebula-agent"
+        ]
       }
     ]
   },
