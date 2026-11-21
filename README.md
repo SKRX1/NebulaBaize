@@ -95,8 +95,17 @@ for /f "delims=" %%F in ('dir /b /o-d "E:\星云备份\星云白泽备份\*.bund
 :done
 ```
 
-Current newest sample: `strata-bundle-20261121-173608.bundle` (HEAD 93e4727, v0.1.0).
-当前最新样本见上；回滚点示例 tag `v-baseline-2026-11-21-h`。
+Current newest sample: `strata-bundle-20261121-182344.bundle` (HEAD 48c7338, baseline tag v-baseline-2026-11-21-j).
+当前最新样本见上；回滚点示例 tag `v-baseline-2026-11-21-j`。
+
+Rehearsed clone drill · 实测克隆演练（备查）
+坐实于 2026-11-21：克隆 bundle `182344` → checkout `v-baseline-2026-11-21-j` → 还原 HEAD `48c7338`（干净回滚点，账本清理块在还原树中可读），逐步 rc 均 0：
+
+```bat
+git clone "E:\星云备份\星云白泽备份\strata-bundle-20261121-182344.bundle" restore_dir
+git -C restore_dir checkout v-baseline-2026-11-21-j
+git -C restore_dir rev-parse HEAD   ·· 应得 48c7338935399a3bd4d7eef13a2524706d45802b
+```
 
 ---
 
