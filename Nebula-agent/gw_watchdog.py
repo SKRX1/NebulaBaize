@@ -29,7 +29,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 STANDALONE = os.path.join(
     ROOT, "run_standalone.bat" if sys.platform == "win32" else "run_standalone.sh")
 STOP_FLAG = os.path.join(ROOT, ".gw_stop.flag")
-CHECK_INTERVAL = 10  # 秒
+CHECK_INTERVAL = 5  # 秒
 
 
 def is_listening(port: int) -> bool:
