@@ -97,7 +97,7 @@ def main():
     else:
         st2, b2 = api(token, "POST", "/user/repos", {
             "name": REPO,
-            "description": "Nebula Baize (星云白泽) — closed-source free-use application layer for the Strata engine",
+            "description": "Nebula Baize (星云白泽) — AGPL-3.0 open-source application layer for the Strata engine (dual-licensed commercial)",
             "private": bool(a.private),
             "auto_init": False,     # 关键：不生成 README/.gitignore/LICENSE，避免 push 冲突
             "has_issues": False,

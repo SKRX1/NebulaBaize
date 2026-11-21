@@ -17,7 +17,7 @@ A one-line picture of “what this repo ships” vs “what it runs on top of”
 ```
 +--------------------------------------------------------+
 |  Nebula Baize / 星云白泽  (THIS repository)             |   <- original application layer / 原创应用层
-|  gateway · runtime · skills · scheduler · memory · tools   |      (MIT, (c) 2026 时空象容)
+|  gateway · runtime · skills · scheduler · memory · tools   |      (AGPL-3.0, (c) 2026 时空象容)
 |  web frontend (serve/web)                               |
 +--------------------------------------------------------+
                           |
@@ -53,14 +53,14 @@ supply yourself.
 ## License · 许可
 
 - The original application-layer code in this repository is released under the
-  **[MIT License](LICENSE)**, Copyright (c) 2026 **时空象容**.
+  **[AGPL-3.0 License](LICENSE)** + commercial dual-licensing (see `COMMERCIAL-LICENSE.md`), Copyright (c) 2026 **时空象容**.
 - Bundled third-party runtime dependencies and their permissive licenses are listed in
   **[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)**.
 - The **Strata** engine is **not bundled** and is **not** covered by this repository's license.
   It is a separate, independently-licensed project used as a runtime dependency; "Strata" is a
   name owned by its authors — this project is *powered by* Strata, not an official Strata product.
 
-本仓库的原创应用层代码以 **[MIT 许可](LICENSE)** 发布，版权所有 时空象容。
+本仓库的原创应用层代码以 **[AGPL-3.0 许可](LICENSE)** 发布，并配套**商业双轨授权**（详见 `COMMERCIAL-LICENSE.md`），版权所有 时空象容。
 随包的第三方宽松许可依赖见 **[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)**。
 **Strata** 引擎**不随包发布**，也不在本仓库许可覆盖范围内——它是作为运行依赖的独立项目；
 "Strata" 归其原作者所有，本项目是 *powered by Strata*，非 Strata 官方产品。
@@ -109,4 +109,4 @@ git -C restore_dir rev-parse HEAD   ·· 应得 48c7338935399a3bd4d7eef13a252470
 
 ---
 
-*Original application layer © 2026 时空象容 · MIT. Powered by Strata.*
+*Original application layer © 2026 时空象容 · AGPL-3.0 (dual-licensed). Powered by Strata.*

@@ -3,7 +3,8 @@ THIRD-PARTY NOTICES
 This file lists the third-party components that are actually bundled/distributed
 with the Nebula Baize release, together with their license types (verified against
 the LICENSE files actually present under .venv/). All of them are permissive
-licenses that allow closed-source redistribution, provided their copyright /
+licenses that allow commercial redistribution (including in proprietary builds),
+provided their copyright /
 license notices are retained (this file).
 
 BUNDLED RUNTIME DEPENDENCIES (permissive)
