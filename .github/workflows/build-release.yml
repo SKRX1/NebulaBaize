@@ -286,6 +286,15 @@ jobs:
             # GET / 是否真的在服务混淆后的 UI）并回显产物的 selfcheck 报告，红了能
             # 直接说出是哪一层坏。STRICT_TOOLS 在脚本内保持 ON：那边"能起来"这件事
             # 本身就等价于"编译后的 .pyd 通过了 MCP 握手"—— 这正是我们要证的。
+             # 复验经验（2026-11-21 坐实，workflow_dispatch run 44852509739）：
+             #  (1) stdio 钉码页：windows step13 success 即证明 main() 首行的
+             #      pin_stdio_utf8() 生效——网关在真 cp1252 日志管道上起得来，不再死于
+             #      UnicodeEncodeError 'charmap' can't encode '\u2192'（这是"无 MCP 工具"
+             #      症状的第四独立根因：executor.py 早钉了 MCP 线路，唯一没人钉的是网关
+             #      自己的 stdout/stderr；本地复现窄码页管道不算数，只有 CI 现场坐实）。
+             #  (2) CSS-guard：app.css 行尾 `//` 会被 CSS 解析吞掉下一条选择器（实测
+             #      pad=0px→改 /* */ 后 pad=6px）。它由本地 quick 套件
+             #      tests/test_css_no_line_comments.py 复验，不在本步冒烟内，此处仅作记录。
             powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_gateway.ps1 -Port 8123
           fi
       # 4) 产物打包成归档（standalone 是目录，压成 zip/tar 分发）。
