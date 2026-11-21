@@ -7271,6 +7271,24 @@ function ceTextFromDom(el) {
     for (const n of node.childNodes) {
       if (n.nodeType === 3) { out += n.textContent; continue; }          // TEXT_NODE
       if (n.tagName === "BR") { out += "\n"; continue; }
+      // 2026-11: a URL copied from a web page pastes in as <a href="URL">TITLE</a> — the URL
+      // lives ONLY in the href ATTRIBUTE, which any text read (innerText/textContent) silently
+      // drops, so the sent message kept just the title and the model never saw the link. Degrade
+      // the anchor to LOSSLESS plain text "TITLE (URL)" — plain (not markdown [t](u)) on purpose:
+      // a user bubble with no image anchor renders through b.textContent, so markdown would show
+      // as literal brackets. Bare-URL anchors (href == text) stay single; #fragment / relative
+      // in-page hrefs carry no URL (appending the page origin would be noise).
+      if (n.tagName === "A") {
+        const href = n.getAttribute("href") || "";
+        let inner = "";
+        const sub = (node) => { for (const c of node.childNodes) { if (c.nodeType === 3) { inner += c.textContent; continue; } sub(c); } };
+        sub(n);
+        inner = inner.trim();
+        const external = /^(https?:|mailto:)/i.test(href);
+        if (external && href !== inner) out += (inner ? inner + " (" + href + ")" : href);
+        else out += inner || href;
+        continue;
+      }
       if (n.getAttribute && n.getAttribute("data-pid")) { out += " [img:" + n.getAttribute("data-pid") + "] "; for (const c of n.childNodes) { if (c.nodeType === 3) { out += c.textContent; continue; } if (c.tagName === "BUTTON" || c.tagName === "IMG") continue; walk(c); } continue; }   // atomic anchor: emit it, then KEEP any user text that landed inside the chip (a real-browser caret can drop inside an atomic chip); skip the hover button/icon so they do not pollute
       const block = /^(DIV|P|LI|BLOCKQUOTE|PRE|H[1-6])$/.test(n.tagName);
       walk(n);
@@ -7284,7 +7302,9 @@ function ceText(el) {
   if (!el) return "";
   // A body that carries inline image nodes is rebuilt from the DOM so the [img:N] anchors that
   // mixedSegments/serialize depend on are restored, even though the visible DOM is now a real <img>.
-  if (el.querySelector && el.querySelector("[data-pid]")) {
+  // 2026-11: an <a href> anchor must take the DOM-rebuild path as well — innerText/textContent
+  // read only text nodes, so the URL inside the href attribute would be silently dropped.
+  if (el.querySelector && (el.querySelector("[data-pid]") || el.querySelector("a[href]"))) {
     return ceTextFromDom(el).replace(/\u200B/g, "").trim();
   }
   // innerText is the browser-authoritative read (keeps <br> as newlines); jsdom does not

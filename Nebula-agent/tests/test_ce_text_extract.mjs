@@ -125,5 +125,55 @@ check("N3 BUTTON label inside a data-pid chip does NOT pollute ceText (negative 
   return !txt.includes("BUTTON_LABEL_XYZ") && txt.includes("[img:79]");
 })());
 
+// ---- differential arm: a URL copied from a web page lands as an <a href="URL">TITLE</a> node
+//      in the contenteditable composer, and the URL lives ONLY in the href ATTRIBUTE. A plain-text
+//      read (innerText/textContent) silently drops attributes, so the sent message and the bubble
+//      carried just the title and the model never saw the link (reported bug 2026-11). The fix
+//      degrades the anchor to LOSSLESS plain text "TITLE (URL)" -- plain on purpose: user bubbles
+//      with no image anchor render through b.textContent, so markdown link syntax would show up as
+//      literal brackets instead of a link.
+check("P8 pasted <a href> keeps its URL in ceText output (the reported bug; RED on pre-fix code)", (() => {
+  api.ceSetText(inp, "");
+  const a = doc.createElement("a");
+  a.setAttribute("href", "https://github.com/Niko1221/Strata/releases/tag/v0.2.17");
+  a.appendChild(doc.createTextNode("Release Strata 0.2.17 \u00b7 Niko1221/Strata"));
+  inp.appendChild(a);
+  const txt = api.ceText(inp);
+  return txt.includes("https://github.com/Niko1221/Strata/releases/tag/v0.2.17")
+      && txt.includes("Release Strata 0.2.17");
+})());
+
+check("P9 link text + surrounding text survive interleaved, URL preserved", (() => {
+  api.ceSetText(inp, "read this: ");
+  const a = doc.createElement("a");
+  a.setAttribute("href", "https://example.org/release");
+  a.appendChild(doc.createTextNode("the release notes"));
+  inp.appendChild(a);
+  inp.appendChild(doc.createTextNode(" and summarize"));
+  const txt = api.ceText(inp);
+  return txt.includes("read this:") && txt.includes("https://example.org/release") && txt.includes("summarize");
+})());
+
+check("N4 bare-URL anchor is NOT duplicated (negative control: href == visible text)", (() => {
+  api.ceSetText(inp, "");
+  const a = doc.createElement("a");
+  a.setAttribute("href", "https://example.com/a");
+  a.appendChild(doc.createTextNode("https://example.com/a"));
+  inp.appendChild(a);
+  const txt = api.ceText(inp);
+  return (txt.match(/https:\/\/example\.com\/a/g) || []).length === 1;
+})());
+
+check("N5 in-page #fragment anchor gets NO URL appended (negative control)", (() => {
+  api.ceSetText(inp, "");
+  const a = doc.createElement("a");
+  a.setAttribute("href", "#section-2");
+  a.appendChild(doc.createTextNode("jump to section 2"));
+  inp.appendChild(a);
+  const txt = api.ceText(inp);
+  return txt === "jump to section 2";
+})());
+
+
 console.log("\nCE-TEXT-EXTRACT: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
 process.exit(FAILURES.length ? 1 : 0);
