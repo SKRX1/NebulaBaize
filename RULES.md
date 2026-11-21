@@ -196,3 +196,7 @@ bat 改名属 git 跟踪文件，用 git mv 让 git 识别为 rename；bat 内�
 用 Python 向已有文件插入文本块时，全文只允许一次行尾转换（先二进制读→按目标 eol 只转换插入块），插入后断言"空行段数不得多于基线"，否则会产生 \r\r\n 并在归一时变成隔行空行（2026-11-20 实测虚插 36 空行）
 目标文件的权威行尾以 `git show HEAD~1:<file>` 的 blob 字节为准，不是工作树 w/crlf；怀疑行尾被污染时最可靠的做法是从 HEAD~1 blob 重建 + 重放插入，而不是反复猜 CRLF/LF
 清理一次性脚手架前跑引用扫描并分三档：零引用=删、仅被历史流水(.Nebula-memory/logs)提及=默认保留、被代码/配置/测试/文档提及=保留；扫描必须排除自身且候选互引不计
+工作区里凡带 .Nebula-secrets/ 的目录即便被 .gitignore 屏蔽，token 轮换闭环完成后必须主动清理目录内的旧 token 文件（送 Windows 回收站），别只盯 .git/config 的明文
+GitHub 凭据托管首选 gh CLI(winget install GitHub.cli; gh auth login --with-token 走 stdin 喂 token; gh auth setup-git 接管),它写 host 级 credential.https://github.com.helper 而非全局 credential.helper——核查 helper 生效要看 git config --get-all credential.https://github.com.helper,读全局 credential.helper 会误判仍是 manager
+前端把某配置项塞进共用 store 键（如 settings→sampling）= 它会被整对象写连带落盘，易被旧标签页陈旧快照交叉覆盖；需要独立持久化语义的字段应拆独立 store 键并加 Array.isArray/undefined 回退守卫
+baseline 回滚 tag 命名沿用 v-baseline-YYYY-MM-DD-字母(如 v-baseline-2026-11-21-a);打 tag 前先 git tag -l "v-baseline-<今天>*" 确认无冲突,git tag -a <名> <sha> -m "..." 在指定 commit 打带注释 tag,git rev-list -n1 <tag> 核对指向(git rev-parse 的 ^{commit} 在 cmd 下会被转义破坏,用 rev-list 规避)
