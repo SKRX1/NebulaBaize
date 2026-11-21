@@ -37,7 +37,7 @@ class MemoryServer(McpServerBase):
     def __init__(self):
         super().__init__()
         self.episodic = EpisodicMemory(os.path.join(DATA, "episodic.jsonl"))
-        self.semantic = SemanticMemory(os.path.join(DATA, "semantic.db"))
+        self.semantic = SemanticMemory(os.path.join(DATA, "semantic.db"), store_embedding=False)
 
     def call_tool(self, name, args):
         if name == "recall":

@@ -93,7 +93,7 @@ def _fts_query(query: str) -> str:
 
 
 class SemanticMemory:
-    def __init__(self, path: str = "data/semantic.db", embed_fn=None, search_mode="auto"):
+    def __init__(self, path: str = "data/semantic.db", embed_fn=None, search_mode="auto", store_embedding=None):
         self.path = path
         os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
         # Embedding backend is pluggable: None => the built-in pure-stdlib hash vectorizer
@@ -101,6 +101,12 @@ class SemanticMemory:
         self.embed_fn = embed_fn or hash_vectorizer
         # "auto" => use vector when embeddings are present, else FTS; force "fts"/"vector".
         self.search_mode = search_mode
+        # store_embedding: persist per-row embedding vectors. None => AUTO: store only when
+        # search_mode=="vector" (the one path that reads embeddings). FTS/auto default skips
+        # them - the default recall path never reads them, and the hash_vectorizer is a plain
+        # bag-of-words, so 256-d JSON floats per row only bloats the db (~3KB/row). Pass True/False
+        # to override the auto rule.
+        self.store_embedding = (search_mode == "vector") if store_embedding is None else store_embedding
         self.conn = sqlite3.connect(self.path)
         self.conn.executescript(SCHEMA)
         self.conn.commit()
@@ -173,7 +179,7 @@ class SemanticMemory:
         row = self.conn.execute("SELECT id FROM items WHERE hash=?", (h,)).fetchone()
         if row:
             return row[0]
-        emb = json.dumps(self.embed_fn(text)) if self.embed_fn else None
+        emb = json.dumps(self.embed_fn(text)) if (self.embed_fn and self.store_embedding) else None
         cur = self.conn.execute(
             "INSERT INTO items(text, idx, meta, hash, embedding, created_at) "
             "VALUES (?,?,?,?,?,?)",
