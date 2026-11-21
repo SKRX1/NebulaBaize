@@ -177,5 +177,11 @@ try:
 finally:
     restore()
 
+# ---------- W5: CHECK_INTERVAL pinned to 5 (load-bearing value guard) ----------
+# 2026-11-21: watchdog probe/relaunch interval was set 10s -> 5s. This assertion locks the
+# value at runtime; a silent revert to 10 turns this red. We read W.CHECK_INTERVAL directly
+# (no monkeypatch needed) so the guard checks the live constant, not a source string.
+check("W5 CHECK_INTERVAL == 5 (watchdog relaunch interval, revert-to-10 -> red)",
+      W.CHECK_INTERVAL == 5, "got=%r" % (W.CHECK_INTERVAL,))
 print("\n%s" % ("ALL GREEN" if not FAILURES else "FAILURES: %s" % FAILURES))
 sys.exit(1 if FAILURES else 0)
