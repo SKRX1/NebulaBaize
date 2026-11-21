@@ -76,6 +76,28 @@ supply yourself.
 2. 通过 `--url`（见 `run_standalone.bat`）把本应用层指向它并配置模型。
 3. 启动后在浏览器打开本地前端。
 
+## Recovery · 备份恢复
+
+- Backups are rolling git bundles (`--keep 14`), on E: (primary) and F: (mirror) under
+  `星云备份\星云白泽备份`. Each carries the full repo (commits + all baseline tags).
+- 备份是滚动的 git bundle（`--keep 14`），落在 E:（主盘）与 F:（镜像）的 `星云备份\星云白泽备份`，每个都含全部 commits + 基线 tag。
+
+Clone the newest bundle to restore the repo at any rollback point (commits + tags):
+克隆最新 bundle 即可在任意回滚点还原仓库（commits + tags）：
+
+```bat
+:: 取最新 bundle 克隆还原（含全部 tag 回滚点），再 checkout 目标 tag
+for /f "delims=" %%F in ('dir /b /o-d "E:\星云备份\星云白泽备份\*.bundle" ^| more +0') do (
+  git clone "E:\星云备份\星云白泽备份\%%F" restore_dir
+  git -C restore_dir checkout v-baseline-2026-11-21-h
+  goto :done
+)
+:done
+```
+
+Current newest sample: `strata-bundle-20261121-173608.bundle` (HEAD 93e4727, v0.1.0).
+当前最新样本见上；回滚点示例 tag `v-baseline-2026-11-21-h`。
+
 ---
 
 *Original application layer © 2026 时空象容 · MIT. Powered by Strata.*
