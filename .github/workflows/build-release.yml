@@ -1,0 +1,324 @@
+# 星云白泽（Nebula Baize / Nebula-agent）闭源三平台构建
+# 设计要点（详见 Nebula-agent/scripts/CLOSED_SOURCE_BUILD.md）：
+#   - 只在 CI 里编译，绕开本机缺 C 编译器与网络下载损坏的问题；
+#     windows-latest 自带 MSVC、ubuntu/macos 自带 gcc/clang。
+#   - 前端混淆只对 dist 副本做，serve/web/ 权威源零改动（见 scripts/obfuscate_web.js）。
+#   - Python 依赖不写死：由 setup_env.py / 冻结清单在 CI 内生成后安装（见 README 已知坑）。
+# ⚠️ 这是【闭源构建配方草案】：Nuitka 的 --include-package/--include-data-dir
+#    等参数需首次 CI 实跑按报错微调（已在下方就近注释）。CI 真绿前视为未验证。
+name: build-closed-source
+
+on:
+  workflow_dispatch:        # 手动触发；将来可改 push tag 自动构建
+  push:
+    tags: ["v*"]
+
+env:
+  PYTHON_VERSION: "3.13"    # 闭源运行时版本。已证 3.14 可被 Nuitka 翻译；此默认取保守稳定版，按需上调。
+  # 编译并行度（拍板值：3 路并发、单进程 --jobs = min(nproc,4)）。这两个数只是【上限】：
+  # scripts/build_modules.sh 里还会再和 runner 真实核数取 min，所以在更大的机器上不会失控，
+  # 在 4 核 / 约 7GB 的 free windows runner 上也不会超发（超发的表现是 cl.exe 以怪异的
+  # 退出码失败 = OOM，而不是干净的 Nuitka FATAL）。要不要上调，看下面 "Probe build
+  # parallelism" 步打印的 cores / 内存——只有那两项显示余量充足才值得改这两个数。
+  BUILD_CONC: "3"
+  BUILD_JOBS_MAX: "4"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: nebula-baize-windows-x64
+          - os: ubuntu-latest
+            artifact: nebula-baize-linux-x64
+          - os: macos-latest
+            artifact: nebula-baize-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 1) 前端：复制 serve/web -> dist/web 后只在 dist 副本里混淆；serve/web 不动。
+      - name: Obfuscate frontend (dist copy only)
+        working-directory: Nebula-agent
+        run: node scripts/obfuscate_web.js serve/web dist/web
+      # 1b) 前端冒烟（配方第四节列的待办）：证明【混淆后的】页面没有语法错、且
+      #     index.html 引用的资源都在。放在最前面是因为它最便宜、信号最直接：混淆
+      #     一旦把 app.js 处理坏，用户看到的是白屏，而那时编译已经跑完 20 分钟。
+      - name: Front-end smoke (obfuscated dist must parse)
+        working-directory: Nebula-agent
+        run: node scripts/smoke_web.js dist/web
+
+
+      # 2) Python 依赖：读 Nebula-agent/requirements.txt 这份显式 lock（已据 8099
+      #    实际运行的 venv 逐字节坐实，pin 死版本）。CI 在全新 runner 上没有本地 venv
+      #    可冻结，"现场 pip freeze"会随机器漂移，故闭源用这份锁；setup_env.py 仍只在
+      #    本地开发用。可选依赖(PyYAML/send2trash/strata_tokenizer)按设计不装=走降级。
+      - name: Install Python deps (from pinned lock)
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install nuitka
+
+      # 2b) C 编译器缓存（B 方案）：把 ccache/clcache/Nuitka 自己的 cache 目录存进
+      #     Actions 缓存，让"只改前端或 config、Python 没动"的重建几乎免费——编译期
+      #     那 600~900s 里绝大部分是把 .c 喂给 C 编译器，而这一步的结果只取决于源码内容。
+      #     为什么这三目录能安全复用（读 Nuitka 源码 nuitka/build/SconsCaching.py 坐实，
+      #     不是猜）：
+      #       - Windows 走的是 Nuitka 自带的 **clcache**（不是 ccache）：enableClcache() 里
+      #         `if "CLCACHE_DIR" not in os.environ:` 才自己挑目录 —— 我们导出它就照用；
+      #       - Linux/macOS 走 ccache，同样受 `if "CCACHE_DIR" not in os.environ:` 支配；
+      #       - NUITKA_CACHE_DIR 是它自己的 bytecode/下载缓存根（getCacheDir 的落点）。
+      #     所以三个目录都要钉到固定可知的路径，actions/cache 才存得对、下次找得回。
+      #     key 里带 run_id（每次都能新存一份）+ restore-keys 前缀（找得到最近一次），
+      #     这样缓存会随每次构建向前滚，不会锁死在旧内容上。
+      - name: Restore C-compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/build-cache/ccache
+            ${{ runner.temp }}/build-cache/clcache
+            ${{ runner.temp }}/build-cache/nuitka
+          key: build-cache-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ github.run_id }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+            build-cache-${{ runner.os }}-
+
+      # 2c) 并行度与缓存目录的取证步。打印 cores/内存有两个用途：(a) 证明本次真的用上了
+      #     并行（把 --jobs 的实际上限写进日志）；(b) 给"要不要把并发调到 4"提供唯一
+      #     的判据。顺带坐实一个此前被我误判的事实（读 Nuitka 源码
+      #     nuitka/options/Options.py 的 isLowMemory()）：它只等于"显式传了 --low-memory"，
+      #     Nuitka 不会自动探测低内存 —— 也就是说 --jobs 的默认值一直是 CPU 核数，
+      #     不存在"默认已退化成单核"。真正的浪费只在"多次 Nuitka 调用之间是串行的"，
+      #     那是本文件步骤 3b 与下面 --jobs 要解决的事。
+      - name: Probe build parallelism (cores / memory)
+        shell: bash
+        run: |
+          echo "cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo unknown)"
+          if [ -r /proc/meminfo ]; then
+            grep -E '^(MemTotal|MemFree|MemAvailable)' /proc/meminfo
+          else
+            echo "mem: no /proc/meminfo readable on this runner"
+          fi
+          echo "requested: BUILD_CONC=${{ env.BUILD_CONC }} BUILD_JOBS_MAX=${{ env.BUILD_JOBS_MAX }}"
+          # 缓存目录钉死（见上一步的注释）。这里用 >> $GITHUB_ENV 导出，后续所有 step 继承。
+          for d in ccache clcache nuitka; do
+            mkdir -p "$RUNNER_TEMP/build-cache/$d" || exit 1
+          done
+          echo "CCACHE_DIR=$RUNNER_TEMP/build-cache/ccache"           >> "$GITHUB_ENV"
+          echo "CLCACHE_DIR=$RUNNER_TEMP/build-cache/clcache"         >> "$GITHUB_ENV"
+          echo "NUITKA_CACHE_DIR=$RUNNER_TEMP/build-cache/nuitka"     >> "$GITHUB_ENV"
+          # ccache 只有装着才生效（Windows 不需要：clcache 由 Nuitka 自带）。ubuntu/macOS
+          # 的 hosted 镜像自带 ccache；万一没有，best-effort 装一次，装不上也不算错——
+          # 只是这一步的缓存对那次平台无用，编译本身照旧。
+          if ! command -v ccache >/dev/null 2>&1; then
+            echo "ccache not on PATH; best-effort install"
+            (sudo apt-get update -qq && sudo apt-get install -y -qq ccache) >/dev/null 2>&1               || brew install ccache >/dev/null 2>&1 || true
+          fi
+          echo "ccache: $(command -v ccache || echo none)"
+
+      # 3) Nuitka 编译 gateway（HTTP 网关主进程）为 standalone。
+      #    产物打包的是【混淆后的】 dist/web，而非 serve/web。
+      - name: Compile with Nuitka
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          # --jobs 的默认值本来就是核数（见 2c 步的源码结论），这里【显式】写出是为了
+          # 两件事：把实际上限打印进日志可核对，以及给 min(nproc,4) 这个上限封顶——
+          # Windows 上 cl.exe 每个 job 都吃内存，4 核机上不封顶时峰值内存最容易顶到 OOM。
+          cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+          jobs=${{ env.BUILD_JOBS_MAX }}
+          [ "$cores" -lt "$jobs" ] && jobs="$cores"
+          echo "gateway compile: cores=$cores --jobs=$jobs"
+          python -m nuitka \
+            --standalone \
+            --jobs="$jobs" \
+            --assume-yes-for-downloads \
+            --include-data-dir=dist/web=web \
+            --include-package=serve \
+            --include-package=runtime \
+            runtime/gateway.py
+          # 若 Nuitka 报缺模块：追加 --include-package=<name>；
+          # 若 data 路径不符：调整 --include-data-dir 的源/目标。首次实跑按 stderr 微调。
+
+      # 3b) servers/ 编成原生模块（4.5 节 C 形态，已拍板采纳）：复用上面 gateway 的
+      #     同一份 Python 运行时，产物里 N 个原生 .pyd/.so —— 源码保护与 gateway 同级。
+      #     为什么不是 A/B：A（每个 server 各自 standalone）会给 9 个子进程各复制一份
+      #     运行时（约 9x20MB）；B（随产物带 .py）等于把源码又暴露回去。
+      #     入口形态：.pyd 是扩展模块，`if __name__ == "__main__"` 永不成立，所以入口
+      #     由编译后的 gateway 承担：`gateway.exe --server <name>` → import 后调 main()
+      #     （见 runtime/gateway.py 的 --server 分支）。因此产物里不需要第二个解释器。
+      #     为什么必须编 runtime/ 的兄弟模块：servers 里 import 的是【顶层名】
+      #     （from audit import … / from memory.episodic import …），而 --include-package
+      #     =runtime 只把 `runtime.audit` 这种限定名冻结进了 gateway 二进制；顶层名在产物
+      #     里没有可搜的目录（runtime/ 目录本身不再存在）。所以这些名字必须以 .pyd 的
+      #     形式落在 gateway 旁边——下面的清单不是猜的，是按各 server 的真实 import 与
+      #     它们的一层传递依赖逐个坐实出来的（本轮实测扫描）：
+      #       fs/shell/browser/example  -> 只依赖 _mcp_base（纯 stdlib）
+      #       memory_server             -> memory(episodic/semantic), corpus
+      #       registry_server           -> registry -> config_loader, executor, 
+      #                                    skills_loader -> config_loader; audit;
+      #                                    executor -> textenc
+      #                                    config_loader; audit; executor -> textenc
+      #       schedule_server           -> scheduler
+      #       skillhub_server           -> executor -> textenc
+      #     （websearch 的 socks/sockshandler 实测是函数内 lazy import，缩进 12，
+      #     import 模块本身不会触发，故不要求 CI 装 pysocks。）
+      #     ⚠ 首次 CI 实跑若报：memory 作为【包】被 --mode=module 只编出 __init__ 而丢掉
+      #     子模块，就把 memory/ 那三个文件改用 `--mode=package`（或逐个 --mode=module
+      #     后加 --include-module 兜住）—— 报错会点名 memory.episodic，不会静默。
+      - name: Compile MCP servers to native modules (C form)
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          # Nuitka 的 --mode=module 只接受【一个】positional（CI 实测 FATAL：
+          # "specify only one positional argument unless --run is specified"）。
+          # 所以逐文件循环：这同时消灭了"多行续行符漏一个"这类错——上一轮就是这么
+          # 让 skills/example_server.py 从命令里掉出去的（YAML 仍然合法，肉眼看不出）。
+          # 清单在 scripts/build_modules.sh 里（那份按真实 import 坐实的清单原样搬过去，
+          # 别在两处各维护一份）。这里只负责并发调度：
+          #   为什么必须 N 次调用（不能合并）：--mode=module 只接受一个 positional（CI
+          #     实测 FATAL）——这一点没变；
+          #   变的是什么：原先这 N 次调用【之间】是 for 循环串行的，实测白等
+          #     216s(Windows)/519s(Linux)；现在按 BUILD_CONC 分批并发，每路日志各自落
+          #     .build-logs/<path>.log、退出码落同名 .rc，结束后按清单顺序回放并点名失败项
+          #     ——并发不牺牲可诊断性，也不改变任何一次 nuitka 调用的语义。
+          bash scripts/build_modules.sh "${{ env.BUILD_CONC }}" "${{ env.BUILD_JOBS_MAX }}" gateway.dist
+          # memory 必须按【包】编，不能逐文件：
+          #   servers/memory_server.py 写的是包限定名 `from memory.episodic import ...`；
+          #   scripts/make_release_entries.py:108 又要求产物里存在 memory.<pyd/.so>。
+          # 逐文件 --mode=module 只会得到 __init__.pyd / episodic.pyd / semantic.pyd——
+          # 前者没有 memory 这个名字（3c 直接 MISSING-MODULE），后者也不带子模块
+          # （memory.episodic 依然解析不了）。--mode=package 把整包编成一个扩展模块，
+          # 子模块在其内，两个条件同时满足。以后别把它"顺手统一"回上面的循环。
+          echo "--- packaging runtime/memory (mode=package)"
+          cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+          jobs=${{ env.BUILD_JOBS_MAX }}
+          [ "$cores" -lt "$jobs" ] && jobs="$cores"
+          python -m nuitka --mode=package --jobs="$jobs" --assume-yes-for-downloads \
+            --output-dir=gateway.dist runtime/memory
+          # 若报缺依赖：在对应文件的编译行就近追加 --include-module=<name>。
+          ls gateway.dist | head -40
+
+      # 3c) 产物内的自定位 config：绝对路径全部换成 @SELF/@ROOT token。
+      #     @SELF = 正在运行的解释器本身（产物里就是 gateway.exe，无需第二个 python）；
+      #     @ROOT = 它所在的产物根。启动时由 registry._expand_release_tokens() 展开，
+      #     所以这份 config 搬到任何机器、任何目录都能起，且三平台是同一份文本。
+      #     脚本会真 import 每个 .pyd 断言它暴露 main()，失败即红 —— 它同时是 3b 的验收。
+      - name: Build self-locating release config
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            EP=gateway.dist/gateway.exe
+            PYEXT=.pyd; WFLAG="--windows"
+            python scripts/make_release_entries.py gateway.dist --out entries.dist \
+              --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
+              --runtime-modules config_loader,textenc,skills_loader,executor,registry,audit,scheduler,corpus,memory \
+              --inherit config/mcp_servers.json
+          else
+            EP=gateway.dist/gateway
+            PYEXT=.so; WFLAG=""
+            python scripts/make_release_entries.py gateway.dist --out entries.dist \
+              --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
+              --runtime-modules config_loader,textenc,skills_loader,executor,registry,audit,scheduler,corpus,memory \
+              --inherit config/mcp_servers.json
+          fi
+          # 注意：编译期不内嵌 config（曾因 --include-data-dir=config=config 把仓库开发版
+          # config 打进 exe，运行时读到的是那份带绝对路径的旧内嵌副本，本步覆盖到磁盘的
+          # @SELF 版反而失效——静态 grep 读磁盘仍见 @SELF、运行时却起不来，正是这次 CI 根因。
+          # 故 config 只在运行期由 gateway 按 ROOT 从磁盘读这一份，绝不在编译期 include。
+          # 编译期不再内嵌 config（见上），所以这里自己建产物 config 目录，并把运行期真正
+          # 需要的配置原样带上：gateway 读 approval.yaml/sandbox.yaml/models.json，HTTP 层读
+          # image_settings.json/prompt_book.json/image_gallery.json。排除 *.bak（备份不属于产物）。
+          mkdir -p gateway.dist/config
+          for f in config/*.json config/*.yaml; do
+            case "$f" in *.bak) continue ;; esac
+            base=$(basename "$f")
+            # 这份要换成 @SELF，下面单独覆盖（用 if-then 而非裸 && ：GH 的 bash step 带
+            # set -e，"[ = ] && continue" 在条件为假时整行退出码非零会被 -e 终止整个 step）。
+            if [ "$base" = mcp_servers.json ]; then continue; fi
+            cp "$f" "gateway.dist/config/$base"
+          done
+          cp entries.dist gateway.dist/config/mcp_servers.json
+          # 第②条：对"运行时真读的那份 config"复证同样的 token/绝对路径判据。方案A 后产物
+          # 里只有磁盘这一份（编译期不再内嵌 config），它若被 cp 漏掉、或被带绝对路径的开发版
+          # 污染，gateway 起来就读到错 command——正是本轮 CI 暴露的时序缺陷。这里把它交给
+          # 同一个 make_release_entries（--verify-config）判，从"我写的对"升级为"产物里那份对"。
+          # 规范（勿破坏）：验证类参数——本处的 --verify-config、以及将来任何 --verify-*
+          # 复证参数——都必须在 make_release_entries.py 顶部 parse_args 后立即早退
+          # （见 _verify_only）：只读那份"已生成好的产物 config"、跑 token 判据、报告即返回，
+          # 绝不接到 main 末尾的生成/probe 流程里。一旦接回主流程，它就会重走完整生成、
+          # 因这里不传 --runtime-modules（那是生成流程的前置）而对每个 server 误报
+          # MISSING-RUNTIME-MODULE——这正是 run 44738032692 的 macos step10 真实失败。
+          # 新增复证项请复用同一个早退入口，别另起一份挂在 main 末尾的 if 块。
+          python scripts/make_release_entries.py gateway.dist --out entries.verify \
+            --entrypoint "$EP" --pyext "$PYEXT" $WFLAG \
+            --verify-config gateway.dist/config/mcp_servers.json
+
+      # 4a) 打包前的断言：这一步同时兜住"改了编译、忘了打包"这类静默漏项。
+      #     Windows 上还真起一次 --serve：证明编译产物能服务前端。它不要求任何上游
+      #     推理引擎（CI 里没有 8080，也没有模型），只探属于我们自己的那一层。
+      - name: Assert the artifact really carries compiled servers
+        working-directory: Nebula-agent
+        shell: bash
+        run: |
+          EXT=.pyd
+          if [ "${{ runner.os }}" != "Windows" ]; then EXT=.so; fi
+          n=$(ls gateway.dist/*"$EXT" 2>/dev/null | grep -c "server")
+          echo "compiled *_server$EXT present: $n (want 9)"
+          [ "$n" -ge 9 ] || { echo "RED: the C-form modules are missing"; exit 1; }
+          grep -q "@SELF" gateway.dist/config/mcp_servers.json \
+            || { echo "RED: artifact config is not the self-locating one"; exit 1; }
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            # 一个文件、纯 ASCII、一个调用点；它自己分层打印（CLI 解析 / TCP 监听 /
+            # GET / 是否真的在服务混淆后的 UI）并回显产物的 selfcheck 报告，红了能
+            # 直接说出是哪一层坏。STRICT_TOOLS 在脚本内保持 ON：那边"能起来"这件事
+            # 本身就等价于"编译后的 .pyd 通过了 MCP 握手"—— 这正是我们要证的。
+             # 复验经验（2026-11-21 坐实，workflow_dispatch run 44852509739）：
+             #  (1) stdio 钉码页：windows step13 success 即证明 main() 首行的
+             #      pin_stdio_utf8() 生效——网关在真 cp1252 日志管道上起得来，不再死于
+             #      UnicodeEncodeError 'charmap' can't encode '\u2192'（这是"无 MCP 工具"
+             #      症状的第四独立根因：executor.py 早钉了 MCP 线路，唯一没人钉的是网关
+             #      自己的 stdout/stderr；本地复现窄码页管道不算数，只有 CI 现场坐实）。
+             #      机制侧的本地复验套件（14 断言，钉死管道/差分/replace/knob/接线）：
+             #      tests/test_stdio_utf8_pin.py（冒烟只证“起得来”，这套件锁“为什么起得来”）。
+             #  (2) CSS-guard：app.css 行尾 `//` 会被 CSS 解析吞掉下一条选择器（实测
+             #      pad=0px→改 /* */ 后 pad=6px）。它由本地 quick 套件
+             #      tests/test_css_no_line_comments.py 复验，不在本步冒烟内，此处仅作记录。
+            powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_gateway.ps1 -Port 8123
+          fi
+      # 4) 产物打包成归档（standalone 是目录，压成 zip/tar 分发）。
+      - name: Package artifact
+
+        shell: bash
+        run: |
+          cd Nebula-agent
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell -NoProfile -Command "Compress-Archive -Path gateway.dist\\* -DestinationPath $GITHUB_WORKSPACE/${{ matrix.artifact }}.zip"
+          else
+            tar -czf "$GITHUB_WORKSPACE/${{ matrix.artifact }}.tar.gz" -C gateway.dist .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
+          if-no-files-found: warn
+
+# Nudge: this commit exists to make Actions register/scan this
+# workflow on a fresh repo (first-push registration quirk); harmless comment.

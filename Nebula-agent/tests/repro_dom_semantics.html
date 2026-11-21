@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><title>DOM semantics fixture</title></head><body>
+<script>
+// Build the tree at runtime only (the static scanner flattens parsed elements, so
+// static markup must not carry assertions). Expectation comments state what a REAL
+// browser would report; tests/test_page_sim.py section 7 locks them.
+var g = {};
+var root = document.createElement('div');
+root.id = 'root';
+document.body.appendChild(root);
+root.innerHTML = '<div class="card">a</div> <div class="card">b</div>';
+g.children_len = root.children.length;                     // real: 2
+g.cn_len = root.childNodes.length;                         // real: 3 (el, text, el)
+g.qsa_card = root.querySelectorAll('.card').length;        // 2
+g.qsa_card_doc = document.querySelectorAll('#root .card').length; // 2 through the live tree
+g.tc_get = root.textContent;                               // real: "a b" (whitespace kept)
+g.fec_tag = root.firstElementChild ? root.firstElementChild.tagName : 'none';   // DIV
+var c1 = root.querySelector('.card');
+g.ns = c1.nextSibling ? c1.nextSibling.nodeName : 'none';   // #text
+g.nes = c1.nextElementSibling ? c1.nextElementSibling.className : 'none';         // card
+g.pes = c1.nextElementSibling.nextElementSibling ? 'gone' : 'null';               // null (last card)
+g.pps = c1.nextElementSibling.previousSibling ? c1.nextElementSibling.previousSibling.nodeName : 'none'; // #text
+// delegation: capture on document + bubble on document, counts separated
+window.__capDoc = 0; window.__bubDoc = 0; window.__root = 0; window.__win = 0;
+document.addEventListener('click', function () { window.__capDoc++; }, true);
+document.addEventListener('click', function () { window.__bubDoc++; });
+root.addEventListener('click', function () { window.__root++; });
+window.addEventListener('click', function () { window.__win++; });
+var btn = document.createElement('button'); btn.id = 'dynbtn';
+btn.addEventListener('click', function () { window.__btn = (window.__btn || 0) + 1; });
+btn.onclick = function () { window.__inline = (window.__inline || 0) + 1; };
+root.appendChild(btn);
+btn.click();
+// real browser: btn 1, inline 1, root 1, doc bub 1, capDoc 1, win 1
+g.counts = { btn: window.__btn, inline: window.__inline, root: window.__root,
+             doc_bub: window.__bubDoc, doc_cap: window.__capDoc, win: window.__win };
+// stopPropagation on the target stops the upward path
+window.__afterStop = 0;
+var s1 = document.createElement('span'); s1.id = 's1';
+root.appendChild(s1);
+s1.addEventListener('click', function (e) { e.stopPropagation(); });
+document.addEventListener('click', function () { window.__afterStop++; });
+s1.click();
+g.after_stop = window.__afterStop;                          // real: 0
+// non-bubbling events stay at the target
+window.__nbRootBefore = window.__root;
+var box = document.createElement('div'); box.id = 'box';
+root.appendChild(box);
+var inner = document.createElement('span'); box.appendChild(inner);
+inner.addEventListener('click', function () { window.__nbInner = (window.__nbInner || 0) + 1; });
+inner.dispatchEvent({ type: 'click', bubbles: false });
+g.nb = { inner: window.__nbInner, root_delta: window.__root - window.__nbRootBefore }; // 1, 0
+// appendChild ignores extra args; insertBefore inserts for real
+var x1 = document.createElement('i'); x1.id = 'x1';
+var x2 = document.createElement('i'); x2.id = 'x2';
+box.appendChild(x1); box.appendChild(x2, x1);
+g.append_order = Array.prototype.map.call(box.children, function (n) { return n.id; }).join(','); // x1,x2
+box.insertBefore(x2, x1);                                   // real: x2 before x1
+g.order_after_ib = Array.prototype.map.call(box.children, function (n) { return n.id; }).join(','); // x2,x1
+// textContent setter clears element children, leaves one text node
+box.textContent = 'T';
+g.tc_after = { cn: box.childNodes.length, ct: box.textContent, kids: box.children.length }; // 1,"T",0
+// selector extensions
+g.not_sel = root.querySelectorAll('.card:not(#nope)').length;   // 2 (both cards match)
+g.not_done = root.querySelectorAll('.card:not(.card)').length;  // 0
+g.is_sel = root.querySelectorAll('div:is(.card)').length;       // 2
+g.first = root.querySelectorAll('div:first-child').length;      // 1 (root > card? no: card IS first child of root) => 1
+g.checked_sel = document.querySelectorAll('input:checked').length; // 0, must not throw
+// attribute selectors on runtime nodes
+var el2 = document.createElement('div'); el2.setAttribute('data-role', 'z'); document.body.appendChild(el2);
+g.attr_sel = document.querySelectorAll('[data-role="z"]').length;   // 1
+g.closest_ok = el2.closest('[data-role]') === el2;                  // true
+// removeChild/replaceChild keep the tree consistent
+box.innerHTML = '';   // clears
+box.innerHTML = '<b id="b1">1</b>';
+var b2 = document.createElement('b'); b2.id = 'b2';
+box.replaceChild(b2, document.getElementById('b1'));
+g.replace_tree = box.children.length === 1 && box.children[0].id === 'b2';  // true
+box.removeChild(b2);
+g.after_remove = box.children.length;                                    // 0
+</script>
+</body></html>

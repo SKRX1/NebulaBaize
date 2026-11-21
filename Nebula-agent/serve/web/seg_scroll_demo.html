@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>demo</title></head>
+<body>
+<div id="chat" style="margin-bottom:24px"></div>
+<div id="chat2"></div>
+<pre id="readout" style="font-size:20px;font-weight:bold;margin-top:20px"></pre>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+<script>
+function buildMsg() {
+  return {
+    role: "assistant", time: Date.now(),
+    reasoning: "Slice zero of the thought. Slice one of the thought. Slice two of the thought.",
+    text: "", tools: [
+      { at: 0, rat: 24, server: "x", tool: "call1", state: "ok" },
+      { at: 0, rat: 49, server: "x", tool: "call2", state: "ok" }
+    ]
+  };
+}
+function segLine(el, tag) {
+  var segs = [...el.querySelectorAll(".st-think")].map(d => d.dataset.slot + (d.open ? "=OPEN" : "=folded"));
+  return tag + " | " + segs.join(", ");
+}
+// A: stepsFold OFF -> streaming scroll follows only the LIVE segment (th2), earlier fold
+settings.show = true; settings.stepsFold = false;
+var mA = buildMsg(); messages = [mA];
+var elA = msgEl(mA, 0); document.getElementById("chat").appendChild(elA); updateAssistant(elA, mA, true);
+var lineA = segLine(elA, "stepsFold-OFF");
+
+// B: stepsFold ON -> earlier thoughts get packed into the work-log group (folded); the live tail still opens
+settings.show = true; settings.stepsFold = true;
+var mB = buildMsg(); messages = [mB];
+var elB = msgEl(mB, 0); document.getElementById("chat2").appendChild(elB); updateAssistant(elB, mB, true);
+var lineB = segLine(elB, "stepsFold-ON ");
+
+var out = lineA + "\n" + lineB;
+document.getElementById("readout").textContent = out;
+document.title = "SEG|" + lineA.replace(/\s+/g, "") + "|" + lineB.replace(/\s+/g, "");
+</script>
+</body>
+</html>

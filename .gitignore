@@ -1,0 +1,166 @@
+# ---------------------------------------------------------------------------
+# Strata workspace git baseline — track core assets, ignore noise.
+# Tracked: source under Nebula-agent/ (.py/.js/.mjs/.cjs/.css/.html/.svg/.json/.yaml/.woff2),
+#   fonts/, the persistent GATE locks, core config, the agent entry points, DESIGN.md,
+#   RULES.md, and the top-level deploy docs/scripts.
+# Ignored: caches, backups, screenshots, run logs/outputs, scratch, one-shot scripts.
+# ---------------------------------------------------------------------------
+
+# caches
+__pycache__/
+*.pyc
+
+# backups (anchor-edit tooling) + nested config backup dir
+*.bak
+*.bak-*
+Nebula-agent/config/.backups/
+
+# screenshots / images / run artifacts
+*.png
+*.log
+out/
+Nebula-agent/tests/tests/
+Nebula-agent/tests/_scratch_*/
+Nebula-agent/tools/_backup/
+
+# one-shot tooling under Nebula-agent/tools/
+Nebula-agent/tools/_patch_*
+Nebula-agent/tools/_read_*
+Nebula-agent/tools/_verify_*
+Nebula-agent/tools/*_report.txt
+Nebula-agent/tools/_ab_*.py
+Nebula-agent/tools/_archive_design_stub.py
+Nebula-agent/tools/_baseline_probe.py
+Nebula-agent/tools/_cache_experiment.py
+Nebula-agent/tools/_dbg_paste.py
+Nebula-agent/tools/_deep_probe*.py
+Nebula-agent/tools/_deploy_*.py
+Nebula-agent/tools/_fix_i18n_comma.py
+Nebula-agent/tools/_full_run7.txt
+Nebula-agent/tools/_gw_precheck.py
+Nebula-agent/tools/_i18n_audit.cjs
+Nebula-agent/tools/_inject_size.py
+Nebula-agent/tools/_live_vision.py
+Nebula-agent/tools/_measure_schema.py
+Nebula-agent/tools/_ondemand_quality_stub.py
+Nebula-agent/tools/_overhead_probe.py
+Nebula-agent/tools/_pid_probe.ps1
+Nebula-agent/tools/_reforge_*.py
+Nebula-agent/tools/_semantic_summarize_stub.py
+Nebula-agent/tools/_show_session.py
+Nebula-agent/tools/_switch_llm.py
+Nebula-agent/tools/_usage_probe.py
+
+# GATE locks under tools/ — must stay tracked (run_tests SUITES depends on them).
+!Nebula-agent/tools/_seg_scroll_baseline.py
+!Nebula-agent/tools/_semantic_summarizer_gate.py
+!Nebula-agent/tools/_archive_gate.py
+
+# one-shot verification pages / recon snapshots
+Nebula-agent/serve/_*.html
+Nebula-agent/serve/seg_scroll_verify.html
+Nebula-agent/serve/web/_recon*.txt
+Nebula-agent/serve/web/*.newtmp
+Nebula-agent/tests/_c_probe_page.html
+
+# runtime-generated data + native/bin build output + sharded artifacts (not source)
+Nebula-agent/data/
+Nebula-agent/logs/
+Nebula-agent/native
+Nebula-agent/bin
+Nebula-agent/parts/
+Nebula-agent/_incoming/
+Nebula-agent/selftest.txt
+Nebula-agent/_grep_ins_out.txt
+Nebula-agent/_seg.txt
+
+# historical zip snapshots (git is now the snapshot mechanism; zip backups are noise)
+Nebula-agent/outputs/
+
+# runtime memory / archive / design stores (autonomous-memory runtime, not source)
+.design/
+.Nebula-archive/
+.Nebula-memory/
+.workbuddy/
+patches/
+
+# root scratch tooling + shell-redirect garbage (ROOT-anchored, never sub-trees)
+/tools/
+/nul
+/_out.txt
+/new
+/Date.now()
+/,n.count('{s}'))
+/vision_test.html
+!/vision_test_shot.png
+/sample_small.html
+/_loop.txt
+/_loop2.txt
+/_loopseg.txt
+/_pid.txt
+/_r2.log
+/_r3.log
+/_restart_8099.log
+/_u.txt
+/_ver.txt
+/_vmod.txt
+/selftest.txt
+/setup.bat
+
+# draft rule file (official is RULES.md; draft is a transient working copy)
+RULES.draft.md
+
+# one-shot landing/scout tooling from recycle-paging round (transient, kept on disk)
+Nebula-agent/tools/_land_*.py
+Nebula-agent/tools/_scout_*.py
+Nebula-agent/tools/_verifyast_scan.py
+
+# recycle-bin runtime data dir (com/shell runtime store, not source)
+.Nebula-recycle/
+# legacy dir names (pre .Nebula- rename 2026-11): history data under the old
+# names stays on disk untouched but ignored, so the tree stays clean.
+.strata-archive/
+.strata-memory/
+.strata-recycle/
+
+# --- scratch from the per-hunk attribution round (gate D landing, 2026-11-02) ---
+# backup files named with UNDERSCORE suffix (.bak_anchorpatch/.bak_nsp/...) were missed by
+# the existing hyphen-only *.bak-* rule; add the underscore variant so tree stays clean.
+*.bak_*
+/_p_*.diff
+/_t_*.diff
+/_q_*.py
+/_rt_backup_mixed.txt
+# per-hunk attribution round one-shot scripts (transient; test_pill_closeout_align.mjs is NOT here
+# on purpose -- it belongs to the pill-closeout round, not this scratch cleanup)
+Nebula-agent/tools/_anchor_patch.py
+Nebula-agent/tests/_diag_acts.mjs
+Nebula-agent/tests/_diff_spark_render.mjs
+Nebula-agent/tests/_spark_ids.txt
+
+# --- jsdom recovery channel: track the workspace-root node_modules so a fresh
+# clone carries the package the 91 jsdom tests resolve through NODE_PATH (2026-11).
+!node_modules/
+!package.json
+!package-lock.json
+# runtime drift: proc-info snapshot written by daemon
+Nebula-agent/proc_info.json
+# runtime drift: health/metrics snapshots written by the monitor daemon
+Nebula-agent/_health.json
+Nebula-agent/_metrics.json
+
+# --- stray root-level serve/ dir: a derived runtime artifact (its only file is
+# _learned_experience_compact.txt, a memory-generated compact export). The real
+# tracked source is Nebula-agent/serve/; the leading slash anchors to the repo root
+# only, so it never matches that directory or its 42 tracked files.
+/serve/
+
+# Closed-source build artifacts (regenerated by CI; never source of truth)
+Nebula-agent/dist/
+Nebula-agent/gateway.build/
+Nebula-agent/gateway.dist/
+
+# Local secrets (tokens/keys) — NEVER commit; contents are credentials.
+.Nebula-secrets/
+# parallel module build logs (scripts/build_modules.sh)
+.build-logs/

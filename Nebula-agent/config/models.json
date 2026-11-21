@@ -1,0 +1,120 @@
+{
+  "selected": "swift-1.5-iq3_s_g8",
+  "models": [
+    {
+      "id": "iq3-s",
+      "name": "swift-1.5-iq3_s",
+      "kind": "local",
+      "base_url": "",
+      "model": "swift-1.5-iq3_s",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "low"
+    },
+    {
+      "id": "iq3-xxs",
+      "name": "swift-1.5-iq3_xxs",
+      "kind": "local",
+      "base_url": "",
+      "model": "swift-1.5-iq3_xxs",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    },
+    {
+      "id": "swift-iq3_s",
+      "name": "swift-iq3_s界面",
+      "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "swift-iq3_s",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto",
+      "context_window": 131072
+    },
+    {
+      "id": "swift-iq3_xxs",
+      "name": "swift-iq3_xxs界面",
+      "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "swift-iq3_xxs",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto",
+      "context_window": 131072
+    },
+    {
+      "id": "unsloth-ud-q4_k_xl",
+      "name": "unsloth-ud-q4_k_xl",
+      "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "unsloth-ud-q4_k_xl",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto",
+      "context_window": 131072
+    },
+    {
+      "id": "qwen3.8-flash-next-iq3_s",
+      "name": "qwen3.8-flash-next-iq3_s",
+      "kind": "local",
+      "base_url": "",
+      "model": "qwen3.8-flash-next-iq3_s",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    },
+    {
+      "id": "swift-1.5-iq3_s_g8",
+      "name": "swift-1.5-iq3_s_g8",
+      "kind": "local",
+      "base_url": "",
+      "model": "swift-1.5-iq3_s_g8",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
+    }
+  ]
+}

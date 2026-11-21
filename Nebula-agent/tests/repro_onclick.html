@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><title>onclick</title></head>
+<body>
+<div id="panel"></div>
+<button id="btn-start"></button>
+<script>
+window.state = { injected: 0, hit0: 0 };
+document.getElementById('btn-start').addEventListener('click', function () {
+  document.getElementById('panel').innerHTML =
+    '<div id="card0" class="lv playable" onclick="window.state.hit0 = 1">p0</div>' +
+    '<div id="card1" class="lv locked">p1</div>';
+  state.injected = 1;
+});
+window.probeA = function () { return state.injected; };              // 1 = injection ran
+window.probeB = function () { return state.hit0; };                  // 1 = inline onclick fired
+window.probeC = function () { return document.querySelectorAll('#panel .lv').length; };   // 2
+window.probeD = function () { return document.querySelector('#panel .lv.locked') ? 1 : 0; } // 1
+window.probeE = function () { return document.getElementById('card0') ? 1 : 0; };  // dynamic id lookup
+</script>
+</body></html>

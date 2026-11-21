@@ -1,0 +1,4 @@
+# CI 的 bash 只认 LF：仓库 core.autocrlf=true，不钉死的话新签出的 .sh 会变成 CRLF，
+# 在 Linux/macOS runner 上 bash 会报 "bad interpreter" 之类的错。只钉这一类文件，
+# 不给全仓库加 eol 规则（yml/js/py 的现有行尾习惯不受影响）。
+*.sh text eol=lf

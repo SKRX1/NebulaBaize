@@ -1,0 +1,12 @@
+{
+  "mode": "parasitic",
+  "apiBase": "",
+  "apiKey": "",
+  "model": "",
+  "description": {
+    "mode": "parasitic = served by same server that provides APIs; standalone = served by own gateway, APIs from apiBase",
+    "apiBase": "OpenAI-compatible base URL for standalone mode (e.g. http://127.0.0.1:8080/v1). Empty in parasitic mode.",
+    "apiKey": "Bearer token for upstream API (standalone mode only).",
+    "model": "Default model name. Empty uses the server-reported model from /health."
+  }
+}

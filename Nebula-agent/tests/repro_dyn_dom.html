@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><title>repro</title></head>
+<body>
+<div id="panel-static"><div class="lv static" id="s1">static card</div></div>
+<div id="panel"></div>
+<button id="btn-start"></button>
+<script>
+window.state = { hits: 0 };
+document.getElementById('btn-start').addEventListener('click', function () {
+  document.getElementById('panel').innerHTML =
+    '<div class="lv playable" data-i="0">p0</div>' +
+    '<div class="lv locked" data-i="1">p1</div>';
+  state.hits = 1;
+});
+// probe expressions (before fix these see nothing dynamic):
+window.probe1 = function () { return document.querySelectorAll('.lv').length; };      // expect 3 after fix (1 static + 2 injected), 1 before
+window.probe2 = function () { return document.querySelectorAll('#panel .lv.locked').length; }; // compound, expect 1 after fix
+window.probe3 = function () { return document.querySelector('[data-i="1"]') ? true : false; };  // attribute selector, expect true after fix
+window.probe4 = function () { return document.getElementById('panel').innerHTML.length > 0; };  // innerHTML set, true either way
+window.probe5 = function () { return state.hits; };  // set only if the click handler ran
+</script>
+</body></html>

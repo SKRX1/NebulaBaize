@@ -1,0 +1,102 @@
+{
+  "model": "swift-1.5-iq3_xxs",
+  "prompt": "请分析下面这段 Python 代码的性能问题，并给出三种优化方案，用中文解释每种方案的取舍：\n\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n\n要求：先说明它为什么慢（时间复杂度），再给出三种优化思路，最后用一句话总结你最推荐哪一种。",
+  "runs": [
+    {
+      "cnThink": false,
+      "ttft_s": 1.78,
+      "think_s": 6.28,
+      "gen_s": 10.73,
+      "total_s": 18.79,
+      "prompt_tokens": 215,
+      "completion_tokens": 1153,
+      "reasoning_tokens": null,
+      "out_tokens": 1153,
+      "out_tok_s": 107.4,
+      "think_tok_s": null,
+      "reasoning_chars": 657,
+      "content_chars": 1550,
+      "content": "这段代码慢的核心原因是：它用朴素递归计算斐波那契数列，存在大量重复子问题。\n\n例如计算 `fib(5)` 时，会反复计算 `fib(3)`、`fib(2)` 等相同结果。它的时间复杂度约为：\n\n```text\nO(2^n)\n```\n\n空间复杂度主要是递归调用栈：\n\n```text\nO(n)\n```\n\n因此当 `n` 变大时，函数调用次数会指数级增长，性能迅速恶化。\n\n---\n\n## 方案一：记忆化递归\n\n使用缓存保存已经计算过的结果，避免重复计算。\n\n```python\nfrom functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n```\n\n### 优点\n\n- 改动最小，代码仍然直观。\n- 时间复杂度降为：\n\n```text\nO(n)\n```\n\n- 适合多次调用同一个函数，例如连续计算 `fib(10)`、`fib(20)`、`fib(30)`。\n\n### 缺点\n\n- 仍然使用递归，`n` 很大时可能触发 Python 递归深度限制。\n- 缓存会占用额外内存。\n- 如果只计算一次，缓存收益不如迭代方案明显。\n\n---\n\n## 方案二：迭代滚动数组\n\n用循环从 `0` 开始逐步计算，只保留前两个结果。\n\n```python\ndef fib(n):\n    if n < 2:\n        return n\n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b\n```\n\n### 优点\n\n- 时间复杂度为：\n\n```text\nO(n)\n```\n\n- 空间复杂度为：\n\n```text\nO(1)\n```\n\n- 没有递归栈，不容易出现递归深度问题。\n- 实现简单，运行稳定，适合大多数场景。\n\n### 缺点\n\n- 对于非常大的 `n`，仍然是线性时间。\n- 如果只需要计算一次，优势明显；但如果需要频繁查询多个 `n`，不如缓存方案方便。\n\n---\n\n## 方案三：矩阵快速幂或快速倍增\n\n利用斐波那契数列的数学性质，把计算复杂度降到对数级别。\n\n例如使用快速倍增公式：\n\n```python\ndef fib(n):\n    def fast_doubling(n):\n        if n == 0:\n            return 0, 1\n\n        a, b = fast_doubling(n >> 1)\n\n        c = a * (2 * b - a)\n        d = a * a + b * b\n\n        if n & 1:\n            return d, c + d\n        else:\n            return c, d\n\n    return fast_doubling(n)[0]\n```\n\n### 优点\n\n- 时间复杂度可以降到：\n\n```text\nO(log n)\n```\n\n- 适合非常大的 `n`，例如 `n = 10^6` 或更大。\n- 比线性迭代在理论上更快。\n\n### 缺点\n\n- 实现更复杂，不容易一眼看懂。\n- Python 中大整数乘法本身开销较大，实际性能不一定总是明显优于迭代。\n- 对于普通规模的 `n`，收益有限。\n\n---\n\n## 总结\n\n我最推荐第二种：迭代滚动数组，因为它实现简单、运行稳定、空间占用低，适合大多数 Python 场景。"
+    },
+    {
+      "cnThink": true,
+      "ttft_s": 1.37,
+      "think_s": 5.04,
+      "gen_s": 15.35,
+      "total_s": 21.76,
+      "prompt_tokens": 236,
+      "completion_tokens": 1441,
+      "reasoning_tokens": null,
+      "out_tokens": 1441,
+      "out_tok_s": 93.9,
+      "think_tok_s": null,
+      "reasoning_chars": 528,
+      "content_chars": 2235,
+      "content": "这段代码慢的核心原因是：**朴素递归存在大量重复计算**。\n\n例如计算 `fib(5)` 时，会反复计算 `fib(3)`、`fib(2)`、`fib(1)` 等子问题。它的调用次数近似满足：\n\n```text\nT(n) = T(n - 1) + T(n - 2) + O(1)\n```\n\n因此时间复杂度约为：\n\n```text\nO(2^n)\n```\n\n更准确地说，接近黄金分割指数级别：\n\n```text\nO(phi^n)\n```\n\n同时递归深度为 `O(n)`，当 `n` 很大时还可能触发 Python 递归深度限制。\n\n---\n\n## 优化方案一：记忆化递归\n\n使用缓存保存已经计算过的结果，避免重复计算。\n\n```python\nfrom functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n```\n\n### 复杂度\n\n```text\n时间复杂度：O(n)\n空间复杂度：O(n)\n```\n\n### 优点\n\n- 改动最小，代码仍然保持递归写法。\n- 如果多次调用 `fib(n)`，缓存可以复用结果。\n- 适合需要频繁查询不同 `n` 的场景。\n\n### 缺点\n\n- 仍然依赖递归，`n` 很大时可能遇到递归深度限制。\n- 缓存会占用额外内存。\n- 如果只计算一次，缓存优势不明显。\n\n---\n\n## 优化方案二：迭代动态规划\n\n用循环从底向上计算，只保留前两个状态。\n\n```python\ndef fib(n):\n    if n < 2:\n        return n\n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b\n```\n\n### 复杂度\n\n```text\n时间复杂度：O(n)\n空间复杂度：O(1)\n```\n\n### 优点\n\n- 没有递归调用，不会触发递归深度问题。\n- 空间占用极低。\n- 实现简单，适合大多数日常场景。\n- 对单次计算和多次计算都比较稳定。\n\n### 缺点\n\n- 如果需要对大量不同 `n` 做查询，每次仍要从头计算，除非额外缓存结果。\n- 对于非常大的 `n`，仍然是线性时间，不如对数级算法快。\n\n---\n\n## 优化方案三：矩阵快速幂或快速倍增\n\n利用斐波那契数列的数学性质，将计算复杂度降到对数级别。\n\n例如矩阵快速幂：\n\n```text\n[[1, 1],\n [1, 0]] ^ n\n```\n\n可以得到 `fib(n)`。\n\nPython 示例：\n\n```python\ndef fib(n):\n    def matrix_pow(mat, power):\n        result = [[1, 0], [0, 1]]\n\n        while power:\n            if power % 2 == 1:\n                result = multiply(result, mat)\n            mat = multiply(mat, mat)\n            power //= 2\n\n        return result[0][1]\n\n    def multiply(a, b):\n        return [\n            [a[0][0] * b[0][0] + a[0][1] * b[1][0],\n             a[0][1] * b[0][1] + a[0][1] * b[1][1]],\n            [a[1][0] * b[0][0] + a[1][1] * b[1][0],\n             a[1][0] * b[0][1] + a[1][1] * b[1][1]]\n        ]\n\n    if n < 2:\n        return n\n\n    return matrix_pow([[1, 1], [1, 0]], n)\n```\n\n### 复杂度\n\n```text\n时间复杂度：O(log n)\n空间复杂度：O(log n) 或 O(1)，取决于实现\n```\n\n### 优点\n\n- 适合非常大的 `n`，例如 `n = 10^6`、`10^9` 等。\n- 理论性能最好。\n\n### 缺点\n\n- 实现复杂，代码可读性较差。\n- Python 大整数乘法本身成本较高，所以实际加速不一定像理论那么明显。\n- 对于普通规模的 `n`，相比迭代法优势不大。\n\n---\n\n## 总结\n\n| 方案 | 时间复杂度 | 空间复杂度 | 适用场景 |\n|---|---:|---:|---|\n| 记忆化递归 | O(n) | O(n) | 多次查询、代码改动最小 |\n| 迭代动态规划 | O(n) | O(1) | 日常使用、最稳定 |\n| 矩阵快速幂 | O(log n) | O(log n) 或 O(1) | 超大 `n`、性能要求极高 |\n\n**最推荐：日常场景下我最推荐迭代动态规划，因为它简单、稳定、无递归深度问题，且空间占用最低。**"
+    },
+    {
+      "cnThink": true,
+      "ttft_s": 0.18,
+      "think_s": 8.64,
+      "gen_s": 17.09,
+      "total_s": 25.92,
+      "prompt_tokens": 236,
+      "completion_tokens": 1788,
+      "reasoning_tokens": null,
+      "out_tokens": 1788,
+      "out_tok_s": 104.6,
+      "think_tok_s": null,
+      "reasoning_chars": 953,
+      "content_chars": 2355,
+      "content": "## 为什么慢\n\n这段代码是典型的“朴素递归斐波那契”：\n\n```python\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n```\n\n它慢的核心原因是：**大量重复计算子问题**。\n\n例如计算 `fib(5)` 时，会递归计算：\n\n```text\nfib(5)\n├── fib(4)\n│   ├── fib(3)\n│   │   ├── fib(2)\n│   │   └── fib(1)\n│   └── fib(2)\n└── fib(3)\n    ├── fib(2)\n    └── fib(1)\n```\n\n其中 `fib(3)`、`fib(2)` 等会被反复计算。\n\n时间复杂度约为：\n\n```text\nO(2^n)\n```\n\n更准确地说，递归调用次数接近斐波那契数列本身的增长速度，因此随着 `n` 增大，计算量会指数级膨胀。\n\n此外，Python 递归本身也有额外开销：\n\n- 每次函数调用都有栈帧开销；\n- Python 默认递归深度有限，`n` 很大时可能触发 `RecursionError`；\n- 大整数加法成本也会逐渐上升。\n\n---\n\n## 优化方案一：记忆化递归 / 缓存\n\n使用缓存保存已经计算过的结果，避免重复计算。\n\n```python\nfrom functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n```\n\n### 复杂度\n\n```text\n时间复杂度：O(n)\n空间复杂度：O(n)\n```\n\n### 优点\n\n- 改动最小；\n- 代码直观；\n- 如果多次调用同一个 `fib(n)`，缓存效果很好；\n- 适合函数式风格或递归逻辑天然清晰的场景。\n\n### 缺点\n\n- 仍然使用递归，Python 中 `n` 很大时可能栈溢出；\n- 缓存会占用额外内存；\n- 如果只计算一次，缓存优势不如迭代明显。\n\n---\n\n## 优化方案二：迭代动态规划\n\n用循环从下往上计算，只保留前两个状态。\n\n```python\ndef fib(n):\n    if n < 2:\n        return n\n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b\n```\n\n### 复杂度\n\n```text\n时间复杂度：O(n)\n空间复杂度：O(1)\n```\n\n### 优点\n\n- 最稳定；\n- 没有递归栈溢出风险；\n- 内存占用低；\n- 实现简单，适合绝大多数场景；\n- 对 Python 来说通常比递归更可靠。\n\n### 缺点\n\n- 如果 `n` 极大，例如几十万、几百万，`O(n)` 仍然可能慢；\n- 如果希望保留所有中间结果，空间会变成 `O(n)`；\n- 相比记忆化递归，代码稍微不那么“数学化”。\n\n---\n\n## 优化方案三：快速倍增法 / 矩阵快速幂\n\n利用斐波那契的数学性质，把计算复杂度降到对数级别。\n\n常见快速倍增公式：\n\n```text\nF(2k)   = F(k) * (2 * F(k + 1) - F(k))\nF(2k+1) = F(k)^2 + F(k+1)^2\n```\n\n示例实现：\n\n```python\ndef fib(n):\n    def fast_doubling(k):\n        if k == 0:\n            return 0, 1\n\n        a, b = fast_doubling(k >> 1)\n\n        c = a * (2 * b - a)\n        d = a * a + b * b\n\n        if k & 1:\n            return d, c + d\n        else:\n            return c, d\n\n    return fast_doubling(n)[0]\n```\n\n也可以用矩阵快速幂：\n\n```text\n[[1, 1],\n [1, 0]] ^ n\n```\n\n### 复杂度\n\n```text\n时间复杂度：O(log n)\n空间复杂度：O(log n)，递归实现；迭代实现可接近 O(1)\n```\n\n### 优点\n\n- 适合非常大的 `n`；\n- 计算次数远少于普通迭代；\n- 对超大斐波那契数很有优势。\n\n### 缺点\n\n- 实现复杂，容易写错；\n- Python 大整数乘法本身成本很高，所以实际性能不一定严格符合理论 `O(log n)`；\n- 对中小规模 `n`，可能不如迭代法简单直观；\n- 递归版本仍然有栈深度问题，虽然深度只有 `O(log n)`。\n\n---\n\n## 总结\n\n| 方案 | 时间复杂度 | 空间复杂度 | 适用场景 |\n|---|---:|---:|---|\n| 记忆化递归 | O(n) | O(n) | 多次调用、代码改动最小 |\n| 迭代动态规划 | O(n) | O(1) | 日常使用、最稳定 |\n| 快速倍增法 | O(log n) | O(log n) 或 O(1) | 极大 `n`、高性能场景 |\n\n最推荐：**日常使用优先选择迭代动态规划，因为它简单、稳定、无递归栈风险，并且 O(n) 时间、O(1) 空间已经足够覆盖绝大多数场景。**"
+    },
+    {
+      "cnThink": false,
+      "ttft_s": 0.21,
+      "think_s": 6.07,
+      "gen_s": 15.6,
+      "total_s": 21.87,
+      "prompt_tokens": 215,
+      "completion_tokens": 1545,
+      "reasoning_tokens": null,
+      "out_tokens": 1545,
+      "out_tok_s": 99.1,
+      "think_tok_s": null,
+      "reasoning_chars": 650,
+      "content_chars": 2183,
+      "content": "这段代码慢的核心原因是：**朴素递归存在大量重复计算**。\n\n例如计算 `fib(5)` 时，会反复计算 `fib(3)`、`fib(2)` 等子问题：\n\n```text\nfib(5)\n├── fib(4)\n│   ├── fib(3)\n│   │   ├── fib(2)\n│   │   └── fib(1)\n│   └── fib(2)\n└── fib(3)\n    ├── fib(2)\n    └── fib(1)\n```\n\n它的调用次数近似满足：\n\n```text\nT(n) = T(n - 1) + T(n - 2) + O(1)\n```\n\n因此时间复杂度约为：\n\n```text\nO(2^n)\n```\n\n空间复杂度主要是递归调用栈：\n\n```text\nO(n)\n```\n\n所以 `n` 稍微变大，比如 `n = 40`、`n = 50`，就会明显变慢。\n\n---\n\n## 方案一：记忆化递归 / 缓存\n\n使用缓存保存已经计算过的结果，避免重复计算。\n\n```python\nfrom functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n```\n\n### 优点\n\n- 实现最简单，几乎不改变原代码结构。\n- 时间复杂度从 `O(2^n)` 降到 `O(n)`。\n- 适合多次调用同一个函数，缓存可以复用。\n\n### 缺点\n\n- 需要额外空间保存缓存，空间复杂度约为 `O(n)`。\n- 仍然依赖递归，Python 递归深度有限，`n` 很大时可能触发递归深度限制。\n- 函数调用本身也有开销。\n\n### 适用场景\n\n适合代码改动最小、调用次数较多、`n` 不算特别大的场景。\n\n---\n\n## 方案二：迭代动态规划 / 滚动数组\n\n用循环从 `0` 开始逐步计算，只保留前两个值。\n\n```python\ndef fib(n):\n    if n < 2:\n        return n\n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b\n```\n\n### 优点\n\n- 时间复杂度为 `O(n)`。\n- 空间复杂度可以做到 `O(1)`。\n- 没有递归调用栈，不容易栈溢出。\n- 实现简单，运行稳定。\n\n### 缺点\n\n- 如果 `n` 极大，比如几万、几十万，仍然需要线性时间。\n- Python 大整数运算本身会变慢，因为斐波那契数增长很快。\n- 如果还需要保存所有中间结果，空间会变成 `O(n)`。\n\n### 适用场景\n\n适合大多数普通场景，尤其是希望简单、稳定、避免递归问题的情况。\n\n---\n\n## 方案三：矩阵快速幂 / 快速倍增法\n\n利用斐波那契的数学性质，把计算复杂度降到对数级别。\n\n矩阵形式：\n\n```text\n| F(n+1)  F(n)   |   | 1  1 |^n\n| F(n)    F(n-1) | = | 1  0 |\n```\n\n也可以用快速倍增公式：\n\n```python\ndef fib(n):\n    def fib_pair(n):\n        if n == 0:\n            return 0, 1\n\n        a, b = fib_pair(n // 2)\n        c = a * (2 * b - a)\n        d = a * a + b * b\n\n        if n % 2 == 0:\n            return c, d\n        else:\n            return d, c + d\n\n    return fib_pair(n)[0]\n```\n\n### 优点\n\n- 时间复杂度可以降到 `O(log n)`。\n- 适合非常大的 `n`。\n- 比线性迭代更适合超大输入。\n\n### 缺点\n\n- 实现更复杂，不容易一眼看懂。\n- 仍然有递归调用，虽然深度是 `O(log n)`，比朴素递归好很多。\n- Python 中大整数乘法成本较高，实际性能不一定总是明显优于简单迭代。\n- 常数开销更大，小 `n` 时可能没有优势。\n\n### 适用场景\n\n适合 `n` 非常大、对时间复杂度要求很高的场景。\n\n---\n\n## 总结对比\n\n| 方案 | 时间复杂度 | 空间复杂度 | 优点 | 缺点 |\n|---|---:|---:|---|---|\n| 记忆化递归 | `O(n)` | `O(n)` | 改动最小，适合多次调用 | 有递归深度风险，额外缓存 |\n| 迭代滚动数组 | `O(n)` | `O(1)` | 简单稳定，无递归栈 | 大 `n` 时仍是线性时间 |\n| 矩阵快速幂 | `O(log n)` | `O(log n)` | 适合极大 `n` | 实现复杂，常数开销大 |\n\n我最推荐的是：**迭代滚动数组**，因为它实现简单、运行稳定、没有递归栈风险，适合大多数实际场景。"
+    }
+  ],
+  "summary": {
+    "off": {
+      "label": "OFF (仅中文输出)",
+      "prompt_tokens": 215,
+      "completion_tokens": 1349,
+      "reasoning_tokens": null,
+      "out_tokens": 1349,
+      "ttft_s": 0.99,
+      "think_s": 6.18,
+      "gen_s": 13.16,
+      "total_s": 20.33,
+      "out_tok_s": 103.25,
+      "think_tok_s": null,
+      "reasoning_chars": 653.5,
+      "content_chars": 1866.5
+    },
+    "on": {
+      "label": "ON  (中文输出+中文思考)",
+      "prompt_tokens": 236,
+      "completion_tokens": 1614.5,
+      "reasoning_tokens": null,
+      "out_tokens": 1614.5,
+      "ttft_s": 0.78,
+      "think_s": 6.84,
+      "gen_s": 16.22,
+      "total_s": 23.84,
+      "out_tok_s": 99.25,
+      "think_tok_s": null,
+      "reasoning_chars": 740.5,
+      "content_chars": 2295
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# Command sandbox for standalone mode (runtime/policy/sandbox.py).
+# NOTE: these entries are matched as case-insensitive SUBSTRINGS (d.lower() in command.lower()),
+# NOT as regexes — write literal text only, no \s or other regex syntax.
+# Kept in sync with the parasitic-mode regex _DESTRUCTIVE_SHELL in serve/server.py so that the
+# two modes refuse the same destructive commands.
+deny:
+  - "rm -rf"
+  - "rm -r"
+  - "del /s /q"
+  - "rmdir /s"
+  - "shutil.rmtree"
+  - "format c:"
+  - "mkfs"
+  - "shutdown"
+  - "dd if="
+  - "| sh"
+  - "| bash"
+  - ":(){ :|:& };:"
+allow:
+  - "ls"
+  - "echo"
+  - "python"
+  # 2026-10-20 widened after the closed-loop run: on Windows cmd the model reaches for
+  # type/dir/powershell and every one was "not in allow-list", so verify feedback made it
+  # flail. Substring matching means the deny list (rm -rf, del /s /q, shutdown, ...) still
+  # vetoes first: "powershell -Command Remove-Item ..." passes allow but a deny hit wins.
+  - "powershell"
+  - "type "
+  - "dir"
+  - "cat"
+destructive_force_confirm: true
