@@ -69,6 +69,10 @@ win.eval(appCode);   // real app.js boots; bindSidebarSettings() runs and wires 
 
 const api = win.__api;
 const LS = () => { try { return JSON.parse(win.localStorage.getItem("strata.sampling") || "{}"); } catch (e) { return {}; } };
+// sidebarTabs now lives in its OWN key (strata.sidebar.tabs). Sampling saves write the whole
+// settings object to strata.sampling; the show-list persists to its own key, so a stale tab
+// snapshot in strata.sampling can no longer clobber it. LSB reads the authoritative list.
+const LSB = () => { try { return JSON.parse(win.localStorage.getItem("strata.sidebar.tabs") || "null"); } catch (e) { return null; } };
 const row = (name) => win.document.querySelector(`#sidebar-modal [data-sidevis="${name}"]`);
 
 console.log("\n=== A. DOM skeleton present ===");
@@ -105,7 +109,7 @@ console.log("\n=== C. Switch takes effect IMMEDIATELY (click images -> shown + p
   r.onclick();   // the live onclick bound at boot
   check("after click, images row aria-checked=true", r.getAttribute("aria-checked") === "true", r.getAttribute("aria-checked"));
   check("after click, settings.sidebarTabs includes images", api.getSettings().sidebarTabs.includes("images"));
-  check("after click, persisted to localStorage (shows images)", (LS().sidebarTabs || []).includes("images"), JSON.stringify(LS().sidebarTabs));
+  check("after click, persisted to localStorage (shows images)", (LSB() || []).includes("images"), JSON.stringify(LSB()));
 }
 
 console.log("\n=== D. Reset to default WORKS (deviate -> reset snaps back) ===");
@@ -120,7 +124,7 @@ console.log("\n=== D. Reset to default WORKS (deviate -> reset snaps back) ===")
   check("after reset, SHOW list == DEFAULTS", JSON.stringify(api.getSettings().sidebarTabs) === JSON.stringify(def), JSON.stringify(api.getSettings().sidebarTabs));
   check("after reset, images/tools hidden again (false)", row("images").getAttribute("aria-checked") === "false" && row("tools").getAttribute("aria-checked") === "false");
   check("after reset, chat shown again (true)", row("chat").getAttribute("aria-checked") === "true");
-  check("after reset, localStorage persisted == DEFAULTS", JSON.stringify(LS().sidebarTabs) === JSON.stringify(def), JSON.stringify(LS().sidebarTabs));
+  check("after reset, localStorage persisted == DEFAULTS", JSON.stringify(LSB()) === JSON.stringify(def), JSON.stringify(LSB()));
 }
 
 console.log("\n=== E. USER EXACT PATH: from clean default -> OPEN images -> RESET -> images HIDDEN again ===");
@@ -141,7 +145,7 @@ console.log("\n=== E. USER EXACT PATH: from clean default -> OPEN images -> RESE
   check("E-2: after RESET, settings.sidebarTabs == clean DEFAULTS (no images)",
     JSON.stringify(api.getSettings().sidebarTabs) === JSON.stringify(def), JSON.stringify(api.getSettings().sidebarTabs));
   check("E-2: after RESET, localStorage persisted == clean DEFAULTS",
-    JSON.stringify(LS().sidebarTabs) === JSON.stringify(def), JSON.stringify(LS().sidebarTabs));
+    JSON.stringify(LSB()) === JSON.stringify(def), JSON.stringify(LSB()));
 }
 
 console.log("\n=== F. EXPLICIT E2E PATH: gear switch ON for images -> ENTER images page -> LEFT SIDEBAR APPEARS ===");
@@ -160,8 +164,25 @@ console.log("\n=== F. EXPLICIT E2E PATH: gear switch ON for images -> ENTER imag
     row("images").getAttribute("aria-checked") === "true" && api.getSettings().sidebarTabs.includes("images"));
   check("F-3: AFTER switch, on images page -> LEFT SIDEBAR APPEARS (no no-sidebar)",
     !win.document.body.classList.contains("no-sidebar"), "got=" + win.document.body.classList.contains("no-sidebar"));
-  check("F-3: persisted to localStorage (shows images)", (LS().sidebarTabs || []).includes("images"), JSON.stringify(LS().sidebarTabs));
+  check("F-3: persisted to localStorage (shows images)", (LSB() || []).includes("images"), JSON.stringify(LSB()));
   // restore default so the run leaves storage tidy
+  api.$("sidevis-reset").onclick();
+}
+
+
+console.log("\n=== G. ROOT-CAUSE LOCK: a sampling save must NOT clobber the sidebar show-list ===");
+{
+  // Reported bug: a stale tab loaded settings once (sidebarTabs frozen to []) and, on ANY
+  // sampling save, wrote the WHOLE settings object back to the shared "sampling" key, wiping a
+  // freshly-restored show-list. Fix: show-list persists to its OWN key. Load-bearing: revert
+  // sidebarVisSave to store.set("sampling", settings) and G-1/G-2 go red.
+  api.$("sidevis-reset").onclick();
+  const def = api.DEFAULTS.sidebarTabs;
+  check("G-pre: show-list persisted to its own key == DEFAULTS", JSON.stringify(LSB()) === JSON.stringify(def), JSON.stringify(LSB()));
+  check("G-1: strata.sampling carries NO sidebarTabs field (decoupled)", !("sidebarTabs" in LS()), JSON.stringify(Object.keys(LS())));
+  const stale = Object.assign({}, api.getSettings(), { sidebarTabs: [] });
+  win.localStorage.setItem("strata.sampling", JSON.stringify(stale));
+  check("G-2: after a stale sampling save, the authoritative show-list is UNTOUCHED", JSON.stringify(LSB()) === JSON.stringify(def), JSON.stringify(LSB()));
   api.$("sidevis-reset").onclick();
 }
 

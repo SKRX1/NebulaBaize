@@ -236,7 +236,7 @@ function sidebarVisApply(t) {
   const show = settings.sidebarTabs || [];
   document.body.classList.toggle("no-sidebar", !show.includes(t));
 }
-function sidebarVisSave() { store.set("sampling", settings); }
+function sidebarVisSave() { store.set("sidebar.tabs", settings.sidebarTabs); }
 function openSidebarSettings() {
   const modal = $("sidebar-modal"); if (!modal) return;
   renderSidebarSettings();
@@ -1286,6 +1286,10 @@ const CN_THINK_RULE =
   "仅以下「标识符」允许保留英文：变量名、函数名、类名、API 或库名、命令与缩写；除此之外所有说明、推理、举例、反思维持用中文。最终回答也须保持简体中文。\n";
 // 近因版：作为系统消息数组末条（RAG 之后、历史之前），紧贴生成位置，避免被多轮历史稀释（方案 B）。
 let settings = {...DEFAULTS, ...store.get("sampling", {})};
+// sidebarTabs lives in its OWN key. Sampling saves write the WHOLE settings object to the shared
+// "sampling" key, so a stale in-memory snapshot (loaded once, never re-read) used to clobber a
+// freshly-restored show-list -> sidebar silently went all-hidden. Load it from its own key (authoritative).
+settings.sidebarTabs = Array.isArray(store.get("sidebar.tabs", null)) ? store.get("sidebar.tabs") : DEFAULTS.sidebarTabs.slice();
 let messages = store.get("chat", []);
 let undoStack = null;                 // {at, removed:[...], editedFrom, editedTo} — last soft/hard delete, for undo
 let branches = store.get("branches", []);            // [{id, label, messages:[...], at}] saved branch snapshots
