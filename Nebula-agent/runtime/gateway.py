@@ -94,7 +94,54 @@ def resolve_servers(cfg: dict, skills_dir: str = None) -> dict:
 
 
 
+# --------------------------------------------------------------------------- stdio codec
+# The compiled build's OWN stdout/stderr were the one stream this project never pinned:
+# executor.py pins the MCP wire (encoding=WIRE_ENCODING), which is why nine Chinese-speaking
+# servers never tripped this, but the gateway's own prints (config-resolve diag, the startup
+# self-check, the request monitor) go straight to sys.stdout / sys.stderr. When a CI harness
+# redirects them into a log file there is no console, and CPython picks the machine's ANSI
+# codec (cp1252 on a Windows runner) -- one arrow character in a diagnostic line then raised
+#   UnicodeEncodeError: 'charmap' codec can't encode character '\u2192'
+# inside run_server, so the process died before it ever listened (run 44829615496). A log
+# pipe must never be able to kill the service, so the codec is pinned at startup instead of
+# being hoped for.
+def pin_stdio_utf8():
+    """Re-pin this process's stdout/stderr to UTF-8 + errors="replace".
+
+    Returns a short note when a stream refused (None = both are pinned). errors="replace"
+    is load-bearing, not decoration: a lone surrogate arriving from an earlier decode would
+    still raise UnicodeEncodeError under a strict UTF-8 writer, and one bad character must
+    not take down the process either (the same reasoning executor.py applies to the wire).
+
+    An explicit PYTHONIOENCODING wins and is left alone -- that is the documented,
+    user-facing knob, and whoever set it meant it.
+    """
+    if os.environ.get("PYTHONIOENCODING"):
+        return None
+    notes = []
+    for _name in ("stdout", "stderr"):
+        _stream = getattr(sys, _name, None)
+        if _stream is None or not hasattr(_stream, "reconfigure"):
+            notes.append("%s is not a reconfigurable stream" % _name)
+            continue
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError) as _exc:
+            # The stream that cannot encode is exactly the one we would have to log
+            # through, so the note travels back to the caller instead of being swallowed
+            # here; the caller prints it as pure ASCII, which every codec can encode.
+            notes.append("%s: %r" % (_name, _exc))
+    return "; ".join(notes) or None
+
+
 def main(argv=None) -> int:
+
+    # FIRST thing, before argparse: --help and every startup diagnostic would
+    # otherwise travel through whatever codec the environment picked. The note is
+    # ASCII-only, so it prints fine even through a stream that cannot encode more.
+    _pin_note = pin_stdio_utf8()
+    if _pin_note:
+        print("[gateway] stdio pin degraded: " + _pin_note)
 
     ap = argparse.ArgumentParser(description="Strata Agent Gateway")
 
