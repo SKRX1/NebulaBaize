@@ -91,6 +91,10 @@ SUITES = [
 
     "tests/test_maintain_semantic_db.py",   # 2026-11-21: lock the semantic.db VACUUM gate (threshold + min-pages proven load-bearing) so the size-guard predicate cannot drift
 
+    "tests/test_maintain_audit_rotate.py",   # 2026-11-21: lock the audit-log 1MB rotation (>=boundary, disabled-sentinel, real .1 move, append-then-rotate) so the size cap cannot drift
+
+    "tests/test_review_semantic_log.py",   # 2026-11-21: lock the weekly-review summarizer (vacuum/skip counts, cumulative reclaimed, most-recent ts) so the review numbers stay truthful
+
     "tests/test_i18n.mjs",
 
     "tests/test_spark.mjs",
