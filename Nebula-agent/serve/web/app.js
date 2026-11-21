@@ -269,6 +269,8 @@ function bindSidebarSettings() {
     settings.sidebarTabs = []; sidebarVisSave(); renderSidebarSettings(); sidebarVisApply(tab); };
   const reset = $("sidevis-reset"); if (reset) reset.onclick = () => {
     settings.sidebarTabs = DEFAULTS.sidebarTabs.slice(); sidebarVisSave(); renderSidebarSettings(); sidebarVisApply(tab); };
+  const wsReset = $("ws-order-reset"); if (wsReset) wsReset.onclick = () => {
+    resetWorkspaceOrder(); toast("success", t("toast.wsorder.title"), t("toast.wsorder.msg"), 3000); };
 }
 const ALL_TABS = ["chat", "images", "spark", "debug", "tools", "memory", "schedule", "monitor", "about", "donate"];
 bindSidebarSettings();
@@ -1333,6 +1335,36 @@ const PERM_LABEL_KEYS = {full: "side.perm.full", auto: "side.perm.auto", manual:
 let sessions = store.get("sessions", []);
 let activeId = store.get("session.active", null);
 let workspaces = store.get("workspaces", []);              // sidebar registry (see the note above)
+// The DEFAULT workspace order = registration order, snapshotted once (seeded on first run) and
+// grown as new workspaces register. Drag-reorder can move rows; "reset workspace order" snaps back
+// to this snapshot (new paths not yet in the snapshot keep their current tail position).
+function wsDefaultOrder() { return store.get("ws.order.default", null); }
+(function seedWsDefaultOrder() {
+  if (store.get("ws.order.default", null) === null)
+    store.set("ws.order.default", workspaces.map((w) => w.path));
+})();
+function resetWorkspaceOrder() {
+  const def = wsDefaultOrder();
+  if (!Array.isArray(def)) return;
+  const byKey = {};
+  workspaces.forEach((w) => { byKey[wsKey(w.path)] = w; });
+  const next = [];
+  def.forEach((p) => { const w = byKey[wsKey(p)]; if (w) { next.push(w); delete byKey[wsKey(p)]; } });
+  workspaces.forEach((w) => { if (byKey[wsKey(w.path)]) next.push(w); });  // new paths not in the snapshot: append, keep relative order
+  workspaces = next;
+  saveWorkspaces(); renderSessions();
+}
+// Move the dragged workspace to the very end of the array (the tail drop-zone, past the last row).
+function reorderWorkspaceToEnd(dragPath) {
+  const dk = wsKey(dragPath);
+  if (!dk) return;
+  const arr = workspaces;
+  const from = arr.findIndex((x) => wsKey(x.path) === dk);
+  if (from < 0 || from === arr.length - 1) return;
+  const [moved] = arr.splice(from, 1);
+  arr.push(moved);
+  saveWorkspaces(); renderSessions();
+}
 let looseCollapsed = store.get("side.loose.collapsed", false);
 let batchMode = false;                                     // multi-select mode for batch actions
 const batchSel = new Set();                                // task ids picked in batch mode
@@ -1382,7 +1414,7 @@ function registerWorkspace(p) {
   const path = wsNorm(p);
   if (!path) return null;                    // "no workspace" tasks have no parent row of their own
   let w = wsFind(path);
-  if (!w) { w = {path, name: wsLeaf(path) || path, collapsed: false, pinned: false}; workspaces.push(w); saveWorkspaces(); }
+  if (!w) { w = {path, name: wsLeaf(path) || path, collapsed: false, pinned: false}; workspaces.push(w); saveWorkspaces(); const def = store.get("ws.order.default", []); if (!def.some((p) => wsKey(p) === wsKey(path))) { def.push(path); store.set("ws.order.default", def); } }
   return w;
 }
 // "3分钟前" on the row's right edge. Tasks saved before this feature carry no timestamp, so they
@@ -1661,7 +1693,19 @@ $("session-list").addEventListener("dragstart", (e) => {
 });
 $("session-list").addEventListener("dragover", (e) => {
   const ws = e.target.closest(".st-ws[draggable]");
-  if (!ws || ws.dataset.ws === wsDragId) return;
+  if (!ws) {
+    // Tail drop-zone: over empty list space while dragging, past the last row -> allow drop, flag tail.
+    if (wsDragId) {
+      const list = $("session-list");
+      const last = list.querySelector(".st-ws:last-child");
+      const bottom = last ? last.getBoundingClientRect().bottom : list.getBoundingClientRect().top;
+      const inTail = (e.clientY || 0) > bottom;
+      list.classList.toggle("st-ws-list--droptail", inTail);
+      if (inTail) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "move"; }
+    }
+    return;
+  }
+  if (ws.dataset.ws === wsDragId) return;
   e.preventDefault();
   if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
   const rect = ws.getBoundingClientRect();
@@ -1677,9 +1721,13 @@ $("session-list").addEventListener("dragleave", (e) => {
 });
 $("session-list").addEventListener("drop", (e) => {
   const ws = e.target.closest(".st-ws[draggable]");
+  const list = $("session-list");
+  const tailing = list.classList.contains("st-ws-list--droptail");
+  list.classList.remove("st-ws-list--droptail");
   // Drop on a pinned/loose wall (no draggable) = rejected: clear any indicator and bail.
   for (const w of document.querySelectorAll(".st-ws--drop-above, .st-ws--drop-below"))
     w.classList.remove("st-ws--drop-above", "st-ws--drop-below");
+  if (!ws && wsDragId && tailing) { reorderWorkspaceToEnd(wsDragId); wsDragId = null; return; }
   if (!ws || !wsDragId) return;
   e.preventDefault();
   const rect = ws.getBoundingClientRect();
@@ -1690,6 +1738,7 @@ $("session-list").addEventListener("drop", (e) => {
 $("session-list").addEventListener("dragend", (e) => {
   const ws = e.target.closest(".st-ws");
   if (ws) ws.classList.remove("st-ws--dragging", "st-ws--drop-above", "st-ws--drop-below");
+  $("session-list").classList.remove("st-ws-list--droptail");
   wsDragId = null;
 });
 function toggleWorkspace(path) {

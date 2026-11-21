@@ -860,6 +860,11 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 .st-ws--drop-above::before { top: 0; }
 .st-ws--drop-below::after { bottom: 0; }
 .st-ws--pinned .st-ws__head { cursor: default; }
+/* workspace tail drop-zone: dragging past the last row shows a trailing insert line on the list */
+#session-list.st-ws-list--droptail::after {
+  content: ""; display: block; height: 2px; margin: 4px 3px 0;
+  background: var(--st-accent, var(--st-ink-muted)); border-radius: 2px;
+}
 .st-session { position: relative; display: flex; align-items: center; gap: 6px; padding: 6px 8px;
               border-radius: var(--st-r-sm); border: 1px solid transparent; font-size: var(--st-fs-sm);
               color: var(--st-ink-soft); cursor: pointer; background: transparent; text-align: left; }
