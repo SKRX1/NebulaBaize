@@ -43,9 +43,11 @@ if defined PY_BASE (
 
 REM --- 3) if nothing found, download and silently install Python 3.14 ---
 if not defined PY_BASE (
-  echo [info] no supported python found, downloading Python 3.14 ...
+  echo [info] no supported python found, downloading latest Python 3.14 ...
   set "INST=%TEMP%\nebula-python-3.14.exe"
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing https://www.python.org/ftp/python/3.14.0/python-3.14.0-amd64.exe -OutFile '%INST%'"
+  REM resolve the latest 3.14 patch from endoflife.date (fallback 3.14.10) so a delisted
+  REM point release can no longer break the download with a 404; then fetch + silently install.
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue';try{$d=Invoke-RestMethod 'https://endoflife.date/api/python.json';$v=($d|?{$_.cycle -eq '3.14'}|Select-Object -First 1).latest}catch{$v=$null};if([string]::IsNullOrWhiteSpace($v)){$v='3.14.10'};$u='https://www.python.org/ftp/python/'+$v+'/python-'+$v+'-amd64.exe';Write-Host ('downloading ' + $u);Invoke-WebRequest -UseBasicParsing $u -OutFile '%INST%'"
   if exist "%INST%" (
     echo [info] installing python (silent, user-level, add to PATH) ...
     "%INST%" /quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1 Include_test=0
