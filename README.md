@@ -66,6 +66,19 @@ supply yourself.
 **Strata** 引擎**不随包发布**，也不在本仓库许可覆盖范围内——它是作为运行依赖的独立项目；
 "Strata" 归其原作者所有，本项目是 *powered by Strata*，非 Strata 官方产品。
 
+### Prerequisites · 前置条件
+
+- **Python 3.14（建议装最新补丁版；最低 3.10）** — 必需。Windows 上 `setup.bat` 会先探测本机已有的
+  可用 Python（`py -3` / `where python` / 安装目录扫描），**检测到版本 ≥3.10 就不再下载、也不安装**；
+  只有完全找不到可用的 Python 时，它才会静默下载并安装一个 Python 3.14。Linux/macOS 请自备 Python 3.14。
+- **Node.js** — *运行本应用层不需要*，它只在你要跑 JS 测试套件（jsdom 门禁 / Playwright e2e）时才需要安装。
+  星云白泽运行时是纯 Python，无 Node 依赖。
+- **图像模型 / 出图** — 由一个**外部 `sd-cli` 可执行文件**完成（运行时用 `subprocess` 调用它），它**不是 Python
+  包、不进 `requirements.txt`**；要使用出图功能请自备一个 Stable-Diffusion CLI。
+- **Python 依赖** — 见 `Nebula-agent/requirements.txt`：运行时硬依赖仅 `pillow / psutil / PySocks`（均为预编译
+  wheel，无需本机编译器）。`PyYAML / send2trash / strata_tokenizer` 属可选依赖，代码用 try / `find_spec` 优雅
+  降级，故有意不列入 requirements。
+
 ## Getting started · 开始使用
 
 1. **Clone, then bootstrap the venv once** (a fresh clone has no `.venv`, so the launchers
