@@ -850,6 +850,16 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
                 border-left: 1px solid var(--st-line-soft); }
 .st-ws.collapsed .st-ws__tasks { display: none; }
 .st-ws__empty { padding: 3px 8px; font-size: var(--st-fs-xs); color: var(--st-ink-muted); }
+/* workspace drag-reorder (方案C): dragging ghost + drop indicator. pinned/loose rows are walls (never draggable). */
+.st-ws--dragging { opacity: .4; }
+.st-ws--drop-above, .st-ws--drop-below { position: relative; }
+.st-ws--drop-above::before, .st-ws--drop-below::after {
+  content: ""; position: absolute; left: 3px; right: 3px; height: 2px;
+  background: var(--st-accent, var(--st-ink-muted)); border-radius: 2px; pointer-events: none;
+}
+.st-ws--drop-above::before { top: 0; }
+.st-ws--drop-below::after { bottom: 0; }
+.st-ws--pinned .st-ws__head { cursor: default; }
 .st-session { position: relative; display: flex; align-items: center; gap: 6px; padding: 6px 8px;
               border-radius: var(--st-r-sm); border: 1px solid transparent; font-size: var(--st-fs-sm);
               color: var(--st-ink-soft); cursor: pointer; background: transparent; text-align: left; }

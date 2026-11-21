@@ -1363,6 +1363,21 @@ const wsLeaf = (p) => { const n = wsNorm(p); return n.split(/[\\/]/).filter(Bool
 function wsFind(p) { const k = wsKey(p); return workspaces.find((w) => wsKey(w.path) === k) || null; }
 function wsLabel(p) { const w = wsFind(p); return (w && w.name) || wsLeaf(p) || t("side.noworkspace"); }
 function saveWorkspaces() { store.set("workspaces", workspaces); }
+
+// ---- workspace drag-reorder (方案C: pinned floats top fixed, loose bottom fixed, middle sortable) ----
+let wsDragId = null;
+function reorderWorkspace(dragPath, dropPath, before) {
+  const dk = wsKey(dragPath), tk = wsKey(dropPath);
+  if (!dk || !tk || dk === tk) return;
+  const arr = workspaces;
+  const from = arr.findIndex((x) => wsKey(x.path) === dk);
+  if (from < 0) return;
+  const [moved] = arr.splice(from, 1);
+  const to = arr.findIndex((x) => wsKey(x.path) === tk);
+  if (to < 0) { arr.push(moved); }
+  else { arr.splice(before ? to : to + 1, 0, moved); }
+  saveWorkspaces(); renderSessions();
+}
 function registerWorkspace(p) {
   const path = wsNorm(p);
   if (!path) return null;                    // "no workspace" tasks have no parent row of their own
@@ -1427,7 +1442,7 @@ function taskRow(s) {
 function wsRow(g) {
   const loose = !g.path;                     // the "no workspace" bucket has no folder to manage
   return `
-    <div class="st-ws${g.collapsed ? " collapsed" : ""}${loose ? " st-ws--loose" : ""}" data-ws="${esc(g.path)}">
+    <div class="st-ws${g.collapsed ? " collapsed" : ""}${loose ? " st-ws--loose" : ""}${g.pinned ? " st-ws--pinned" : ""}" data-ws="${esc(g.path)}"${loose || g.pinned ? "" : " draggable=\"true\""}>
       <div class="st-ws__head" data-ws-head="${esc(g.path)}">
         <button class="st-ws__toggle" data-ws-toggle="${esc(g.path)}" aria-expanded="${g.collapsed ? "false" : "true"}"
                 aria-label="${esc(g.name)}">${icon("chevron", "st-icon")}</button>
@@ -1633,6 +1648,50 @@ async function openFolder(path) {
     } catch (e2) { toast("error", t("toast.openfailed.title"), e.message, 5000); }
   }
 }
+// ---- workspace drag-reorder: delegation on #session-list (方案C: pinned+loose = walls) ----
+$("session-list").addEventListener("dragstart", (e) => {
+  const ws = e.target.closest(".st-ws[draggable]");
+  if (!ws) return;
+  wsDragId = ws.dataset.ws;
+  ws.classList.add("st-ws--dragging");
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", wsDragId); } catch (_) { /* jsdom */ }
+  }
+});
+$("session-list").addEventListener("dragover", (e) => {
+  const ws = e.target.closest(".st-ws[draggable]");
+  if (!ws || ws.dataset.ws === wsDragId) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+  const rect = ws.getBoundingClientRect();
+  const mid = rect.top + rect.height / 2;
+  const before = (e.clientY || 0) < mid;
+  ws.classList.toggle("st-ws--drop-above", before);
+  ws.classList.toggle("st-ws--drop-below", !before);
+});
+$("session-list").addEventListener("dragleave", (e) => {
+  const ws = e.target.closest(".st-ws[draggable]");
+  if (!ws) return;
+  ws.classList.remove("st-ws--drop-above", "st-ws--drop-below");
+});
+$("session-list").addEventListener("drop", (e) => {
+  const ws = e.target.closest(".st-ws[draggable]");
+  // Drop on a pinned/loose wall (no draggable) = rejected: clear any indicator and bail.
+  for (const w of document.querySelectorAll(".st-ws--drop-above, .st-ws--drop-below"))
+    w.classList.remove("st-ws--drop-above", "st-ws--drop-below");
+  if (!ws || !wsDragId) return;
+  e.preventDefault();
+  const rect = ws.getBoundingClientRect();
+  const before = (e.clientY || 0) < rect.top + rect.height / 2;
+  reorderWorkspace(wsDragId, ws.dataset.ws, before);
+  wsDragId = null;
+});
+$("session-list").addEventListener("dragend", (e) => {
+  const ws = e.target.closest(".st-ws");
+  if (ws) ws.classList.remove("st-ws--dragging", "st-ws--drop-above", "st-ws--drop-below");
+  wsDragId = null;
+});
 function toggleWorkspace(path) {
   if (!path) {                                   // the "no workspace" bucket
     looseCollapsed = !looseCollapsed;
