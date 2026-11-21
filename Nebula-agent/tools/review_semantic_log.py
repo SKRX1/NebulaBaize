@@ -38,7 +38,10 @@ _FRAGPCT_RE = re.compile(r"frag=(\d+(?:\.\d+)?)%")
 _VACPF_RE = re.compile(r"pages\s+(\d+)->(\d+)\s+free\s+(\d+)->(\d+)")
 # Sparkline blocks (ascending) for the trend bar.
 _SPARK = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
-TREND_N = 10  # default: show the most recent N fragmentation points
+# VACUUM runs once a day, so the log grows ~1 line/day. A weekly review wants a
+# month-level horizon, so the default shows the most recent ~30 runs (about a month);
+# 30 sparkline glyphs stay a compact one-liner on disk. Override with --trend-n.
+TREND_N = 30  # default: show the most recent N fragmentation points (~a month of daily runs)
 
 
 def summarize(lines, trend_n: int = TREND_N) -> dict:
