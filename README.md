@@ -1,5 +1,5 @@
 # 星云白泽 · Nebula Baize
-[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE) [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-pink.svg)](https://github.com/sponsors/Niko1221)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](LICENSE) [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-pink.svg)](https://github.com/sponsors/SKRX1)
 
 > An original **application-layer** agent — gateway, runtime, skills, memory, and web UI —
 > **powered by Strata** inference engine.
