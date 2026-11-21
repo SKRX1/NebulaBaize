@@ -68,14 +68,25 @@ supply yourself.
 
 ## Getting started · 开始使用
 
-1. Install and run a **Strata** engine (the runtime prerequisite), serving an OpenAI-compatible
+1. **Clone, then bootstrap the venv once** (a fresh clone has no `.venv`, so the launchers
+   fail until this runs): `setup.bat` on Windows, or `bash setup.sh` on Linux/macOS.
+   It creates `.venv`, installs the pinned deps (pillow/psutil/PySocks), rewrites config,
+   and verifies all servers + the gateway import.
+2. Install and run a **Strata** engine (the runtime prerequisite), serving an OpenAI-compatible
    endpoint, e.g. `http://127.0.0.1:8080/v1`.
-2. Point this app layer at it via `--url` (see `run_standalone.bat`) and set your model.
-3. Start it; open the local frontend in your browser.
+3. Point this app layer at it via `--url` / model / port (edit `run_standalone.bat`, or pass
+   `UPSTREAM_URL=... MODEL=... PORT=... bash Nebula-agent/run_standalone.sh`).
+4. Start it: `run_standalone.bat` (Win) / `run_standalone.sh` (Linux/macOS) under `Nebula-agent/`;
+   open the local frontend (default http://127.0.0.1:8099).
 
-1. 先安装并运行一个 **Strata** 引擎（运行前置），提供 OpenAI 兼容端点，如 `http://127.0.0.1:8080/v1`。
-2. 通过 `--url`（见 `run_standalone.bat`）把本应用层指向它并配置模型。
-3. 启动后在浏览器打开本地前端。
+1. **克隆后先引导一次 venv**（新克隆没有 `.venv`，不跑这步启动脚本会直接失败）：Windows 用 `setup.bat`，
+   Linux/macOS 用 `bash setup.sh`。它会创建 `.venv`、安装固定依赖（pillow/psutil/PySocks）、重写配置，
+   并校验全部 servers + gateway 可导入。
+2. 先安装并运行一个 **Strata** 引擎（运行前置），提供 OpenAI 兼容端点，如 `http://127.0.0.1:8080/v1`。
+3. 通过 `--url` / 模型 / 端口把本应用层指向它（编辑 `run_standalone.bat`，或用
+   `UPSTREAM_URL=... MODEL=... PORT=... bash Nebula-agent/run_standalone.sh`）。
+4. 启动：在 `Nebula-agent/` 下运行 `run_standalone.bat`（Win）/ `run_standalone.sh`（Linux/macOS）；
+   在浏览器打开本地前端（默认 http://127.0.0.1:8099）。
 
 ## Recovery · 备份恢复
 
