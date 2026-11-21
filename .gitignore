@@ -168,3 +168,11 @@ Nebula-agent/gateway.dist/
 .Nebula-secrets/
 # parallel module build logs (scripts/build_modules.sh)
 .build-logs/
+
+# --- root-level runtime data dirs (not source). Leading slash anchors to the repo
+# root ONLY, so it never matches Nebula-agent/data/ (tracked-ignored separately) nor
+# any same-named subtree. /data/ holds the runtime upload store (uploads/); /自动/
+# is a runtime-generated output dir. Both are regenerated at runtime, kept on disk,
+# never committed -- so the tree stays clean.
+/data/
+/自动
