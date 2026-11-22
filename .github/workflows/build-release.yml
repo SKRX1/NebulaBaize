@@ -9,9 +9,7 @@
 name: build-closed-source
 
 on:
-  workflow_dispatch:        # 手动触发；将来可改 push tag 自动构建
-  push:
-    tags: ["v*"]
+  workflow_dispatch:        # 仅手动触发；开源形态（HTML+Python 跨平台）不再自动构建，需三平台 exe 时去 Actions 点 Build
 
 env:
   PYTHON_VERSION: "3.13"    # 闭源运行时版本。已证 3.14 可被 Nuitka 翻译；此默认取保守稳定版，按需上调。
