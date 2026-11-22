@@ -1043,6 +1043,9 @@
       "mem.global.loading": "加载中…",
       "mem.global.none": "（暂无内容或文件不存在）",
       "mem.global.note": "只读展示，由智能体维护；如需修改请让智能体更新。",
+      "mem.group.title": "工作区间规范（当前分组）",
+      "mem.group.none": "（未设置分组，或组规则为空。点上方「设置本工作区分组」后可编辑）",
+      "mem.group.note": "编辑后对同组的所有工作区（含新建）生效；只改这张卡，不影响其他组与全局。",
       /* ── Design documents (composer button + design draft banner) ── */
       "design.lang.label": "设计文档语言",
       "design.lang.auto": "跟随对话",
@@ -2419,6 +2422,9 @@
       "mem.global.loading": "Loading…",
       "mem.global.none": "(empty or file not found)",
       "mem.global.note": "Read-only, maintained by the agent; ask the agent to update it.",
+      "mem.group.title": "Cross-workspace spec (current group)",
+      "mem.group.none": "(no group set, or group rules empty. Assign a group with the Set-workspace-group button above, then edit here)",
+      "mem.group.note": "Edits apply to every workspace in this group (including new ones); affects only this group, not other groups or global.",
       /* ── Design documents (composer button + design draft banner) ── */
       "design.lang.label": "Design document language",
       "design.lang.auto": "Follow conversation",

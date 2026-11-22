@@ -5602,7 +5602,7 @@ $("archive-mgr-list").addEventListener("click", async (e) => {
   const cancel = e.target.closest("[data-arc-cancel]");
   if (cancel) { renderArchiveManager(); }
 });
-async function renderMemory() { renderKbCard(); renderRulesCard(); renderNotesCard(); renderAutoMemoryCard(); renderGlobalCard(); }
+async function renderMemory() { renderKbCard(); renderRulesCard(); renderNotesCard(); renderAutoMemoryCard(); renderGlobalCard(); renderGroupCard(); }
 // Item-level expand persistence (2026-10-30): which kb/note rows the user left open.
 const memExpanded = { kb: expandSetLoad("strata.memExpand.kb"), notes: expandSetLoad("strata.memExpand.notes") };
 // After a render, re-open the rows the user had left open. Loaded bodies show directly;
@@ -5892,7 +5892,7 @@ async function submitNewEntry() {
   if (ok) {
     closeNewEntry();
     await loadMemoryState(ws);
-    renderAutoMemoryCard(); renderGlobalCard();
+    renderAutoMemoryCard(); renderGlobalCard(); renderGroupCard();
   }
 }
 async function renderAutoMemoryCard() {
@@ -6134,6 +6134,40 @@ if (!window.__memGlobalEditWired){
   document.addEventListener("click", (e) => {
     const gb = e.target.closest && e.target.closest("[data-global-edit]"); if (!gb) return;
     const pre = $("mem-global-body"); if (pre){ pre.dataset.editing = "1"; renderGlobalCard(); }
+  });
+}
+// Cross-workspace (group) spec card: mirrors the global card but the path is the current group's
+// RULES.md. The card is hidden unless this workspace has a group; set one via "Set this workspace
+// group", then edit here — edits apply to every workspace in that group, including new ones.
+async function renderGroupCard() {
+  const card = document.querySelector('.mem-tabpanel[data-mem="group"]'); if (!card) return;
+  if (!currentGroup) { card.hidden = true; return; }
+  card.hidden = false;
+  const pre = $("mem-group-body"); if (!pre) return;
+  const path = `${groupDir(currentGroup)}/RULES.md`;
+  const sum = $("mem-group-sum"); if (sum) sum.textContent = currentGroup;
+  const txt = await fsRead(path);
+  if (pre.dataset.editing){
+    pre.textContent = "";
+    const ta = document.createElement("textarea"); ta.className = "st-input"; ta.rows = 14; ta.style.width = "100%"; ta.value = txt || "";
+    pre.appendChild(ta);
+    const row = document.createElement("div"); row.className = "st-btnrow"; row.style.marginTop = "6px";
+    row.innerHTML = '<button class="st-btn st-btn--primary st-btn--sm" id="mem-group-save">' + t("drawer.archive.save") + '</button>' +
+      '<button class="st-btn st-btn--ghost st-btn--sm" id="mem-group-cancel">' + t("drawer.archive.cancel") + '</button>';
+    pre.appendChild(row);
+    const sb = row.querySelector("#mem-group-save"), cb = row.querySelector("#mem-group-cancel");
+    if (sb) sb.onclick = async () => { await fsWrite(path, ta.value); setRulesVar("group", ta.value); toast("ok", t("mem.group.title"), t("mem.rules.saved.title")); renderGroupCard(); };
+    if (cb) cb.onclick = () => { delete pre.dataset.editing; renderGroupCard(); };
+    return;
+  }
+  pre.dataset.loaded = "1";
+  pre.textContent = txt || t("mem.group.none");
+}
+if (!window.__memGroupEditWired){
+  window.__memGroupEditWired = 1;
+  document.addEventListener("click", (e) => {
+    const gb = e.target.closest && e.target.closest("[data-group-edit]"); if (!gb) return;
+    const pre = $("mem-group-body"); if (pre){ pre.dataset.editing = "1"; renderGroupCard(); }
   });
 }
 

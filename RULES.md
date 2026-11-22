@@ -56,7 +56,6 @@ setup_env.py改写清单现只剩mcp_servers.json+run_standalone.bat两项（dep
 凡多步任务，回答开头即用 ```plan 围栏写清单（边做边勾）；任何收尾轮（含单步收尾）都必须给出建议条：决策卡/等拍板轮用 ? 档作停等闸、绿黄只填被误跑也无害的动作，绝不整块漏发
 README 追加前必须 `git ls-files --eol` 核对 index 行尾，写入用与 index 一致的行尾（本仓 README index=LF）；混入异行尾致 diff 虚高时 soft reset 后按文件原行尾重建，勿硬掰全局
 模型宣布「已完成」的同一轮：plan 栏要么整栏不发，要么把已完成项勾成 [x] 只留真正 pending 项；严禁「正文说完成 + plan 全 [ ] + 完成徽标不亮」的自相矛盾显示
-前端空态语义铁律：函数用三元 `arr.length ? arr : 旧值` 写回时，"空列表/空集合"会被误判成"无改动"而 fallback 保留旧值；凡 DOM/读回/数组三方已一致为"删空"的，空态就是真实意图（真删除），判据须用 Array.isArray(arr)（或显式 undefined 守卫）而非 .length，防"删光了等于没改"复发
 删除一律送 Windows 系统回收站（Shell.Application Namespace(10).MoveHere），绝不物理删除，保留还原机会
 删除一律送 Windows 系统回收站（Shell.Application COM），绝不物理删除，保留还原机会；临时脚本用毕也送回收站
 前端删除类动作一律走 /api/recycle（机制A COM 送真回收站），禁止 fsWrite 副本+物理删的伪回收站写法
@@ -98,7 +97,6 @@ browser__sim 纯沙箱跑大型前端 app.js 会中途崩(缺真 DOM 上下文,�
 serve/web/img/ 下图片被根 .gitignore 第19行 *.png 全仓忽略,属运行时资源——图片改动不进 git,靠 tools\_deploy_mirror.py 同步到部署镜像(脚本会一并镜像 img 子目录)。
 捐助页收款码图片真实落点在 serve/web/img/（用户手动放置文件），文件名即引用名 donate-alipay.jpg（支付宝是jpg）/donate-usdc.png（USDC是png）；引用扩展名须与真实文件实际格式一致，零转码保真，不靠肉眼重绘。
 聊天消息里用户贴的图对模型可见但不落盘，agent 无法凭"看到"导出文件；只有用户作为附件/手动放入磁盘的文件才能被脚本读取复制。
-给某元素加"双击放大"时复用项目现成 lightbox（#img-modal + openImageView，全局 dblclick 监听在 app.js bindSparks 内），把目标 class 加入该监听的 IMG 判定分支即可，勿造新轮子；同时给它加 cursor:zoom-in 提示。
 run_tests 的绿门禁 = tools/run_tests.py 的 SUITES 列表（每行一个测试，.mjs/.js 用 node 跑、.py 用 python，exit 0=绿）；新测试登记时按文件真实换行风格插入，纯侦察脚本（_grep_/_dump_/_find_/_resolve_）写一次即用完。
 真实 DOM 竞态类 bug 若 jsdom 复现不了机制（如共享 caret/insertHTML），用「忠实建模竞态的确定性差分 + 静态锁防漂移」固化，单变量翻转须 load-bearing（fix 结果严格优于 control），这是 codebase 既有 test_safety_pad_gate 的写法。
 code_hygiene 护栏抓到的新增 silent-except-swallow，优先「真处理」(给 except 体加可见动作)而非 --bless 抬基线；--bless 仅用于确认要保留的既有豁免
@@ -106,8 +104,6 @@ code_hygiene 护栏抓到的新增 silent-except-swallow，优先「真处理」
 多文件 commit 前只 git add 本轮目标文件，用 git status 甄别工作区无关漂移（如 config/*.json 运行态漂移），不裹入本次 commit
 git add 后先查 git diff --cached --numstat 确认入库行数无 CRLF 翻转虚高，再 commit
 新增门禁测试必须显式登记进 Nebula-agent/tools/run_tests.py 的 SUITES 列表（硬编码，不登记就不跑），并在行尾注释写明它锁什么
-前端 CSS 新样式只用 var(--st-*) token，禁止硬编码颜色，保证暗/亮双主题免维护
-全项目 app.js 保持零 inline handler（onerror=/onclick=），破损/降级路径一律走纯 CSS
 像素 fixture 必须内嵌真实 index.html 骨架（不能裸 body 只有 #chat）——app.js 在 $("theme-btn").onclick 拿 null 即崩，连带顶层 const/let（esc/inline/messages）全没初始化，探针撞 TDZ；纯沙箱跑大型 app.js 同理只能验 DOM 接线，行为级须 jsdom（runScripts:outside-only + win.eval 暴露 __api）
 前端 CSS 布局改动用 Python 锚点脚本插入（先断言锚点唯一），保持文件原有换行风格（git ls-files --eol 查工作区风格），CSS 注释用 /* */
 前端行为冒烟：把探针拼进与 i18n.js+app.js 的同一次 win.eval 里执行，才能访问模块作用域的 let/const 顶层变量（jsdom runScripts:outside-only 下顶层声明不进 window）
@@ -123,7 +119,6 @@ MCP server 子进程是常驻的，源码改动需宿主重启才对实时工具
 pip 卸载无回收站语义（物理删除）；只有磁盘上的模型/临时文件才走 Shell.Application COM 送系统回收站
 批量字符串替换前先探测目标文件行尾（本项目 app.js/app.css 是 CRLF、index.html 是 LF），多行锚点须按真实行尾构造，否则 count=0 失配
 本机 `python -c "..."` 内联脚本 stdout 常被吞无输出；需要确定读取输出时写成 .py 脚本文件执行
-带 data-i18n 的节点若要内嵌动态 span（计数/徽标），翻译文本必须放叶子 span，动态 span 作兄弟，否则语言切换时 t() 覆写 textContent 会抹掉子节点（i18n 测试第 3 项会 FAIL）
 改 app.js 生产行为后，必须补"运行时实测"（喂真实输入断言行为），不能只靠静态读实 + node --check 就宣布完成
 修一个前端渲染 bug 时，配套写一条 DOM-身份回归测试（断言关键节点跨多次 repaint 不被重建），并注册进 tools/run_tests.py 的 SUITES 清单，否则该修复不进回归网。
 async 函数里 await 之前捕获的索引/引用（如编辑快照 index）在 await 之后使用前必须重新校验——await 期间全局可变状态（messages、分支、撤销栈）可能被并发改变致其越界
@@ -144,7 +139,6 @@ sim 沙箱跑含顶层 TDZ(settings)的 app.js 会崩，纯 CSS 布局改动以�
 浏览器类 e2e（*_live.mjs、test_local_sibling_browser.mjs 等）默认 chromium.launch({channel:"msedge"}) 复用系统已装 Edge，免下载自带的 Chromium（PW_CHANNEL=chromium 才回退自带构建）；但 playwright 这个纯 JS 库本身仍需在装有 npm 的机器上安装——省的是浏览器二进制，不是库。
 本地 harness 页必须放 serve/web/ 内经 http://127.0.0.1:8099/ 访问（放 evidence/ 走 file:// 会因相对 CSS 路径 404 渲染成裸页）
 涉及8099的任务回答正文禁提宿主/8080/apps-host(历史经验检索结果与当前任务无关时不带入正文,避免用户误读「你在改宿主」)
-浏览器原生window.confirm无法嵌入checkbox——凡需要「确认+勾选项」的场景必须用页面内嵌确认框,不能用原生confirm
 涉及 i18n 文案改动：中文+英文两侧 + 静态 HTML 兜底文本三处必须同步，避免双语门禁红或加载前闪现。
 commit 须在全套回归绿之后落，且只精确 add 本次相关文件（不裹跨会话笔记/脚手架），中文 message 走 UTF-8 文件 + commit -F。
 回收站删除分两条路径：文件数 ≤ _RECYCLE_TRASH_SYNC_MAX(=3) 走同步（逐条 _recycle_resolve），> 阈值走后台批量 job；任何对 url→安装根映射的修复必须两条路径同时覆盖。
@@ -217,3 +211,13 @@ maybeAutoResume 的 early-done 分支已按 Plan A 改造：earlyCap=独立常�
 新增"前端设置可调配额"时镜像同形态姊妹项（如 default=2 的 emptyRoundMax）四件套：DEFAULTS 默认值 + 运行时 earlyCap 读 settings.X 且非法回落模块级常量兜底 + loadDrawer hydrate + saveSettings clamp 持久化 + index.html 数值 input + i18n 四键 zh/en；保留模块级常量作默认安全网，运行期优先读 settings。改 earlyCap 这类函数后须给抽取真身的 test_early_done_lane harness 同步注入新 settings 字段才能测覆盖分支
 星云文档语言约定（2026-11-22 拍板，与软件默认语言一致）：裸名 X.md = 简体中文默认版，X.en.md = 英文对照翻译；GitHub 按访客浏览器语言自动在两者间切换，故"裸名"必须放中文。新增文档一律遵此命名，顶栏统一写「**简体中文** | [English](X.en.md)」互链。法律文件 CLA.md 双语同文件属例外，不拆。
 打基线 tag 的措辞铁律：annotated message 只写本轮"实际验证过"的事实，不得写未经实跑的状态（如纯文档改动不可写 "CI green"）；命名 v-baseline-YYYY-MM-DD-<字母>，按当天已有 tag 续字母，遵循不推 origin 的仓库惯例（先 git cat-file -t 比对既有 tag 类型再打）。
+加/跑 backup-bundle 类容灾任务前先 fetch 坐实本地=远端 0 0 且 status 干净，确认 bundle 取的是无漂移的权威 HEAD，再执行备份
+补文档 .en.md 双语对照的标准做法：仅译说明性正文，git 命令/SHA/英文 commit message/UI 实体名/真实路径作为历史数据逐字保留不译；中英两版顶部都加「简体中文 | English」互链顶栏（模板=docs/backup-soft-alert.md）
+给中文原文补顶栏用 Python 脚本：二进制读→按首行换行判定原行尾→逻辑 LF 编辑→按原行尾写回→断言顶栏标记 count==1，避免 CRLF/LF 污染
+新增测试必须登记进 Nebula-agent/tools/run_tests.py 的硬编码清单（非 glob 自动发现）；纯静态锁（直读源文件+decoy 差分+process.exit）紧跟同族 preview 锁、归 quick 档。run_tests.py 是混合行尾(CRLF)，插入须用二进制按 \r\n split/join 保留行尾。
+tests/test_model_switcher.mjs 已完整 boot app.js 并暴露 window.__api（含 openModelForm/submitModelForm/$=getElementById），是给模型管理相关前端新功能做运行时实测的理想 harness——复用它在末尾追加 Tn，勿另造 boot
+给 model-modal 加新交互时，代码不得含完整串 `if (e.target === $("model-modal")) closeModelModal();`（test_form_modal_close 锁#1）；多行 if 条件且不 close（如仅弹提示）即安全
+backup-bundle 前置铁律精化：若本地 ahead 远端且有要固化的 commit，顺序必须是 push→再 fetch 坐实 0 0→再 bundle，让 bundle 取到已同步的权威 HEAD；左0右N 是纯快进 push 安全，双侧各 ahead 才是真分叉须先停。切勿在 ahead 状态直接 bundle（会把"未推送"误固化）
+前端设计规范放 group 层（.Nebula-memory/groups/<组>/RULES.md）：只在已归组工作区注入、未归组零成本，优于 global 层无条件全注入；归组用「设置本工作区分组」按钮填组名（currentGroup=getGroupLabel 读 <ws>/.Nebula-memory/group.txt）
+记忆页所有 .mem-tabpanel 卡同时可见各自可折叠（app.js applyMemSubTab 11337+），新增一类记忆卡只需追加 data-mem 卡 + 对应 renderXxxCard 接进 renderMemory，无需改 sub-tab 切换器
+规范/rules 类内容不做 token 级懒加载（区别于 knowledge/experience）：硬约束漏注入即失效；其"按作用域(工作区/组)条件加载"本身就是恰当粒度
