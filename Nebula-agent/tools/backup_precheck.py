@@ -8,8 +8,9 @@
 
 判定（decide(behind, ahead)，behind=远端独有提交数, ahead=本地独有提交数，
 来自 git rev-list --left-right --count origin/main...HEAD）：
-  - 分叉（behind>0 且 ahead>0）：真异常，必须先人工整合再备份 —— 阻断（退出 2，
-    与 backup 用 && 链会因此跳过备份）。
+  - 分叉（behind>0 且 ahead>0）：真异常，应尽快人工整合。本工具仍退出 2 并打 FAIL 告警，
+    但每日 task 已改为「软告警」：task 用 `( precheck || cd . )` 吞掉该退出码，备份照常进行，
+    告警落 data\backup.log 可复查（详见 docs/backup-soft-alert.md）。退出码语义保留供其它调用方据此阻断。
   - 仅本地 ahead（behind=0,ahead>0）：新工作尚未推送，属正常，备份当前点即正确。放行。
   - 仅远端领先 behind（behind>0,ahead=0）：本机落后（别的机器推过）。告警但仍备份本地当前点。放行。
   - 0 0 一致：坐实无分叉。放行。
@@ -35,7 +36,7 @@ def decide(behind, ahead):
     if behind > 0 and ahead > 0:
         return (EXIT_BLOCK, "FAIL",
                 "diverged: local ahead=%d AND remote-only=%d "
-                "-- integrate before backing up (blocking)" % (ahead, behind))
+                "-- integrate recommended, but continuing backup anyway (WARN: not blocking)" % (ahead, behind))
     if behind > 0:
         return (EXIT_PASS, "WARN",
                 "behind origin/main by %d -- backing up local HEAD is still safe"

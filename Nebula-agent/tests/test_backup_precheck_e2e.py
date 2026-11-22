@@ -132,7 +132,7 @@ def main() -> int:
         check("E1 diverged: precheck exits 2", pre_rc == 2, "rc=%s log=%r" % (pre_rc, log[:200]))
         check("E1 diverged: && skipped bundle (no marker)", not marker_exists,
               "marker_exists=%s" % marker_exists)
-        check("E1 log names divergence/blocking", "diverged" in log and "blocking" in log,
+        check("E1 log names divergence + WARN-continuing", "diverged" in log and "WARN: not blocking" in log,
               repr(log[:200]))
 
         # ---------- E2: build an IN-SYNC repo (single variable flipped: no divergence) ----------
