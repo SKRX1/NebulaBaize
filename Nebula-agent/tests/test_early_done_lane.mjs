@@ -145,6 +145,22 @@ console.log("\n=== D (Plan A): awaiting-reply turns are NOT early-resumed (guard
   check("box left BUT a blue 等你确认 hold chip -> refuses false [awaitingReply, hold chip is load-bearing]", run(hs, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, withHold) === false);
 }
 
+console.log("\n=== E (drawer knob): the budget is settings.earlyDoneCap-overridable (load-bearing) ===");
+{
+  const mk = () => ({text:"done.", plan:[{done:false,label:"b"}]});
+  // Same chain-start (edn=4); the ONLY difference is the drawer value -> result flips. That is what makes the
+  // knob load-bearing rather than decorative: raising it past the chain depth lets a near-cap task keep going.
+  const raised = run(makeHarness(24), {autoresume:true,autoresumeMax:24,emptyRoundMax:2,earlyDoneCap:5}, 0,0,4, mk());   // cap5: chain4<5 -> carries on
+  check("drawer raises the budget (earlyDoneCap=5, chain4<5) -> carry true [override is load-bearing]", raised === true);
+  const mDefault = mk();
+  const defaulted = run(makeHarness(24), {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,4, mDefault);   // NO knob -> falls back to EARLY_DONE_CAP(2): chain4>=2 -> fuses at the default
+  check("same chain4 with NO knob -> fuses at the default cap(2) [default safety net when override absent]", defaulted === false && mDefault.resumeExhausted === 2, "stamp=" + mDefault.resumeExhausted);
+  // 0 = never early-resume: even an eligible turn at chain0 fuses at cap0.
+  const mZero = mk();
+  const zero = run(makeHarness(24), {autoresume:true,autoresumeMax:24,emptyRoundMax:2,earlyDoneCap:0}, 0,0,0, mZero);   // cap0: chain0>=0 -> fuses immediately
+  check("earlyDoneCap=0 -> never early-resumes (chain0 fuses, stamp 0) [0 disables the lane]", zero === false && mZero.resumeExhausted === 0, "stamp=" + mZero.resumeExhausted);
+}
+
 console.log("\n=== chaining did not break the existing empty lane (regression) ===");
 {
   const h = makeHarness(24);

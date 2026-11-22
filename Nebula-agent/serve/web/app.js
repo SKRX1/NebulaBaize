@@ -1265,7 +1265,7 @@ const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
-                  autoresumeMax: 24, emptyRoundMax: 2, hideavoid: true, autoVerifyFix: true,
+                  autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true,
                    sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
@@ -3348,7 +3348,10 @@ function maybeAutoResume(m, targetSession = null) {
     // continueTask falls through to a plain send() for this code. So EXCLUDE it from auto-resume.
     (m.notice && m.notice.resumable && m.notice.code !== "context_overflow" && m.notice.code !== "context_contention") || isEmptyLane;
   // D(early-done lane): model wrote what reads like a closing line while its OWN plan checklist still had boxes left -> premature, not done.
-  const earlyCap = EARLY_DONE_CAP;   // 2026-11 Plan A: the early-done lane used to inherit the main-chain budget (max(12,cap)=24), so any leftover unchecked plan box dragged up to 24 auto-resumes after a finished answer. Cap it to a tiny anti-spin budget instead; the main chain keeps its own AUTO_RESUME_MAX/FLOOR for genuine disconnects.
+  // 2026-11 Plan A: the early-done lane runs on its OWN tiny anti-spin budget (default 2, NOT the main-chain
+  // budget it once inherited = max(12,cap)=24 -- that inherited 24 is why every "looks done" answer got dragged
+  // into a long auto-chain). It is now a drawer knob (s-earlyDoneCap); unset/garbage -> the EARLY_DONE_CAP const.
+  const earlyCap = settings.earlyDoneCap >= 0 ? settings.earlyDoneCap : EARLY_DONE_CAP;   // 0 = never early-resume. The main chain keeps its own AUTO_RESUME_MAX/FLOOR for genuine disconnects.
   // 2026-11 Plan A: a decision card this turn, or a blue 等你确认 chip, means the model IS waiting for the
   // human -- a leftover unchecked plan box is then expected, NOT a premature close. Mirror maybeAutoDrive's
   // existing proposal guard (line ~2988) so the two auto-runners agree on 'is this turn awaiting a reply'.
@@ -9399,7 +9402,7 @@ function loadDrawer(s = settings) {
   $("s-temp").value = s.temperature; $("s-topp").value = s.top_p; $("s-topk").value = s.top_k;
   $("s-max").value = s.max; $("s-ceiling").value = s.maxCeiling; $("s-seed").value = s.seed;
   $("s-thinkbudget").value = s.thinkBudget; $("s-answerfloor").value = s.answerFloor;
-  $("s-autoresumeMax").value = (s.autoresumeMax>0?s.autoresumeMax:24); $("s-emptyRoundMax").value = (s.emptyRoundMax>=0?s.emptyRoundMax:2);
+  $("s-autoresumeMax").value = (s.autoresumeMax>0?s.autoresumeMax:24); $("s-emptyRoundMax").value = (s.emptyRoundMax>=0?s.emptyRoundMax:2); $("s-earlyDoneCap").value = (s.earlyDoneCap>=0?s.earlyDoneCap:2);
   $("s-show").setAttribute("aria-checked", String(!!s.show));
   $("s-esp").setAttribute("aria-checked", String(s.esp !== false));
   $("esp-row").hidden = !projectionLoaded();
@@ -9572,7 +9575,7 @@ $("s-apply").onclick = async () => {
               sparkMaxBars: (+($("s-sparkmax").value) >= 1) ? +(+$("s-sparkmax").value) : 24,
               memCompactChunkTokens: Math.min(12000, Math.max(0, +($("s-memchunk").value) || 0)),
               memCompactReservePct: Math.min(50, Math.max(5, +($("s-memreserve").value) || 25)),
-              autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default
+              autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2), earlyDoneCap: (parseInt($("s-earlyDoneCap").value,10)>=0?parseInt($("s-earlyDoneCap").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default; earlyDoneCap clamps to >=0 -> default 2
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",
               stepsFold: $("s-stepsfold").getAttribute("aria-checked") === "true",
