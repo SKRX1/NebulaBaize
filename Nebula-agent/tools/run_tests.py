@@ -95,6 +95,8 @@ SUITES = [
 
     "tests/test_review_semantic_log.py",   # 2026-11-21: lock the weekly-review summarizer (vacuum/skip counts, cumulative reclaimed, most-recent ts) so the review numbers stay truthful
 
+    "tests/test_backup_precheck.py",   # 2026-11-22: lock the backup daily-task pre-check decide() -- only a real divergence (local AND remote each ahead) blocks the bundle; one-side/0-0 pass (load-bearing both-operand proof)
+
     "tests/test_i18n.mjs",
 
     "tests/test_spark.mjs",
