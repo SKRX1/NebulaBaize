@@ -107,7 +107,7 @@
       "side.sched.note": "增删改即时生效（运行中的调度服务会实时重载）。",
       /* sidebar tree: workspace (parent) → tasks (children) */
       "side.more": "更多操作",
-      "side.renamews": "重命名空间",
+      "side.renamews": "重命名工作区",
       "side.group": "分组…",
       "side.openfolder": "打开文件夹",
       "side.pin": "置顶",
