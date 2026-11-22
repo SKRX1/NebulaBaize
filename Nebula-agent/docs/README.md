@@ -6,14 +6,20 @@
 
 ## 运维 / 调参
 
-- [`vacuum-tuning.md`](vacuum-tuning.md) — semantic.db VACUUM 门控调参说明
+- [`vacuum-tuning.md`](vacuum-tuning.md) / [English](vacuum-tuning.en.md) — semantic.db VACUUM 门控调参说明
   （MIN_PAGES / THRESHOLD / BUSY_MS 怎么按库增长调整；含当前真实库基线）。
 
-- [`backup-soft-alert.md`](backup-soft-alert.md) — 每日代码备份的前置检查：为何从硬阻断改为
+- [`backup-soft-alert.md`](backup-soft-alert.md) / [English](backup-soft-alert.en.md) — 每日代码备份的前置检查：为何从硬阻断改为
   「软告警不阻断 + 告警落 data\backup.log + 体积轮转」。含 cmd 下 `|| true`/`|| exit /b 0` 皆错、
   唯一安全原语是括号组 `( … || cd . )` 的实测真值表，以及「价值在哨兵不在阻断」的设计取向。
 
 ## 设计 / 评审
 
-- [`plan-b-shell-direct-exec-review.md`](plan-b-shell-direct-exec-review.md) —
+- [`plan-b-shell-direct-exec-review.md`](plan-b-shell-direct-exec-review.md) / [English](plan-b-shell-direct-exec-review.en.md) —
   shell 直接执行（plan B）方案评审记录。
+
+## 历史 / 归档
+
+- [`baseline-tag-archive.md`](baseline-tag-archive.md) / [English](baseline-tag-archive.en.md) —
+  已被后续基线覆盖、予以清理的 `v-baseline-*` tag 归档账本（逐 tag 记录其指向 commit
+  与精确重建命令；删 tag 不丢任何 commit，master 链已含）。
