@@ -1,143 +1,127 @@
-# Memory & Experience — How Nebula Baize Gets Smarter With Use
+# 记忆与经验 —— 星云白泽为何越用越贴合你
 
-> English | [简体中文](MEMORY-GUIDE.zh-CN.md)
+> [English](MEMORY-GUIDE.en.md) | **简体中文**
 
-This guide explains the *actual mechanism* behind "the more you use it, the better it fits you" —
-no marketing, just what the code does and how you stay in control.
-
----
-
-## 1. The big idea: memory you own, not memory baked in
-
-A normal model "learns" only by being retrained, and that learning is hidden inside its weights.
-Nebula Baize does the opposite: it keeps its learned knowledge in **plain files and a local database
-that you can read, edit, and delete.** The agent gets smarter about *your* work not by changing its
-model, but by accumulating a personal, auditable memory that is injected into future conversations.
-
-Three properties are designed in:
-
-- **User-gated.** The agent proposes memories; you approve them. Nothing is silently baked in.
-- **Scoped.** Memories live in separate libraries with different lifetimes and purposes (see §3).
-- **Reversible.** Every deposited entry is a new entry you can undo in one click.
+本指南解释"越用越贴合你"背后的*真实机制*——不谈营销，只讲代码实际做了什么、以及你如何始终握有控制权。
 
 ---
 
-## 2. How memory is stored and retrieved
+## 1. 核心理念：你拥有的记忆，而非固化在模型里的记忆
 
-The memory subsystem is a small MCP server (`servers/memory_server.py`) built on the **Python
-standard library only** — no vector database, no external service.
+普通模型只能通过重新训练来"学习"，而那种学习藏在它的权重里。星云白泽反其道而行：它把学到的知识
+存放在**你能读、能改、能删的普通文件与本地数据库**里。智能体变得更懂*你的*工作，靠的不是更换模型，
+而是积累一份属于你的、可审计的记忆，并在后续对话中被注入。
 
-It runs two stores:
+设计上内建三个性质：
 
-| Store | File | What it holds |
-|-------|------|---------------|
-| **Episodic** | `data/episodic.jsonl` | Records of past tasks/decisions ("what happened, what was decided") |
-| **Semantic** | `data/semantic.db` | Learned facts, conventions, and document chunks (keyed by source) |
-
-### Tools exposed to the agent
-
-The agent can **read and manage** memory, but deliberately cannot write arbitrary facts straight
-into the database. The exposed tools are:
-
-- **`recall(query)`** — retrieve cross-session memory by keyword. At the start of relevant turns,
-  matching items from both stores (top matches) are returned and injected into the agent's context,
-  so it can apply what it learned before. Retrieval is keyword-based (embeddings are not used by
-  default), so it stays fully inspectable.
-- **`ingest(path)`** — learn a reference document: parse it, split it into chunks, and store them
-  under a source id so they can later be retrieved *or removed as one unit*.
-- **`sources()`** — list every learned source and how many chunks it holds (so you can see what the
-  agent has absorbed and decide what to drop).
-- **`read_source(source)`** — print all chunks stored under a source (full inspection).
-- **`forget(source|id)`** — delete one item by id, or delete an entire source as a unit.
-
-> The raw write tools (`remember` / `store`) are intentionally **not** exposed. If the model could
-> write facts directly, it would bypass the user-gated, scoped, audited pipeline below — and the
-> "gets smarter, stays under your control" property would quietly break.
+- **由用户门控。** 智能体提议记忆，由你批准。没有任何东西被悄悄固化。
+- **分域存放。** 记忆按不同生命周期与用途分进各自独立的库（见 §3）。
+- **可还原。** 每一条沉淀都是新条目，你可一键撤销。
 
 ---
 
-## 3. The three libraries (where durable memory goes)
+## 2. 记忆如何存储与检索
 
-Durable, reusable memory is organized into three scoped libraries. Each is injected into future
-turns as whole-file context, with different lifetimes and purposes:
+记忆子系统是一个很小的 MCP 服务器（`servers/memory_server.py`），**只用 Python 标准库**构建——
+没有向量数据库，没有外部服务。
 
-| Library | What belongs here | Lifetime |
-|---------|-------------------|----------|
-| **Rules (工作规则)** | Stable operating conventions you have confirmed — directory layout, build/deploy commands, encoding/naming rules, the approval model, recurring gotchas | Long; applies to every task |
-| **Knowledge (知识库)** | Confirmed facts and environment conclusions — API quirks, toolchain behavior, dependency versions, "X actually does Y" | Medium; factual reference |
-| **Experience (经验库)** | One-line post-task retrospectives: *context → decision → outcome → lesson* | Medium; decision precedent |
+它运行两个存储：
 
-### The write path: `propose-*` fences
+| 存储 | 文件 | 存放内容 |
+|------|------|---------|
+| **情节存储（Episodic）** | `data/episodic.jsonl` | 过往任务/决策的记录（"发生了什么、定了什么"） |
+| **语义存储（Semantic）** | `data/semantic.db` | 学到的事实、约定与文档分块（按来源 keying） |
 
-When the agent finishes a task and has learned something genuinely reusable, it emits one or more
-`propose-rules` / `propose-knowledge` / `propose-experience` blocks. Each line is one candidate
-entry. What happens next is up to you:
+### 暴露给智能体的工具
 
-- With autonomous memory maintenance **on**, confirmed entries are written straight into the right
-  library file and take effect from the next conversation — each write is recorded and **one-click
-  reversible**.
-- The agent is instructed to write only *verified* facts — not guesses, not one-off workarounds,
-  not duplicates of what's already there.
+智能体能**读取并管理**记忆，但刻意不能把任意事实直接写进数据库。暴露的工具是：
 
-Because writes go through this single gated path, the memory stays scoped (the right entries land in
-the right library) and auditable (you can always read the files and undo a change).
+- **`recall(query)`** —— 按关键词检索跨会话记忆。在相关的轮次开始时，两个存储里的匹配项（取最相关
+  若干条）会被返回并注入智能体上下文，使它能量此前所学。检索基于关键词（默认不用嵌入向量），因而完全可检视。
+- **`ingest(path)`** —— 学习一份参考文档：解析、切块，并按来源 id 存储，以便日后检索，*或作为整体删除*。
+- **`sources()`** —— 列出每个已学习的来源及其分块数（让你看清智能体吸收了哪些内容，并决定丢弃什么）。
+- **`read_source(source)`** —— 打印某来源下存储的全部分块（完整检视）。
+- **`forget(source|id)`** —— 按 id 删除单条，或把整个来源作为整体删除。
 
-### Auto-distillation
-
-Beyond explicit proposals, an optional auto-distillation step can summarize a completed task into
-the episodic/semantic store (these appear as dated `auto-*.md` records under `.Nebula-memory/`).
-This respects the auto-memory toggle and remains fully recallable and reviewable — auto-learned
-memory is never hidden from you.
+> 原始写入工具（`remember` / `store`）刻意**不**暴露。若模型能直接写事实，就会绕过下文"由用户门控、
+> 分域、可审计"的链路——"越用越聪明、却仍在掌控中"这一性质就会悄悄失效。
 
 ---
 
-## 4. The loop, end to end
+## 3. 三个库（持久记忆的去向）
+
+持久、可复用的记忆被组织进三个分域的库。每个都作为整文件上下文注入后续轮次，各有不同生命周期与用途：
+
+| 库 | 该放什么 | 生命周期 |
+|----|---------|---------|
+| **工作规则（Rules）** | 你已确认的稳定操作约定——目录/文件布局、构建部署命令、编码/命名规则、审批模型、反复出现的坑 | 长；适用于每个任务 |
+| **知识库（Knowledge）** | 已确认的事实与环境结论——接口怪癖、工具链行为、依赖版本、"X 其实是这么工作的" | 中；事实参考 |
+| **经验库（Experience）** | 一句话的任务复盘：*上下文 → 决策 → 结果 → 复盘* | 中；决策先例 |
+
+### 写入路径：`propose-*` 围栏
+
+当智能体完成一项任务、学到真正可复用的东西时，它会发出一个或多个 `propose-rules` /
+`propose-knowledge` / `propose-experience` 块，每行是一条候选条目。接下来由你决定：
+
+- 当自主记忆维护**开启**时，确认过的条目会被直接写入对应的库文件，并从下次对话起生效——每次写入都被
+  记录，且**一键可撤销**。
+- 智能体被要求只写*已验证*的事实——不是猜测、不是一次性权宜之计、也不与已有条目重复。
+
+因为所有写入都走这条单一的门控路径，记忆才保持分域（正确的条目进正确的库）且可审计（你始终能读这些
+文件、撤销某次改动）。
+
+### 自动沉淀
+
+除显式提议外，还有一个可选的自动沉淀步骤，可把已完成任务摘要进情节/语义存储（它们以带日期的
+`auto-*.md` 记录出现在 `.Nebula-memory/` 下）。它遵守自动记忆开关，并且始终可被检索、可被审阅——
+自动学到的记忆从不躲开你。
+
+---
+
+## 4. 整条闭环
 
 ```
-conversation / task
+对话 / 任务
         │
-        ├─ at relevant turns: recall() → matched Rules/Knowledge/Experience are injected
-        │                                (the agent applies what it learned before)
+        ├─ 在相关轮次：recall() → 命中的规则/知识/经验被注入
+        │                        （智能体应用它此前所学）
         │
-        └─ at task end: the agent emits propose-* blocks for anything reusable
+        └─ 在任务收尾：智能体对任何可复用之物发出 propose-* 块
                         │
-                        └─ you approve/undo ─→ confirmed entries land in a library file
-                                              │
-                                              └─ next conversations load them  ─→ (loop)
+                        └─ 你批准/撤销 ─→ 确认条目落进某个库文件
+                                          │
+                                          └─ 下次对话加载它们 ─→ （循环）
 ```
 
-That cycle is the whole of "getting smarter": each confirmed lesson makes the *next* task start a
-little closer to how you actually work — while every step stays a file you can read or a change you
-can undo.
+这个循环就是"变聪明"的全部：每一段被确认的经验，都让*下一次*任务开场时更接近你的真实工作方式——
+而其中每一步，要么是一个你能读的文件，要么是一次你能撤销的改动。
 
 ---
 
-## 5. Using it well (curation)
+## 5. 怎样用好它（策展）
 
-The agent will propose; the quality of the memory depends on what you accept. A few habits that keep
-it high-signal:
+由智能体提议，而记忆的质量取决于你接受什么。几条保持高信号的习惯：
 
-- **Prefer verified over speculative.** Accept a memory only after you've seen it work. The rules
-  that help most are concrete and operational ("build with command X", "file Y must use encoding Z").
-- **Keep entries atomic and non-duplicative.** One fact per line. Before writing, the agent checks
-  existing entries; if you spot a duplicate, edit or remove it rather than adding another.
-- **Prune deliberately.** Use `sources()` / `read_source()` to review what was ingested, and
-  `forget(source)` to drop a whole learned document when it goes stale.
-- **Keep the three libraries honest.** Don't mix a one-off fact into Rules, or a hard fact into
-  Experience. Correct scoping is what keeps retrieval relevant.
-- **Undo freely.** A wrong turn is cheap: every entry is one click from removal, so there's no
-  downside to trying a memory and retracting it.
+- **偏好已验证，而非臆测。** 只在亲眼见过其生效后才接受一条记忆。最有用的规则是具体、可操作的
+  （"用命令 X 构建"、"文件 Y 必须用编码 Z"）。
+- **条目保持原子、不重复。** 一行一个事实。写入前智能体会检查已有条目；你若发现重复，应编辑或删除，
+  而不是再加一条。
+- **有意识地修剪。** 用 `sources()` / `read_source()` 复盘已 ingest 的内容，并在某文档过时时用
+  `forget(source)` 整源删除。
+- **保持三库各得其所。** 别把一次性事实塞进规则，也别把硬事实塞进经验库。正确的分域，才是检索保持
+  相关的保证。
+- **放心撤销。** 走错方向的代价很低：每条都能一键移除，所以试一条记忆再收回，毫无负担。
 
 ---
 
-## 6. Where everything lives on disk
+## 6. 一切在磁盘上的位置
 
-| Path | Contents |
-|------|----------|
-| `servers/memory_server.py` | The memory MCP server (tools above) |
-| `runtime/memory/` | `episodic.py`, `semantic.py`, `session.py`, `tokenize.py` |
-| `data/episodic.jsonl` | Episodic store |
-| `data/semantic.db` | Semantic store (default keyword retrieval, embeddings off) |
-| `.Nebula-memory/` | Library files (Rules / Knowledge / Experience) + auto-distillation records |
+| 路径 | 内容 |
+|------|------|
+| `servers/memory_server.py` | 记忆 MCP 服务器（上述工具） |
+| `runtime/memory/` | `episodic.py`、`semantic.py`、`session.py`、`tokenize.py` |
+| `data/episodic.jsonl` | 情节存储 |
+| `data/semantic.db` | 语义存储（默认关键词检索，嵌入关闭） |
+| `.Nebula-memory/` | 各库文件（规则/知识/经验）+ 自动沉淀记录 |
 
-All of it is local and plain enough to inspect with any text editor — which is exactly the point.
+这一切都在本地，且足够朴素，用任意文本编辑器都能检视——这正是它的意义所在。
