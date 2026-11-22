@@ -7,9 +7,9 @@
 - [`vacuum-tuning.md`](vacuum-tuning.md) — semantic.db VACUUM 门控调参说明
   （MIN_PAGES / THRESHOLD / BUSY_MS 怎么按库增长调整；含当前真实库基线）。
 
-- [`backup-soft-alert.md`](backup-soft-alert.md) — 每日代码备份的前置检查为何从硬阻断
-  改为软告警（`|| exit /b 0`）：真实分叉近零、阻断丢整份快照、`|| true` 在 cmd 下
-  反向的实测真值表；含"当前 data 内无 backup 日志、靠 session_stream/bundle 核对"的可观测现状。
+- [`backup-soft-alert.md`](backup-soft-alert.md) — 每日代码备份的前置检查：为何从硬阻断改为
+  「软告警不阻断 + 告警落 data\backup.log + 体积轮转」。含 cmd 下 `|| true`/`|| exit /b 0` 皆错、
+  唯一安全原语是括号组 `( … || cd . )` 的实测真值表，以及「价值在哨兵不在阻断」的设计取向。
 
 ## 设计 / 评审
 
