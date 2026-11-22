@@ -165,3 +165,22 @@ TAG IS A WORKING ROLLBACK POINT (ALL GREEN)**，并已纳入 E/F 盘 `--all` bun
 ```bat
 git tag -a v-baseline-2026-11-22-d 1621c6e673622d54cfefb66b419942d55ed22aed -m "baseline: backup-bundle rehearse branch keyword-only fix, mirror_rehearse_gate green (post-green anchor without the regression)"
 ```
+
+
+## 2026-11-22 系列（继）：当前最新回滚点升级为 e（保留）
+
+本轮为「全套文档中文默认化定稿」的 HEAD 打新基线 `v-baseline-2026-11-22-e`，
+作为**当前最新回滚点**保留；它取代上方 -d 成为最新基线（-d 退为次新）。
+本轮为纯文档改动（README/CONTRIBUTING/MEMORY-GUIDE/部署说明 中文默认 + .en 对照，
+README 顶栏语言切换规范）；已验证：链接可达、CRLF 统一、远端裸名 README.md 为中文默认、
+全套代码回归未受文档改名影响 ALL GREEN。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-22-e | d9d6b1d1f51a8050d311738fe6f8fe2529d63d44 | docs(readme): 顶栏补语言切换规范提示（全套文档中文默认化定稿点） |
+
+### 重建命令（如需精确恢复当前回滚点 e）
+
+```bat
+git tag -a v-baseline-2026-11-22-e d9d6b1d1f51a8050d311738fe6f8fe2529d63d44 -m "baseline: docs full Chinese-default restructure (README/CONTRIBUTING/MEMORY-GUIDE/部署说明 = zh default + .en counterparts), README topbar language-switch norm; verified: links reachable, CRLF uniform, remote README.md zh-default confirmed"
+```
