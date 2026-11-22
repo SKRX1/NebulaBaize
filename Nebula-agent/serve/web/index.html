@@ -221,7 +221,7 @@
       <div class="rules-draft-banner__bar">
         <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-bookmark"/></svg>
         <button type="button" class="rules-draft-banner__txt" id="design-draft-peek" aria-expanded="false">
-          <b id="design-draft-title"></b> <span data-i18n="design.banner.sub">将保存到工作空间 .design/ 文件夹</span>
+          <b id="design-draft-title"></b> <span data-i18n="design.banner.sub">将保存到工作区 .design/ 文件夹</span>
           <span class="rd-chev" aria-hidden="true">▾</span>
         </button>
         <button type="button" class="st-btn st-btn--primary st-btn--sm" id="design-draft-save" data-i18n="design.banner.save">保存设计文档</button>
@@ -256,13 +256,13 @@
           <button type="button" class="st-btn st-btn--icon" id="export-btn" title="Save this chat as Markdown" aria-label="Save this chat"
                   data-i18n-attr="title:chat.export,aria-label:chat.export">
             <svg class="st-icon"><use href="web/sprite.svg#i-download"/></svg></button>
-          <button type="button" class="st-btn st-btn--icon" id="design-btn" title="生成设计文档到工作空间 .design/" aria-label="生成设计文档"
+          <button type="button" class="st-btn st-btn--icon" id="design-btn" title="生成设计文档到工作区 .design/" aria-label="生成设计文档"
                   data-i18n-attr="title:design.btn.title,aria-label:design.btn.title">
             <svg class="st-icon"><use href="web/sprite.svg#i-bookmark"/></svg></button>
           <button type="button" class="st-btn st-btn--icon" id="sampling-btn" title="Sampling and thinking" aria-label="Sampling and thinking"
                   data-i18n-attr="title:chat.sampling,aria-label:chat.sampling">
             <svg class="st-icon"><use href="web/sprite.svg#i-settings"/></svg></button>
-          <select class="st-perm-select" id="perm-select" title="本工作空间的模型权限（可随时切换）" aria-label="模型权限">
+          <select class="st-perm-select" id="perm-select" title="本工作区的模型权限（可随时切换）" aria-label="模型权限">
             <option value="full">完全访问</option>
             <option value="auto">自动审核</option>
             <option value="manual">手动审批</option>
@@ -1188,7 +1188,7 @@
         <option value="en" data-i18n="design.lang.en">English</option>
       </select>
     </div>
-    <div class="toggle-row"><span><span data-i18n="design.autosave.label">设计文档自动保存</span><br><span class="muted small" data-i18n="design.autosave.hint">模型提出设计文档时直接写入工作空间 .design/ 文件夹（横幅变为回执，仍可撤销/丢弃）；关闭则恢复为先询问</span></span>
+    <div class="toggle-row"><span><span data-i18n="design.autosave.label">设计文档自动保存</span><br><span class="muted small" data-i18n="design.autosave.hint">模型提出设计文档时直接写入工作区 .design/ 文件夹（横幅变为回执，仍可撤销/丢弃）；关闭则恢复为先询问</span></span>
       <button class="st-toggle" id="s-designauto" role="switch" aria-checked="true" aria-label="Auto-save design docs"></button></div>
     <div class="st-field">
       <label class="st-label" for="s-persona"><span data-i18n="drawer.persona">默认人设 / 系统提示</span></label>
@@ -1232,7 +1232,7 @@
       </div>
     </div>
     <div class="ws-field">
-      <label class="st-label">模型权限（本工作空间）</label>
+      <label class="st-label">模型权限（本工作区）</label>
       <div class="perm-seg" id="ws-perm" role="radiogroup" aria-label="Model permission" data-i18n-attr="aria-label:ws.perm.label">
         <button type="button" class="perm-seg__btn" data-perm="full">完全访问</button>
         <button type="button" class="perm-seg__btn" data-perm="auto">自动审核</button>
@@ -1244,7 +1244,7 @@
       <label class="st-label" for="ws-group" data-i18n="ws.group">分组（可选，同组工作区共享规范/知识）</label>
       <select class="st-input" id="ws-group" data-i18n-attr="aria-label:ws.group" aria-label="Group"></select>
       <input class="st-input" id="ws-groupnew" data-i18n-attr="placeholder:mem.auto.group.panel.new.ph" placeholder="新建分组名…" aria-label="New group name" spellcheck="false" autocomplete="off">
-      <label class="st-label" for="ws-persona" data-i18n="ws.persona">人设 / 系统提示（本工作空间，可选）</label>
+      <label class="st-label" for="ws-persona" data-i18n="ws.persona">人设 / 系统提示（本工作区，可选）</label>
       <textarea class="st-input st-textarea" id="ws-persona" rows="2"
                 placeholder="例如：你是一名资深后端工程师，回答要简洁、优先给可运行代码"
                 data-i18n-attr="placeholder:ws.persona.ph"></textarea>

@@ -1897,7 +1897,13 @@ const popMenu = (() => {
   });
   document.addEventListener("click", (e) => { if (!el.hidden && !el.contains(e.target)) hide(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
-  document.addEventListener("scroll", () => hide(), true);
+  // Close only when the menu's OWN anchor container scrolls: popMenu is anchored to rows inside
+  // #session-list (right-click + "..." buttons), so a scroll of that list would strand the fixed
+  // menu away from its anchor. A document-wide scroll listener (the old bug) also fired on the
+  // chat's streaming auto-scroll during an answer, which wrongly dismissed the sidebar menu while
+  // the user was still trying to use it.
+  const list = document.getElementById("session-list");
+  if (list) list.addEventListener("scroll", () => hide());
   return {open, openAt, hide, isOpen: () => !el.hidden};
 })();
 // Task menu: rename / batch / open folder / pin / permission / delete.

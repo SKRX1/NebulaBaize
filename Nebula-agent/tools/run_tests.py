@@ -140,6 +140,8 @@ SUITES = [
 
     "tests/test_sidebar_tree.mjs",
 
+    "tests/test_sidebar_menu_scroll.mjs",   # 2026-11-23: sidebar right-click/"..." menu must survive a streaming CHAT auto-scroll (was: document-wide capture scroll listener closed it mid-answer); only the sidebar list scroll / outside-click / Esc close it
+
     "tests/test_switch_busy.mjs",
 
     "tests/test_switch_busy_e2e.mjs",
