@@ -138,6 +138,7 @@ code += `
   closeGroupPicker: () => closeGroupPicker(),
   applyGroupLabel: (label) => applyGroupLabel(label),
   groupPickerBase: () => groupPickerBase,
+  get groupPickerTrigger() { return groupPickerTrigger; },
 };`;
 win.eval(code);
 const api = win.__api;
@@ -278,6 +279,38 @@ check("re-open pre-selects the explicit group over auto-detect  v=" + gsel.value
 await api.applyGroupLabel("");
 check("clearing writes the __none__ sentinel", (FILES[GW + "/.Nebula-memory/group.txt"] || "").trim() === "__none__",
       "got=" + JSON.stringify(FILES[GW + "/.Nebula-memory/group.txt"]));
+
+// ---------------- 6) accessibility: visible close icon, Tab focus trap, return focus on close ----
+console.log("\n=== 6. a11y: close-icon resolves, Tab stays inside, focus returns to trigger ===");
+const gclose = doc.getElementById("group-close");
+check("the modal HAS a close button", !!gclose);
+const closeUse = gclose ? gclose.querySelector("use") : null;
+const closeHref = closeUse ? (closeUse.getAttribute("href") || closeUse.getAttribute("xlink:href") || "") : "";
+check("close button references a real sprite symbol (#i-chevron, not a missing id)  href=" + closeHref,
+      closeHref.endsWith("#i-chevron"));
+// trigger element (simulates the "..." / memory-page button that opened the modal).
+const trigger = doc.createElement("button"); trigger.id = "fake-trigger"; doc.body.appendChild(trigger);
+trigger.focus();   // openGroupPicker reads document.activeElement, so focus THIS first as the opener
+await api.openGroupPicker(GW);
+// focus trap: Tab from the LAST focusable element must wrap to the FIRST (stay inside).
+const focusables = [...doc.getElementById("group-modal").querySelectorAll("button, select, input, textarea, [tabindex]")]
+  .filter((el) => !el.disabled && !el.closest("[hidden]"));
+check("the modal exposes several focusable controls", focusables.length >= 3, "n=" + focusables.length);
+focusables[focusables.length - 1].focus();
+doc.getElementById("group-groupsel").dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+check("Tab at the last control wraps to the first (focus trapped)", doc.activeElement === focusables[0],
+      "active=" + (doc.activeElement && doc.activeElement.id));
+// reverse: Shift+Tab from the FIRST must wrap to the LAST.
+focusables[0].focus();
+doc.getElementById("group-close").dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }));
+check("Shift+Tab at the first control wraps to the last", doc.activeElement === focusables[focusables.length - 1],
+      "active=" + (doc.activeElement && doc.activeElement.id));
+// opening the modal records the trigger, and closing returns focus to it.
+check("opening records the trigger element", api.groupPickerTrigger === trigger);
+await api.closeGroupPicker();
+check("closing returns focus to the trigger", doc.activeElement === trigger,
+      "active=" + (doc.activeElement && doc.activeElement.id));
+check("closing clears the trigger reference", api.groupPickerTrigger === null);
 
 console.log("");
 if (FAILURES.length) { console.log("GROUP-CARD: FAIL (" + FAILURES.length + ")"); process.exit(1); }

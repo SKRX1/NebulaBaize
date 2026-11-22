@@ -153,7 +153,52 @@ const main = async () => {
     } catch (e) { return ""; }
   });
   check("opening the modal from the menu wrote nothing (still no group.txt)", gtxtAfterMenu === "", "got=" + JSON.stringify(gtxtAfterMenu));
+  // The close button must be VISIBLE and actually close the modal in a real browser. (The earlier
+  // screenshot bug: an icon id not present in sprite.svg renders blank, so the button looked absent.)
+  const closeBtn = await page.evaluate(() => {
+    const c = document.getElementById("group-close"); if (!c) return { exists:false };
+    const r = c.getBoundingClientRect();
+    const u = c.querySelector("use");
+    return { exists:true, visible: r.width > 4 && r.height > 4,
+             icon: u ? (u.getAttribute("href") || u.getAttribute("xlink:href") || "") : "" };
+  });
+  check("the modal has a VISIBLE close button (non-zero size)  " + JSON.stringify({v:closeBtn.visible,icon:closeBtn.icon}),
+        closeBtn.exists && closeBtn.visible && /#i-chevron$/.test(closeBtn.icon));
   await page.evaluate(() => { const c = document.getElementById("group-close"); if (c) c.click(); });
+  await page.waitForTimeout(300);
+  const closedByCloseBtn = await page.evaluate(() => { const m = document.getElementById("group-modal"); return !!m && m.hidden; });
+  check("clicking the close button actually closes the modal", closedByCloseBtn === true);
+
+  // 0c) RIGHT-CLICK path (item 2): right-clicking a workspace header must open the SAME menu that
+  //     carries "Group...", because the contextmenu handler reuses wsMenuItems(path) verbatim. We
+  //     never edit wsMenuItems for the menu separately, so proving the "..." menu proves the right
+  //     click too; this assertion makes that shared-code claim explicit and load-bearing.
+  const rc = await page.evaluate(() => {
+    const head = document.querySelector("[data-ws-head]"); if (!head) return { hasHead:false };
+    head.dispatchEvent(new MouseEvent("contextmenu", { bubbles:true, cancelable:true, clientX:30, clientY:30 }));
+    return { hasHead:true, path: head.dataset.wsHead || "" };
+  });
+  check("a workspace header is present for right-click", rc.hasHead === true);
+  await page.waitForTimeout(400);
+  const rcMenu = await page.evaluate(() => {
+    const m = document.querySelector(".st-ctx-menu");
+    return { open: !!m && !m.hidden, keys: m ? [...m.querySelectorAll("[data-key]")].map(b=>b.dataset.key) : [] };
+  });
+  check("right-click opens the workspace menu containing Group...", rcMenu.open && rcMenu.keys.includes("group"), JSON.stringify(rcMenu));
+  const rcOpened = await page.evaluate(() => {
+    const it = document.querySelector('.st-ctx-menu [data-key="group"]');
+    if (!it) return false;
+    it.dispatchEvent(new MouseEvent("click", { bubbles:true, cancelable:true, view:window }));
+    return true;
+  });
+  await page.waitForTimeout(500);
+  const rcModal = await page.evaluate(() => {
+    const m = document.getElementById("group-modal"); const gp = document.getElementById("group-path");
+    if (!m || m.hidden) return { open:false };
+    return { open:true, path: gp ? gp.textContent : "" };
+  });
+  check("right-click -> Group... opens the group-modal scoped to that workspace", rcModal.open && /Nebula-agent/i.test(rcModal.path), "path=" + rcModal.path);
+  await page.evaluate(() => { const m = document.getElementById("group-modal"); if (m && !m.hidden) { const c=document.getElementById("group-close"); if(c) c.click(); } });
   await page.waitForTimeout(300);
 
   // 1) PLAN A end-to-end: the "set workspace group" button now opens an inline picker (no prompt).

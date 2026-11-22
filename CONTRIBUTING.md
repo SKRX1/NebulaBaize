@@ -50,6 +50,7 @@
 - CSS 只用 `var(--st-*)` token，禁止硬编码颜色（暗/亮双主题免维护）。
 - 全局零 inline handler（`onerror=`/`onclick=`），降级路径走纯 CSS。
 - 表单弹窗（含正在填的输入）**禁止** backdrop「遮罩即关」：`.st-modal` 是 `fixed inset:0` 全视口遮罩，卡片外任意一点都属于 modal 本身，一次误点会丢掉正在填的整张表单。关闭只走显式路径（完成 / 取消 / ×）**+ Esc**；新建表单弹窗若没有 Esc 必须补上（删遮罩即关后否则无任何键盘出口）。纯查看器（如 `#img-modal` 灯箱）仍可遮罩即关——它没有丢数据风险。该约定由静态门禁 `tests/test_form_modal_close.mjs`（含 decoy）锁定。
+- 每个弹窗都必须有**可见的关闭按钮**（右上角 ×，`id="<modal>-close"`，`aria-label`）。其 `<use href>` 图标 **必须在 `sprite.svg` 中真实存在**——引用不存在的 id（如 `i-xmark`）会让 `<use>` 解析不到、按钮渲染成空白、视觉上"没有关闭按钮"。关闭图标统一用项目既有 `i-chevron`（`.st-modal__head .st-icon` 已 rotate 成关闭叉），勿另造 sprite 里没有的图标名。弹窗还须做**焦点陷阱**（打开后 Tab 只在弹窗内循环；勿用 `offsetParent` 过滤——jsdom 下恒为真，应改 `!closest('[hidden]')`）+ **关闭后把焦点归还触发它的按钮**（开弹窗前记 `document.activeElement`，关时若其仍在文档内则 `.focus()`），保证键盘/读屏用户不被丢到页首。
 
 ### 3.3 i18n
 - 文案：中文 + 英文两侧 + 静态 HTML 兜底文本三处同步。

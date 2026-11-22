@@ -4906,11 +4906,13 @@ async function fillGroupSelect(sel, current) {
 // unchanged. It shows the workspace's *effective* group (deriveGroup) so a front-end workspace
 // reveals "would be frontend automatically" before the user decides to override it.
 let groupPickerBase = "";   // the workspace base the currently-open modal acts on ("" when closed)
+let groupPickerTrigger = null;   // the element that opened the modal, so close can return focus to it
 async function openGroupPicker(path) {
   const modal = $("group-modal"); if (!modal) return;
   const base = String(path || "").replace(/\/$/, "");
   if (!base) return;
   groupPickerBase = base;
+  groupPickerTrigger = document.activeElement;   // remember who opened us, to hand focus back on close
   const gp = $("group-path"); if (gp) gp.textContent = base;
   const eff = await deriveGroup(base);
   const cur = $("group-cur");
@@ -4925,6 +4927,10 @@ function closeGroupPicker() {
   const modal = $("group-modal"); if (modal) modal.hidden = true;
   if ($("scrim")) $("scrim").hidden = true;
   groupPickerBase = "";
+  // Accessibility: hand focus back to whatever opened the modal (the "..." / right-click item /
+  // memory-page button), so a keyboard or screen-reader user is not dumped at the top of the page.
+  const trig = groupPickerTrigger; groupPickerTrigger = null;
+  if (trig && document.contains(trig) && typeof trig.focus === "function") trig.focus();
 }
 // Apply a chosen label to the base the modal is acting on. An empty label here is a DELIBERATE
 // "leave the group" choice (setGroupLabel writes the __none__ sentinel) — not a no-op; the no-op
@@ -4947,7 +4953,22 @@ if ($("group-groupnewbtn")) $("group-groupnewbtn").onclick = () => {
   const ni = $("group-groupnew"); const nm = ni ? ni.value.trim() : ""; if (!nm) return;
   applyGroupLabel(nm);
 };
-document.addEventListener("keydown", (e) => { if ($("group-modal") && !$("group-modal").hidden && e.key === "Escape") closeGroupPicker(); });
+// Focus management for the group modal: Escape closes; Tab is trapped inside the dialog so a
+// keyboard user cannot tab out behind the open modal. The visible-focusable filter uses
+// !closest("[hidden]") rather than offsetParent so it behaves identically under jsdom.
+document.addEventListener("keydown", (e) => {
+  const modal = $("group-modal");
+  if (!modal || modal.hidden) return;
+  if (e.key === "Escape") { closeGroupPicker(); return; }
+  if (e.key !== "Tab") return;
+  const focusables = [...modal.querySelectorAll("button, select, input, textarea, [tabindex]")]
+    .filter((el) => !el.disabled && !el.closest("[hidden]"));
+  if (!focusables.length) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  const a = document.activeElement;
+  if (e.shiftKey && (a === first || !modal.contains(a))) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && (a === last || !modal.contains(a))) { e.preventDefault(); first.focus(); }
+});
 // Plan C — read-only frontend detection. A workspace is treated as a "frontend" workspace ONLY when
 // it carries the strong feature that the frontend group is defined by: a serve/web front-end
 // directory (the Nebula web app). This NEVER writes group.txt — it only derives a transient
