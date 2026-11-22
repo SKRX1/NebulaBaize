@@ -100,7 +100,7 @@
     "entries": [
       {
         "name": "每日代码备份",
-        "task": "cd /d \"E:\\Nebula\\NebulaBaize\\Nebula-agent\" && python tools\\backup-bundle.py --keep 14",
+        "task": "cd /d \"E:\\Nebula\\NebulaBaize\" && python Nebula-agent\\tools\\rotate_log.py \"E:\\Nebula\\NebulaBaize\\Nebula-agent\\data\\backup.log\" --max-bytes 1048576 --keep 3 && ( python Nebula-agent\\tools\\backup_precheck.py || cd . ) >> \"E:\\Nebula\\NebulaBaize\\Nebula-agent\\data\\backup.log\" 2>&1 && cd /d \"E:\\Nebula\\NebulaBaize\\Nebula-agent\" && python tools\\backup-bundle.py --keep 14",
         "approval": "full",
         "roots": [
           "E:\\Nebula\\NebulaBaize"
