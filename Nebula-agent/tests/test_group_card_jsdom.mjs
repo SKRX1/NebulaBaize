@@ -312,6 +312,34 @@ check("closing returns focus to the trigger", doc.activeElement === trigger,
       "active=" + (doc.activeElement && doc.activeElement.id));
 check("closing clears the trigger reference", api.groupPickerTrigger === null);
 
+// ---------------- 7) display localization of the built-in "frontend" group (the user report) ----
+// In Chinese the dropdown must show 前端, but the OPTION VALUE stays "frontend" — the directory
+// name, group.txt and Plan-C auto-detect all keep "frontend". A user's own group name is shown
+// verbatim. In English the built-in label stays "frontend" (that is the English i18n value).
+console.log("\n=== 7. frontend group shows 前端 in zh, value stays frontend ===");
+const LG = "E:/Nebula/NebulaBaize/.Nebula-memory/groups";
+LIST[LG] = "frontend\nbeta\n";
+const gsel7 = doc.createElement("select"); doc.body.appendChild(gsel7);
+win.i18n.setLang("zh");
+check("we are in Chinese for this check", win.i18n.lang === "zh", "lang=" + win.i18n.lang);
+await api.fillGroupSelect(gsel7, "");
+const optText7 = [...gsel7.options].map((o) => o.textContent);
+const optVal7 = [...gsel7.options].map((o) => o.value);
+check("zh: option VALUES still carry the real names (data layer untouched)  " + JSON.stringify(optVal7),
+      optVal7.includes("frontend") && optVal7.includes("beta"));
+const feIdx = optVal7.indexOf("frontend");
+check("zh: the frontend option DISPLAYS 前端 while its value stays frontend  text=" + optText7[feIdx],
+      feIdx >= 0 && optText7[feIdx] === "前端" && optVal7[feIdx] === "frontend");
+check("zh: a user-created group name is shown verbatim (never translated)  text=" + optText7[optVal7.indexOf("beta")],
+      optText7[optVal7.indexOf("beta")] === "beta" && optVal7.includes("beta"));
+// English mode: built-in stays "frontend" (that is the English i18n value), value unchanged.
+win.i18n.setLang("en");
+await api.fillGroupSelect(gsel7, "");
+const optText7e = [...gsel7.options].map((o) => o.textContent);
+const optVal7e = [...gsel7.options].map((o) => o.value);
+check("en: the built-in group stays frontend in both display and value",
+      optText7e[optVal7e.indexOf("frontend")] === "frontend" && optVal7e.includes("frontend"));
+
 console.log("");
 if (FAILURES.length) { console.log("GROUP-CARD: FAIL (" + FAILURES.length + ")"); process.exit(1); }
 console.log("GROUP-CARD: ALL GREEN");

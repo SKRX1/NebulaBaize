@@ -2089,7 +2089,7 @@ function openWorkspacePicker(newSession) {
   // (auto-detect). The datalist of existing groups is filled asynchronously (non-blocking).
   const wsg = $("ws-group"); if (wsg) wsg.value = (newSession ? "" : (currentGroup || ""));
   const wl = $("ws-group-list");
-  if (wl) { listGroups().then((gs) => { wl.innerHTML = gs.map((g) => `<option value="${esc(g)}"></option>`).join(""); }).catch(() => {}); }
+  if (wl) { listGroups().then((gs) => { wl.innerHTML = gs.map((g) => `<option value="${esc(g)}" label="${esc(groupDisplayName(g))}"></option>`).join(""); }).catch(() => {}); }
   // Pre-select the permission: a fresh workspace defaults to the safe "auto" tier; an existing
   // session keeps its stored tier (missing -> full, so old tasks behave as before).
   setWsPerm(newSession ? "auto" : sessionPerm(activeSession() || {}));
@@ -4890,13 +4890,22 @@ async function listGroups() {
   if (!raw) return [];
   return raw.split("\n").map((l) => l.trim()).filter((nm) => nm && nm !== NO_GROUP);
 }
+// Display name for a group label. The built-in "frontend" group is shown as 前端 in Chinese (its
+// i18n value is "frontend" in English, so the English UI keeps "frontend"). This is DISPLAY ONLY:
+// the stored value, the groups/<name> directory and Plan-C auto-detection all keep "frontend".
+// User-created group names are shown verbatim - they are the user's own labels, never translated.
+function groupDisplayName(g) {
+  if (!g) return g;
+  if (g === "frontend") return t("group.name.frontend");
+  return g;
+}
 // Paint a <select> with existing groups (always including the workspace's own current group).
 async function fillGroupSelect(sel, current) {
   if (!sel) return;
   const groups = await listGroups();
   if (current && !groups.includes(current)) groups.unshift(current);
   const opts = ['<option value="">' + esc(t("mem.auto.group.panel.none")) + "</option>"];
-  opts.push(...groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`));
+  opts.push(...groups.map((g) => `<option value="${esc(g)}">${esc(groupDisplayName(g))}</option>`));
   sel.innerHTML = opts.join("");
   sel.value = current || "";
 }
@@ -4916,7 +4925,7 @@ async function openGroupPicker(path) {
   const gp = $("group-path"); if (gp) gp.textContent = base;
   const eff = await deriveGroup(base);
   const cur = $("group-cur");
-  if (cur) cur.textContent = eff ? t("mem.auto.group.of", {g: eff}) : t("mem.auto.group.none");
+  if (cur) cur.textContent = eff ? t("mem.auto.group.of", {g: groupDisplayName(eff)}) : t("mem.auto.group.none");
   await fillGroupSelect($("group-groupsel"), eff);
   const ni = $("group-groupnew"); if (ni) ni.value = "";
   modal.hidden = false;
@@ -6278,7 +6287,7 @@ async function renderGroupCard() {
   card.hidden = false;
   const pre = $("mem-group-body"); if (!pre) return;
   const path = `${groupDir(currentGroup)}/RULES.md`;
-  const sum = $("mem-group-sum"); if (sum) sum.textContent = currentGroup;
+  const sum = $("mem-group-sum"); if (sum) sum.textContent = groupDisplayName(currentGroup);
   const txt = await fsRead(path);
   if (pre.dataset.editing){
     pre.textContent = "";

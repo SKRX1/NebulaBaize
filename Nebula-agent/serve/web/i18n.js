@@ -994,9 +994,10 @@
       "mem.auto.group.panel.new.ph": "新建分组名…",
       "mem.auto.group.panel.new.btn": "新建并加入",
       "mem.auto.group.panel.empty": "（暂无已有分组）",
-      "mem.auto.group.panel.detect": "提示：含前端的工作区若未配置分组，会自动归入 frontend 组（只读、不落盘）；此处操作可覆盖该默认。",
+      "mem.auto.group.panel.detect": "提示：含前端的工作区若未配置分组，会自动归入「前端」组（只读、不落盘）；此处操作可覆盖该默认。",
       "ws.group": "分组（可选，同组工作区共享规范/知识）",
       "ws.group.ph": "留空 = 自动判断；如需显式加入请填组名",
+      "group.name.frontend": "前端",
 
       "mem.auto.global.hint": "这里展示智能体维护的全局 MEMORY.md（只读）。三库里的「全局」条目在「自主沉淀」标签筛选「全局」查看；「工作区间」条目需先给本工作区分组，升级后同组工作区共享。",
       "drawer.automemory.scoped": "默认沉淀到「本工作区」；可在记忆面板把通用条目「升级为全局」，使其对所有工作区生效，也可把全局条目「降级」回当前工作区。",
@@ -2387,6 +2388,7 @@
       "mem.auto.group.panel.detect": "Note: a front-end workspace with no explicit group is auto-mapped to \"frontend\" (read-only, no file is written); anything here overrides that default.",
       "ws.group": "Group (optional; workspaces in the same group share spec/knowledge)",
       "ws.group.ph": "leave blank = auto-detect; set a name to join explicitly",
+      "group.name.frontend": "frontend",
 
       "mem.auto.global.hint": "This read-only view shows the agent's global MEMORY.md. AI-maintained \"global\" entries from the three stores live under the \"Autonomous memory\" tab, filtered by \"Global\". \"Group\" entries require setting a group for this workspace first, then promoting — shared only with sibling workspaces in that group.",
       "mem.weekly.title": "New memories this week",

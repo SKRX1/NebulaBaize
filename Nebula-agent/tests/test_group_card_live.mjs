@@ -272,6 +272,34 @@ const main = async () => {
   const groupScoped = paths.some((p) => /groups[\/\\]frontend[\/\\]RULES\.md$/i.test(p));
   check("the write path is the group's frontend RULES.md  " + JSON.stringify(paths[paths.length-1]), groupScoped);
 
+  // The NEW-WORKSPACE dialog is the other place the user reported an English "frontend". It uses a
+  // text input backed by a <datalist>; we set option label=前端 so a Chinese browser SHOWS 前端
+  // while the field still submits the real value "frontend". Prove the data is rendered localized.
+  await page.evaluate(() => { if (window.i18n) window.i18n.setLang("zh"); });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => { const b = document.getElementById("workspace-btn"); if (b) b.click(); });
+  await page.waitForTimeout(600);   // openWorkspacePicker -> listGroups -> datalist fill (async)
+  const wsDatalist = await page.evaluate(() => {
+    const dl = document.getElementById("ws-group-list");
+    const opts = dl ? [...dl.options].map((o) => ({ v: o.value, label: o.getAttribute("label") || "" })) : [];
+    return { open: !!document.getElementById("ws-modal") && !document.getElementById("ws-modal").hidden, opts };
+  });
+  check("the new-workspace dialog is open for inspection", wsDatalist.open === true);
+  const feOpt = wsDatalist.opts.find((o) => o.v === "frontend");
+  check("ws-modal datalist keeps value=frontend but LABELS it 前端 (submits the real name)  " + JSON.stringify(feOpt),
+        !!feOpt && feOpt.label === "前端");
+  // reading the dialog must not change the group on disk; close it to leave a clean state.
+  const gtxtAfterWs = await page.evaluate(async () => {
+    try {
+      const r = await fetch("mcp/call", {method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({server:"filesystem", tool:"read", args:{path:"E:/Nebula/NebulaBaize/Nebula-agent/.Nebula-memory/group.txt"}})});
+      const d = await r.json().catch(()=>({})); return (d && d.ok && (d.text||"").trim()) || "";
+    } catch (e) { return ""; }
+  });
+  check("inspecting ws-modal wrote nothing to group.txt", gtxtAfterWs === "" || gtxtAfterWs === "frontend", "got=" + JSON.stringify(gtxtAfterWs));
+  await page.evaluate(() => { const c = document.getElementById("ws-close"); if (c) c.click(); });
+  await page.waitForTimeout(300);
+
   // 4) a fresh second tab reads it back. A real new tab restores the session list but only
   // sets currentGroup when the user actually selects that workspace's session (selectSession ->
   // loadMemoryState), exactly like a human switching workspaces. So we open a sibling tab in
