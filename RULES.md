@@ -209,3 +209,11 @@ Nebula-agent/data/ 下运行态数据(semantic.db/episodic.jsonl/uploads)已 git
 加调度任务时 task 命令必须带 cd /d "绝对路径" && 前缀 + 配 roots，对齐既有备份任务格式：调度器不在 Nebula-agent cwd 下跑，裸相对路径 python tools\... 会找不到脚本形同虚设，加完必模拟跑一次该命令坐实可执行
 给 commit message 含特殊字符（> < & | 等 shell 元字符）时禁用 PowerShell 内联字符串拼接（外层 cmd 会把 >= 当重定向切正文+凭空生成文件），改用 python io.open 写 message 文件 + git commit -F，写完 git log 探针验证正文完整
 向含别工作线未提交漂移的共享文件追加本轮条目时，插在 committed 区中部(与末尾漂移被≥3行上下文分隔)使成本轮独立 hunk，再 git add -p 喂 y(本轮)/n(别线)决策串拆分；提交后用 git diff --cached --numstat 核验 staged 行数恰=本轮真实改动数(防裹入别线)
+判定测试退出码（CI 契约以 returncode==0 为唯一判据）时，cmd 里同一条行用 %errorlevel% / && / || / findstr 串联都会污染或错位读取退出码（实测出现 %errorlevel% 空、&&|| 全假红而脚本实际 EXIT 0）；须用 Python subprocess.run(...).returncode 单独读取才是可信判据
+baseline-tag-archive.md 真实落点是 Nebula-agent/docs/（非仓库根 docs/），登记"当前回滚点"时沿用其既有表格+重建命令格式，新增"当前回滚点（保留）"小节而非改写被清理条目
+backup-bundle 的镜像偶发只写主盘导致两盘集合分叉一个时间戳：此时两盘仍各自正确执行 keep-14、不会误删共有备份，且最新回滚点两盘一致——复核判据应看"共有同名 bundle 字节一致 + 最新点同含目标 tag"，而非仅看"逐名严格相同"
+改 星云白泽.bat/.sh 启动器时：run_standalone 是前台阻塞的 8099 网关(带自愈 loop)，必须另开窗口(.bat start / .sh nohup &)起它，否则占用本窗无法自动关窗；gw_watchdog.* 自身已后台化(start /min 或 nohup &)，调用它用 call/bash 直接调即可、勿再套 start 免多空壳窗
+maybeAutoResume 的 early-done 分支已按 Plan A 改造：earlyCap=独立常量 EARLY_DONE_CAP(2)，且 awaitingReply(未关闭决策卡∨hold 等确认项) 时不触发；改动 app.js 该函数后必须同步给抽取真身的 harness（test_early_done_lane/test_autoresume_lanes/test_owner_binding_jsdom）注入 let EARLY_DONE_CAP=2，否则真身求值 ReferenceError
+新增"前端设置可调配额"时镜像同形态姊妹项（如 default=2 的 emptyRoundMax）四件套：DEFAULTS 默认值 + 运行时 earlyCap 读 settings.X 且非法回落模块级常量兜底 + loadDrawer hydrate + saveSettings clamp 持久化 + index.html 数值 input + i18n 四键 zh/en；保留模块级常量作默认安全网，运行期优先读 settings。改 earlyCap 这类函数后须给抽取真身的 test_early_done_lane harness 同步注入新 settings 字段才能测覆盖分支
+星云文档语言约定（2026-11-22 拍板，与软件默认语言一致）：裸名 X.md = 简体中文默认版，X.en.md = 英文对照翻译；GitHub 按访客浏览器语言自动在两者间切换，故"裸名"必须放中文。新增文档一律遵此命名，顶栏统一写「**简体中文** | [English](X.en.md)」互链。法律文件 CLA.md 双语同文件属例外，不拆。
+打基线 tag 的措辞铁律：annotated message 只写本轮"实际验证过"的事实，不得写未经实跑的状态（如纯文档改动不可写 "CI green"）；命名 v-baseline-YYYY-MM-DD-<字母>，按当天已有 tag 续字母，遵循不推 origin 的仓库惯例（先 git cat-file -t 比对既有 tag 类型再打）。
