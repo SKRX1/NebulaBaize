@@ -3,21 +3,20 @@
 
 > An original **application-layer** agent — gateway, runtime, skills, memory, and web UI —
 > **powered by Strata** inference engine.
->
-> 一个**原创应用层**智能体（网关 / 运行时 / 技能 / 记忆 / 前端），底层通过 `--url` 接入 **Strata** 推理引擎。
 
-**Author / 作者：** 时空象容
+**Author:** 时空象容
+
+> Read this in: **English** | [简体中文](README.zh-CN.md)
 
 ---
 
-## Architecture · 架构
+## Architecture
 
-A one-line picture of “what this repo ships” vs “what it runs on top of”:
-一张图说清楚“本仓库发布什么” vs “它跑在什么之上”：
+A one-line picture of "what this repo ships" vs "what it runs on top of":
 
 ```
 +--------------------------------------------------------+
-|  Nebula Baize / 星云白泽  (THIS repository)             |   <- original application layer / 原创应用层
+|  Nebula Baize / 星云白泽  (THIS repository)             |   <- original application layer
 |  gateway · runtime · skills · scheduler · memory · tools   |      (AGPL-3.0, (c) 2026 时空象容)
 |  web frontend (serve/web)                               |
 +--------------------------------------------------------+
@@ -26,60 +25,51 @@ A one-line picture of “what this repo ships” vs “what it runs on top of”
                           |
                           v
 +--------------------------------------------------------+
-|  Strata inference engine  (runtime prerequisite, NOT bundled) |   <- runtime dep / 运行前置，不随包发布
+|  Strata inference engine  (runtime prerequisite, NOT bundled) |   <- runtime dep
 |  native backend: src · include · metal · sycl · third_party|      (separately licensed by its authors)
 +--------------------------------------------------------+
 ```
 
 The arrow `--url` is the *only* link between the two. This repository = the top box only.
-箭头 `--url` 是两者之间唯一的连接。本仓库 = 只有上面那个框。
 
 ---
 
-## What this is · 这是什么
+## What this is
 
-星云白泽 is the **original application layer** of this project: the agent gateway, runtime,
-skills, scheduling, memory subsystem, tools, and the web frontend. This code was authored for
-Nebula Baize and is what this repository ships.
+星云白泽 (Nebula Baize) is the **original application layer** of this project: the agent gateway,
+runtime, skills, scheduling, memory subsystem, tools, and the web frontend. This code was authored
+for Nebula Baize and is what this repository ships.
 
 It is **not** the inference engine. At runtime it connects to a separately-installed
 **Strata** engine over a network endpoint (`--url http://127.0.0.1:8080/v1`). The Strata engine
 and its native backend are **not bundled** in this release — they are a runtime prerequisite you
 supply yourself.
 
-星云白泽 是本项目的**原创应用层**：智能体网关、运行时、技能、调度、记忆、工具与 Web 前端。
-本仓库发布的就是这部分代码。它**不含**推理引擎——运行时通过 `--url` 接入一个独立安装的
-**Strata** 引擎；引擎及其原生后端**不随包分发**，作为运行前置由你自备。
+## Features
 
-## License · 许可
+A local-first agent you run entirely on your own machine, with the model of your choice:
 
-- The original application-layer code in this repository is released under the
-  **[AGPL-3.0 License](LICENSE)** + commercial dual-licensing (see `COMMERCIAL-LICENSE.md`), Copyright (c) 2026 **时空象容**.
-- Bundled third-party runtime dependencies and their permissive licenses are listed in
-  **[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)**.
-- The **Strata** engine is **not bundled** and is **not** covered by this repository's license.
-  It is a separate, independently-licensed project used as a runtime dependency; "Strata" is a
-  name owned by its authors — this project is *powered by* Strata, not an official Strata product.
+- **Local-first gateway + agent loop.** An OpenAI-compatible gateway (`runtime/`) runs the full
+  tool-calling agent loop locally. Your files, commands, and conversations stay on your machine.
+- **Works with any model.** Point it at the local **Strata** engine (incl. vision), or any
+  OpenAI-compatible cloud endpoint you add from the web UI (keys stay server-side, applied live
+  without a restart). Cloud models get the same local tools as long as they support function-calling.
+- **~36 local tools over MCP.** File, shell, browser, web search, scheduling, memory, skill
+  registry, and more — all executed locally, not in a cloud sandbox.
+- **A web UI, no framework.** The frontend (`serve/web/`) is plain HTML/JS with no external
+  network dependencies; served straight from the gateway at `http://127.0.0.1:8099`.
+- **Skills & self-extending tooling.** Add MCP servers / skills and let the agent propose new
+  ones; everything is registered, audited, and reversible.
+- **Memory that compounds.** The more you use it, the better it fits your workflow — see
+  [How it gets smarter with use](#how-it-gets-smarter-with-use) below, and the
+  [full memory & experience guide](docs/MEMORY-GUIDE.md) for the mechanism.
+- **Self-healing launcher.** One double-click starts a gateway watchdog that keeps port 8099 up
+  (crash-restart loop) and never forces an inference engine you may not need.
+- **Reproducible & auditable.** A full regression suite (jsdom gates + Python tests) guards both
+  frontend and backend; deletions go to the OS recycle bin, and rolling git bundles back up the
+  whole repo at tagged rollback points.
 
-本仓库的原创应用层代码以 **[AGPL-3.0 许可](LICENSE)** 发布，并配套**商业双轨授权**（详见 `COMMERCIAL-LICENSE.md`），版权所有 时空象容。
-随包的第三方宽松许可依赖见 **[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)**。
-**Strata** 引擎**不随包发布**，也不在本仓库许可覆盖范围内——它是作为运行依赖的独立项目；
-"Strata" 归其原作者所有，本项目是 *powered by Strata*，非 Strata 官方产品。
-
-### Prerequisites · 前置条件
-
-- **Python 3.14（建议装最新补丁版；最低 3.10）** — 必需。Windows 上 `setup.bat` 会先探测本机已有的
-  可用 Python（`py -3` / `where python` / 安装目录扫描），**检测到版本 ≥3.10 就不再下载、也不安装**；
-  只有完全找不到可用的 Python 时，它才会静默下载并安装一个 Python 3.14。Linux/macOS 请自备 Python 3.14。
-- **Node.js** — *运行本应用层不需要*，它只在你要跑 JS 测试套件（jsdom 门禁 / Playwright e2e）时才需要安装。
-  星云白泽运行时是纯 Python，无 Node 依赖。
-- **图像模型 / 出图** — 由一个**外部 `sd-cli` 可执行文件**完成（运行时用 `subprocess` 调用它），它**不是 Python
-  包、不进 `requirements.txt`**；要使用出图功能请自备一个 Stable-Diffusion CLI。
-- **Python 依赖** — 见 `Nebula-agent/requirements.txt`：运行时硬依赖仅 `pillow / psutil / PySocks`（均为预编译
-  wheel，无需本机编译器）。`PyYAML / send2trash / strata_tokenizer` 属可选依赖，代码用 try / `find_spec` 优雅
-  降级，故有意不列入 requirements。
-
-## Getting started · 开始使用
+## Getting started
 
 1. **Clone, then bootstrap the venv once** (a fresh clone has no `.venv`, so the launchers
    fail until this runs): `setup.bat` on Windows, or `bash setup.sh` on Linux/macOS.
@@ -89,29 +79,73 @@ supply yourself.
    endpoint, e.g. `http://127.0.0.1:8080/v1`.
 3. Point this app layer at it via `--url` / model / port (edit `run_standalone.bat`, or pass
    `UPSTREAM_URL=... MODEL=... PORT=... bash Nebula-agent/run_standalone.sh`).
-4. Start it: `run_standalone.bat` (Win) / `run_standalone.sh` (Linux/macOS) under `Nebula-agent/`;
-   open the local frontend (default http://127.0.0.1:8099).
+4. Start it: `星云白泽.bat` (Windows) double-clicks a watchdog that brings up the gateway on demand;
+   or run `run_standalone.bat` / `run_standalone.sh` directly under `Nebula-agent/`. Open the local
+   frontend (default http://127.0.0.1:8099).
 
-1. **克隆后先引导一次 venv**（新克隆没有 `.venv`，不跑这步启动脚本会直接失败）：Windows 用 `setup.bat`，
-   Linux/macOS 用 `bash setup.sh`。它会创建 `.venv`、安装固定依赖（pillow/psutil/PySocks）、重写配置，
-   并校验全部 servers + gateway 可导入。
-2. 先安装并运行一个 **Strata** 引擎（运行前置），提供 OpenAI 兼容端点，如 `http://127.0.0.1:8080/v1`。
-3. 通过 `--url` / 模型 / 端口把本应用层指向它（编辑 `run_standalone.bat`，或用
-   `UPSTREAM_URL=... MODEL=... PORT=... bash Nebula-agent/run_standalone.sh`）。
-4. 启动：在 `Nebula-agent/` 下运行 `run_standalone.bat`（Win）/ `run_standalone.sh`（Linux/macOS）；
-   在浏览器打开本地前端（默认 http://127.0.0.1:8099）。
+### Prerequisites
 
-## Recovery · 备份恢复
+- **Python 3.14 (latest patch recommended; 3.10 minimum)** — required. On Windows `setup.bat`
+  first probes for an existing usable Python (`py -3` / `where python` / install-dir scan);
+  **if it finds ≥3.10 it does not download or install** — only when none is available does it
+  silently fetch and install Python 3.14. On Linux/macOS supply your own Python 3.14.
+- **Node.js** — *not needed to run this app layer*; it is only required to run the JS test
+  suites (jsdom gates / Playwright e2e). Nebula Baize itself is pure Python, no Node dependency.
+- **Image generation** — done by an **external `sd-cli` executable** invoked via `subprocess`.
+  It is **not a Python package and not in `requirements.txt`**; bring your own Stable-Diffusion CLI
+  to use image features.
+- **Python dependencies** — see `Nebula-agent/requirements.txt`: hard runtime deps are only
+  `pillow / psutil / PySocks` (all pre-built wheels, no local compiler needed).
+  `PyYAML / send2trash / strata_tokenizer` are optional and degrade gracefully via `try` /
+  `find_spec`, so they are deliberately left out of requirements.
+
+## How it gets smarter with use
+
+星云白泽 keeps a **memory you own and can audit** — it is not hidden inside a model's weights.
+Each conversation can deposit reusable knowledge into three separate, user-gated libraries that are
+injected into future turns, so the agent progressively learns your file layout, build commands,
+naming rules, and known pitfalls:
+
+- **Rules** — stable operating conventions you confirm (directory layout, build/deploy commands,
+  approval model, recurring gotchas).
+- **Knowledge** — confirmed facts, API quirks, environment conclusions (toolchain behavior, versions).
+- **Experience** — short post-task retrospectives ("context → decision → outcome → lesson").
+
+**How it works, verbatim from the implementation:**
+
+- A memory MCP server (`servers/memory_server.py`) exposes `recall` (retrieve cross-session memory
+  by keyword), `ingest` / `forget` / `sources` / `read_source` (learn & manage reference documents).
+  Retrieval runs over an **episodic store** (`data/episodic.jsonl`) and a **semantic store**
+  (`data/semantic.db`), both pure standard library.
+- Writes are **deliberately user-gated.** The model cannot write facts straight into the database;
+  every deposition goes through a `propose-*` fence into the scoped, auditable three-library system,
+  is written as a new entry you can **undo in one click**, and respects your auto-memory toggle.
+  Auto-distillation can also feed the semantic store after a task — still recallable, still yours to review.
+- Net effect: confirmed conventions take effect on every future conversation, wrong turns stay
+  one-click reversible, and nothing is silently baked in.
+
+For the full mechanism, the three-library lifecycle, and how to curate it, see the
+**[full memory & experience guide](docs/MEMORY-GUIDE.md)**.
+
+## License
+
+- The original application-layer code in this repository is released under the
+  **[AGPL-3.0 License](LICENSE)** + commercial dual-licensing (see `COMMERCIAL-LICENSE.md`), Copyright (c) 2026 **时空象容**.
+- Bundled third-party runtime dependencies and their permissive licenses are listed in
+  **[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)**.
+- The **Strata** engine is **not bundled** and is **not** covered by this repository's license.
+  It is a separate, independently-licensed project used as a runtime dependency; "Strata" is a
+  name owned by its authors — this project is *powered by* Strata, not an official Strata product.
+
+## Recovery
 
 - Backups are rolling git bundles (`--keep 14`), on E: (primary) and F: (mirror) under
   `星云备份\星云白泽备份`. Each carries the full repo (commits + all baseline tags).
-- 备份是滚动的 git bundle（`--keep 14`），落在 E:（主盘）与 F:（镜像）的 `星云备份\星云白泽备份`，每个都含全部 commits + 基线 tag。
 
 Clone the newest bundle to restore the repo at any rollback point (commits + tags):
-克隆最新 bundle 即可在任意回滚点还原仓库（commits + tags）：
 
 ```bat
-:: 取最新 bundle 克隆还原（含全部 tag 回滚点），再 checkout 目标 tag
+:: Clone the newest bundle (incl. all tag rollback points), then checkout the target tag
 for /f "delims=" %%F in ('dir /b /o-d "E:\星云备份\星云白泽备份\*.bundle" ^| more +0') do (
   git clone "E:\星云备份\星云白泽备份\%%F" restore_dir
   git -C restore_dir checkout v-baseline-2026-11-21-h
@@ -121,15 +155,15 @@ for /f "delims=" %%F in ('dir /b /o-d "E:\星云备份\星云白泽备份\*.bund
 ```
 
 Current newest sample: `strata-bundle-20261121-182344.bundle` (HEAD 48c7338, baseline tag v-baseline-2026-11-21-j).
-当前最新样本见上；回滚点示例 tag `v-baseline-2026-11-21-j`。
 
-Rehearsed clone drill · 实测克隆演练（备查）
-坐实于 2026-11-21：克隆 bundle `182344` → checkout `v-baseline-2026-11-21-j` → 还原 HEAD `48c7338`（干净回滚点，账本清理块在还原树中可读），逐步 rc 均 0：
+Rehearsed clone drill (kept for reference)
+Verified on 2026-11-21: clone bundle `182344` → checkout `v-baseline-2026-11-21-j` → restore HEAD `48c7338`
+(a clean rollback point; the ledger cleanup block reads back in the restored tree), every step rc 0:
 
 ```bat
 git clone "E:\星云备份\星云白泽备份\strata-bundle-20261121-182344.bundle" restore_dir
 git -C restore_dir checkout v-baseline-2026-11-21-j
-git -C restore_dir rev-parse HEAD   ·· 应得 48c7338935399a3bd4d7eef13a2524706d45802b
+git -C restore_dir rev-parse HEAD   :: should print 48c7338935399a3bd4d7eef13a2524706d45802b
 ```
 
 ---
