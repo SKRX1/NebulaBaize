@@ -97,6 +97,8 @@ SUITES = [
 
     "tests/test_backup_precheck.py",   # 2026-11-22: lock the backup daily-task pre-check decide() -- only a real divergence (local AND remote each ahead) blocks the bundle; one-side/0-0 pass (load-bearing both-operand proof)
 
+    "tests/test_backup_precheck_e2e.py",   # 2026-11-22: end-to-end differential -- a REAL throwaway repo with a true divergence makes main() exit 2 and the daily task's && bundle skip (no marker); an in-sync repo exits 0 and runs it; the only flipped variable is divergence (load-bearing)
+
     "tests/test_i18n.mjs",
 
     "tests/test_spark.mjs",
