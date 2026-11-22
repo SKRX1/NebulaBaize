@@ -210,6 +210,18 @@ check("C2. control: distinct signatures stay THREE rows", box().length === 3, "s
   check("F3. control: only the clicked entry was deleted (the KEEP row survived)",
         after.length === 1 && String(after[0].ts) === "81", JSON.stringify(after.map((e) => e.ts)));
 }
+console.log("\n=== C-bg: bugbox-addmodal survives a backdrop click; only Esc closes it (2026-11-22) ===");
+{
+  const am = doc.getElementById("bugbox-addmodal");
+  am.hidden = false;                                          // fixture: open the add-form
+  doc.getElementById("bugbox-am-title").value = "half-typed bug";
+  am.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("a backdrop click does NOT close the add-form (title survives, load-bearing)",
+        am.hidden === false && doc.getElementById("bugbox-am-title").value === "half-typed bug");
+  am.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  check("Escape still closes it (explicit keyboard exit intact)", am.hidden === true);
+}
+
 console.log("");
 if (FAILURES.length) {
   console.log("MERGE STATS: " + FAILURES.length + " FAILED");

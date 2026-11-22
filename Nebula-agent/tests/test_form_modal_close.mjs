@@ -35,6 +35,28 @@ const decoyBack = js.replace(ESC_CLOSE, OLD_BACKDROP + "\n  " + ESC_CLOSE);
 ok(decoyBack !== js, "decoy B: re-injecting the old backdrop-close is visible in the source");
 ok(decoyBack.includes(OLD_BACKDROP), "decoy B control: a re-added backdrop-close flips lock #1 red");
 
+// 3) ws-modal 同样是表单弹窗（填工作区路径）：旧遮罩即关必须不再存在、必须有 Esc。
+const WS_BACKDROP = 'if (e.target.id === "ws-modal") closeWorkspacePicker();';
+const WS_ESC      = 'if ($("ws-modal") && !$("ws-modal").hidden && e.key === "Escape") closeWorkspacePicker();';
+ok(!js.includes(WS_BACKDROP), "ws-modal: no backdrop-click-to-close (dropped a typed workspace path)");
+ok(js.includes(WS_ESC), "ws-modal: Esc closes it (explicit keyboard exit added)");
+const wsDecoy = js.replace(WS_ESC, WS_ESC.replace('e.key === "Escape"', 'e.key === "Q"'));
+ok(wsDecoy !== js, "ws decoy: the Escape->Q mutation is visible (lock has something to bite)");
+ok(!wsDecoy.includes(WS_ESC), "ws decoy control: mutating the Escape key flips the ws Esc lock red");
+const wsBack = js.replace(WS_ESC, WS_BACKDROP + "\n  " + WS_ESC);
+ok(wsBack.includes(WS_BACKDROP), "ws decoy control: a re-added backdrop-close flips the ws lock #1 red");
+
+// 4) bugbox-addmodal 同样是表单弹窗（填标题/描述+贴图，贴图重建代价高）。
+const BB_BACKDROP = 'if(e.target===$("bugbox-addmodal")) _bugboxAddModalClose();';
+const BB_ESC      = 'if ($("bugbox-addmodal") && !$("bugbox-addmodal").hidden && e.key === "Escape") _bugboxAddModalClose();';
+ok(!js.includes(BB_BACKDROP), "bugbox-addmodal: no backdrop-click-to-close (dropped a half-typed report + pasted images)");
+ok(js.includes(BB_ESC), "bugbox-addmodal: Esc closes it (explicit keyboard exit added)");
+const bbDecoy = js.replace(BB_ESC, BB_ESC.replace('e.key === "Escape"', 'e.key === "Q"'));
+ok(bbDecoy !== js, "bugbox decoy: the Escape->Q mutation is visible (lock has something to bite)");
+ok(!bbDecoy.includes(BB_ESC), "bugbox decoy control: mutating the Escape key flips the bugbox Esc lock red");
+const bbBack = js.replace(BB_ESC, BB_BACKDROP + "\n  " + BB_ESC);
+ok(bbBack.includes(BB_BACKDROP), "bugbox decoy control: a re-added backdrop-close flips the bugbox lock #1 red");
+
 // 3) 范式锚点（不改行为）：img-modal 查看器仍允许遮罩即关——证明本锁只针对「表单弹窗」，
 //    不是一刀切禁止所有遮罩关闭（纯查看器丢不了数据）。
 ok(js.includes('if (e.target.id === "img-modal") closeImageView();'),

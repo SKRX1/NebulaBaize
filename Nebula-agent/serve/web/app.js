@@ -1981,7 +1981,9 @@ $("new-task-btn").onclick = () => {
   openWorkspacePicker(/*newSession=*/ true);
 };
 
-$("ws-modal").addEventListener("click", (e) => { if (e.target.id === "ws-modal") closeWorkspacePicker(); });
+// Backdrop click no longer closes this FORM modal (it dropped a typed workspace path). Close =
+// explicit: the close button or Esc - matching model-modal / sched-modal / edit-modal.
+document.addEventListener("keydown", (e) => { if ($("ws-modal") && !$("ws-modal").hidden && e.key === "Escape") closeWorkspacePicker(); });
 $("ws-close").onclick = closeWorkspacePicker;
 $("ws-pick").onclick = () => openBrowser($("ws-path").value.trim());
 // The workspace needs the folder's REAL absolute path. The browser's own picker
@@ -9735,7 +9737,9 @@ async function _bugboxPasteImg(e){
 if ($("bugbox-am-desc")) $("bugbox-am-desc").addEventListener("paste",(e)=>_bugboxPasteImg(e));
 if ($("bugbox-am-cancel")) $("bugbox-am-cancel").onclick = _bugboxAddModalClose;
 if ($("bugbox-addmodal-close")) $("bugbox-addmodal-close").onclick = _bugboxAddModalClose;
-if ($("bugbox-addmodal")) $("bugbox-addmodal").addEventListener("click", (e)=>{ if(e.target===$("bugbox-addmodal")) _bugboxAddModalClose(); });
+// Backdrop click no longer closes this FORM modal (it dropped a half-typed bug report, incl. pasted
+// images that are costly to rebuild). Close = explicit: cancel / close button or Esc.
+if ($("bugbox-addmodal")) document.addEventListener("keydown", (e)=>{ if ($("bugbox-addmodal") && !$("bugbox-addmodal").hidden && e.key === "Escape") _bugboxAddModalClose(); });
 
 if ($("bugbox-search")) {
     $("bugbox-search").addEventListener("input", () => renderBugBox());

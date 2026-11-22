@@ -150,6 +150,16 @@ await api.wbLoad("C:\\Users\\sk\\nope");
 check("no rows for a missing folder", api.browseRows().length === 0);
 check("the gone-note is shown", api.noteHidden() === false);
 
+// backdrop no longer closes the workspace FORM modal; Esc is the keyboard exit (2026-11-22)
+console.log("\n=== T8: ws-modal survives a backdrop click (typed path kept); only Esc closes it ===");
+$("ws-modal").hidden = false;                                  // fixture: open the picker
+$("ws-path").value = "C:\\Users\\sk\\half-typed";
+$("ws-modal").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+check("a backdrop click does NOT close the form (typed path survives, load-bearing)",
+      $("ws-modal").hidden === false && $("ws-path").value === "C:\\Users\\sk\\half-typed");
+$("ws-modal").dispatchEvent(new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+check("Escape still closes it (explicit keyboard exit intact)", $("ws-modal").hidden === true);
+
 console.log("");
 if (FAILURES.length) {
   console.log(`WORKSPACE PICKER: ${FAILURES.length} FAILED`);
