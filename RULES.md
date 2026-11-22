@@ -223,3 +223,5 @@ backup-bundle 前置铁律精化：若本地 ahead 远端且有要固化的 comm
 规范/rules 类内容不做 token 级懒加载（区别于 knowledge/experience）：硬约束漏注入即失效；其"按作用域(工作区/组)条件加载"本身就是恰当粒度
 前端规范自动加载(方案C)落点在 loadMemoryState 的 group 分支：currentGroup=deriveGroup(base)——显式 group.txt 组名 > __none__ 哨兵(尊重不外推) > 仅"从未配置"时按 <ws>/serve/web/(app.js|index.html) 只读探测映射 frontend，绝不写盘；新建工作区经 ws-apply(2067)或 selectSession(1626)都触发它故自动生效
 自动检测类特性一律"只读推导当前态、不写持久文件"，并提供显式 opt-in/opt-out 覆盖；要区分"用户主动退出"与"从未配置"需写显式哨兵(如 __none__)而非空行，空行无法区分二者
+归组能力的唯一真相源是 setGroupLabel + <ws>/.Nebula-memory/group.txt（含 __none__ 退出哨兵）；任何新增归组入口都必须复用它，不得另起第二套逻辑。归组字段"留空"必须是不写盘的 no-op，绝不能调 setGroupLabel("")（那会误写退出哨兵并覆盖方案C自动探测）
+归组枚举用 listGroups() 只读列 <GLOBAL_ROOT>/groups/，渲染下拉用 fillGroupSelect()：首位空选项=不归组、列出全部已有组、当前组即使不在盘上也始终呈现以便选中
