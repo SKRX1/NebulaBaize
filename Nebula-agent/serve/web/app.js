@@ -3348,8 +3348,12 @@ function maybeAutoResume(m, targetSession = null) {
     // continueTask falls through to a plain send() for this code. So EXCLUDE it from auto-resume.
     (m.notice && m.notice.resumable && m.notice.code !== "context_overflow" && m.notice.code !== "context_contention") || isEmptyLane;
   // D(early-done lane): model wrote what reads like a closing line while its OWN plan checklist still had boxes left -> premature, not done.
-  const earlyCap = Math.max(AUTO_RESUME_FLOOR, cap);   // 2026-11 plan A+B: early lane is a NOT-finished lane, so it gets the same big budget as the main chain (floor>=12, default 24) and runs to completion; only the pure-spin empty lane keeps its small anti-spin budget.
-  const isEarlyLane = !mainResumable && openPlan > 0 && !!(m.text || "").trim();   // ONLY when no existing lane took it AND its own plan has boxes left AND there is real text -> near-zero misjudge on a genuine short answer
+  const earlyCap = EARLY_DONE_CAP;   // 2026-11 Plan A: the early-done lane used to inherit the main-chain budget (max(12,cap)=24), so any leftover unchecked plan box dragged up to 24 auto-resumes after a finished answer. Cap it to a tiny anti-spin budget instead; the main chain keeps its own AUTO_RESUME_MAX/FLOOR for genuine disconnects.
+  // 2026-11 Plan A: a decision card this turn, or a blue 等你确认 chip, means the model IS waiting for the
+  // human -- a leftover unchecked plan box is then expected, NOT a premature close. Mirror maybeAutoDrive's
+  // existing proposal guard (line ~2988) so the two auto-runners agree on 'is this turn awaiting a reply'.
+  const awaitingReply = (m.proposals || []).some((p) => !p.dismissed) || (m.steps || []).some((st) => st.hold);
+  const isEarlyLane = !mainResumable && openPlan > 0 && !awaitingReply && !!(m.text || "").trim();   // ONLY when no existing lane took it, the turn is NOT waiting on the human, its own plan has boxes left AND there is real text -> near-zero misjudge on a genuine short answer
   if (!isEarlyLane && !mainResumable) return false;   // early lane IS a mainResumable=false case, so let it through the gate too
   let chainN, chainMax;                                  // per-lane count/max so the toast never mixes the two chains
   if (isEarlyLane) {                                  // D: its OWN counter + small budget; never borrows the main-chain count
@@ -3415,6 +3419,7 @@ let emptyRoundChain = 0;              // B: separate counter for the pure-thinki
 let earlyDoneChain = 0;             // D: separate counter for the premature-close lane (own budget), mirroring emptyRoundChain on purpose.
 const AUTO_RESUME_MAX = 24;           // A: raise floor so a normal long task runs to finish; s-autoresumeMax (drawer) overrides it when set.
 const AUTO_RESUME_FLOOR = 12;         // 2026-11 plan-A guard: the smallest main-chain cap we honour. A drawer value below this too-small floor falls back to DEFAULTS/AUTO_RESUME_MAX, so a stray small number (like a leftover 2) can no longer fuse-and-hand-back after only a couple of resumes.
+const EARLY_DONE_CAP = 2;             // 2026-11 Plan A: the premature-close (early-done) lane's OWN tiny budget. It only ever re-runs a task the model itself left boxes on and that is NOT waiting on the human; 2 is enough to nudge a genuinely unfinished task without dragging every 'looks done' answer into a long auto-chain.
 // Adaptive auto-compact threshold.
 //   settings.compactPct > 0 -> manual override (user pinned this percentage).
 //   settings.compactPct === 0 -> adaptive: 75% of the model's effective (native) window,

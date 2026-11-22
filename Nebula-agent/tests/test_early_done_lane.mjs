@@ -3,7 +3,10 @@
 Locks the landing so a future edit under a false premise cannot silently return:
   - A) a NEW fourth lane fires when the model wrote what READS like a closing line while its OWN plan
        checklist still had UNCHECKED boxes -> premature close, not done. It has its OWN counter
-       (earlyDoneChain) + small budget and never borrows the main-chain count. The unchecked-box count
+       (earlyDoneChain) + OWN tiny budget (EARLY_DONE_CAP=2, Plan A) and never borrows the main-chain count.
+  - D) a turn that is WAITING on the human (a live decision card, or a blue 等你确认 hold chip) is NOT early-resumed --
+       a leftover unchecked box there is expected, not a premature close. The awaitingReply guard is load-bearing.
+       The unchecked-box count
        is LOAD-BEARING: same body-text, only "boxes left vs all ticked" differs -> return flips.
   - B) the resume path's instruction text (chat.resume.cmd) carries the self-check hard constraint in
        BOTH zh and en; a new toast key (resume.stopped.early) exists in both languages.
@@ -42,7 +45,7 @@ check("source has isEarlyLane driven by openPlan", /const\s+isEarlyLane\s*=.*ope
 function makeHarness(seedMax) {
   const src = `
 "use strict";
-let AUTO_RESUME_MAX=${seedMax};let AUTO_RESUME_FLOOR=12;
+let AUTO_RESUME_MAX=${seedMax};let AUTO_RESUME_FLOOR=12;let EARLY_DONE_CAP=2;
 let autoResumeChain, emptyRoundChain, earlyDoneChain; let busy=false; let settings={};
 let tLog=[]; function t(k){tLog.push(k);return k;}
 function toast(kind,k1,k2){tLog.push("TOAST:"+k1+"|"+(k2||""));}
@@ -94,12 +97,19 @@ console.log("\n=== the early lane is its OWN budget/counter and does NOT borrow 
 
   const h2 = makeHarness(24);
   const mFuse = {text:"done.", plan:[{done:false,label:"b"}]};
-  // 2026-11 plan A+B: the early lane is a NOT-finished lane -> big budget (floor>=12, same as the main chain).
-  const earlyCarry = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 0, mFuse);   // chain0 < big cap -> carries on
-  check("early lane at headroom under the BIG budget -> carry true [plan A+B: runs to completion]", earlyCarry === true);
+  // 2026-11 Plan A: the early-done lane has its OWN tiny anti-spin budget (EARLY_DONE_CAP=2), NOT the big
+  // main-chain budget it used to inherit (max(12,cap)=24) -- that inherited 24 is exactly why every
+  // "looks done" answer got dragged into a long auto-chain. One carry is allowed, then it fuses.
+  const earlyCarry = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 0, mFuse);   // chain0 < cap2 -> one carry
+  check("early lane at headroom (chain0<cap2) -> carry true [Plan A: tiny budget]", earlyCarry === true);
   const mFuse2 = {text:"done.", plan:[{done:false,label:"b"}]};
-  const fuseAtCap = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, Math.max(12, 24), mFuse2);   // start AT the big cap -> >=cap fires
-  check("early lane fused at its OWN big budget -> false + stamps earlyCap(24)", fuseAtCap === false && mFuse2.resumeExhausted === 24, "stamp=" + mFuse2.resumeExhausted);
+  const fuseAtCap = run(h2, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 2, mFuse2);   // start AT cap2 -> >=cap fires
+  check("early lane fused at its OWN tiny budget -> false + stamps earlyCap(2)", fuseAtCap === false && mFuse2.resumeExhausted === 2, "stamp=" + mFuse2.resumeExhausted);
+  // PLAN A cap is load-bearing: the SAME chain state (chain0) that carried above fuses when the chain has
+  // already hit cap2, proving the budget is 2 (not the old inherited 24, which would carry here).
+  const mCarry = {text:"done.", plan:[{done:false,label:"b"}]};
+  const carryAtOne = run(makeHarness(24), {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0, 0, 1, mCarry);   // chain1 < cap2 -> still carries
+  check("chain1 (<cap2) still carries; cap2 fuses -> proves the budget is 2, not 24 [cap is load-bearing]", carryAtOne === true);
 
   const tl = h2.tlog();
   check("early-lane fuse uses the EARLY toast key", usedKey(tl,"resume.stopped.early"), JSON.stringify(tl));
@@ -110,6 +120,29 @@ console.log("\n=== the early lane is its OWN budget/counter and does NOT borrow 
   run(h3, {autoresume:true, autoresumeMax:1, emptyRoundMax:2}, 1,0,0, {truncated:true});   // main fuse (chain1>=cap1)
   const tMain = h3.tlog();
   check("main-lane fuse does NOT use the EARLY toast key", !usedKey(tMain,"resume.stopped.early") && usedKey(tMain,"resume.stopped"), JSON.stringify(tMain));
+}
+
+console.log("\n=== D (Plan A): awaiting-reply turns are NOT early-resumed (guard is load-bearing) ===");
+{
+  // Control: box left, no card, no hold -> early lane carries (same as section A).
+  const hc = makeHarness(24);
+  const plain = {text:"Done. Tell me which option you want.", plan:[{done:false,label:"wait"}]};
+  check("control: box left, nothing pending -> carries true", run(hc, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, plain) === true);
+
+  // Flip ONLY the decision-card flag -> must NOT carry (the model is waiting on the human's pick).
+  const hd = makeHarness(24);
+  const withCard = {text:"Done. Tell me which option you want.", plan:[{done:false,label:"wait"}], proposals:[{dismissed:false}]};
+  check("box left BUT a live decision card -> refuses false [awaitingReply, card is load-bearing]", run(hd, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, withCard) === false);
+
+  // A dismissed card is NOT awaiting a reply -> still carries (proves it is the LIVE card, not any card object).
+  const hdd = makeHarness(24);
+  const dismissed = {text:"Done.", plan:[{done:false,label:"wait"}], proposals:[{dismissed:true}]};
+  check("box left + all cards dismissed (nothing pending) -> carries true [dismissed != awaiting]", run(hdd, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, dismissed) === true);
+
+  // Flip ONLY a 等你确认 (hold) next-step chip -> must NOT carry (blue = waiting on the human).
+  const hs = makeHarness(24);
+  const withHold = {text:"Done.", plan:[{done:false,label:"wait"}], steps:[{hold:true, recommended:false}]};
+  check("box left BUT a blue 等你确认 hold chip -> refuses false [awaitingReply, hold chip is load-bearing]", run(hs, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, withHold) === false);
 }
 
 console.log("\n=== chaining did not break the existing empty lane (regression) ===");

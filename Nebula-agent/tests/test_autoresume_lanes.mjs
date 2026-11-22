@@ -46,7 +46,7 @@ for (const k of ["resume.stopped.empty", "drawer.autoresume.max.ph", "drawer.emp
 function makeHarness(seedMax) {
   const src = `
 "use strict";
-let AUTO_RESUME_MAX=${seedMax};let AUTO_RESUME_FLOOR=12;
+let AUTO_RESUME_MAX=${seedMax};let AUTO_RESUME_FLOOR=12;let EARLY_DONE_CAP=2;
 let autoResumeChain, emptyRoundChain; let busy=false; let settings={};
 let tLog=[]; function t(k){tLog.push(k);return k;}
 function toast(kind,k1,k2){tLog.push("TOAST:"+k1+"|"+(k2||""));}

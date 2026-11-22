@@ -73,7 +73,7 @@ function runAutoResume(forwardOn) {
   if (!forwardOn) check("CTRL auto-resume: differential swap changed forward (single variable)", body !== gm1[0]);
   const realm = `
 "use strict";
-let AUTO_RESUME_MAX=24, AUTO_RESUME_FLOOR=12;
+let AUTO_RESUME_MAX=24, AUTO_RESUME_FLOOR=12;let EARLY_DONE_CAP=2;
 let autoResumeChain=0, emptyRoundChain=0, earlyDoneChain=0;
 let busy=false, settings={autoresume:true}, resumeBadge=null, pendingResume=null;
 function t(k){return k;} function toast(){} function renderChat(){} function renderInspector(){}
