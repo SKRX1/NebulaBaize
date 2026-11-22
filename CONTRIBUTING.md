@@ -49,6 +49,7 @@
 - 新增 `data-i18n` 键：**中英成对**（`tests/test_i18n.mjs` 强制键数一致）。
 - CSS 只用 `var(--st-*)` token，禁止硬编码颜色（暗/亮双主题免维护）。
 - 全局零 inline handler（`onerror=`/`onclick=`），降级路径走纯 CSS。
+- 表单弹窗（含正在填的输入）**禁止** backdrop「遮罩即关」：`.st-modal` 是 `fixed inset:0` 全视口遮罩，卡片外任意一点都属于 modal 本身，一次误点会丢掉正在填的整张表单。关闭只走显式路径（完成 / 取消 / ×）**+ Esc**；新建表单弹窗若没有 Esc 必须补上（删遮罩即关后否则无任何键盘出口）。纯查看器（如 `#img-modal` 灯箱）仍可遮罩即关——它没有丢数据风险。该约定由静态门禁 `tests/test_form_modal_close.mjs`（含 decoy）锁定。
 
 ### 3.3 i18n
 - 文案：中文 + 英文两侧 + 静态 HTML 兜底文本三处同步。

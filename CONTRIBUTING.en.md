@@ -59,6 +59,7 @@ permissive CLA model).
 - New `data-i18n` keys must be **added in pairs, zh + en** (`tests/test_i18n.mjs` enforces equal key counts).
 - Use only `var(--st-*)` tokens in CSS; no hardcoded colors (so dark/light themes are maintenance-free).
 - Zero inline handlers project-wide (`onerror=`/`onclick=`); degradation paths go through pure CSS.
+- A FORM modal (one holding in-progress inputs) must **never** close on a backdrop click: `.st-modal` is a `fixed inset:0` full-viewport scrim, so any point outside the card is still the modal itself, and one stray click drops the whole form being filled. Close only through explicit paths (Save / Cancel / ×) **plus Esc**; a new form modal that has no Esc handler must add one (after removing backdrop-close there would be no keyboard way out). A pure viewer (e.g. the `#img-modal` lightbox) may keep backdrop-close - it has no data to lose. This convention is locked by the static gate `tests/test_form_modal_close.mjs` (with decoys).
 
 ### 3.3 i18n
 - Copy must be kept in sync in three places: the Chinese side + the English side + the static HTML fallback text.
