@@ -134,6 +134,8 @@ SUITES = [
 
     "tests/test_memory_card_title.mjs",   # 2026-10-24: memory-card rows via .kb-source__name must carry title= so the single-line-ellipsis hover reveals the full text (esc is the necessity - differential double-probe)
 
+    "tests/test_group_card_jsdom.mjs",   # 2026-11-22: group spec card real-boot differential (no group -> card hidden; with group -> visible + Save posts the groupDir RULES.md path + read-back equals it)
+
     "tests/test_sidebar_tree.mjs",
 
     "tests/test_switch_busy.mjs",
