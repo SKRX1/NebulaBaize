@@ -279,15 +279,18 @@ const main = async () => {
   await page.waitForTimeout(200);
   await page.evaluate(() => { const b = document.getElementById("workspace-btn"); if (b) b.click(); });
   await page.waitForTimeout(600);   // openWorkspacePicker -> listGroups -> datalist fill (async)
-  const wsDatalist = await page.evaluate(() => {
-    const dl = document.getElementById("ws-group-list");
-    const opts = dl ? [...dl.options].map((o) => ({ v: o.value, label: o.getAttribute("label") || "" })) : [];
-    return { open: !!document.getElementById("ws-modal") && !document.getElementById("ws-modal").hidden, opts };
+  const wsSel = await page.evaluate(() => {
+    const sel = document.getElementById("ws-group");
+    const opts = sel ? [...sel.options].map((o) => ({ v: o.value, t: o.textContent })) : [];
+    const isSelect = !!sel && sel.tagName === "SELECT";
+    return { open: !!document.getElementById("ws-modal") && !document.getElementById("ws-modal").hidden, isSelect, opts };
   });
-  check("the new-workspace dialog is open for inspection", wsDatalist.open === true);
-  const feOpt = wsDatalist.opts.find((o) => o.v === "frontend");
-  check("ws-modal datalist keeps value=frontend but LABELS it 前端 (submits the real name)  " + JSON.stringify(feOpt),
-        !!feOpt && feOpt.label === "前端");
+  check("the new-workspace dialog is open for inspection", wsSel.open === true);
+  check("ws-group is a REAL <select> (not a datalist input)", wsSel.isSelect === true);
+  check("ws-group first option is the blank (auto-detect) row", wsSel.opts[0] && wsSel.opts[0].v === "", JSON.stringify(wsSel.opts[0]));
+  const feOpt = wsSel.opts.find((o) => o.v === "frontend");
+  check("ws-group select SHOWS 前端 in the field while its value stays frontend  " + JSON.stringify(feOpt),
+        !!feOpt && feOpt.t === "前端" && feOpt.v === "frontend");
   // reading the dialog must not change the group on disk; close it to leave a clean state.
   const gtxtAfterWs = await page.evaluate(async () => {
     try {

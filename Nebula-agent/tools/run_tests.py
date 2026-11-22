@@ -136,6 +136,8 @@ SUITES = [
 
     "tests/test_group_card_jsdom.mjs",   # 2026-11-22: group spec card real-boot differential (no group -> card hidden; with group -> visible + Save posts the groupDir RULES.md path + read-back equals it)
 
+    "tests/test_group_name_display_lock.mjs",   # 2026-11-23: static lock - built-in group names must render through groupDisplayName (value stays the real id); ws-group is a real <select> not a datalist; decoy-diff proves each assertion load-bearing
+
     "tests/test_sidebar_tree.mjs",
 
     "tests/test_switch_busy.mjs",

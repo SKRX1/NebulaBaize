@@ -2068,7 +2068,8 @@ $("ws-apply").onclick = async () => {
   // Optional group chosen in the picker: set it BEFORE loadMemoryState so the new task already
   // sees the group tier. Leaving it blank is a deliberate no-op — we must NOT call setGroupLabel
   // with "" (that writes the opt-out sentinel), so a blank field keeps Plan-C auto-detection live.
-  const grp = (($("ws-group") && $("ws-group").value) || "").trim();
+  const grp = ((($("ws-groupnew") && $("ws-groupnew").value) || "").trim()
+    || (($("ws-group") && $("ws-group").value) || "")).trim();
   if (grp) await setGroupLabel(path.replace(/\/$/, ""), grp);
   registerWorkspace(path);                  // the new task's folder becomes a parent row
   loadMemoryState(path);                     // H2: load approved rules + any pending draft for this workspace
@@ -2085,11 +2086,12 @@ function openWorkspacePicker(newSession) {
   $("ws-path").value = (newSession ? "" : ((activeSession() || {}).workspace || ""));
   $("ws-new").value = "";
   $("ws-persona").value = (newSession ? "" : ((activeSession() || {}).persona || ""));
-  // Pre-fill the group: an existing session shows its current group; a new task starts blank
-  // (auto-detect). The datalist of existing groups is filled asynchronously (non-blocking).
-  const wsg = $("ws-group"); if (wsg) wsg.value = (newSession ? "" : (currentGroup || ""));
-  const wl = $("ws-group-list");
-  if (wl) { listGroups().then((gs) => { wl.innerHTML = gs.map((g) => `<option value="${esc(g)}" label="${esc(groupDisplayName(g))}"></option>`).join(""); }).catch(() => {}); }
+  // Group: a real <select> lists existing groups (option text localized, value stays the real name),
+  // pre-selected to an existing session's current group; a new task starts on the "(blank = auto)"
+  // row = no-op (Plan-C auto-detect stays live). The free-text field below (ws-groupnew) still lets
+  // the user type a brand-new group name; ws-apply prefers that over the select value.
+  const wn = $("ws-groupnew"); if (wn) wn.value = "";
+  fillGroupSelect($("ws-group"), (newSession ? "" : (currentGroup || "")), t("ws.group.auto")).catch(() => {});
   // Pre-select the permission: a fresh workspace defaults to the safe "auto" tier; an existing
   // session keeps its stored tier (missing -> full, so old tasks behave as before).
   setWsPerm(newSession ? "auto" : sessionPerm(activeSession() || {}));
@@ -4900,11 +4902,11 @@ function groupDisplayName(g) {
   return g;
 }
 // Paint a <select> with existing groups (always including the workspace's own current group).
-async function fillGroupSelect(sel, current) {
+async function fillGroupSelect(sel, current, firstLabel) {
   if (!sel) return;
   const groups = await listGroups();
   if (current && !groups.includes(current)) groups.unshift(current);
-  const opts = ['<option value="">' + esc(t("mem.auto.group.panel.none")) + "</option>"];
+  const opts = ['<option value="">' + esc(firstLabel || t("mem.auto.group.panel.none")) + "</option>"];
   opts.push(...groups.map((g) => `<option value="${esc(g)}">${esc(groupDisplayName(g))}</option>`));
   sel.innerHTML = opts.join("");
   sel.value = current || "";
