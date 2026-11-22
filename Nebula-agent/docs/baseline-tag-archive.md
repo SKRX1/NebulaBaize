@@ -1,5 +1,7 @@
 # 基线 Tag 归档账本 · Baseline Tag Archive
 
+> **简体中文** | [English](baseline-tag-archive.en.md)
+
 本文件登记「已被后续基线覆盖、予以清理」的 `v-baseline-*` 附注 tag，记录其指向的 commit，
 以便随时精确重建。判据：被删 tag 指向的 commit 全部是 HEAD（master）的祖先（`git merge-base
 --is-ancestor` 逐一坐实），故删 tag **不丢任何 commit**——master 链已含它们；tag 仅是命名指针，

@@ -1,5 +1,7 @@
 # 方案B评审：让「纯 shell 任务」脱离 LLM 回合、直接 subprocess 执行
 
+> **简体中文** | [English](plan-b-shell-direct-exec-review.en.md)
+
 ## 背景（已实测事实）
 - 调度任务的 `task` 字符串目前**不是直接跑 shell**，而是当作 **LLM 提示词喂给 `agent.run()`**（`gateway.py:_sched_run_task` → `agent.run(task, history=[])`），靠模型自己决定调用哪个工具去执行命令。
 - 判定点在 `scheduler.py:_safe_run`：`run_task` 不抛异常=成功，抛任意异常=记 `last_run.ok=false`。
