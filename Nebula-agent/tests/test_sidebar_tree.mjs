@@ -8,7 +8,7 @@
  *       no nested <button> (invalid HTML that the parser silently un-nests).
  *   T2  the task "···" menu: rename / batch / open folder / pin / permission / delete all work,
  *       pinning reorders inside the group, and open-folder hits POST /workspace/open.
- *   T3  the workspace actions: "···" (rename / open folder / remove from list) and the chat
+ *   T3  the workspace actions: "···" (rename / open folder / group / remove from list) and the chat
  *       button (a fresh task created inside that workspace).
  *   T4  batch mode: selection bar, pin, move-to-workspace, delete.
  *
@@ -249,7 +249,7 @@ seed();
   // ··· menu
   wsEl(WS_A).querySelector("[data-ws-menu]").click();
   const keys = menuKeys();
-  check("workspace menu = rename / pin / open folder / remove", keys.join(",") === "rename,pin,folder,remove", keys.join(","));
+  check("workspace menu = rename / pin / open folder / group / remove", keys.join(",") === "rename,pin,folder,group,remove", keys.join(","));
   check("remove is marked destructive", !!menuEl().querySelector('[data-key="remove"].danger') === false ||
         !!menuEl().querySelector('[data-key="remove"].danger'));
 

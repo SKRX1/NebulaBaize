@@ -1796,6 +1796,7 @@ function onWorkspaceAction(path, key) {
     return;
   }
   if (key === "folder") return openFolder(path);
+  if (key === "group") return openGroupPicker(path);
   if (key === "remove") return removeWorkspace(path);
 }
 // ---- batch mode ----------------------------------------------------------------
@@ -1921,6 +1922,7 @@ function wsMenuItems(path) {
     {key: "rename", label: t("side.renamews")},
     {key: "pin", label: (w && w.pinned) ? t("side.unpin") : t("side.pin")},
     {key: "folder", label: t("side.openfolder")},
+    {key: "group", label: t("side.group")},
     {key: "remove", label: t("side.removews"), danger: true},
   ];
 }
@@ -4898,6 +4900,54 @@ async function fillGroupSelect(sel, current) {
   sel.innerHTML = opts.join("");
   sel.value = current || "";
 }
+// Shared workspace-group picker modal. The sidebar "..." menu and the memory page BOTH open it with
+// a workspace base path; every write routes through setGroupLabel, so the single source of truth
+// (group.txt, incl. the __none__ opt-out sentinel and the Plan-C auto-detect precedence) is
+// unchanged. It shows the workspace's *effective* group (deriveGroup) so a front-end workspace
+// reveals "would be frontend automatically" before the user decides to override it.
+let groupPickerBase = "";   // the workspace base the currently-open modal acts on ("" when closed)
+async function openGroupPicker(path) {
+  const modal = $("group-modal"); if (!modal) return;
+  const base = String(path || "").replace(/\/$/, "");
+  if (!base) return;
+  groupPickerBase = base;
+  const gp = $("group-path"); if (gp) gp.textContent = base;
+  const eff = await deriveGroup(base);
+  const cur = $("group-cur");
+  if (cur) cur.textContent = eff ? t("mem.auto.group.of", {g: eff}) : t("mem.auto.group.none");
+  await fillGroupSelect($("group-groupsel"), eff);
+  const ni = $("group-groupnew"); if (ni) ni.value = "";
+  modal.hidden = false;
+  if ($("scrim")) { $("scrim").hidden = false; $("scrim").onclick = closeGroupPicker; }
+  const sel = $("group-groupsel"); if (sel) sel.focus();
+}
+function closeGroupPicker() {
+  const modal = $("group-modal"); if (modal) modal.hidden = true;
+  if ($("scrim")) $("scrim").hidden = true;
+  groupPickerBase = "";
+}
+// Apply a chosen label to the base the modal is acting on. An empty label here is a DELIBERATE
+// "leave the group" choice (setGroupLabel writes the __none__ sentinel) — not a no-op; the no-op
+// case only exists in the new-task field, which never calls this. Only refresh the live session's
+// group tier when this really is the active workspace's session.
+async function applyGroupLabel(label) {
+  const base = groupPickerBase; if (!base) return;
+  await setGroupLabel(base, label);
+  const ws = activeSession() && activeSession().workspace;
+  if (ws && ws.replace(/\/$/, "") === base) await loadMemoryState(ws);
+  try { renderAutoMemoryCard(); } catch (e) {}
+  try { renderGroupCard(); } catch (e) {}
+  toast("ok", t("mem.auto.group.saved"), label ? t("mem.auto.group.saved.n", {g: label}) : t("mem.auto.group.cleared"));
+  closeGroupPicker();
+}
+if ($("group-close")) $("group-close").onclick = closeGroupPicker;
+if ($("group-groupsel")) $("group-groupsel").onchange = (e) => applyGroupLabel((e.target.value || "").trim());
+if ($("group-groupclear")) $("group-groupclear").onclick = () => applyGroupLabel("");
+if ($("group-groupnewbtn")) $("group-groupnewbtn").onclick = () => {
+  const ni = $("group-groupnew"); const nm = ni ? ni.value.trim() : ""; if (!nm) return;
+  applyGroupLabel(nm);
+};
+document.addEventListener("keydown", (e) => { if ($("group-modal") && !$("group-modal").hidden && e.key === "Escape") closeGroupPicker(); });
 // Plan C — read-only frontend detection. A workspace is treated as a "frontend" workspace ONLY when
 // it carries the strong feature that the frontend group is defined by: a serve/web front-end
 // directory (the Nebula web app). This NEVER writes group.txt — it only derives a transient
@@ -6025,35 +6075,12 @@ async function renderAutoMemoryCard() {
   if (sum) sum.textContent = t("mem.auto.weekly", {n: weekCount});
 }
 $("mem-auto-tidy").onclick = () => tidyMemory().then(() => renderAutoMemoryCard());
-  // "Set workspace group" now toggles an inline picker (existing groups + new + clear) instead of
-  // a raw prompt(). Everything routes through setGroupLabel, so the single source of truth and the
-  // Plan-C detection precedence stay unchanged; choosing an option just calls setGroupLabel(name).
-  const groupPanel = $("mem-auto-grouppanel");
-  const openGroupPanel = async () => {
-    if (!groupPanel) return;
-    await fillGroupSelect($("mem-auto-groupsel"), currentGroup || "");
-    const ni = $("mem-auto-groupnew"); if (ni) ni.value = "";
-    groupPanel.hidden = false;
-    const sel = $("mem-auto-groupsel"); if (sel) sel.focus();
-  };
-  const applyGroup = async (label) => {
-    const ws = activeSession() && activeSession().workspace; if (!ws) return;
-    await setGroupLabel(ws.replace(/\/$/, ""), label);
-    await loadMemoryState(ws);
-    renderAutoMemoryCard();
-    if (groupPanel) groupPanel.hidden = true;
-    toast("ok", t("mem.auto.group.saved"), label ? t("mem.auto.group.saved.n", {g: label}) : t("mem.auto.group.cleared"));
-  };
+  // "Set workspace group" now opens the SAME shared group-modal as the workspace "..." menu, for
+  // the active session's workspace. The inline panel and its ad-hoc handlers are gone — one UI,
+  // one code path (openGroupPicker / applyGroupLabel), single source of truth via setGroupLabel.
   if ($("mem-auto-setgroup")) $("mem-auto-setgroup").onclick = () => {
     const ws = activeSession() && activeSession().workspace; if (!ws) return;
-    if (groupPanel && !groupPanel.hidden) { groupPanel.hidden = true; return; }
-    openGroupPanel();
-  };
-  if ($("mem-auto-groupsel")) $("mem-auto-groupsel").onchange = (e) => applyGroup((e.target.value || "").trim());
-  if ($("mem-auto-groupclear")) $("mem-auto-groupclear").onclick = () => applyGroup("");   // explicit opt-out -> NO_GROUP
-  if ($("mem-auto-groupnewbtn")) $("mem-auto-groupnewbtn").onclick = () => {
-    const ni = $("mem-auto-groupnew"); const nm = ni ? ni.value.trim() : ""; if (!nm) return;
-    applyGroup(nm);
+    openGroupPicker(ws);
   };
 $("mem-auto-filter").addEventListener("click", (e) => {
   const b = e.target.closest("[data-scope]"); if (!b) return;

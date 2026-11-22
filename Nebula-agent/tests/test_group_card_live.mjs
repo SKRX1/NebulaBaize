@@ -119,6 +119,43 @@ const main = async () => {
   });
   check("PLAN C: auto-detection created no group.txt (still read-only)", autoWroteGroup === false);
 
+  // 0b) PLAN A menu path (what the user asked for): the workspace "..." button must now carry a
+  //     "Group..." item, and clicking it must open the SAME shared group-modal for that workspace.
+  //     This exercises the real sidebar menu -> openGroupPicker(path) wiring, not the memory page.
+  const haveBtn = await page.evaluate(() => !!document.querySelector("[data-ws-menu]"));
+  check("the workspace ... menu button is present", haveBtn === true);
+  await page.evaluate(() => { const b = document.querySelector("[data-ws-menu]");
+    if (b) b.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window })); });
+  await page.waitForTimeout(400);
+  const menuHasGroup = await page.evaluate(() => {
+    const item = document.querySelector(".st-ctx-menu [data-key=\"group\"]");
+    return !!item;
+  });
+  check("the workspace ... menu now contains a Group... item", menuHasGroup === true);
+  await page.evaluate(() => { const it = document.querySelector('.st-ctx-menu [data-key="group"]');
+    if (it) it.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window })); });
+  await page.waitForTimeout(400);
+  await page.waitForTimeout(600);
+  const menuModal = await page.evaluate(() => {
+    const m = document.getElementById("group-modal");
+    const gp = document.getElementById("group-path");
+    if (!m || m.hidden) return { open:false };
+    return { open:true, path: gp ? gp.textContent : "" };
+  });
+  check("clicking Group... opens the shared group-modal", menuModal.open === true);
+  check("the modal is scoped to THAT workspace path", menuModal.open && /Nebula-agent/i.test(menuModal.path), "path=" + menuModal.path);
+  // close it so the next (memory-page) flow starts from a clean state; opening writes nothing.
+  const gtxtAfterMenu = await page.evaluate(async () => {
+    try {
+      const r = await fetch("mcp/call", {method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({server:"filesystem", tool:"read", args:{path:"E:/Nebula/NebulaBaize/Nebula-agent/.Nebula-memory/group.txt"}})});
+      const d = await r.json().catch(()=>({})); return (d && d.ok && (d.text||"").trim()) || "";
+    } catch (e) { return ""; }
+  });
+  check("opening the modal from the menu wrote nothing (still no group.txt)", gtxtAfterMenu === "", "got=" + JSON.stringify(gtxtAfterMenu));
+  await page.evaluate(() => { const c = document.getElementById("group-close"); if (c) c.click(); });
+  await page.waitForTimeout(300);
+
   // 1) PLAN A end-to-end: the "set workspace group" button now opens an inline picker (no prompt).
   //    Opening it must list the groups that really exist on disk (this repo has a "frontend" group),
   //    and selecting one must route through setGroupLabel (which writes group.txt) — proving the
@@ -127,19 +164,19 @@ const main = async () => {
   check("group-set button present and clicked", setClicked);
   await page.waitForTimeout(700);   // openGroupPanel -> fillGroupSelect -> listGroups (real disk)
   const panelState = await page.evaluate(() => {
-    const p = document.getElementById("mem-auto-grouppanel");
-    const sel = document.getElementById("mem-auto-groupsel");
+    const p = document.getElementById("group-modal");
+    const sel = document.getElementById("group-groupsel");
     if (!p || p.hidden || !sel) return { open:false, opts:[] };
     return { open:true, opts: [...sel.options].map((o) => o.value) };
   });
-  check("PLAN A: clicking set-group opens the inline picker", panelState.open === true);
+  check("PLAN A: the set-group button opens the shared group-modal", panelState.open === true);
   check("PLAN A: the picker lists the real on-disk group(s)  " + JSON.stringify(panelState.opts),
         panelState.opts.includes("frontend") && panelState.opts[0] === "");   // empty (no-group) first
   // Selecting the existing "frontend" group triggers onchange -> setGroupLabel("frontend") -> a
   // real write of group.txt. Capture that write explicitly.
   captured.length = 0;
   const joined = await page.evaluate(() => {
-    const sel = document.getElementById("mem-auto-groupsel"); if (!sel) return false;
+    const sel = document.getElementById("group-groupsel"); if (!sel) return false;
     sel.value = "frontend";
     sel.dispatchEvent(new Event("change", { bubbles: true }));   // fires the wired onchange
     return sel.value === "frontend";

@@ -108,6 +108,7 @@
       /* sidebar tree: workspace (parent) → tasks (children) */
       "side.more": "更多操作",
       "side.renamews": "重命名空间",
+      "side.group": "分组…",
       "side.openfolder": "打开文件夹",
       "side.pin": "置顶",
       "side.running.badge": "任务执行中",
@@ -1528,6 +1529,7 @@
       /* sidebar tree: workspace (parent) → tasks (children) */
       "side.more": "More actions",
       "side.renamews": "Rename workspace",
+      "side.group": "Group...",
       "side.openfolder": "Open folder",
       "side.pin": "Pin to top",
       "side.running.badge": "Task running",

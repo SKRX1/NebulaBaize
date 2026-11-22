@@ -134,6 +134,10 @@ code += `
   isFrontendWorkspace: (base) => isFrontendWorkspace(base),
   listGroups: () => listGroups(),
   fillGroupSelect: (sel, cur) => fillGroupSelect(sel, cur),
+  openGroupPicker: (path) => openGroupPicker(path),
+  closeGroupPicker: () => closeGroupPicker(),
+  applyGroupLabel: (label) => applyGroupLabel(label),
+  groupPickerBase: () => groupPickerBase,
 };`;
 win.eval(code);
 const api = win.__api;
@@ -236,6 +240,44 @@ await api.fillGroupSelect(sel, "zeta");
 const vals2 = [...sel.options].map((o) => o.value);
 check("fillGroupSelect surfaces a current group absent from disk",
       vals2.includes("zeta") && sel.value === "zeta", JSON.stringify(vals2));
+
+// ---------------- 5) shared group-modal: openGroupPicker / applyGroupLabel / close (plan A) ----
+console.log("\n=== 5. shared group-modal: open -> list real groups -> write/exit -> close ===");
+const GW = "E:/Nebula/NebulaBaize/ws-menu-target";   // an arbitrary (not-active) workspace base
+const GDIR = "E:/Nebula/NebulaBaize/.Nebula-memory/groups";
+LIST[GDIR] = "frontend\nbeta\n";                     // real existing groups for the dropdown
+FILES[GW + "/serve/web/app.js"] = "// front-end entry";   // GW is a front-end workspace, NO group.txt
+// (a) openGroupPicker opens the shared modal, lists the real groups, records the base, and pre-
+//     selects the EFFECTIVE group = frontend via Plan-C auto-detect (no group.txt yet).
+await api.openGroupPicker(GW);
+const modal = doc.getElementById("group-modal");
+check("openGroupPicker shows the shared group-modal", !!modal && modal.hidden === false);
+check("openGroupPicker records the workspace base it acts on", api.groupPickerBase() === GW, "base=" + api.groupPickerBase());
+const gsel = doc.getElementById("group-groupsel");
+const gvals = [...gsel.options].map((o) => o.value);
+check("the modal dropdown lists the real groups (empty first)  " + JSON.stringify(gvals),
+      gvals[0] === "" && gvals.includes("frontend") && gvals.includes("beta"));
+check("the modal pre-selects the auto-detected effective group (frontend)  v=" + gsel.value,
+      gsel.value === "frontend");
+await api.closeGroupPicker();
+check("closeGroupPicker hides the modal", doc.getElementById("group-modal").hidden === true);
+check("closeGroupPicker clears the base", api.groupPickerBase() === "");
+// (b) choose an existing group -> setGroupLabel writes group.txt = that name (single source).
+await api.openGroupPicker(GW);
+const wB5 = writes.length;
+await api.applyGroupLabel("beta");
+const gtxt = FILES[GW + "/.Nebula-memory/group.txt"];
+check("choosing a group writes group.txt = the name  " + JSON.stringify(gtxt), (gtxt || "").trim() === "beta");
+check("exactly one write happened", writes.length - wB5 === 1, "wrote " + (writes.length - wB5));
+check("after applying, the modal closes", doc.getElementById("group-modal").hidden === true);
+// (c) re-opening now shows the explicit "beta" (explicit wins over auto-detect).
+await api.openGroupPicker(GW);
+check("re-open pre-selects the explicit group over auto-detect  v=" + gsel.value, gsel.value === "beta",
+      "v=" + gsel.value);
+// (d) clear -> explicit opt-out writes the __none__ sentinel, not a blank file.
+await api.applyGroupLabel("");
+check("clearing writes the __none__ sentinel", (FILES[GW + "/.Nebula-memory/group.txt"] || "").trim() === "__none__",
+      "got=" + JSON.stringify(FILES[GW + "/.Nebula-memory/group.txt"]));
 
 console.log("");
 if (FAILURES.length) { console.log("GROUP-CARD: FAIL (" + FAILURES.length + ")"); process.exit(1); }

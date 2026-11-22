@@ -795,18 +795,6 @@
         <div class="mem-actions" id="mem-auto-actions">
           <button class="st-btn st-btn--secondary" id="mem-auto-tidy" data-i18n="mem.auto.tidy.btn">整理记忆（去重）</button>
           <button class="st-btn st-btn--secondary" id="mem-auto-setgroup" data-i18n="mem.auto.group.btn">设置本工作区分组</button>
-          <div class="mem-group-panel" id="mem-auto-grouppanel" hidden>
-            <label class="st-label" for="mem-auto-groupsel" data-i18n="mem.auto.group.panel.title">选择分组（同组共享规范 / 知识）：</label>
-            <div class="mem-group-panel__row">
-              <select class="st-input" id="mem-auto-groupsel" style="flex:1"></select>
-              <button class="st-btn st-btn--secondary" id="mem-auto-groupclear" data-i18n="mem.auto.group.panel.clear">清除分组（退出）</button>
-            </div>
-            <div class="mem-group-panel__row">
-              <input class="st-input" id="mem-auto-groupnew" data-i18n="mem.auto.group.panel.new.ph" data-i18n-attr="placeholder:mem.auto.group.panel.new.ph" placeholder="新建分组名…" style="flex:1">
-              <button class="st-btn st-btn--secondary" id="mem-auto-groupnewbtn" data-i18n="mem.auto.group.panel.new.btn">新建并加入</button>
-            </div>
-            <p class="muted small" data-i18n="mem.auto.group.panel.detect">含前端的工作区未配置时会自动归入 frontend 组；这里可覆盖。</p>
-          </div>
           <button class="st-btn st-btn--secondary" id="mem-auto-weekly" data-i18n="mem.weekly.open">查看周摘要</button>
           <button class="st-btn st-btn--secondary" id="mem-auto-newgroup" data-i18n="mem.ne.open.group" hidden>新建组内条目</button>
         </div>
@@ -1509,6 +1497,29 @@
         <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chevron"/></svg></button>
     </div>
     <div class="img-viewer__body"><img id="img-modal-img" alt=""></div>
+  </div>
+</div>
+
+<!-- ============================ Workspace group picker (shared: sidebar menu + memory page) ============================ -->
+<div class="st-modal" id="group-modal" hidden role="dialog" aria-modal="true" aria-label="Set workspace group" data-i18n-attr="aria-label:ws.group">
+  <div class="st-modal__card">
+    <div class="st-modal__head">
+      <span class="card-title" data-i18n="ws.group">分组</span>
+      <button class="st-btn st-btn--icon" id="group-close" type="button" aria-label="Close" data-i18n-attr="aria-label:drawer.close">
+        <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-xmark"/></svg></button>
+    </div>
+    <p class="muted small" id="group-path"></p>
+    <p class="muted small" id="group-cur"></p>
+    <label class="st-label" for="group-groupsel" data-i18n="mem.auto.group.panel.title">选择分组（同组共享规范 / 知识）：</label>
+    <div class="mem-group-panel__row">
+      <select class="st-input" id="group-groupsel" style="flex:1"></select>
+      <button class="st-btn st-btn--secondary" id="group-groupclear" data-i18n="mem.auto.group.panel.clear">清除分组（退出）</button>
+    </div>
+    <div class="mem-group-panel__row">
+      <input class="st-input" id="group-groupnew" data-i18n-attr="placeholder:mem.auto.group.panel.new.ph" placeholder="新建分组名…" style="flex:1">
+      <button class="st-btn st-btn--secondary" id="group-groupnewbtn" data-i18n="mem.auto.group.panel.new.btn">新建并加入</button>
+    </div>
+    <p class="muted small" data-i18n="mem.auto.group.panel.detect">含前端的工作区未配置时会自动归入 frontend 组；这里可覆盖。</p>
   </div>
 </div>
 
