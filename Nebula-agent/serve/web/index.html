@@ -795,6 +795,18 @@
         <div class="mem-actions" id="mem-auto-actions">
           <button class="st-btn st-btn--secondary" id="mem-auto-tidy" data-i18n="mem.auto.tidy.btn">整理记忆（去重）</button>
           <button class="st-btn st-btn--secondary" id="mem-auto-setgroup" data-i18n="mem.auto.group.btn">设置本工作区分组</button>
+          <div class="mem-group-panel" id="mem-auto-grouppanel" hidden>
+            <label class="st-label" for="mem-auto-groupsel" data-i18n="mem.auto.group.panel.title">选择分组（同组共享规范 / 知识）：</label>
+            <div class="mem-group-panel__row">
+              <select class="st-input" id="mem-auto-groupsel" style="flex:1"></select>
+              <button class="st-btn st-btn--secondary" id="mem-auto-groupclear" data-i18n="mem.auto.group.panel.clear">清除分组（退出）</button>
+            </div>
+            <div class="mem-group-panel__row">
+              <input class="st-input" id="mem-auto-groupnew" data-i18n="mem.auto.group.panel.new.ph" data-i18n-attr="placeholder:mem.auto.group.panel.new.ph" placeholder="新建分组名…" style="flex:1">
+              <button class="st-btn st-btn--secondary" id="mem-auto-groupnewbtn" data-i18n="mem.auto.group.panel.new.btn">新建并加入</button>
+            </div>
+            <p class="muted small" data-i18n="mem.auto.group.panel.detect">含前端的工作区未配置时会自动归入 frontend 组；这里可覆盖。</p>
+          </div>
           <button class="st-btn st-btn--secondary" id="mem-auto-weekly" data-i18n="mem.weekly.open">查看周摘要</button>
           <button class="st-btn st-btn--secondary" id="mem-auto-newgroup" data-i18n="mem.ne.open.group" hidden>新建组内条目</button>
         </div>
@@ -1241,6 +1253,10 @@
       <p class="muted small" id="ws-perm-desc">完全访问：模型自由调用所有工具，无需确认。</p>
     </div>
     <div class="ws-field">
+      <label class="st-label" for="ws-group" data-i18n="ws.group">分组（可选，同组工作区共享规范/知识）</label>
+      <input class="st-input" id="ws-group" type="text" list="ws-group-list" spellcheck="false" autocomplete="off"
+             data-i18n-attr="placeholder:ws.group.ph" placeholder="留空 = 自动判断；如需显式加入请填组名">
+      <datalist id="ws-group-list"></datalist>
       <label class="st-label" for="ws-persona" data-i18n="ws.persona">人设 / 系统提示（本工作空间，可选）</label>
       <textarea class="st-input st-textarea" id="ws-persona" rows="2"
                 placeholder="例如：你是一名资深后端工程师，回答要简洁、优先给可运行代码"

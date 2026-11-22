@@ -2063,6 +2063,11 @@ $("ws-apply").onclick = async () => {
     const s = activeSession();
     if (s) { s.workspace = path; s.permission = wsPermSel; s.persona = persona; }
   }
+  // Optional group chosen in the picker: set it BEFORE loadMemoryState so the new task already
+  // sees the group tier. Leaving it blank is a deliberate no-op — we must NOT call setGroupLabel
+  // with "" (that writes the opt-out sentinel), so a blank field keeps Plan-C auto-detection live.
+  const grp = (($("ws-group") && $("ws-group").value) || "").trim();
+  if (grp) await setGroupLabel(path.replace(/\/$/, ""), grp);
   registerWorkspace(path);                  // the new task's folder becomes a parent row
   loadMemoryState(path);                     // H2: load approved rules + any pending draft for this workspace
   saveSessions(); renderSessions(); renderChat(); syncCtxFromSession();
@@ -2078,6 +2083,11 @@ function openWorkspacePicker(newSession) {
   $("ws-path").value = (newSession ? "" : ((activeSession() || {}).workspace || ""));
   $("ws-new").value = "";
   $("ws-persona").value = (newSession ? "" : ((activeSession() || {}).persona || ""));
+  // Pre-fill the group: an existing session shows its current group; a new task starts blank
+  // (auto-detect). The datalist of existing groups is filled asynchronously (non-blocking).
+  const wsg = $("ws-group"); if (wsg) wsg.value = (newSession ? "" : (currentGroup || ""));
+  const wl = $("ws-group-list");
+  if (wl) { listGroups().then((gs) => { wl.innerHTML = gs.map((g) => `<option value="${esc(g)}"></option>`).join(""); }).catch(() => {}); }
   // Pre-select the permission: a fresh workspace defaults to the safe "auto" tier; an existing
   // session keeps its stored tier (missing -> full, so old tasks behave as before).
   setWsPerm(newSession ? "auto" : sessionPerm(activeSession() || {}));
@@ -4866,6 +4876,28 @@ async function setGroupLabel(base, label) {
   // the auto-detection can tell "the user opted out" apart from "never configured" (Plan C).
   await fsWrite(`${base}/.Nebula-memory/group.txt`, (label ? label.trim() : NO_GROUP) + "\n");
 }
+// Enumerate existing group names by listing <GLOBAL_ROOT>/groups/ (read-only). A group exists
+// once it has a folder there (the first write into groups/<name>/ creates it). The filesystem
+// list tool returns one bare name per line (no trailing slash, no type marker), so — exactly
+// like the archive/notes managers already in this file — we split on newlines and take each
+// trimmed entry as a group name; every entry under groups/ is a group directory. Returns [] on
+// any failure so the UI shows "no existing groups" instead of an error. NO_GROUP is never a real
+// group name, but we filter it defensively.
+async function listGroups() {
+  const raw = await mcpTxt("filesystem", "list", { path: `${GLOBAL_ROOT}/groups` });
+  if (!raw) return [];
+  return raw.split("\n").map((l) => l.trim()).filter((nm) => nm && nm !== NO_GROUP);
+}
+// Paint a <select> with existing groups (always including the workspace's own current group).
+async function fillGroupSelect(sel, current) {
+  if (!sel) return;
+  const groups = await listGroups();
+  if (current && !groups.includes(current)) groups.unshift(current);
+  const opts = ['<option value="">' + esc(t("mem.auto.group.panel.none")) + "</option>"];
+  opts.push(...groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`));
+  sel.innerHTML = opts.join("");
+  sel.value = current || "";
+}
 // Plan C — read-only frontend detection. A workspace is treated as a "frontend" workspace ONLY when
 // it carries the strong feature that the frontend group is defined by: a serve/web front-end
 // directory (the Nebula web app). This NEVER writes group.txt — it only derives a transient
@@ -5993,18 +6025,36 @@ async function renderAutoMemoryCard() {
   if (sum) sum.textContent = t("mem.auto.weekly", {n: weekCount});
 }
 $("mem-auto-tidy").onclick = () => tidyMemory().then(() => renderAutoMemoryCard());
-$("mem-auto-setgroup").onclick = async () => {
-  const ws = activeSession() && activeSession().workspace; if (!ws) return;
-  const base = ws.replace(/\/$/, "");
-  const cur = currentGroup || "";
-  const input = prompt(t("mem.auto.group.prompt"), cur);
-  if (input == null) return;                       // cancelled
-  const label = input.trim();
-  await setGroupLabel(base, label);
-  await loadMemoryState(ws);
-  renderAutoMemoryCard();
-  toast("ok", t("mem.auto.group.saved"), label ? t("mem.auto.group.saved.n", {g: label}) : t("mem.auto.group.cleared"));
-};
+  // "Set workspace group" now toggles an inline picker (existing groups + new + clear) instead of
+  // a raw prompt(). Everything routes through setGroupLabel, so the single source of truth and the
+  // Plan-C detection precedence stay unchanged; choosing an option just calls setGroupLabel(name).
+  const groupPanel = $("mem-auto-grouppanel");
+  const openGroupPanel = async () => {
+    if (!groupPanel) return;
+    await fillGroupSelect($("mem-auto-groupsel"), currentGroup || "");
+    const ni = $("mem-auto-groupnew"); if (ni) ni.value = "";
+    groupPanel.hidden = false;
+    const sel = $("mem-auto-groupsel"); if (sel) sel.focus();
+  };
+  const applyGroup = async (label) => {
+    const ws = activeSession() && activeSession().workspace; if (!ws) return;
+    await setGroupLabel(ws.replace(/\/$/, ""), label);
+    await loadMemoryState(ws);
+    renderAutoMemoryCard();
+    if (groupPanel) groupPanel.hidden = true;
+    toast("ok", t("mem.auto.group.saved"), label ? t("mem.auto.group.saved.n", {g: label}) : t("mem.auto.group.cleared"));
+  };
+  if ($("mem-auto-setgroup")) $("mem-auto-setgroup").onclick = () => {
+    const ws = activeSession() && activeSession().workspace; if (!ws) return;
+    if (groupPanel && !groupPanel.hidden) { groupPanel.hidden = true; return; }
+    openGroupPanel();
+  };
+  if ($("mem-auto-groupsel")) $("mem-auto-groupsel").onchange = (e) => applyGroup((e.target.value || "").trim());
+  if ($("mem-auto-groupclear")) $("mem-auto-groupclear").onclick = () => applyGroup("");   // explicit opt-out -> NO_GROUP
+  if ($("mem-auto-groupnewbtn")) $("mem-auto-groupnewbtn").onclick = () => {
+    const ni = $("mem-auto-groupnew"); const nm = ni ? ni.value.trim() : ""; if (!nm) return;
+    applyGroup(nm);
+  };
 $("mem-auto-filter").addEventListener("click", (e) => {
   const b = e.target.closest("[data-scope]"); if (!b) return;
   memAutoScopeFilter = b.dataset.scope;

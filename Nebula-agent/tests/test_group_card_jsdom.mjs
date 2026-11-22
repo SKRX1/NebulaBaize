@@ -93,6 +93,7 @@ const FILES = {};   // exact-path store; populated by writes (read-back must ref
 const reads = [];   // every filesystem/read path (for diagnostics)
 const findBySuffix = (p) => { for (const suf of Object.keys(SEED)) if (p.endsWith(suf)) return SEED[suf]; return null; };
 const writes = [];   // every filesystem/write {path, content}
+const LIST = {};     // exact-path -> a newline-joined listing, served for filesystem/list
 win.fetch = async (url, opts = {}) => {
   const u = String(url);
   if (u.includes("models/config")) return {ok:true, status:200, json: async () => ({selected:"self", models:[]})};
@@ -112,6 +113,10 @@ win.fetch = async (url, opts = {}) => {
       FILES[args.path] = args.content;
       return {ok:true, status:200, json: async () => ({ok:true})};
     }
+    if (b.tool === "list") {
+      const text = (args.path in LIST) ? LIST[args.path] : "";   // absent dir -> empty listing
+      return {ok:true, status:200, json: async () => ({ok:true, text})};
+    }
   }
   return {ok:true, status:200, json: async () => ({})};
 };
@@ -127,6 +132,8 @@ code += `
   groupRulesVar: () => groupRules,
   deriveGroup: (base) => deriveGroup(base),
   isFrontendWorkspace: (base) => isFrontendWorkspace(base),
+  listGroups: () => listGroups(),
+  fillGroupSelect: (sel, cur) => fillGroupSelect(sel, cur),
 };`;
 win.eval(code);
 const api = win.__api;
@@ -202,6 +209,33 @@ const DWS = "ws-d";
 FILES[DWS + "/app.js"] = "// root app, not serve/web";
 check("a root-level app.js is NOT enough to be treated as a front-end workspace",
       (await api.isFrontendWorkspace(DWS)) === false);
+
+// ---------------- 4) group picker: listGroups parse + fillGroupSelect render (plan A) ----------
+console.log("\n=== 4. group picker: listGroups / fillGroupSelect (existing-groups + current) ===");
+const GRPDIR = "E:/Nebula/NebulaBaize/.Nebula-memory/groups";
+LIST[GRPDIR] = "frontend\nbeta\n\n";                 // two groups + a trailing blank line
+check("listGroups returns the group directories in order",
+      JSON.stringify(await api.listGroups()) === JSON.stringify(["frontend","beta"]),
+      JSON.stringify(await api.listGroups()));
+LIST[GRPDIR] = "real\n__none__\n  \n";              // sentinel + blank must be filtered out
+check("listGroups drops the __none__ sentinel and blanks",
+      JSON.stringify(await api.listGroups()) === JSON.stringify(["real"]));
+delete LIST[GRPDIR];
+check("listGroups returns [] when the groups dir is missing", (await api.listGroups()).length === 0);
+// fillGroupSelect must render a leading empty "(no group)" option + every group, select current.
+LIST[GRPDIR] = "frontend\nbeta\n";
+const sel = doc.createElement("select"); sel.id = "mem-auto-groupsel"; doc.body.appendChild(sel);
+await api.fillGroupSelect(sel, "beta");
+const vals = [...sel.options].map((o) => o.value);
+check("fillGroupSelect lists an empty (no-group) option first", vals[0] === "");
+check("fillGroupSelect lists every existing group  " + JSON.stringify(vals),
+      vals.includes("frontend") && vals.includes("beta"));
+check("fillGroupSelect pre-selects the workspace current group", sel.value === "beta", "v=" + sel.value);
+// a current group that is NOT on disk (e.g. just-typed) is still shown so it stays selectable.
+await api.fillGroupSelect(sel, "zeta");
+const vals2 = [...sel.options].map((o) => o.value);
+check("fillGroupSelect surfaces a current group absent from disk",
+      vals2.includes("zeta") && sel.value === "zeta", JSON.stringify(vals2));
 
 console.log("");
 if (FAILURES.length) { console.log("GROUP-CARD: FAIL (" + FAILURES.length + ")"); process.exit(1); }

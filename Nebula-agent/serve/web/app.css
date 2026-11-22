@@ -1700,3 +1700,10 @@ audio.md-media { height: 38px; }
 .img-gallery__cell-check .st-icon{width:12px;height:12px;display:none}
 .img-gallery__cell-check.is-on{border-color:var(--st-accent,#4c8eff);background:var(--st-accent,#4c8eff);color:#fff}
 .img-gallery__cell-check.is-on .st-icon{display:block}
+
+/* Group picker (plan A): an inline panel under the auto-memory card. Reuses .st-input/.st-btn
+   for the controls; only the panel box + row layout are defined here so nothing else changes. */
+.mem-group-panel{margin-top:8px;padding:10px 12px;border:1px solid var(--st-line,rgba(255,255,255,.18));border-radius:var(--st-r-sm,6px);background:var(--st-bg-2,rgba(255,255,255,.03));max-width:560px}
+.mem-group-panel[hidden]{display:none}
+.mem-group-panel__row{display:flex;gap:8px;align-items:center;margin-top:6px}
+.mem-group-panel__row .st-input{min-width:0}

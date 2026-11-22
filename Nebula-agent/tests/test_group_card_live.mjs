@@ -119,12 +119,45 @@ const main = async () => {
   });
   check("PLAN C: auto-detection created no group.txt (still read-only)", autoWroteGroup === false);
 
-  // 1) set group = frontend (real button + auto-accept prompt with "frontend")
-  page.once("dialog", (d) => d.accept("frontend"));
-  await page.waitForTimeout(200);
+  // 1) PLAN A end-to-end: the "set workspace group" button now opens an inline picker (no prompt).
+  //    Opening it must list the groups that really exist on disk (this repo has a "frontend" group),
+  //    and selecting one must route through setGroupLabel (which writes group.txt) — proving the
+  //    picker is wired to the single source of truth, not a second mechanism.
   const setClicked = await page.evaluate(() => { const b = document.getElementById("mem-auto-setgroup"); if (b) { b.click(); return true; } return false; });
   check("group-set button present and clicked", setClicked);
+  await page.waitForTimeout(700);   // openGroupPanel -> fillGroupSelect -> listGroups (real disk)
+  const panelState = await page.evaluate(() => {
+    const p = document.getElementById("mem-auto-grouppanel");
+    const sel = document.getElementById("mem-auto-groupsel");
+    if (!p || p.hidden || !sel) return { open:false, opts:[] };
+    return { open:true, opts: [...sel.options].map((o) => o.value) };
+  });
+  check("PLAN A: clicking set-group opens the inline picker", panelState.open === true);
+  check("PLAN A: the picker lists the real on-disk group(s)  " + JSON.stringify(panelState.opts),
+        panelState.opts.includes("frontend") && panelState.opts[0] === "");   // empty (no-group) first
+  // Selecting the existing "frontend" group triggers onchange -> setGroupLabel("frontend") -> a
+  // real write of group.txt. Capture that write explicitly.
+  captured.length = 0;
+  const joined = await page.evaluate(() => {
+    const sel = document.getElementById("mem-auto-groupsel"); if (!sel) return false;
+    sel.value = "frontend";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));   // fires the wired onchange
+    return sel.value === "frontend";
+  });
+  check("PLAN A: selecting an existing group in the picker takes effect", joined === true);
   await page.waitForTimeout(900);   // let setGroupLabel + loadMemoryState settle
+  const groupTxtWritten = await page.evaluate(async () => {
+    // the picker must have written the workspace group.txt (single source of truth), not anything else
+    try {
+      const r = await fetch("mcp/call", {method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({server:"filesystem", tool:"read", args:{path:"E:/Nebula/NebulaBaize/Nebula-agent/.Nebula-memory/group.txt"}})});
+      const d = await r.json().catch(()=>({}));
+      return !!(d && d.ok && (d.text||"").trim() === "frontend");
+    } catch (e) { return false; }
+  });
+  check("PLAN A: choosing the group wrote group.txt = frontend (routes through setGroupLabel)",
+        groupTxtWritten === true);
+  captured.length = 0;   // reset capture so the later RULES.md-save capture stays clean
 
   // re-render the memory tab so renderGroupCard() runs against the now-active currentGroup
   await page.evaluate(() => { const mem = document.getElementById("tab-btn-memory"); if (mem) mem.click(); });
