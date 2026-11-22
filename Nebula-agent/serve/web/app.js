@@ -7229,6 +7229,10 @@ function openModelModal(mode, id) {
   else if (mode === "edit") openModelForm(id);
 }
 function closeModelModal() { if ($("model-modal")) $("model-modal").hidden = true; }
+let modelFormTouched = false;                    // set once the user edits the model form; a
+// backdrop click while editing no longer closes the form (it dropped in-progress edits), but we
+// still surface a visible nudge that the edit is unsaved - and never on a pristine form.
+function markModelFormTouched() { modelFormTouched = true; }
 // A local entry is a Strata instance on this PC: it has no external address at all ("" = the instance that
 // is serving this page), so the URL rule and the fields it needs are NOT the ones an external endpoint needs.
 function syncModelFormKind() {
@@ -7270,6 +7274,7 @@ function openModelForm(id) {
   $("model-done").hidden = true;                            // the form has its own Save: no second primary
   $("model-form").hidden = false;
   $("mf-name").focus();
+  modelFormTouched = false;                       // opening the form starts clean
 }
 async function submitModelForm() {
   const kind = $("mf-kind").value === "local" ? "local" : "custom";
@@ -7307,6 +7312,7 @@ async function submitModelForm() {
     $("model-done").hidden = false;
     renderModelList();
     toast("success", t("model.saved"));
+    modelFormTouched = false;
   } catch (e) {
     toast("error", t("model.save.failed"), String((e && e.message) || e));
   }
@@ -7362,6 +7368,7 @@ async function testModelForm() {
   $("mf-url").oninput = syncModelFormKind;         // the context hint depends on whether an address is set
   $("mf-save").onclick = submitModelForm;
   $("mf-cancel").onclick = () => {
+    modelFormTouched = false;
     $("model-form").hidden = true;
     $("model-list").hidden = false;
     $("model-add").hidden = false;
@@ -7377,6 +7384,17 @@ async function testModelForm() {
   // Backdrop click no longer closes a FORM modal (an accidental click outside the card dropped
   // in-progress edits). Close = explicit: close-button / done / Esc (Esc matches edit-modal/img-modal/sched-modal).
   document.addEventListener("keydown", (e) => { if ($("model-modal") && !$("model-modal").hidden && e.key === "Escape") closeModelModal(); });
+  // Typing in the model form arms the dirty flag; a click on the backdrop (outside the card) while
+  // editing no longer closes the form (that dropped in-progress edits), so we keep it open and just
+  // nudge - but only once the user has actually typed, so a pristine form never gets nagged.
+  $("model-form").addEventListener("input", markModelFormTouched);
+  $("model-form").addEventListener("change", markModelFormTouched);
+  document.addEventListener("click", (e) => {
+    if ($("model-modal") && !$("model-modal").hidden && !$("model-form").hidden
+        && e.target === $("model-modal") && modelFormTouched) {
+      toast("info", t("model.form.unsaved"));
+    }
+  });
   $("model-form").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); submitModelForm(); }
   });

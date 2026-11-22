@@ -207,6 +207,29 @@ api.getDoc().models.find((m) => m.id === "self").tools = true;
 check("tools:true allows them again", api.modelAllowsTools() === true);
 api.getDoc().models.find((m) => m.id === "self").tools = undefined;  // restore: drop the key
 
+
+console.log("\n=== T12: a backdrop click while editing keeps the form open and nudges (no silent drop) ===");
+api.openModelModal("list");
+api.openModelForm(null);
+const toastsBox = $("toasts");
+// a pristine form must NOT be nagged by an outside click, and must stay open
+toastsBox.innerHTML = "";
+$("model-modal").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+check("a clean form is not nagged on a backdrop click", toastsBox.childElementCount === 0);
+check("and it stays open", $("model-modal").hidden === false && $("model-form").hidden === false);
+// typing arms the dirty flag; an outside click then nudges but does NOT close the form
+$("mf-name").value = "half-typed";
+$("mf-name").dispatchEvent(new win.Event("input", { bubbles: true }));
+toastsBox.innerHTML = "";
+$("model-modal").dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+const nudge = [...toastsBox.querySelectorAll(".st-toast--info")].map((n) => n.textContent);
+check("a backdrop click while editing surfaces a visible unsaved nudge  " + JSON.stringify(nudge),
+      toastsBox.querySelector(".st-toast--info") !== null);
+check("it does NOT close the form - the in-progress edits survive (load-bearing)",
+      $("model-modal").hidden === false && $("model-form").hidden === false);
+// Cancel still returns to the list (the dirty-flag reset on cancel did not break the explicit path)
+$("mf-cancel").click();
+check("Cancel still leaves the form for the list", $("model-form").hidden === true && $("model-list").hidden === false);
 console.log("");
 if (FAILURES.length) {
   console.log(`MODEL SWITCHER: ${FAILURES.length} FAILED`);
