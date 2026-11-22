@@ -18,6 +18,14 @@
 | 合并预算保留比例滑条 | `#s-memreserve` / `_memCompactReservePct()` `memCompactChunkTokens()` | v1：clamp `[5,50]`，默认 `25`；喂 AUTO chunk 预算公式 `reserve=max(4096, 窗口×比例)`，`budget=min(12000,max(2000,窗口−注入−reserve))`；pinned chunk>0 时滑条禁用置灰并绕过 | `2c222db` | `tests/test_mem_reserve_wiring.mjs`（预算契约）+ `tests/test_reserve_linkage.mjs`（拖滑条联动 + 禁用联动） |
 | 断流/截断轮「继续」按钮可见性 + 网关文案 | `updateAssistant()` 按钮 gate (app.js L3929) | v1：按钮 `hidden = !((m.limit \|\| m.canContinue \|\| m.truncated) && !streaming)`——断流转录走 `markTruncatedIfCut()` 设的 `m.truncated`（不置 canContinue），必须纳入此 gate，否则截断轮「继续」按钮被永久隐藏、无法续跑；续跑链路 `continueTask()→send()` 早已就绪。i18n `chat.notice.gateway_down` 中英两版：bat 名 = `星云智能体.bat`(工作区根)，看门狗自动重启 8099，文案改为「看门狗会自动重启，稍候点继续；迟迟未恢复再双击 bat」 | `d90af59` | `tests/test_conn_cut_resume.mjs`（C8：断流轮按钮可见 + 干净轮隐藏 differential + 点击触发 `send()`，真实 app.js 栈，消息挂进 `#chat` 委托容器） |
 
+## 启动 / 部署层变更流水（非前端，单列备查）
+
+> 与上方「能力版本登记」不同：下列条目属启动/部署层（启动器/看门狗），不驱动前端发布、无 jsdom 守护，由真机冒烟一次性验收；单列在此仅供发布与审计对账。
+
+| 日期 | 变更 | 契约 | 锚点 commit | 验证 |
+|------|------|------|-------------|------|
+| 2026-11-22 | 启动器改为单点模型：`星云白泽.bat/.sh` 从「两组件（起 8080 引擎 + 等 60s + 起网关）」改为只起网关看门狗，调用后自动关窗；同步改写 `部署说明.md` | 启动器 → `gw_watchdog`（带单实例+双实例守卫，每 5s 探 127.0.0.1:8099）→ 未监听且无 `.gw_stop.flag` 时拉起 `run_standalone.bat`（崩溃自愈）服务 8099；**不再自动起 8080 推理引擎**，本地推理需另行双击 `run-swift-iq3_*.bat`；软停用 `Nebula-agent/.gw_stop.flag` | `c3e292a`（bat/sh） + `4244eef`（部署说明） | 真冷启动冒烟（杀栈→跑启动器→探测，detached 落盘）：8099 于 **3985ms** 被看门狗拉起（<5s）、启动器窗口 **208ms 自动关窗**、`bat` 本体 `EXIT=0`（发射期的 9009 系中文路径二次引号噪声，已辨析） |
+
 ## 真机验收台账
 
 > 逻辑层由守护测试在真实 app.js 栈坐实；像素/交互层由主人在实时 8099 浏览器硬刷新后真机验收。
