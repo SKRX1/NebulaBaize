@@ -11052,7 +11052,9 @@ if ($("schedule-new")) $("schedule-new").onclick = () => { openSchedModal(null);
 
 $("schedule-add").onclick = () => { openSchedModal(null); };
 $("sched-close").onclick = () => { $("sched-modal").hidden = true; };
-$("sched-modal").addEventListener("click", (e) => { if (e.target.id === "sched-modal") $("sched-modal").hidden = true; });
+// Backdrop click no longer closes this FORM modal: an accidental click outside the card dropped
+// the in-progress schedule form (name / task / trigger / workspace). Close = explicit only:
+// the close button above or Esc (both already wired below) - matching model-modal/edit-modal.
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("sched-modal").hidden) $("sched-modal").hidden = true; });
 
 $("sched-apply").onclick = async () => {

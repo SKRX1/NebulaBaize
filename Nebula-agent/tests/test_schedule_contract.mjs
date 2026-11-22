@@ -248,6 +248,23 @@ for (const name of ["openSchedModal", "renderSchedule", "schedResetForm", "sched
     win.document.getElementById("sched-workspace").value === "C:/test-root");
   win.__stub8 = null;
 
+  // --- backdrop-close removed: a FORM modal keeps its in-progress form (2026-11-22) -----------
+  // root cause was `if (e.target.id === "sched-modal") hidden=true` -- an accidental click outside
+  // the card dropped a half-filled schedule. Lock #1: that backdrop-close must not come back.
+  check("static: sched-modal has NO backdrop-click-to-close in source",
+    !src.includes('if (e.target.id === "sched-modal") $("sched-modal").hidden = true;'));
+  // runtime differential: open create-form, type a name, click the backdrop -> must stay open with
+  // the typed value intact (the explicit close button is the only outside-card way out).
+  await api.openSchedModal(null);
+  check("create form is open before the backdrop click", api.modal().hidden === false);
+  api.nameField().value = "half-typed-schedule";
+  api.modal().dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  check("a backdrop click does NOT close the form (no silent drop, load-bearing)",
+    api.modal().hidden === false);
+  check("the in-progress value survives the backdrop click", api.nameField().value === "half-typed-schedule");
+  // Esc still closes (the explicit path we kept must survive) - prove it bites.
+  api.modal().dispatchEvent(new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  check("Escape still closes it (explicit keyboard exit intact)", api.modal().hidden === true);
 
   console.log("\nREGRESSION: " + (FAILURES.length ? "RED — " + FAILURES.join("; ") : "ALL GREEN"));
   process.exit(FAILURES.length ? 1 : 0);
