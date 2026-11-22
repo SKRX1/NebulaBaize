@@ -144,3 +144,24 @@ git tag -a v-baseline-2026-11-20-a 47d1f0fb6ed1206677e7059dde57330e03cdee11 -m "
 git tag -a v-baseline-2026-11-21-h 93e4727c6b2eb41b5a24de5735ecefce2427d334 -m "chore: 版本号 0.1.00 → 0.1.0（VERSION 源 + 前端静态兜底角标）"
 ```
 
+
+
+## 2026-11-22 系列：当前回滚点（保留，post-green 已坐实 WORKING ROLLBACK POINT）
+
+本轮为 backup-bundle 回归修复的 HEAD 打新基线 `v-baseline-2026-11-22-d`，作为**当前最新回滚点**保留。
+`_rollback_verify.py` 的 `latest_tag()` 走 `git tag -l --sort=-creatordate` 取首条 = 本 tag，
+post-green 回环已指向此不含回归的新锚点；本回合实测 `--no-nest` 复验 **VERIFY_EXIT=0 / VERDICT:
+TAG IS A WORKING ROLLBACK POINT (ALL GREEN)**，并已纳入 E/F 盘 `--all` bundle（HEAD/commit/tag 三计数全对）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-22-d | 1621c6e673622d54cfefb66b419942d55ed22aed | fix(backup-bundle): rehearse 的 branch 改 keyword-only，修回归打破 _mirror_rehearse_gate |
+
+> 当日更早的 a/b/c 为同线早期基线，已被 -d 取代为次新（c 含该回归、d 为修复后点）；如未来清理
+> a/b/c，按判据 `git merge-base --is-ancestor <commit> HEAD` 逐一坐实 anc=0 后再删，不丢任何 commit。
+
+### 重建命令（如需精确恢复当前回滚点 d）
+
+```bat
+git tag -a v-baseline-2026-11-22-d 1621c6e673622d54cfefb66b419942d55ed22aed -m "baseline: backup-bundle rehearse branch keyword-only fix, mirror_rehearse_gate green (post-green anchor without the regression)"
+```
