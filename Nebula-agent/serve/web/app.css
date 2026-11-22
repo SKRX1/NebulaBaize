@@ -258,7 +258,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .st-bubble .inline-msg-img { width: 32px; height: 32px; object-fit: cover; display: inline-block; vertical-align: -0.18em;
   margin: 0 0.12em; border-radius: var(--st-r-md); border: 1px solid var(--st-line); cursor: zoom-in; }
 .st-msg .st-collapse { width: 100%; }
-.st-collapse__body.thinking { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow-y: auto; }
+.st-collapse__body.thinking { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow-y: auto; overflow-x: hidden; }
 /* A thought: one collapsible segment per reasoning burst, sitting next to the calls it produced. Collapsed it
    is a single line (title + one-sentence peek), so a finished turn stays scannable instead of wall-of-text. */
 .st-bubble .st-think { margin: var(--st-s-2) 0; }
