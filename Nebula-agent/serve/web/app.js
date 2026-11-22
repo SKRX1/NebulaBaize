@@ -7374,7 +7374,9 @@ async function testModelForm() {
     if (!row || !act) return;
     if (act.dataset.mact === "edit") openModelForm(row.dataset.id); else deleteModel(row.dataset.id);
   };
-  $("model-modal").onclick = (e) => { if (e.target === $("model-modal")) closeModelModal(); };
+  // Backdrop click no longer closes a FORM modal (an accidental click outside the card dropped
+  // in-progress edits). Close = explicit: close-button / done / Esc (Esc matches edit-modal/img-modal/sched-modal).
+  document.addEventListener("keydown", (e) => { if ($("model-modal") && !$("model-modal").hidden && e.key === "Escape") closeModelModal(); });
   $("model-form").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); submitModelForm(); }
   });
