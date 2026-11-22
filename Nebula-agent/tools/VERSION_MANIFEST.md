@@ -26,6 +26,8 @@
 |------|------|------|-------------|------|
 | 2026-11-22 | 启动器改为单点模型：`星云白泽.bat/.sh` 从「两组件（起 8080 引擎 + 等 60s + 起网关）」改为只起网关看门狗，调用后自动关窗；同步改写 `部署说明.md` | 启动器 → `gw_watchdog`（带单实例+双实例守卫，每 5s 探 127.0.0.1:8099）→ 未监听且无 `.gw_stop.flag` 时拉起 `run_standalone.bat`（崩溃自愈）服务 8099；**不再自动起 8080 推理引擎**，本地推理需另行双击 `run-swift-iq3_*.bat`；软停用 `Nebula-agent/.gw_stop.flag` | `c3e292a`（bat/sh） + `4244eef`（部署说明） | 真冷启动冒烟（杀栈→跑启动器→探测，detached 落盘）：8099 于 **3985ms** 被看门狗拉起（<5s）、启动器窗口 **208ms 自动关窗**、`bat` 本体 `EXIT=0`（发射期的 9009 系中文路径二次引号噪声，已辨析） |
 
+| 2026-11-22 | CI 构建触发收窄：开源形态（HTML+Python 跨平台，clone 即可跑）不需 Nuitka 三平台自动构建，把 build-release.yml 的 `on.push.tags:["v*"]` 删除、仅留 `workflow_dispatch` 手动 | 推任何 tag 不再自动触发三平台构建；需闭源 exe 时去 Actions 手点 Build（零能力损失）。GitHub push-tag 事件读的是 tag 指向 commit 里的 workflow 版本，故本改只对改后新打 tag 生效；与「历史 tag 不推 origin」契合，无遗留风险 | `7979a34` | PyYAML 语义求值：触发器键集合仅 [workflow_dispatch]、无 push、build job 保留；已推 main 后远端 origin/main 与本地 0 0 一致 |
+
 ## 真机验收台账
 
 > 逻辑层由守护测试在真实 app.js 栈坐实；像素/交互层由主人在实时 8099 浏览器硬刷新后真机验收。
