@@ -221,3 +221,5 @@ backup-bundle 前置铁律精化：若本地 ahead 远端且有要固化的 comm
 前端设计规范放 group 层（.Nebula-memory/groups/<组>/RULES.md）：只在已归组工作区注入、未归组零成本，优于 global 层无条件全注入；归组用「设置本工作区分组」按钮填组名（currentGroup=getGroupLabel 读 <ws>/.Nebula-memory/group.txt）
 记忆页所有 .mem-tabpanel 卡同时可见各自可折叠（app.js applyMemSubTab 11337+），新增一类记忆卡只需追加 data-mem 卡 + 对应 renderXxxCard 接进 renderMemory，无需改 sub-tab 切换器
 规范/rules 类内容不做 token 级懒加载（区别于 knowledge/experience）：硬约束漏注入即失效；其"按作用域(工作区/组)条件加载"本身就是恰当粒度
+前端规范自动加载(方案C)落点在 loadMemoryState 的 group 分支：currentGroup=deriveGroup(base)——显式 group.txt 组名 > __none__ 哨兵(尊重不外推) > 仅"从未配置"时按 <ws>/serve/web/(app.js|index.html) 只读探测映射 frontend，绝不写盘；新建工作区经 ws-apply(2067)或 selectSession(1626)都触发它故自动生效
+自动检测类特性一律"只读推导当前态、不写持久文件"，并提供显式 opt-in/opt-out 覆盖；要区分"用户主动退出"与"从未配置"需写显式哨兵(如 __none__)而非空行，空行无法区分二者
