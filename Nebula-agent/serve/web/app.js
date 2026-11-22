@@ -16,7 +16,7 @@ const t = (key, params) => {
   if (!params) return key;
   return key.replace(/\{(\w+)\}/g, (_, k) => (params[k] != null ? params[k] : `{${k}}`));
 };
-const SPRITE = "web/sprite.svg";
+const SPRITE = "";
 const icon = (name, cls = "st-icon") => `<svg class="${cls}" aria-hidden="true"><use href="${SPRITE}#i-${name}"/></svg>`;
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const fmt = (n, d = 0) => (n == null || Number.isNaN(n) ? "–" : Number(n).toLocaleString(undefined, {maximumFractionDigits: d, minimumFractionDigits: d}));
@@ -2946,7 +2946,7 @@ function renderNextSteps(el, m) {
       else if (s.avoid)  { tier = " next-step--avoid"; badge = `<span class="next-step__badge next-step__badge--avoid">${esc(t("nextsteps.avoid.badge"))}</span>`; }
       else if (s.hold)   { tier = " next-step--hold";  badge = `<span class="next-step__badge next-step__badge--hold">${esc(t("nextsteps.hold.badge"))}</span>`; }
       else               { tier = " next-step--rest"; }                              // 普通档橙 chip（自动跑）
-      const chk = on ? '<svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-check"/></svg>' : "";
+      const chk = on ? '<svg class="st-icon st-icon--sm"><use href="#i-check"/></svg>' : "";
       return `<button type="button" class="next-step${on ? " next-step--on" : ""}${tier}" data-step="${i}"` +
         ` aria-pressed="${on}" title="${esc(s.detail ? `${s.label}：${s.detail}` : s.label)}">` +
         badge + chk + `<span class="next-step__label">${esc(s.label)}</span></button>`;
@@ -8108,7 +8108,9 @@ async function streamAssistant(targetSession = null) {
   m._clientErrors = [];
   setBusy(true);
   streamingFollow = true;
-  renderSessions();   // sidebar badge: light the row of the session that is running                  // every new turn starts by following the live tail
+  const _runningRow = taskRowEl(busy.sessionId);   // sidebar running badge: light ONLY that row (C). The old whole-list renderSessions() here re-injected every <use>; before the in-page sprite that meant the icons/counts flickered an empty frame at the START of each answer.
+  if (_runningRow) _runningRow.classList.add("running"); else renderSessions();   // fallback rebuild only if the row is absent (e.g. its workspace is new)
+  // every new turn starts by following the live tail
   const latestBtn = $("scroll-latest"); if (latestBtn) latestBtn.hidden = true;
 
   // F3: on-demand knowledge recall — only when enabled, the query looks substantive, and the KB has hits.
@@ -8671,8 +8673,8 @@ function ensureEditUI() {
   m.innerHTML =
     '<div class="st-modal__card">' +
       '<div class="st-modal__head"><span class="card-title" data-i18n="ctx.edit.title">编辑这条任务对话</span>' +
-        '<span class="st-modal__grip"><svg class="st-icon st-icon--sm st-modal__grip-icon"><use href="web/sprite.svg#i-grip"/></svg></span>' +
-        '<button class="st-btn st-btn--icon" id="edit-x" aria-label="Close"><svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-close"/></svg></button></div>' +
+        '<span class="st-modal__grip"><svg class="st-icon st-icon--sm st-modal__grip-icon"><use href="#i-grip"/></svg></span>' +
+        '<button class="st-btn st-btn--icon" id="edit-x" aria-label="Close"><svg class="st-icon st-icon--sm"><use href="#i-close"/></svg></button></div>' +
       '<div class="st-modal__body" style="padding:14px 16px">' +
         '<div id="edit-area" class="st-textarea ce-input" contenteditable="true" role="textbox" aria-multiline="true"></div>' +
         '<div class="attachments" id="edit-attachments" hidden></div>' +

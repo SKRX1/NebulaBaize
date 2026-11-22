@@ -5,7 +5,7 @@
  * delete-button <use> was emptied on SAVE -> blank icon -> dead-shell delete button (the reported symptom).
  *
  * Differential pairs (real net, real functions):
- *   FIX       : the REAL icon("trash") href web/sprite.svg#i-trash now SURVIVES sanitize (delete button renders).
+ *   FIX       : the REAL icon("trash") href #i-trash now SURVIVES sanitize (delete button renders).
  *   CONTROL   : a bare #i-trash href still survives (the original whitelist behaviour is intact).
  *   XSS NET   : an off-site href (http://evil/x.svg#i-trash) is STILL stripped (the broadening did NOT open a hole).
  * Run standalone: node tests/test_spark_thumb_icon.mjs
@@ -42,11 +42,11 @@ function hrefAfterSanitize(htmlStr) {
   return use ? (use.getAttribute("href") || use.getAttribute("xlink:href") || "") : "(no use)";
 }
 
-// FIX: the REAL chip the delete button renders — icon("trash") emits <use href="web/sprite.svg#i-trash">
+// FIX: the REAL chip the delete button renders — icon("trash") emits <use href="#i-trash">
 const realChip = `text <span class="ce-thumb" contenteditable="false" data-pid="1"><span class="ce-thumb__box"><img class="inline-ce-img" src="data:image/png;base64,AAA"><button type="button" class="ce-thumb__x" data-delpid="1" aria-label="x">${win.__icon("trash")}</button></span></span>`;
 const realHref = hrefAfterSanitize(realChip);
 console.log("  REAL trash-icon href after SAVE:", JSON.stringify(realHref));
-check("FIX: the real sprite-prefixed trash href web/sprite.svg#i-trash now SURVIVES sanitize (delete button renders, no longer a dead shell)", realHref === "web/sprite.svg#i-trash");
+check("FIX: the real in-page trash href #i-trash now SURVIVES sanitize (delete button renders, no longer a dead shell)", realHref === "#i-trash");
 
 // CONTROL: a bare # fragment href still survives (original whitelist behaviour intact)
 const bareChip = `text <span class="ce-thumb"><span class="ce-thumb__box"><button class="ce-thumb__x"><svg><use href="#i-trash"/></svg></button></span></span>`;
