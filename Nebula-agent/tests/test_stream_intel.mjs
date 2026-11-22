@@ -362,11 +362,11 @@ console.log("\n=== H2: workspace rules tier (propose -> draft -> approve) ===");
   // rules section only when workspaceRules is non-empty.
   const wEmpty = api.workspaceSystem("/tmp/proj");
   check("workspace prompt instructs the model to propose-rules", /propose-rules/.test(wEmpty));
-  check("no approved-rules section when workspaceRules empty", !/本工作空间操作约定/.test(wEmpty));
+  check("no approved-rules section when workspaceRules empty", !/本工作区操作约定/.test(wEmpty));
 
   api.setWorkspaceRules("已有约定A\n已有约定B");
   const wRules = api.workspaceSystem("/tmp/proj");
-  check("approved rules injected as a system section when present", /本工作空间操作约定/.test(wRules) && /已有约定A/.test(wRules) && /已有约定B/.test(wRules));
+  check("approved rules injected as a system section when present", /本工作区操作约定/.test(wRules) && /已有约定A/.test(wRules) && /已有约定B/.test(wRules));
   api.setWorkspaceRules("");
 
   // H2c: maybeProposeMemory stages a draft via filesystem (autoMemory OFF -> no auto-apply)

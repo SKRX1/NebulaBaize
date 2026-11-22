@@ -4720,20 +4720,20 @@ function workspaceSystem(ws) {
   // "between workspaces" tier); workspace entries are this project's specifics.
   const grp = currentGroup;
   if (globalRules && globalRules.trim()) {
-    txt += `\n\n【全局操作约定（所有工作空间通用，务必遵守）】\n${globalRules.trim()}`;
+    txt += `\n\n【全局操作约定（所有工作区通用，务必遵守）】\n${globalRules.trim()}`;
   }
   if (grp && groupRules && groupRules.trim()) {
     txt += `\n\n【工作区间操作约定（${grp} 组通用，务必遵守）】\n${groupRules.trim()}`;
   }
   if (workspaceRules && workspaceRules.trim()) {
-    txt += `\n\n【本工作空间操作约定（已固化，务必遵守）】\n${workspaceRules.trim()}`;
+    txt += `\n\n【本工作区操作约定（已固化，务必遵守）】\n${workspaceRules.trim()}`;
   }
   if (globalKnowledge && globalKnowledge.trim()) txt += _memInject("全局知识库", globalKnowledge);
   if (grp) txt += _memInject("工作区间知识库", groupKnowledge);
-  if (workspaceKnowledge && workspaceKnowledge.trim()) txt += _memInject("本工作空间知识库", workspaceKnowledge);
+  if (workspaceKnowledge && workspaceKnowledge.trim()) txt += _memInject("本工作区知识库", workspaceKnowledge);
   if (globalExperience && globalExperience.trim()) txt += _memInject("全局经验库", globalExperience);
   if (grp) txt += _memInject("工作区间经验库", groupExperience);
-  if (workspaceExperience && workspaceExperience.trim()) txt += _memInject("本工作空间经验库", workspaceExperience);
+  if (workspaceExperience && workspaceExperience.trim()) txt += _memInject("本工作区经验库", workspaceExperience);
   // Design-doc language: keep filename + body language consistent with the chosen policy.
   const _dl = settings.designLang || "auto";
   if (_dl === "zh") {

@@ -93,6 +93,22 @@ check("menu re-opens for the outside-click check", isOpen() === true);
 doc.body.dispatchEvent(new win.MouseEvent("click", { bubbles:true }));
 check("a click outside the menu still closes it", isOpen() === false);
 
+// ---------------- 9) the opened menu shows 工作区 in Chinese (the term-unification acceptance) ----
+// Drives the REAL right-click render path (wsMenuItems -> t("side.renamews")) and asserts the menu
+// text uses the unified term. Guards against the "重命名空间" wording ever regressing.
+win.i18n.setLang("zh");
+check("we are in Chinese for the menu-text check", win.i18n.lang === "zh", "lang=" + win.i18n.lang);
+// setLang re-rendered the sidebar; add a fresh workspace header to act as the right-click anchor.
+const head9 = doc.createElement("div");
+head9.setAttribute("data-ws-head", "/tmp/menu-probe-zh");
+doc.getElementById("session-list").appendChild(head9);
+head9.dispatchEvent(new win.MouseEvent("contextmenu", { bubbles:true, clientX: 40, clientY: 60 }));
+check("right-click opens the menu in Chinese", isOpen() === true);
+const menuText = popEl().textContent;
+check("the menu shows 重命名工作区 (unified term)  " + JSON.stringify(menuText),
+      menuText.includes("重命名工作区"));
+check("the menu shows NO stale 重命名空间", !menuText.includes("重命名空间"));
+
 console.log("");
 if (FAILURES.length) { console.log("SIDEBAR MENU SCROLL: FAIL (" + FAILURES.length + ")"); process.exit(1); }
 console.log("SIDEBAR MENU SCROLL: ALL GREEN");
