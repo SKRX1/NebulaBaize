@@ -207,7 +207,11 @@ main { flex: 1; min-height: 0; display: flex; }
 .lang-field .st-input { max-width: 220px; }
 
 /* ---------------------------------------------------------------- chat */
-.chat-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.chat-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+/* overflow-x must be set explicitly: a scroll container with overflow-y:auto computes its
+   overflow-x from visible to auto, so any transient horizontal overflow (a wide image / SVG)
+   would sprout a stray horizontal scrollbar just above the composer. Real horizontal scrollers
+   (.st-code pre, .table-wrap) each carry their own overflow:auto, so hiding here is safe. */
 
 /* Floating "jump to latest" pill — appears while a turn streams and the user has scrolled up */
 .scroll-latest { position: absolute; right: 18px; bottom: calc(var(--composer-h, 96px) + 14px); z-index: 6;
@@ -406,7 +410,7 @@ main { flex: 1; min-height: 0; display: flex; }
 
 /* ---------------------------------------------------------------- monitor */
 /* unified scroll container: every document-flow view adds .view--scroll (new views just add the class) */
-.view--scroll { overflow-y: auto; }
+.view--scroll { overflow-y: auto; overflow-x: hidden; }
 .monitor, .about { max-width: 1240px; width: 100%; margin: 0 auto; padding: var(--st-s-6); display: flex; flex-direction: column;
                    gap: var(--st-s-5); justify-content: flex-start; }
 .state-card { display: flex; flex-direction: column; gap: var(--st-s-3); }
@@ -533,7 +537,7 @@ main { flex: 1; min-height: 0; display: flex; }
               font-weight: var(--st-fw-medium); color: var(--st-ink-soft); }
 .toggle-row .st-toggle { flex: none; }   /* a long label must not squeeze the switch */
 .toggle-row--sub { padding-left: var(--st-s-3); }
-.sidebar-settings__list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: var(--st-s-2); }
+.sidebar-settings__list { max-height: 50vh; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--st-s-2); }
 .sidebar-settings__list .toggle-row { font-size: var(--st-fs-base); }
 .st-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs-sm); color: var(--st-ink-soft); cursor: pointer; }
 .st-check input { accent-color: var(--st-accent); }
@@ -749,13 +753,13 @@ body.side-collapsed #sidebar-collapse .st-icon { transform: rotate(-90deg); }
 body.no-sidebar .st-sidebar, body.no-sidebar #rh-left { display: none; }
 .st-sidebar__head { display: flex; align-items: center; justify-content: space-between; gap: var(--st-s-2); }
 .st-sidebar__head #sidebar-collapse .st-icon { transform: rotate(90deg); transition: transform var(--st-dur) var(--st-ease); }
-.st-sidebar__list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.st-sidebar__list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 4px; }
 .st-sidebar__list:empty::after { content: "No tasks yet"; font-size: var(--st-fs-sm); color: var(--st-ink-muted); padding: var(--st-s-3); }
 
 /* ============================ Inspector (right task panel) ============================ */
 .st-inspector { flex: none; width: var(--ins-w, 300px); display: flex; flex-direction: column; gap: var(--st-s-3);
                 padding: var(--st-s-4); border-left: 1px solid var(--st-line); background: var(--st-surface);
-                overflow-y: auto; min-width: 0; transition: width var(--st-dur) var(--st-ease); }
+                overflow-y: auto; overflow-x: hidden; min-width: 0; transition: width var(--st-dur) var(--st-ease); }
 .st-inspector[hidden] { display: none; }
 .st-inspector__head { display: flex; align-items: center; justify-content: space-between; }
 .st-inspector__title { font-weight: var(--st-fw-bold); font-size: var(--st-fs-base); color: var(--st-ink); }
@@ -906,7 +910,7 @@ body.ins-collapsed .st-inspector #inspector-collapse .st-icon { transform: rotat
 .st-modal__card { width: min(480px, 92vw); background: var(--st-surface); border: 1px solid var(--st-line);
                   border-radius: var(--st-r-lg); box-shadow: var(--st-sh-pop); padding: var(--st-s-6);
                   display: flex; flex-direction: column; gap: var(--st-s-4);
-                  max-height: min(90vh, 92vw); overflow-y: auto; margin: auto; }
+                  max-height: min(90vh, 92vw); overflow-y: auto; overflow-x: hidden; margin: auto; }
 .st-modal__head { display: flex; align-items: center; justify-content: space-between; }
 .st-modal__head--draggable { cursor: move; user-select: none; }
 .st-modal__head .st-icon { transform: rotate(-90deg); }
@@ -954,7 +958,7 @@ body.side-collapsed #ws-modal { display: none; }
 .ws-browse__crumb-seg { color: var(--st-accent); background: none; border: 0; cursor: pointer; padding: 2px 0; font: inherit; }
 .ws-browse__crumb-seg:hover { text-decoration: underline; }
 .ws-browse__crumb-sep { opacity: .5; margin: 0 2px; }
-.ws-browse__list { flex: 1; overflow-y: auto; min-height: 180px; max-height: 46vh; border: 1px solid var(--st-line);
+.ws-browse__list { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 180px; max-height: 46vh; border: 1px solid var(--st-line);
                    border-radius: var(--st-r-1); background: var(--st-surface); padding: 4px; margin: var(--st-s-2) 0; }
 .ws-browse__row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0;
                   border-radius: var(--st-r-1); padding: 7px 9px; cursor: pointer; color: var(--st-ink); font: 500 var(--st-fs-sm)/1 var(--st-font); }
@@ -1141,7 +1145,7 @@ body.ins-collapsed .st-inspector__head { justify-content: center; padding: 0; }
 .kb-panel { display: none; flex-direction: column; gap: var(--st-s-2); padding: var(--st-s-3) 0; border-top: 1px solid var(--st-line-soft); }
 .kb-panel.open { display: flex; }
 .kb-panel__head { display: flex; align-items: center; gap: 8px; font-size: var(--st-fs-sm); font-weight: var(--st-fw-medium); color: var(--st-ink); }
-.kb-panel__list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 200px; }
+.kb-panel__list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; max-height: 200px; }
 .kb-source { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--st-r-sm); font-size: var(--st-fs-xs); color: var(--st-ink-soft); }
 .kb-source:hover { background: var(--st-surface-2); }
 .kb-source__name { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
@@ -1269,8 +1273,8 @@ body.side-collapsed .st-ctx-menu { display: none; }
 /* plan A: the server list scrolls inside its card so the skills and import cards
    below it stay reachable on the first screen; the skills list gets a small cap
    so a long one cannot push the import card down either. */
-#adm-servers { max-height: min(52vh, 560px); overflow-y: auto; }
-#adm-skills { max-height: 132px; overflow-y: auto; }
+#adm-servers { max-height: min(52vh, 560px); overflow-y: auto; overflow-x: hidden; }
+#adm-skills { max-height: 132px; overflow-y: auto; overflow-x: hidden; }
 .adm-item { display: flex; align-items: center; justify-content: space-between; gap: 8px;
             width: 100%; padding: 7px 9px; border: 0; border-radius: var(--st-r-sm);
             background: transparent; color: var(--st-ink); font: inherit; font-size: 13px;
@@ -1499,7 +1503,7 @@ body.side-collapsed .st-ctx-menu { display: none; }
   cursor: pointer; margin: 0 0.12em;
 }
 .ce-input img:hover { border-color: var(--st-accent); }
-.st-composer .ce-input { max-height: 40vh; overflow-y: auto; }
+.st-composer .ce-input { max-height: 40vh; overflow-y: auto; overflow-x: hidden; }
 .chip--img { gap: 4px; height:auto; min-height:30px; padding:4px 6px 4px 8px; align-items:center; }
 /* icon-only chip (filename moved to hover title): symmetric padding, icon sits centered */
 .chip--t { padding: 0 8px; gap: 4px; }
@@ -1574,7 +1578,7 @@ audio.md-media { height: 38px; }
 /* Schedule management window list: action buttons always visible (unlike the sidebar
  * quick-view where they appear on hover). Its own column layout fits two icon buttons. */
 .sched-manage-list { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 12px;
-  max-height: 38vh; overflow-y: auto; }
+  max-height: 38vh; overflow-y: auto; overflow-x: hidden; }
 .sched-manage-list .sched-row { grid-template-columns: minmax(0,1fr) 92px 84px 26px 26px; }
 /* 2026-11: main schedule list rows add a last-run status column (shared
    schedStatusSpan). Use flex so the optional badge span never misaligns the
@@ -1595,7 +1599,7 @@ audio.md-media { height: 38px; }
 .arc-hist__head:hover { color: var(--st-accent); }
 .arc-hist__note { font-size: 11px; color: var(--st-ink-muted, #6b7280); padding: 0 10px 6px; }
 .arc-hist__body { white-space: pre-wrap; word-break: break-word; margin: 0;
-  padding: 10px; font-size: 12px; line-height: 1.6; max-height: 40vh; overflow-y: auto;
+  padding: 10px; font-size: 12px; line-height: 1.6; max-height: 40vh; overflow-y: auto; overflow-x: hidden;
   border-top: 0.5px solid var(--st-border-3, #e3e6ea); animation: arcHistIn .18s ease-out; }
 @keyframes arcHistIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .arc-hist__body { animation: none; } }
@@ -1676,7 +1680,7 @@ audio.md-media { height: 38px; }
 .img-seed-dice { flex: none; padding: 0 10px; }
 .img-seedbook-head { align-items: center; margin-top: 8px; }
 .img-seedbook-head > span { color: var(--st-ink-soft); font-size: var(--st-fs-sm); }
-.img-seedbook { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; }
+.img-seedbook { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; overflow-x: hidden; }
 .img-seedbook-item { display: flex; gap: 10px; align-items: center; padding: 4px 8px; border-radius: var(--st-r-sm); cursor: pointer; font-size: var(--st-fs-sm); }
 .img-seedbook-item:hover { background: var(--st-accent-tint); }
 .img-seedbook-seed { color: var(--st-accent); font-weight: 600; min-width: 70px; }
