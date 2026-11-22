@@ -321,6 +321,8 @@ SUITES = [
 
     "tests/test_model_switcher.mjs",
 
+    "tests/test_tool_result_content.mjs",   # 2026-11-23 #toolcontent ROOT-CAUSE: a NON-STRING tool result persisted in history (an object-valued MCP result, or a null) was sent to the upstream VERBATIM through apiMessages -> assistantMessages (`{role:"tool", content: t.result}`). The renderer already String()s every tool result precisely because such rows exist, so this was the ONE path that sent the raw object -> a compact/continue request 400ed with "messages[N].content must be a string or an array of content parts", and compaction rolled the history back unchanged every time (chunked-compact-failed + lost context, permanently wedged on the bad row). Fix: a toolResultText(v) helper coaxes every shape to a string the same lossless way the UI does (JSON for objects, "" for null). jsdom harness reusing the real app.js boot: T1 the helper always returns a string for null/undefined/string/object/array/number/bool, T2 LOAD-BEARING an object-valued result yields a STRING content (not the raw object) and survives losslessly as JSON with the assistant tool_calls turn still first, T3 the string-result path is byte-identical (no JSON double-wrap) and a null result is filtered at the entry so it never reaches content.
+
     "tests/test_model_probe.mjs",
 
     "tests/test_runtime_config_frontend.mjs",

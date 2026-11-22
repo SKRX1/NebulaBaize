@@ -6322,6 +6322,20 @@ if (!window.__memGroupEditWired){
 }
 
 // their results (as the model read them), then the rest - so the next question can build on what the tools found.
+// #toolcontent (2026-11): some history rows carry a NON-STRING tool result (a structured MCP
+// result persisted as an object, or a null). The renderer already String()s every tool result
+// (lines ~2504/~2554) precisely because such rows exist, but apiMessages -> assistantMessages sent
+// t.result verbatim, so a single object-valued result made a compact/continue request 400 with
+// "messages[N].content must be a string or an array of content parts" — and compaction rolled the
+// history back unchanged every time, so the user saw 分段压缩失败 + lost context and could never
+// compact past the bad row. Coerce to a string the same lossless way the UI does (JSON for objects,
+// empty for null), never for the valid user multimodal arrays (those go through a different path).
+function toolResultText(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (e) { return String(v); }
+}
+
 function assistantMessages(m) {
   const ran = (m.tools || []).filter((t) => t.round != null && t.result != null && t.state !== "skipped");
   // #1392: a turn with no answer text (only reasoning, a stop before the first content token, or an error) still goes
@@ -6339,7 +6353,7 @@ function assistantMessages(m) {
     const at = Math.min(Math.max(pos, calls[0].at || 0), m.text.length);
     out.push({role: "assistant", content: m.text.slice(pos, at).trim(),
               tool_calls: calls.map((t) => ({id: t.id, type: "function", function: {name: t.name, arguments: JSON.stringify(t.arguments || {})}}))});
-    for (const t of calls) out.push({role: "tool", tool_call_id: t.id, content: t.result});
+    for (const t of calls) out.push({role: "tool", tool_call_id: t.id, content: toolResultText(t.result)});
     pos = at;
   }
   const rest = m.text.slice(pos).trim();
