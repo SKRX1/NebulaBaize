@@ -125,6 +125,8 @@ code += `
   groupDir: (g) => groupDir(g),
   editGroupCard: async () => { const pre = document.getElementById("mem-group-body"); if (pre){ pre.dataset.editing = "1"; await renderGroupCard(); } },
   groupRulesVar: () => groupRules,
+  deriveGroup: (base) => deriveGroup(base),
+  isFrontendWorkspace: (base) => isFrontendWorkspace(base),
 };`;
 win.eval(code);
 const api = win.__api;
@@ -170,6 +172,36 @@ delete $("mem-group-body").dataset.editing;
 await api.renderGroupCard();
 check("a fresh-tab render reads the saved bytes back into the body",
       $("mem-group-body").textContent.includes("frontend rules v2 (edited)"));
+
+// ---------------- 3) Plan C: read-only auto-detection (explicit wins, else frontend by feature) --
+console.log("\n=== 3. plan-C deriveGroup: explicit > frontend-feature > none, never writes ===");
+const CWS = "ws-c";
+// (a) plain workspace, nothing: -> no group, and NO write happened (read-only).
+const wBefore = writes.length;
+check("a non-frontend workspace derives NO group  ", (await api.deriveGroup(CWS)) === "");
+check("detection writes nothing (read-only)", writes.length === wBefore, "wrote " + (writes.length - wBefore));
+// (b) a NEW frontend workspace (has serve/web/app.js, no group.txt): -> auto-maps to "frontend".
+FILES[CWS + "/serve/web/app.js"] = "// app entry";
+check("a brand-new workspace with serve/web/app.js is detected as frontend",
+      (await api.isFrontendWorkspace(CWS)) === true);
+const wB = writes.length;
+check("such a workspace auto-derives the frontend group  " + JSON.stringify(await api.deriveGroup(CWS)),
+      (await api.deriveGroup(CWS)) === "frontend");
+check("auto-detection still writes nothing to disk", writes.length === wB);
+// (c) explicit group.txt OVERRIDES detection: a frontend workspace that explicitly cleared its
+//     group (group.txt set to blank) must NOT get the frontend group — the explicit state wins.
+FILES[CWS + "/.Nebula-memory/group.txt"] = "__none__\n";   // explicitly cleared via the sentinel
+check("an explicitly-cleared group is respected over detection  " + JSON.stringify(await api.deriveGroup(CWS)),
+      (await api.deriveGroup(CWS)) === "");
+// (d) an explicit group name always wins, even without any feature.
+FILES[CWS + "/.Nebula-memory/group.txt"] = "myteam\n";
+check("an explicit group name wins  " + JSON.stringify(await api.deriveGroup(CWS)),
+      (await api.deriveGroup(CWS)) === "myteam");
+// (e) detection is feature-strict: a bare app.js at the root is NOT treated as a front-end layout.
+const DWS = "ws-d";
+FILES[DWS + "/app.js"] = "// root app, not serve/web";
+check("a root-level app.js is NOT enough to be treated as a front-end workspace",
+      (await api.isFrontendWorkspace(DWS)) === false);
 
 console.log("");
 if (FAILURES.length) { console.log("GROUP-CARD: FAIL (" + FAILURES.length + ")"); process.exit(1); }

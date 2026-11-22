@@ -4855,12 +4855,45 @@ async function fsWrite(path, content) {
   }
 }
 // A workspace joins a group by writing its label to `<base>/.Nebula-memory/group.txt` (first line).
+const NO_GROUP = "__none__";   // a workspace may explicitly opt OUT of auto-detection with this label
 async function getGroupLabel(base) {
   const v = (await fsRead(`${base}/.Nebula-memory/group.txt`)) || "";
-  return v.split("\n")[0].trim();
+  const line = v.split("\n")[0].trim();
+  return line === NO_GROUP ? "" : line;
 }
 async function setGroupLabel(base, label) {
-  await fsWrite(`${base}/.Nebula-memory/group.txt`, (label ? label : "").trim() + "\n");
+  // An empty label means "no group" and is stored as an explicit sentinel, NOT a blank file, so
+  // the auto-detection can tell "the user opted out" apart from "never configured" (Plan C).
+  await fsWrite(`${base}/.Nebula-memory/group.txt`, (label ? label.trim() : NO_GROUP) + "\n");
+}
+// Plan C — read-only frontend detection. A workspace is treated as a "frontend" workspace ONLY when
+// it carries the strong feature that the frontend group is defined by: a serve/web front-end
+// directory (the Nebula web app). This NEVER writes group.txt — it only derives a transient
+// currentGroup for the current load, so a brand-new workspace that contains a front-end gets the
+// shared frontend spec automatically, with zero user action. An explicit group (set or cleared)
+// always wins: setGroupLabel writes group.txt and loadMemoryState reads it first, so detection
+// runs only in the else (no explicit group) branch. Deliberately strict (serve/web only) so an
+// ordinary JS repo is never mis-filed; a genuine front-end that uses another layout can opt in by
+// setting the group explicitly — the explicit path overrides detection, and clearing overrides it back.
+async function isFrontendWorkspace(base) {
+  // 1) the canonical Nebula front-end layout: <ws>/serve/web/ with an app entry.
+  if (await hasAnyFile(base, ["serve/web/app.js", "serve/web/index.html"])) return true;
+  return false;
+}
+async function hasAnyFile(base, rels) {
+  for (const rel of rels) {
+    try { const t = await fsRead(`${base}/${rel}`); if (t && t.trim()) return true; } catch (e) {}
+  }
+  return false;
+}
+// The derived group for a load: explicit group.txt wins; otherwise a front-end workspace maps to
+// the shared "frontend" group (read-only). Returns "" for a non-front-end workspace with no group.
+async function deriveGroup(base) {
+  const raw = (await fsRead(`${base}/.Nebula-memory/group.txt`)) || "";
+  const line = raw.split("\n")[0].trim();
+  if (line && line !== NO_GROUP) return line;        // an explicit group always wins
+  if (line === NO_GROUP) return "";                   // explicitly opted out — detection must not re-add it
+  return (await isFrontendWorkspace(base)) ? "frontend" : "";   // never configured → detect a front-end
 }
 // Load the approved rules + any pending draft for a workspace. Safe to call on every workspace switch.
 async function loadMemoryState(ws) {
@@ -4887,8 +4920,10 @@ async function loadMemoryState(ws) {
   if ((base + "/.Nebula-memory").replace(/\\/g,"/").toLowerCase() === GLOBAL_ROOT.replace(/\\/g,"/").toLowerCase()) {
     globalKnowledge = ""; globalExperience = "";
   }
-  // Group tier: only loaded when this workspace declares a group (the "between workspaces" tier).
-  currentGroup = await getGroupLabel(base);
+  // Group tier: explicit group.txt wins; otherwise (Plan C) a front-end workspace is auto-mapped
+  // to the shared "frontend" group read-only, so new front-end workspaces get the spec with no
+  // user action and no group.txt is ever written by us. Non-front-end / no group → no group tier.
+  currentGroup = await deriveGroup(base);
   if (currentGroup) {
     groupRules = await fsRead(`${groupDir(currentGroup)}/RULES.md`);
     groupKnowledge = await fsRead(`${groupDir(currentGroup)}/knowledge.md`);

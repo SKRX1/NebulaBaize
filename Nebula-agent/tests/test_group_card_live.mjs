@@ -89,6 +89,36 @@ const main = async () => {
   });
   check("memory tab opened", opened);
 
+  // 0) PLAN C end-to-end: this workspace has NO group.txt (we removed ours before the run) but
+  // DOES contain serve/web/app.js, so on session activation loadMemoryState -> deriveGroup must
+  // auto-map it to the "frontend" group read-only and the card must already be visible WITHOUT
+  // the user ever setting a group. That is exactly "a brand-new workspace uses the spec too".
+  // (A fresh tab only sets currentGroup when the session is actually selected, so we click the
+  //  seeded session row first to trigger selectSession -> loadMemoryState, like a real user.)
+  await page.evaluate((sid) => { const r = document.querySelector('[data-sid="' + sid + '"]'); if (r) r.click(); }, SID);
+  await page.waitForTimeout(900);   // selectSession -> loadMemoryState -> deriveGroup (auto)
+  await page.evaluate(() => { const m = document.getElementById("tab-btn-memory"); if (m) m.click(); });
+  await page.waitForTimeout(600);
+  const autoCard = await page.evaluate(() => {
+    const c = document.querySelector('.mem-tabpanel[data-mem="group"]');
+    if (!c || c.hidden) return { ok:false, len:0 };
+    const b = document.getElementById("mem-group-body");
+    return { ok:true, len: b ? b.textContent.length : 0 };
+  });
+  check("PLAN C: with NO group.txt a serve/web workspace auto-shows the group card", autoCard.ok === true);
+  check("PLAN C: the auto-shown card carries the frontend spec", autoCard.ok && autoCard.len > 20, "len=" + autoCard.len);
+  const autoWroteGroup = await page.evaluate(async () => {
+    // read-only guarantee: detection must NOT have created a group.txt. Read it through the same
+    // mcp/call the page itself uses; a non-empty result means a file appeared.
+    try {
+      const r = await fetch("mcp/call", {method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({server:"filesystem", tool:"read", args:{path:"E:/Nebula/NebulaBaize/Nebula-agent/.Nebula-memory/group.txt"}})});
+      const d = await r.json().catch(()=>({}));
+      return !!(d && d.ok && d.text && d.text.trim());
+    } catch (e) { return false; }
+  });
+  check("PLAN C: auto-detection created no group.txt (still read-only)", autoWroteGroup === false);
+
   // 1) set group = frontend (real button + auto-accept prompt with "frontend")
   page.once("dialog", (d) => d.accept("frontend"));
   await page.waitForTimeout(200);
