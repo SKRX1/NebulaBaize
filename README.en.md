@@ -6,7 +6,9 @@
 
 **Author:** 时空象容
 
-> Read this in: **English** | [简体中文](README.md)
+> Language / 语言：[简体中文](README.md)（仓库默认 default） | **English**（对照译）
+>
+> ℹ️ GitHub renders only the bare-name `README.md` for every visitor and does **not** auto-switch by browser language. This file is the English counterpart reached via the link above; the Chinese default is the linked `README.md`.
 
 ---
 
