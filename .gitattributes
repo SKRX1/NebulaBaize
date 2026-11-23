@@ -2,3 +2,6 @@
 # 在 Linux/macOS runner 上 bash 会报 "bad interpreter" 之类的错。只钉这一类文件，
 # 不给全仓库加 eol 规则（yml/js/py 的现有行尾习惯不受影响）。
 *.sh text eol=lf
+
+*.bat -text
+# .bat 必须 CRLF：cmd 遇纯 LF 的 if(...)/for 续行结构会逐行错位崩溃
