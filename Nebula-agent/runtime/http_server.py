@@ -4047,6 +4047,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
         from llm_client import normalize_wire_messages
         body = {"model": model, "messages": normalize_wire_messages(messages), "stream": True,
                 "max_tokens": int(max_tokens or DEFAULT_OUTPUT_TOKENS)}
+        # B5 (aligned with llm_client.py): ask an OpenAI-compatible upstream for its final
+        # usage chunk. Custom models reached via base_url (e.g. a local LM Studio server) are
+        # reached through THIS loop and a spec-compliant server omits the usage object in
+        # streaming mode unless include_usage is requested -- so without it the frontend never
+        # sees prompt_tokens and the context-occupancy bar reads 0/… forever. The gateway's own
+        # 8080 engine emits usage regardless, so this is additive there; a server that rejects
+        # the unknown field answers 400 through the existing reject path (no new failure mode).
+        body["stream_options"] = {"include_usage": True}
         # Forwarded, never pinned: an unknown value makes the upstream answer 400, so anything
         # outside REASONING_EFFORTS was already dropped and we simply let the engine choose.
         if reasoning_effort:

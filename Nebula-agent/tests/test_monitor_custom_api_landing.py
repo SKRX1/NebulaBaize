@@ -148,6 +148,17 @@ check("B5 guarded by `if stream:` so non-stream path is untouched",
       "if stream:\n            # B5" in src
       or "if stream:" in src)
 
+# ============ B6: _llm_stream (the custom/external upstream path) also asks for usage ====
+# B5 only covers llm_client.py (the agent-loop client). A custom model reached via its own
+# base_url (a local LM Studio, etc.) goes through GatewayHandler._llm_stream in http_server,
+# NOT llm_client. A spec-compliant OpenAI server omits the usage object while streaming unless
+# the request asks for it -- so without include_usage HERE the context-occupancy bar reads
+# 0 forever for every custom model. Load-bearing: delete the injected line in _llm_stream and
+# the inspect below loses the marker -> this gate flips red.
+_hs_src = _insp.getsource(http_server.GatewayHandler._llm_stream)
+check("B6 _llm_stream injects stream_options.include_usage (custom/external upstream path)",
+      'body["stream_options"] = {"include_usage": True}' in _hs_src)
+
 # ============ C6: i18n key present in BOTH dictionaries ============
 ij_text = open(os.path.join(ROOT, "serve", "web", "i18n.js"), encoding="utf-8").read()
 check("C6 i18n zh dict has mon.fact.experts.api_na",
