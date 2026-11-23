@@ -66,7 +66,7 @@ echo [info] using python: %PY_BASE%
 "%PY_BASE%" --version
 
 REM --- 4) build venv + rewrite config ---
-"%PY_BASE%" "%SETUP_PY%"
+"%PY_BASE%" "%SETUP_PY%" %*
 echo.
 echo [done] setup complete. You can now run 星云白泽.bat
 pause

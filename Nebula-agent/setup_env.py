@@ -101,6 +101,60 @@ def rewrite_mcp_install_paths(cfg, root, venv_py=None):
     return changed
 
 
+def backup_once(src):
+    """One-shot backup: copy src -> src + ".bak" ONLY when no .bak exists yet.
+
+    Returns True when a backup was written, False when one already existed. The
+    exists-guard is the point: a re-run of setup on an already-rewritten box must not
+    clobber the ORIGINAL first-run backup with the (now-correct) rewritten copy. Both
+    the mcp_servers.json rewrite and the fs_allowed_roots reset use this so the
+    "back up once, never overwrite" rule lives in exactly one tested place.
+    """
+    if os.path.exists(src + ".bak"):
+        return False
+    shutil.copyfile(src, src + ".bak")
+    return True
+
+
+def reset_fs_allowed_roots(path, root, keep=False):
+    r"""Make the file-operation allowlist usable on THIS machine after a path move.
+
+    The repo ships fs_allowed_roots.txt carrying the ORIGINAL author's personal workspace
+    folders (E:\星云\..., each project dir). On a fresh clone / new drive those paths mostly
+    do not exist, so the file tools start with an allowlist naming nothing the new user can
+    actually operate -- the one step a path-move used to require editing by hand.
+
+    Semantics (the "reset to this install's root / optionally keep" switch):
+      * keep=True  -> leave the file EXACTLY as-is, return False. Used by --keep-roots so a
+                      hand-curated allowlist is never clobbered by a re-run of setup.
+      * keep=False -> rewrite to: every OLD entry that STILL EXISTS on this machine, plus the
+                      install ROOT (deduped, order preserved). On a fresh machine the old
+                      personal dirs are gone, so it collapses to just [ROOT] -- the project is
+                      then operable out of the box. On the original box the old dirs still
+                      exist so the list stays effectively intact (idempotent). A one-shot .bak
+                      of the shipped original is kept (only if none exists), matching the
+                      mcp_servers.json backup convention. Returns True when content changed.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            old = [l.strip() for l in f if l.strip()]
+    except OSError:
+        return False
+    if keep:
+        return False
+    kept = [d for d in old if os.path.isdir(d)]
+    if not any(d.lower() == root.lower() for d in kept):
+        kept.append(root)
+    new_text = "".join(d + "\n" for d in kept)
+    old_text = "".join(d + "\n" for d in old)
+    if new_text == old_text:
+        return False
+    backup_once(path)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new_text)
+    return True
+
+
 def main():
     # 1) create venv if missing
     if not os.path.exists(VENV_PY):
@@ -151,8 +205,7 @@ def main():
             # recoverable. Only the FIRST run backs up: re-running setup on an already-
             # rewritten box must not clobber the original first-run backup with the
             # (now-correct) rewritten copy.
-            if not os.path.exists(mj + ".bak"):
-                shutil.copyfile(mj, mj + ".bak")
+            if backup_once(mj):
                 log("[setup] backed up mcp_servers.json -> mcp_servers.json.bak")
             with open(mj, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -182,6 +235,22 @@ def main():
             log("[setup] rewrote " + os.path.basename(b))
         else:
             log("[setup] " + os.path.basename(b) + " already correct")
+
+    # 3.5) reset the file-operation allowlist so the project is operable out of the box
+    #      after a path move. --keep-roots leaves it untouched (protect a hand-curated
+    #      allowlist); otherwise entries still existing on THIS machine are kept and the
+    #      install root is added, collapsing to just the root on a fresh clone.
+    keep_roots = ("--keep-roots" in sys.argv) or ("--keep-allow" in sys.argv)
+    faf = os.path.join(ROOT, "fs_allowed_roots.txt")
+    if os.path.exists(faf):
+        if keep_roots:
+            log("[setup] fs_allowed_roots.txt kept as-is (--keep-roots)")
+        elif reset_fs_allowed_roots(faf, ROOT, keep=False):
+            log("[setup] fs_allowed_roots.txt reset to this machine's live roots (+install root)")
+        else:
+            log("[setup] fs_allowed_roots.txt already matches this machine")
+    else:
+        log("[setup] WARN: " + faf + " not found, skipped")
 
     # 5) verify venv python can import everything
     log("[setup] verifying venv python loads all components ...")

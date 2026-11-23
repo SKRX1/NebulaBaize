@@ -53,7 +53,7 @@ echo "[info] using python: $PY_BASE"
 "$PY_BASE" --version
 
 # --- 2) build venv + install deps + rewrite config + verify ---
-"$PY_BASE" "$SETUP_PY"
+"$PY_BASE" "$SETUP_PY" "$@"
 RC=$?
 if [ "$RC" -ne 0 ]; then
     echo "[ERROR] setup_env.py 失败（退出码 $RC），请查看上方日志。"
