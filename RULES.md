@@ -225,5 +225,15 @@ backup-bundle 前置铁律精化：若本地 ahead 远端且有要固化的 comm
 自动检测类特性一律"只读推导当前态、不写持久文件"，并提供显式 opt-in/opt-out 覆盖；要区分"用户主动退出"与"从未配置"需写显式哨兵(如 __none__)而非空行，空行无法区分二者
 归组能力的唯一真相源是 setGroupLabel + <ws>/.Nebula-memory/group.txt（含 __none__ 退出哨兵）；任何新增归组入口都必须复用它，不得另起第二套逻辑。归组字段"留空"必须是不写盘的 no-op，绝不能调 setGroupLabel("")（那会误写退出哨兵并覆盖方案C自动探测）
 归组枚举用 listGroups() 只读列 <GLOBAL_ROOT>/groups/，渲染下拉用 fillGroupSelect()：首位空选项=不归组、列出全部已有组、当前组即使不在盘上也始终呈现以便选中
-
+"内置标识符显示层映射"必配静态契约锁防漏用：锁「option value=真实id(esc(g)) 但可见文本必须 groupDisplayName(g)」、锁展示文本渲染点(当前分组行/卡摘要)经映射、锁控件形态不回退(ws-group 必须真 select 不得 datalist)，并用「剥掉映射包裹后对应锁即翻红」的 decoy 差分证 load-bearing
+把 text+datalist 控件改成 select 时：select 只能列已有项，"创建新项"的能力必须另留一个自由文本框承载，提交逻辑"新建名优先、否则取 select 值"；同时去掉任何无处理器的即时按钮(表单提交式弹窗由主提交按钮统一处理，多余即时按钮=误导)
+统一误用术语(如"空间/工作空间"→"工作区")时逐条对照该 key 的英文原值判语义：英文是 workspace 才改，英文是 storage/space 等真实义(如 Browser storage is full→存储空间)保留不动；改完复扫确认只剩真语义那处
+新增 .mjs 测试必须登记进 tools/run_tests.py 的 SUITES(按主题就近、保持该区条目间空行风格、按 CRLF 行插入并 py_compile)，否则不参与全套回归
+凡设 overflow-y:auto/scroll 的滚动容器必须显式声明另一轴 overflow-x（本UI里聊天/列表类外层用 overflow-x:hidden，内层 .st-code pre/.table-wrap 各自 overflow:auto）：CSS 规范下一个轴为 auto 会把另一轴的 visible 计算成 auto，瞬时横向溢出就会弹出多余横滚动条；改后须用真实浏览器读 getComputedStyle().overflowX 复验(jsdom/sim 不算 CSS)
+加固单轴 overflow 前必先按三档定性再动手，禁一刀切：①真隐患=竖向列表/面板/输入外层缺 overflow-x→补 hidden；②有意单轴横滚=横向标签栏/胶片条/横向表格(.st-header .st-tabs/.img-gallery__grid--strip/.table-wrap)→保留；③同元素另一条规则补另一轴(如 .table-wrap.all 叠 .table-wrap)或 overflow-y:visible 非滚动→跳过。同名 class 的媒体查询块可能是 width-only 非滚动，按块内容 overflow-y:auto 判定，勿按选择器名批量改。
+打完最新 baseline tag 后随手同步远端（常规流程）：先 git push origin main（先核 behind=0 再 fast-forward 直推）让 origin/main 前进，再单独 git push origin <最新那一个 tag> 只带上这一个最新回滚点；绝不用 --tags（会把所有历史基线一次性洗上远端），历史基线保持本地不推（已由 E/F 双盘 bundle 兜底）。推送后坐实 origin/main...HEAD=0 0 且远端 tag 仅新增这一个。
+推送顺序必须先 main 后单个 tag：单推一个尚未上远端的 tag 会半推（commit 对象随 tag 上传但 main ref 不动），先推 main 前进再推 tag 才干净一致。
+apiMessages→assistantMessages 是发往上游的唯一 message 组装路径；任何进入请求的 content 必须已是 string 或 content-parts 数组。判定某字段在历史里可能有坏类型的最强旁证=渲染层已对该字段做 String() 包裹/==null 判断——凡发往上游的同字段必须做同款规整（工具结果即 toolResultText：null→""、string 原样、对象→JSON.stringify），否则严格上游报 400 "content must be a string or an array of content parts"。
 setup_env.py 换路径闭环：fs_allowed_roots.txt 是 git 跟踪的原作者个人目录清单，换机器/换盘后多半不存在；module 级纯函数 reset_fs_allowed_roots(path,root,keep) 默认剔除本机 isdir=False 的条目并补上安装根 ROOT（开发机幂等原样、首次备份 .bak 不覆盖），--keep-roots 原样保留手配白名单；main step3.5 调用它；setup.bat 转发 %*、setup.sh 转发 "$@"（setup.sh 是 git attr eol=lf 强制 LF，改写它必须按 LF 写回，否则破坏行尾）；回归锁 tests/test_setup_backup_lock.py（已登记 run_tests.py）。
+往含别线未提交漂移的共享文件（RULES.md 等）只追加本轮 1 条时，用「备份工作树→临时写成 HEAD blob+本轮条→git add→还原备份」实现比喂 git add -p stdin 更可控的精准 stage：index 仅比 HEAD 多本轮条，别线漂移留工作树 unstaged；还原后必须读回断言本轮条在工作树仅出现 1 次（防双份）
+别线 RULES 漂移处置约定：工作树里 RULES.md 相对 HEAD 多出的未提交条目，是别的工作线早已沉淀（已生效，系统每轮从磁盘工作树注入）但一直没 commit 的有效记忆，不是垃圾——不得删。整批做一次独立 chore commit 落账即可（git add RULES.md 整文件，commit 前用 numstat==--ignore-cr-at-eol 坐实零行尾污染），提交后工作树转干净、条目进 bundle 备份可还原。
