@@ -186,3 +186,22 @@ README 顶栏语言切换规范）；已验证：链接可达、CRLF 统一、�
 ```bat
 git tag -a v-baseline-2026-11-22-e d9d6b1d1f51a8050d311738fe6f8fe2529d63d44 -m "baseline: docs full Chinese-default restructure (README/CONTRIBUTING/MEMORY-GUIDE/部署说明 = zh default + .en counterparts), README topbar language-switch norm; verified: links reachable, CRLF uniform, remote README.md zh-default confirmed"
 ```
+
+
+## 2026-11-23 系列：当前最新回滚点升级为 c（保留）
+
+本轮为「setup 白名单自动重置能力」的 HEAD 打新基线 `v-baseline-2026-11-23-c`，
+作为**当前最新回滚点**保留；它取代上方 11-22-e 成为最新基线（11-22 系列退为历史次新）。
+本轮已实测：setup_env.py 新增 module 级纯函数 reset_fs_allowed_roots + 抽出 backup_once（一次性备份），
+由 test_setup_backup_lock 锁定；全套回归 ALL GREEN；main 已同步 origin（ahead/behind 0 0），
+并按铁律「先 main 后单 tag」把 -c 单独推上远端（远端仅新增此一个 tag）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-23-c | c64de97067f543e7ff6698090eb80727e99121de | setup: fs 白名单自动重置 + 一次性 backup_once（reset_fs_allowed_roots / --keep-roots，setup.bat 转发 %*、setup.sh 转发 "$@"），test_setup_backup_lock 锁定 |
+
+### 重建命令（如需精确恢复当前回滚点 c）
+
+```bat
+git tag -a v-baseline-2026-11-23-c c64de97067f543e7ff6698090eb80727e99121de -m "baseline: setup fs-allowlist auto-reset + one-shot backup_once (reset_fs_allowed_roots / --keep-roots; setup.bat forwards %* / setup.sh forwards \"$@\"; test_setup_backup_lock), full suite ALL GREEN, main synced to origin"
+```

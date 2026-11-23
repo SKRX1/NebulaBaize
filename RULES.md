@@ -225,3 +225,5 @@ backup-bundle 前置铁律精化：若本地 ahead 远端且有要固化的 comm
 自动检测类特性一律"只读推导当前态、不写持久文件"，并提供显式 opt-in/opt-out 覆盖；要区分"用户主动退出"与"从未配置"需写显式哨兵(如 __none__)而非空行，空行无法区分二者
 归组能力的唯一真相源是 setGroupLabel + <ws>/.Nebula-memory/group.txt（含 __none__ 退出哨兵）；任何新增归组入口都必须复用它，不得另起第二套逻辑。归组字段"留空"必须是不写盘的 no-op，绝不能调 setGroupLabel("")（那会误写退出哨兵并覆盖方案C自动探测）
 归组枚举用 listGroups() 只读列 <GLOBAL_ROOT>/groups/，渲染下拉用 fillGroupSelect()：首位空选项=不归组、列出全部已有组、当前组即使不在盘上也始终呈现以便选中
+
+setup_env.py 换路径闭环：fs_allowed_roots.txt 是 git 跟踪的原作者个人目录清单，换机器/换盘后多半不存在；module 级纯函数 reset_fs_allowed_roots(path,root,keep) 默认剔除本机 isdir=False 的条目并补上安装根 ROOT（开发机幂等原样、首次备份 .bak 不覆盖），--keep-roots 原样保留手配白名单；main step3.5 调用它；setup.bat 转发 %*、setup.sh 转发 "$@"（setup.sh 是 git attr eol=lf 强制 LF，改写它必须按 LF 写回，否则破坏行尾）；回归锁 tests/test_setup_backup_lock.py（已登记 run_tests.py）。
