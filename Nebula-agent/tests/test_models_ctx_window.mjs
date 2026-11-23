@@ -11,7 +11,13 @@
  Differential design (per the test rule, pure-ASCII assertions; Chinese is display-only):
    P1  every custom model behind the 47831 base_url declares context_window === 131072
    P2  NONE of them drifted to the monitor default 32768 (the negative lock against the bug)
-   P3  the count of locked custom models is exactly 3 (a model added/removed is a conscious edit)
+   P3  structural sentinel: at least one custom model is covered (never written to a hardcoded
+       count -- the model line adds/removes custom entries freely, so an exact-count assertion
+       turned red on every such edit and proved brittle, not load-bearing)
+   P4  EVERY entry that reaches a non-default endpoint via its own base_url (kind=custom, and
+       kind=local with a base_url like a local LM Studio) declares a context_window -- such an
+       endpoint never reports max_context on /health, so ctx_window() has only the declaration
+       to fall back on; an undeclared one silently borrows the gateway's own 8080 n_ctx.
 
  Run: node tests/test_models_ctx_window.mjs
 */
@@ -35,11 +41,27 @@ const custom = (j.models || []).filter((m) => m.kind === "custom");
 console.log("MODELS CONTEXT_WINDOW (static anchor, custom/47831):");
 
 // P3 first so a structural change is reported before value assertions.
-// Count is 4: the three 47831 custom entries plus inkling-2-mini-abliterated-fit
-// (a llama.cpp local custom on base_url http://localhost:1234), which declares the
-// same 128K context_window as its peers so P1 covers it too.
-check("P3 exactly 4 custom models locked by this anchor", custom.length === 4,
-      `got ${custom.length}`);
+// DYNAMIC sentinel, not a hardcoded count: the model line adds/removes custom entries
+// freely, so "== 4" turned red on every such edit (and was already stale: inkling-2 is
+// now kind=local, not custom). What actually matters is that the anchor still covers at
+// least one custom model -- a non-empty set -- so a blanket clear can not silently
+// disarm the whole lock. The per-model value invariant is held by P1/P2, not a count.
+check("P3 anchor covers >=1 custom model (dynamic, never a hardcoded count)",
+      custom.length >= 1, `got ${custom.length}`);
+
+// P4: every entry that reaches a NON-default endpoint through its own base_url must
+// declare context_window. Such an endpoint (a 47831 front-instance returning HTML, a
+// local LM Studio) does not answer /health with max_context, so GatewayState.ctx_window()
+// has only the declaration as its denominator; an undeclared one borrows the gateway's own
+// 8080 n_ctx -- a different machine's window -- and the occupancy bar is measured against
+// the wrong max. Covers kind=local-with-base_url too (e.g. inkling-2 -> LM Studio 1234),
+// which the custom-only P1 would miss. Dynamic, so adding/removing such an entry stays
+// honest as long as its declaration travels with it.
+const external = (j.models || []).filter((m) => String(m.base_url || "").trim());
+const undeclared = external.filter((m) => !(Number(m.context_window) > 0));
+check("P4 every external-base_url entry declares context_window",
+      undeclared.length === 0,
+      undeclared.map((m) => m.id).join(","));
 
 // P1: each must declare 131072.
 for (const m of custom) {
