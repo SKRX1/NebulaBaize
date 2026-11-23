@@ -115,6 +115,40 @@
         "high"
       ],
       "think_default": "auto"
+    },
+    {
+      "id": "inkling-2-mini-abliterated-fit",
+      "name": "inkling-2-mini-abliterated-fit",
+      "kind": "custom",
+      "base_url": "http://localhost:1234",
+      "model": "inkling-2-mini-abliterated-fit",
+      "api_key": "sk-lm-2UhFJF2W:XN6L7tUjb8jTOTiqpfDQ",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto",
+      "context_window": 131072
+    },
+    {
+      "id": "inkling-2-mini-sq-20.strata",
+      "name": "Inkling-2-Mini-SQ-15.strata",
+      "kind": "local",
+      "base_url": "",
+      "model": "Inkling-2-Mini-SQ-15.strata",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto"
     }
   ]
 }

@@ -14,7 +14,7 @@ Run by setup.bat after a Python >=3.10 is located (or auto-installed):
 Idempotent: re-running is safe (paths already pointing at the venv are
 left untouched).
 """
-import sys, os, json, re, subprocess
+import sys, os, json, re, subprocess, shutil
 
 AGENT = os.path.dirname(os.path.abspath(__file__))      # .../Nebula-agent
 ROOT = os.path.dirname(AGENT)                            # .../星云智能体
@@ -146,6 +146,14 @@ def main():
         with open(mj, "r", encoding="utf-8") as f:
             cfg = json.load(f)
         if rewrite_mcp_install_paths(cfg, ROOT, venv_py=VENV_PY):
+            # The rewrite overwrites a config every MCP server reads at start. Keep a
+            # one-shot .bak of the shipped original so a wrong install-root guess stays
+            # recoverable. Only the FIRST run backs up: re-running setup on an already-
+            # rewritten box must not clobber the original first-run backup with the
+            # (now-correct) rewritten copy.
+            if not os.path.exists(mj + ".bak"):
+                shutil.copyfile(mj, mj + ".bak")
+                log("[setup] backed up mcp_servers.json -> mcp_servers.json.bak")
             with open(mj, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, indent=2, ensure_ascii=False)
                 f.write("\n")

@@ -35,7 +35,10 @@ const custom = (j.models || []).filter((m) => m.kind === "custom");
 console.log("MODELS CONTEXT_WINDOW (static anchor, custom/47831):");
 
 // P3 first so a structural change is reported before value assertions.
-check("P3 exactly 3 custom models locked by this anchor", custom.length === 3,
+// Count is 4: the three 47831 custom entries plus inkling-2-mini-abliterated-fit
+// (a llama.cpp local custom on base_url http://localhost:1234), which declares the
+// same 128K context_window as its peers so P1 covers it too.
+check("P3 exactly 4 custom models locked by this anchor", custom.length === 4,
       `got ${custom.length}`);
 
 // P1: each must declare 131072.
