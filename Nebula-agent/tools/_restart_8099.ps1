@@ -6,7 +6,9 @@
 # Usage:  powershell -NoProfile -ExecutionPolicy Bypass -File _restart_8099.ps1 [-DryRun]
 param([switch]$DryRun)
 $ErrorActionPreference = "SilentlyContinue"
-$report = "C:\Users\sk\strata_snapshots\_restart_8099_report.txt"
+$report = Join-Path $env:USERPROFILE "strata_snapshots\_restart_8099_report.txt"
+$dir = Split-Path $report -Parent
+if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
 function Log($msg) { $msg | Out-File -Encoding ascii -Append $report }
 
 # ---- runtime discovery: who listens on 8099 right now ----

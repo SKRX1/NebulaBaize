@@ -15,7 +15,7 @@ REM  - 看门狗单实例，重复启动自动跳过；已运行的网关也会�
 REM  - 启动完成后本启动器窗口自动关闭（不 pause）；看门狗/网关在各自窗口。
 REM ============================================================
 
-set WATCHDOG="E:\Nebula\NebulaBaize\Nebula-agent\gw_watchdog.bat"
+set WATCHDOG="%~dp0Nebula-agent\gw_watchdog.bat"
 
 echo ===================================================
 echo  Nebula Agent 一键启动（看门狗守护 8099）

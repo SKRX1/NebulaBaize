@@ -30,6 +30,77 @@ def log(msg):
     print(msg, flush=True)
 
 
+def _looks_abs(p):
+    """True if p is a Windows drive-anchored absolute path string."""
+    return bool(re.match(r"^[A-Za-z]:[\\/]", p)) if isinstance(p, str) else False
+
+
+def rewrite_mcp_install_paths(cfg, root, venv_py=None):
+    r"""Re-point every install-dependent absolute path in an mcp_servers config dict so it
+    follows `root` (this install's project root). Mutates cfg in place; returns True when
+    anything changed.
+
+    Rules (verified by tests/test_install_portable_paths.mjs's python twin):
+      * command            -> venv_py (when supplied).
+      * cwd, args[], and env values that START WITH the stale signature-machine root ->
+        re-rooted onto `root` (tail preserved verbatim), so e.g.
+        <old>\Nebula-agent\servers\fs_server.py becomes <root>\Nebula-agent\servers\fs_server.py.
+      * The stale root is INFERRED from the config's own absolute paths (the longest-
+        common prefix right before "Nebula-agent\"), so the dev box's drive is never
+        hardcoded here -- it works no matter where the repo was originally authored.
+      * LEFT UNTOUCHED by design: env FS_ALLOW (the user's personal extra-root allowlist,
+        e.g. their own workspace folders) and env STRATA_PROXY (a URL, not a filesystem
+        path). Repointing those would corrupt personal config / rewrite a URL.
+    """
+    servers = cfg.get("mcpServers", {}) or {}
+
+    # infer the old (signature-machine) project root from the absolute paths still baked
+    # into the config: the shortest "<X>\Nebula-agent\" prefix wins.
+    old_root = None
+    for s in servers.values():
+        cands = [s.get("command"), s.get("cwd")] + list(s.get("args", []) or []) + list((s.get("env") or {}).values())
+        for c in cands:
+            if _looks_abs(c):
+                m = re.match(r"^(.*?)[\\/]Nebula-agent[\\/]", c)
+                if m:
+                    cand = m.group(1)
+                    if old_root is None or len(cand) < len(old_root):
+                        old_root = cand
+
+    def _repoint(p):
+        if not _looks_abs(p) or not old_root:
+            return p, False
+        if p.lower().startswith(old_root.lower()):
+            np = root + p[len(old_root):]
+            return np, (np != p)
+        return p, False
+
+    changed = False
+    for s in servers.values():
+        if venv_py and s.get("command") != venv_py:
+            s["command"] = venv_py
+            changed = True
+        np, ch = _repoint(s.get("cwd"))
+        if ch:
+            s["cwd"] = np; changed = True
+        args = s.get("args")
+        if isinstance(args, list):
+            na = []
+            for a in args:
+                np, ch = _repoint(a)
+                na.append(np); changed = changed or ch
+            s["args"] = na
+        env = s.get("env")
+        if isinstance(env, dict):
+            for ek, ev in list(env.items()):
+                if ek in ("FS_ALLOW", "STRATA_PROXY"):   # personal allowlist / URL: never repoint
+                    continue
+                np, ch = _repoint(ev)
+                if ch:
+                    env[ek] = np; changed = True
+    return changed
+
+
 def main():
     # 1) create venv if missing
     if not os.path.exists(VENV_PY):
@@ -62,23 +133,25 @@ def main():
     else:
         log("[setup] WARN: requirements.txt not found, skipping dependency install")
 
-    # 3) rewrite mcp_servers.json (set every server's command to venv python)
+    # 3) rewrite mcp_servers.json so EVERY path field follows this install's location.
+    #    The repo stores the dev box's absolute paths; a fresh clone dropped in another
+    #    folder would keep those stale and the 8 servers would fail to start. The pure
+    #    helper rewrite_mcp_install_paths() re-points command/args/cwd and install-derived
+    #    env (FS_ROOT / FS_ALLOW_FILE / ...), while leaving the user's personal FS_ALLOW
+    #    allowlist and the STRATA_PROXY URL untouched. It is a module-level pure function
+    #    so a regression test can feed it a synthetic config + fake root without building
+    #    a venv or running pip.
     mj = os.path.join(AGENT, "config", "mcp_servers.json")
     if os.path.exists(mj):
         with open(mj, "r", encoding="utf-8") as f:
             cfg = json.load(f)
-        changed = False
-        for name, s in cfg.get("mcpServers", {}).items():
-            if s.get("command") != VENV_PY:
-                s["command"] = VENV_PY
-                changed = True
-        if changed:
+        if rewrite_mcp_install_paths(cfg, ROOT, venv_py=VENV_PY):
             with open(mj, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, indent=2, ensure_ascii=False)
                 f.write("\n")
-            log("[setup] mcp_servers.json -> venv python  (8 servers)")
+            log("[setup] mcp_servers.json -> this install's paths + venv python")
         else:
-            log("[setup] mcp_servers.json already points to venv")
+            log("[setup] mcp_servers.json already points to this install")
     else:
         log("[setup] WARN: " + mj + " not found, skipped")
 

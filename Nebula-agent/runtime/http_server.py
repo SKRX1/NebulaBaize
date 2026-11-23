@@ -99,7 +99,10 @@ TURBO_CFG = 1.0
 # [FIX 2026-11-14] sd-cli 误读 CJK 路径（与 ASCII 模型缓存同根因）：ROOT 含中文时预览必须
 # 落 ASCII 物理目录，否则引擎每步画的预览全写进它看不见的路径，前端永远 404 破图。
 # 物理改道、URL 不变：静态服务把 data/generated/previews/ 前缀映射到这里（照 data/uploads/ 先例）。
-PREVIEWS_ASCII = r"C:\Users\sk\strata_snapshots\previews"   # 快照惯例目录（重启报告也写在那）
+# ASCII-safe snapshot dir under the CURRENT user's profile (was a hardcoded dev-box
+# C:\Users\sk). Used only when the install path is non-ASCII; %USERPROFILE% keeps this
+# machine-independent. strata_snapshots also holds the restart reports.
+PREVIEWS_ASCII = os.path.join(os.path.expanduser("~"), "strata_snapshots", "previews")
 PREVIEWS_DIR = PREVIEWS_ASCII if not os.path.join(ROOT, "data", "generated", "previews").isascii() \
     else os.path.join(ROOT, "data", "generated", "previews")
 _IMAGE_JOBS = {}            # job_id -> {status, preview_url, result, error}

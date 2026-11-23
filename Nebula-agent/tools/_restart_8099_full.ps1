@@ -4,7 +4,9 @@
 # Must run DETACHED (Start-Process Bypass) -- killing the listener cuts this session.
 param([switch]$DryRun)
 $ErrorActionPreference = "SilentlyContinue"
-$report = "C:\Users\sk\strata_snapshots\_restart_8099_full_report.txt"
+$report = Join-Path $env:USERPROFILE "strata_snapshots\_restart_8099_full_report.txt"
+$dir = Split-Path $report -Parent
+if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
 function Log($msg) { $msg | Out-File -Encoding ascii -Append $report }
 function WatchdogPids {
   $r = (Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
