@@ -9,6 +9,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-24
+
 ### Added / 新增
 
 - **采样设置双层默认值模型（方案A）** — 采样抽屉「重置 / 设为默认值 / 应用」三个按钮的语义重新划分（commit `25fc4c9`）：
