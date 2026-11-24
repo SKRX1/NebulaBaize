@@ -184,6 +184,7 @@ SUITES = [
     "tests/test_autorules_dynamic.mjs",   # DYNAMIC gate: default-ON rules direct-write no-draft + switch-off->draft + decoupled from master
     "tests/test_autorules_i18n_jsdom.mjs",   # 2026-11-11: jsdom behaviour gate — i18n zh-CN renders s-autorules label/hint/DOM + propose end-to-end (default-ON direct-write vs switch-off draft)
     "tests/test_setdefault_button_jsdom.mjs",   # 2026-11-11: jsdom behaviour gate for the new s-setdefault button (confirm -> loadDrawer(DEFAULTS) -> auto-apply writes localStorage; cancel does not write)
+    "tests/test_sampling_default_layer_jsdom.mjs",   # 2026-11-24 方案A双层默认值: s-setdefault 写 sampling+sampling.default、s-reset 回落 sampling.default(缺失回落出厂DEFAULTS)、只刷界面不落盘；L3-vs-L4 差分证「有无 default」load-bearing
     "tests/test_sidebar_visibility_jsdom.mjs",   # 2026-11: per-tab sidebar visibility gear modal + switches (jsdom boot) - DEFAULT hides images/tools, switch takes effect immediately + persists, RESET snaps back to DEFAULTS. Locks the shallow-copy shared-array bug (setSidebarTabVisible now slices a copy so it never mutates DEFAULTS).
 
     "tests/test_ws_dragorder_jsdom.mjs",   # 2026-11-21 workspace drag-reorder plan-C: jsdom boot - pinned floats top (wall) + loose bucket bottom (wall) + middle reorderWorkspace splice reorder; static locks (draggable-only-on-non-wall, reorder persists, drop clears indicator before null-check) + behaviour locks with decoys (before-flag load-bearing, self-drop/vanished-target no-ops).

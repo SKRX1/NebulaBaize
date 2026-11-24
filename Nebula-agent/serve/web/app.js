@@ -9754,8 +9754,8 @@ $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", S
 $("s-debugfold").onclick = () => $("s-debugfold").setAttribute("aria-checked", String($("s-debugfold").getAttribute("aria-checked") !== "true"));
 $("s-memfold").onclick = () => $("s-memfold").setAttribute("aria-checked", String($("s-memfold").getAttribute("aria-checked") !== "true"));
 $("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
-$("s-reset").onclick = () => loadDrawer(DEFAULTS);
-$("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); };  // apply the CURRENT on-screen settings as the saved default (does NOT reset untouched fields to factory defaults)
+$("s-reset").onclick = () => { const d = store.get("sampling.default", null); loadDrawer(d ? {...DEFAULTS, ...d} : DEFAULTS); };  // 方案A: 重置回到「设为默认值」存的基线 sampling.default，没设过则回落出厂 DEFAULTS（只刷界面，仍需点「应用」才写盘）
+$("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); try { store.set("sampling.default", JSON.parse(JSON.stringify(settings))); } catch (e) {} };  // 方案A: 先把当前界面值 apply（写 sampling 立即生效），再把它固化成「重置时回到的默认值」sampling.default
 // "Pin this seed": one click turns the last random seed into the fixed one (field + saved settings),
 // so the next turn replays the same sampling. Clearing the field afterwards goes back to random.
 $("seed-lock").onclick = () => {
