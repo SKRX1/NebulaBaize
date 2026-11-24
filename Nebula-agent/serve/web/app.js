@@ -9843,7 +9843,10 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   debugSubTab = b.dataset.db; applyDebugSubTab();
   const card = document.querySelector('.db-tabpanel[data-db="' + b.dataset.db + '"]');
-  if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });   // anchor nav: scroll to the section
+  if (card){
+    if (typeof memCardCollapsed === "function" && memCardCollapsed(card)){ memCollapseSet(b.dataset.db, false); card.classList.remove("is-collapsed"); }   // sub-tab jump expands the target card (mirrors the memory page)
+    card.scrollIntoView({ behavior: "smooth", block: "start" });   // anchor nav: scroll to the section
+  }
 });
 // Layer 4 action wiring: event delegation on the debug drawer for every [data-bugact] control.
 if ($("bugbox-expandall")) $("bugbox-expandall").onclick = () => bugBoxExpandAll(true);
@@ -11534,10 +11537,25 @@ refreshIdleTimeout();
 // persisted in localStorage (key strata.memCollapse) so it survives reloads.
 var memCollapsed = {};
 try { memCollapsed = JSON.parse(localStorage.getItem("strata.memCollapse") || "{}") || {}; } catch (e) { memCollapsed = {}; }
+// [调试页折叠持久化 2026-11-22] the debug drawer reuses .mem-tabpanel but its cards carry data-db
+// (bugbox/live/gateway/recycle/probe), NOT data-mem. Key on either so the five debug cards get
+// their OWN keys (the old code keyed all of them to undefined, so they shared one slot and always
+// showed expanded). Default: a debug card (has data-db) starts COLLAPSED until the user opens it;
+// a memory card keeps its old default of expanded. Once toggled, the saved value always wins.
+function memCardKey(card){ return card.dataset.db || card.dataset.mem; }
+function memCardCollapsed(card){
+  const key = memCardKey(card);
+  if (Object.prototype.hasOwnProperty.call(memCollapsed, key)) return !!memCollapsed[key];
+  return !!card.dataset.db;   // debug sections default collapsed; memory sections default expanded
+}
+function memCollapseSet(key, collapsed){
+  memCollapsed[key] = collapsed;
+  try { localStorage.setItem("strata.memCollapse", JSON.stringify(memCollapsed)); } catch (e2) {}
+}
 function applyMemSubTab(){
   for (const c of document.querySelectorAll(".mem-tabpanel")){
     c.classList.add("is-active");
-    c.classList.toggle("is-collapsed", !!memCollapsed[c.dataset.mem]);
+    c.classList.toggle("is-collapsed", memCardCollapsed(c));
   }
   for (const b of document.querySelectorAll(".mem-subtab")) b.setAttribute("aria-selected", "false");
 }
@@ -11546,16 +11564,17 @@ document.addEventListener("click", (e) => {
   const head = e.target.closest && e.target.closest(".mem-tabpanel>.req-head");
   if (head){
     if (e.target.closest && e.target.closest("button,input,label,select,a")) return;   // interactive controls operate themselves, never fold the card
-    const card = head.closest(".mem-tabpanel"); const key = card.dataset.mem;
-    memCollapsed[key] = !memCollapsed[key];
-    try { localStorage.setItem("strata.memCollapse", JSON.stringify(memCollapsed)); } catch (e2) {}
-    card.classList.toggle("is-collapsed", !!memCollapsed[key]);
+    const card = head.closest(".mem-tabpanel"); const key = memCardKey(card);
+    if (!key) return;
+    const collapsed = !memCardCollapsed(card);
+    memCollapseSet(key, collapsed);
+    card.classList.toggle("is-collapsed", collapsed);
     return;
   }
   const b = e.target.closest && e.target.closest(".mem-subtab");
   if (!b) return;
   const card = document.querySelector('.mem-tabpanel[data-mem="' + b.dataset.mem + '"]');
-  if (card){ if (memCollapsed[b.dataset.mem]){ memCollapsed[b.dataset.mem] = false; try { localStorage.setItem("strata.memCollapse", JSON.stringify(memCollapsed)); } catch (e2) {} } card.classList.remove("is-collapsed"); card.scrollIntoView({behavior:"smooth", block:"start"}); }
+  if (card){ if (memCardCollapsed(card)){ memCollapseSet(b.dataset.mem, false); } card.classList.remove("is-collapsed"); card.scrollIntoView({behavior:"smooth", block:"start"}); }
 });
 applyMemSubTab();  // first paint: every card shows, restored to its saved collapse state
 // B1 two-state preview for the recommended-only sub-checkbox: highlights which tier is active.

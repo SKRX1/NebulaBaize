@@ -221,7 +221,7 @@ console.log("\n=== Step4-D: gateway-side debug drawer + cURL replay ===");
   // D-A: the gateway debug section is wired into the same debug drawer.
   check("gateway replay button (#debug-curl) exists", !!doc.getElementById("debug-curl"));
   check("gateway record container (#debug-gw-body) exists", !!doc.getElementById("debug-gw-body"));
-  check("sub-tab bar + three panels wired on the page", doc.querySelectorAll(".db-subtabs").length === 1 && doc.querySelectorAll(".db-tabpanel").length === 3);
+  check("sub-tab bar + five panels wired on the page", doc.querySelectorAll(".db-subtabs").length === 1 && doc.querySelectorAll(".db-tabpanel").length === 5);   // bugbox/live/gateway/recycle/probe (was 3 before the probe + gateway sections landed)
   // D-A: anchor-nav behaviour (the click-to-locate contract). Every assertion here is differential:
   //   - highlight follows the click (aria-selected moves to exactly the clicked sub-tab);
   //   - anchor nav keeps EVERY panel shown (no hide-switch), so is-active stays on all three;
