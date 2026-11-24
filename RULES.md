@@ -247,3 +247,5 @@ run_tests.py 实际在 tools/ 下（非 Nebula-agent 根），只支持 --quick/
 采样抽屉双层默认值模型(方案A 2026-11-24)：sampling 键=当前生效值(s-apply/s-setdefault 都写)、sampling.default 键=重置基线(仅 s-setdefault 写)；s-reset=loadDrawer(store.get("sampling.default")??DEFAULTS) 只刷界面不落盘；s-setdefault=s-apply 后再 store.set("sampling.default",深拷贝settings)
 改 s-reset/s-setdefault 这类按钮语义的连带面：i18n drawer.reset.tip + drawer.setdefault.tip + drawer.setdefault.confirm 三键中英各改(仅改value不动键名保键数) + 改既有 test_setdefault_button_jsdom.mjs 若契约被推翻 + 同步补新行为门禁登记 SUITES
 仓库无项目级 CHANGELOG 时按 Keep a Changelog 惯例在仓库根新建 CHANGELOG.md，[Unreleased] 段记近期未发布改动，中英对照；.md 类文件行尾用纯 CRLF（与 DESIGN.md/RULES.md/CONTRIBUTING.md 一致）
+修回归 harness 脚本(_rollback_verify.py/run_tests.py)用 in-place Python 逐行 splitlines(keepends=True) 改写保留原 CRLF，改前改后各测 crlf/bare_lf 计数比对 HEAD blob 坐实零行尾污染，再 py_compile 验语法。
+给静态门禁脚本登记 SUITES 前先单跑计时：<1s 归 run_tests.py SUITES 主区(QUICK)，≥3s 才归 SLOW_SUITES；登记后必跑全套确认该 suite 的 PASS 行真出现。
