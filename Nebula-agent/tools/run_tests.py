@@ -104,6 +104,7 @@ SUITES = [
 
     "tests/test_spark.mjs",
     "tests/test_spark_edit_nodrag.mjs",   # 2026-11-24 ROOT-CAUSE: 便签编辑弹窗里划选文字到卡片空白处会变成拖整卡 -- .spark-item 模板常驻 draggable="true"(重排序用)，进编辑态没关掉，光标一滑出文字原生 dragstart 就接管。修复=editSpark 进编辑态对这张卡 setAttribute(draggable,false)，退出走 renderSpark() 重建自动恢复。本门禁驱动真实 handler：非编辑=draggable true、编辑态=draggable false、取消后恢复 true；与 test_spark.mjs M3-C(非编辑态重排序仍可用) 互补。
+    "tests/test_spark_edit_imgdrag.mjs",   # 2026-11-24 ROOT-CAUSE: 便签编辑框里拖图片(粘贴/已有)仍会触发整卡拖动 -- <img> 默认可拖，整卡置 draggable=false 不关后代 img 的拖拽(draggable 不继承)，拖 img 的 dragstart 冒泡命中 list 重排委托(reorderSpark)把整卡重排。修复=editSpark (a)把编辑框内已有 img 设 draggable=false，(b)给编辑框绑一次性 dragstart 守卫 preventDefault+stopPropagation(覆盖粘贴后的新图)，退出经 renderSpark 销毁编辑框自动失效。门禁驱动真实 handler：已有 img=draggable false、编辑框内 dragstart 被 prevent、sparkDragId 仍 null(委托未触发)。
     "tests/test_md_media.mjs",   # 2026-11-11: body-typed inline media (image/video/audio/doc-card) - branch ORDER (image before link), extension probe must strip ?query/#hash, data: sniffed by MIME, animated gif/webp/apng stay on native <img>, plain link stays byte-for-byte, zero inline handlers
 
     "tests/test_uploads_inline.mjs",   # 2026-11-12: search-download images render inline — app.js inline() accepts a /data/uploads/ local path on BOTH replace lines + http_server routes that prefix to the real drop-point (OUTSIDE web root) + security check allows the uploads prefix; static locks + LOAD-BEARING differential (WITH branch -> <img>, CONTROL regex leaves escaped text)

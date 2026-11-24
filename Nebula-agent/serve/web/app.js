@@ -6753,6 +6753,16 @@ function editSpark(id) {
     <button type="button" class="st-btn st-btn--small st-btn--ghost spark-edit-cancel" data-id="${id}" data-i18n="spark.edit.cancel">Cancel</button>`;
   item.appendChild(bar);
   if (window.i18n) { window.i18n.applyI18n(rich); window.i18n.applyI18n(bar); }
+  // [编辑态图片禁拖 2026-11-24] an <img> is natively draggable, and setting the CARD to
+  // draggable=false does not stop a DESCENDANT image (draggable does not inherit). Dragging a
+  // pasted/existing note image fires a dragstart that bubbles to the list reorder delegation
+  // (bindSparks -> list dragstart -> reorderSpark), so the whole card got dragged while editing.
+  // (a) hard-disable the images already in the editor; (b) a one-shot dragstart guard on the
+  // editor box cancels any drag that originates inside it -- including images pasted AFTER this
+  // point. renderSpark() rebuilds the list on save/cancel and the editor box (with its listener)
+  // is destroyed, so the guard self-expires on exit and the non-edit reorder path is untouched.
+  ed.querySelectorAll("img").forEach((im) => { im.setAttribute("draggable", "false"); });
+  ed.addEventListener("dragstart", (e) => { e.preventDefault(); e.stopPropagation(); });
   ed.focus();
 }
 

@@ -1440,7 +1440,8 @@ body.side-collapsed .st-ctx-menu { display: none; }
 .spark-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--st-s-3);padding:8px 10px;background:var(--st-surface);border:1px solid var(--st-line);border-radius:var(--st-r-md)}
 .spark-toolbar__check{display:inline-flex;align-items:center;gap:6px;color:var(--st-ink-muted);cursor:pointer}
 .spark-item__sel{display:inline-flex;align-items:flex-start;padding-top:2px;cursor:pointer}
-.spark-item[draggable="true"]{cursor:grab}
+.spark-item[draggable="true"]{cursor:default}
+.spark-item[draggable="true"]:hover{cursor:grab}
 .spark-item.is-dragover{outline:2px dashed var(--st-accent);outline-offset:2px}
 .spark-tag{display:inline-block;padding:1px 8px;border-radius:99px;background:color-mix(in srgb,var(--st-accent) 14%,transparent);color:var(--st-accent);font:600 var(--st-fs-sm,12px)/1 var(--st-font);white-space:nowrap}
 .spark-dur{color:var(--st-ink-muted)}
