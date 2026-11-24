@@ -115,6 +115,23 @@
         "high"
       ],
       "think_default": "auto"
+    },
+    {
+      "id": "inkling-2-mini-abliterated-fit",
+      "name": "inkling-2-mini-heretic@q3_k_l",
+      "kind": "local",
+      "base_url": "http://127.0.0.1:1234",
+      "model": "inkling-2-mini-heretic@q3_k_l",
+      "tools": true,
+      "vision": true,
+      "think_modes": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "think_default": "auto",
+      "context_window": 131072
     }
   ]
 }
