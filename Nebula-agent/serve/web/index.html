@@ -958,8 +958,8 @@
         </div>
         <div class="st-field">
           <label class="st-label" for="api-key"><span data-i18n="about.apikey">API key</span> <output data-i18n="about.apikey.hint">only if the server was started with one</output></label>
-          <input class="st-input" id="api-key" type="password" autocomplete="off" placeholder="Not needed"
-                 data-i18n-attr="placeholder:about.apikey.ph">
+          <form id="api-key-form" onsubmit="return false"><input class="st-input" id="api-key" type="password" autocomplete="new-password" placeholder="Not needed"
+                 data-i18n-attr="placeholder:about.apikey.ph"></form>
         </div>
         <div class="toggle-row"><span data-i18n="about.dark">Dark theme</span>
           <button class="st-toggle" id="dark-toggle" role="switch" aria-checked="false" aria-label="Dark theme"
@@ -1379,7 +1379,7 @@
       <div class="model-field" id="mf-key-field">
         <label class="st-label" for="mf-key" data-i18n="model.f.key">API Key</label>
         <div class="model-row">
-          <input class="st-input" id="mf-key" type="password" autocomplete="off" data-i18n-attr="placeholder:model.f.key.ph">
+          <form id="mf-key-form" onsubmit="return false"><input class="st-input" id="mf-key" type="password" autocomplete="new-password" data-i18n-attr="placeholder:model.f.key.ph"></form>
           <button class="st-btn st-btn--secondary" id="mf-test" type="button" data-i18n="model.f.test">测试连接</button>
         </div>
         <p class="muted small" id="mf-test-out" hidden></p>
