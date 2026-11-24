@@ -6417,6 +6417,7 @@ function setBusy(on) {
 // tags + filter, and a zero-backend long-term memory bridge. All in localStorage.
 const SPARK_MAX_RETRIES = 2;            // 1 initial send + up to 2 auto retries = 3 attempts
 let sparkFilter = "all";                // "all" or a tag string
+let sparkSortMode = store.get("spark.sortMode", "time");   // [排序方式 2026-11-24] "time" (auto: 未执行置顶、已执行按 executedAt 旧在下) | "custom" (stored array order, drag-reorder). Own key so other spark writes never clobber it.
 const sparkSel = new Set();             // ids selected for bulk delete
 let sparkDragId = null;                 // id being dragged
 
@@ -6562,7 +6563,8 @@ function renderSpark() {
   if (!list) return;
   const all = getSparks();
   const active = all.filter((s) => !s.archived);
-  const view = active.filter(sparkVisible);
+  let view = active.filter(sparkVisible);
+  if (sparkSortMode === "time") view = view.slice().sort(sparkTimeCompare);   // custom mode keeps the stored array order verbatim
   const empty = $("spark-empty");
   if (!active.length) {
     if (empty) empty.hidden = false;
@@ -6573,7 +6575,7 @@ function renderSpark() {
   }
   if (empty) empty.hidden = true;
   list.innerHTML = view.map((s) => `
-    <div class="kb-item spark-item" data-id="${s.id}" draggable="true">
+    <div class="kb-item spark-item" data-id="${s.id}" draggable="${sparkSortMode === "custom" ? "true" : "false"}">   // [排序方式] only custom mode is drag-reorderable; time mode is auto-sorted so dragging is disabled
       <label class="spark-item__sel"><input type="checkbox" class="spark-sel" data-id="${s.id}" ${sparkSel.has(s.id) ? "checked" : ""}></label>
       <div class="spark-item__body">
         <pre class="spark-item__text"></pre>
@@ -6601,8 +6603,19 @@ function renderSpark() {
     if (s.html) txtEl.innerHTML = s.html; else txtEl.textContent = s.text;
   }
   if (window.i18n) window.i18n.applyI18n(list);   // repaint the data-i18n buttons inside the list
+  renderSparkSortBar();
   renderSparkFilters();
   renderSparkMemory();
+}
+
+function renderSparkSortBar() {
+  const bar = $("spark-sortbar");
+  if (!bar) return;
+  bar.querySelectorAll("[data-sort]").forEach((b) => {
+    const on = b.dataset.sort === sparkSortMode;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
 }
 
 function renderSparkFilters() {
@@ -6893,6 +6906,37 @@ function deleteMemory(memId) {
   renderSpark();
 }
 
+// [排序方式 2026-11-24] time-mode comparator (NOT persisted; render-only).
+// Group 1 on top: notes never executed (no executedAt). Group 2 below: executed notes,
+// newest-executed first so the OLDEST executed sinks to the very bottom (owner wording).
+// Inside group 1: newest created first. Inside group 2: executedAt desc. All ties stable.
+function sparkIsExecuted(s) { return s.executedAt != null || s.status === "done"; }
+function sparkTimeCompare(a, b) {
+  const ea = sparkIsExecuted(a), eb = sparkIsExecuted(b);
+  if (ea !== eb) return ea ? 1 : -1;                       // unexecuted first
+  if (!ea) return (b.createdAt || 0) - (a.createdAt || 0); // unexecuted: newest created on top
+  return (b.executedAt || 0) - (a.executedAt || 0);        // executed: most recent on top, oldest bottom
+}
+function getSparkSortMode() { return sparkSortMode; }
+function setSparkSortMode(mode) {
+  mode = (mode === "custom") ? "custom" : "time";
+  if (mode === sparkSortMode) return;
+  sparkSortMode = mode;
+  store.set("spark.sortMode", mode);
+  if (mode === "custom") seedCustomOrderFromTime();        // freeze the current time view as the custom baseline
+  renderSpark();
+}
+// When switching time->custom, persist the time-ordered view as the new stored array order so the
+// user can drag from a sensible starting point. Seed from ALL active notes (tag filter must not drop
+// hidden ones); archived notes are appended untouched at the tail.
+function seedCustomOrderFromTime() {
+  const arr = getSparks();
+  const active = arr.filter((s) => !s.archived);
+  const archived = arr.filter((s) => s.archived);
+  const ordered = active.slice().sort(sparkTimeCompare);
+  setSparks(ordered.concat(archived));
+}
+
 // ---- M3: drag reorder (persisted in the stored array order) -------------------
 function reorderSpark(dragId, dropId) {
   if (!dragId || dragId === dropId) return;
@@ -7036,6 +7080,13 @@ function bindSparks() {
     if (!btn) return;
     sparkFilter = btn.dataset.filter;
     renderSpark();
+  });
+
+  const sortBar = $("spark-sortbar");
+  if (sortBar) sortBar.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-sort]");
+    if (!btn) return;
+    setSparkSortMode(btn.dataset.sort);
   });
 
   const selall = $("spark-selall");

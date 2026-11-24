@@ -51,6 +51,7 @@ win.localStorage.setItem("strata.lang", "en");
 win.localStorage.removeItem("strata.spark");
 win.localStorage.removeItem("strata.spark_memory");
 win.localStorage.removeItem("strata.chat");
+win.localStorage.setItem("strata.spark.sortMode", JSON.stringify("custom"));   // store.get JSON.parses the value   // 2026-11-24: this gate is about the DRAG-able (custom) mode -- time mode disables ALL dragging, so exercise custom so the non-edit card is draggable="true" (test_spark_sort.mjs owns the time-mode no-drag behaviour).
 
 win.fetch = async (url) => {
   const u = String(url);
