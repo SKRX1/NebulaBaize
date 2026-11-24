@@ -237,3 +237,13 @@ apiMessages→assistantMessages 是发往上游的唯一 message 组装路径；
 setup_env.py 换路径闭环：fs_allowed_roots.txt 是 git 跟踪的原作者个人目录清单，换机器/换盘后多半不存在；module 级纯函数 reset_fs_allowed_roots(path,root,keep) 默认剔除本机 isdir=False 的条目并补上安装根 ROOT（开发机幂等原样、首次备份 .bak 不覆盖），--keep-roots 原样保留手配白名单；main step3.5 调用它；setup.bat 转发 %*、setup.sh 转发 "$@"（setup.sh 是 git attr eol=lf 强制 LF，改写它必须按 LF 写回，否则破坏行尾）；回归锁 tests/test_setup_backup_lock.py（已登记 run_tests.py）。
 往含别线未提交漂移的共享文件（RULES.md 等）只追加本轮 1 条时，用「备份工作树→临时写成 HEAD blob+本轮条→git add→还原备份」实现比喂 git add -p stdin 更可控的精准 stage：index 仅比 HEAD 多本轮条，别线漂移留工作树 unstaged；还原后必须读回断言本轮条在工作树仅出现 1 次（防双份）
 别线 RULES 漂移处置约定：工作树里 RULES.md 相对 HEAD 多出的未提交条目，是别的工作线早已沉淀（已生效，系统每轮从磁盘工作树注入）但一直没 commit 的有效记忆，不是垃圾——不得删。整批做一次独立 chore commit 落账即可（git add RULES.md 整文件，commit 前用 numstat==--ignore-cr-at-eol 坐实零行尾污染），提交后工作树转干净、条目进 bundle 备份可还原。
+门禁登记档位以实测墙钟为准，勿按测试名字猜 SLOW/quick：先单跑计时(<1s 归 SUITES 主区，≥3s 才归 SLOW_SUITES)，且登记后跑全套确认该 suite 的 PASS 行真出现在输出里。
+新增设置抽屉布尔开关需 5 处接线：app.js DEFAULTS 字段 + index.html toggle-row(id=s-xxx) + loadDrawer 读回 + collect 写盘 + onclick 切换，全部对齐既有 s-stepsfold 模式
+i18n 新增 drawer.* 键必须 zh/en 双语各补一份且值末尾保留逗号（tests/test_i18n.mjs 锁 zh/en 键数一致）
+web 前端 app.js/index.html 改动需重启 8099 才生效，仅浏览器刷新不够
+门禁 node 在 "E:\Program Files\nodejs\node.exe"；test_i18n.mjs/test_debug_section_collapse.mjs 在 Nebula-agent/tests/，jsdom 用 createRequire 指向 C:/Users/sk/.workbuddy/binaries/node/workspace/
+run_tests.py 实际在 tools/ 下（非 Nebula-agent 根），只支持 --quick/--full 跑全套，无按名过滤；.mjs 门禁登记进 tools/run_tests.py 的 SUITES 列表即入 QUICK 档
+新增对称布尔开关时，若两个开关默认值不同(如 debugFold=true / memFold=false)，loadDrawer 的 aria-checked 表达式也要随默认值反向：默认true用 `!== false`、默认false用 `=== true`
+采样抽屉双层默认值模型(方案A 2026-11-24)：sampling 键=当前生效值(s-apply/s-setdefault 都写)、sampling.default 键=重置基线(仅 s-setdefault 写)；s-reset=loadDrawer(store.get("sampling.default")??DEFAULTS) 只刷界面不落盘；s-setdefault=s-apply 后再 store.set("sampling.default",深拷贝settings)
+改 s-reset/s-setdefault 这类按钮语义的连带面：i18n drawer.reset.tip + drawer.setdefault.tip + drawer.setdefault.confirm 三键中英各改(仅改value不动键名保键数) + 改既有 test_setdefault_button_jsdom.mjs 若契约被推翻 + 同步补新行为门禁登记 SUITES
+仓库无项目级 CHANGELOG 时按 Keep a Changelog 惯例在仓库根新建 CHANGELOG.md，[Unreleased] 段记近期未发布改动，中英对照；.md 类文件行尾用纯 CRLF（与 DESIGN.md/RULES.md/CONTRIBUTING.md 一致）
