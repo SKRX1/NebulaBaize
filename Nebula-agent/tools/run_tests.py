@@ -258,6 +258,8 @@ SUITES = [
 
     "tests/test_interrupt_log.mjs",
 
+    "tests/test_sampling_snapshot_wiring.mjs",   # 2026-11-24 sampling-snapshot wiring (static lock): frontend reportSampling def + boot call + s-apply call co-exist, backend /api/sampling-snapshot route + _api_sampling_snapshot + SAMPLING_SNAPSHOT path all present, endpoint strings match front/back; 2 decoy diffs prove the boot-call and method locks are load-bearing
+
     "tests/test_stream_done.mjs",
 
     "tests/test_conn_cut_resume.mjs",   # 2026-10-20: transport cut == truncated, NOT fatal

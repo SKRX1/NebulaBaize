@@ -209,6 +209,11 @@ ILOG_MAX_BYTES = 2_000_000        # rotate past this size
 ILOG_KEEP_ON_ROTATE = 500         # newest lines carried into the fresh file
 ILOG_TAIL_MAX = 500               # hard cap for GET ?n=
 
+# 方案C 采样快照（2026-11-24）：前端把整套采样设置 POST 到这里，让后端 agent 能跨进程读到
+# 浏览器本地那套值（采样设置无后端副本）。Override with STRATA_SAMPLING_SNAPSHOT（tests 隔离）。
+SAMPLING_SNAPSHOT = os.environ.get("STRATA_SAMPLING_SNAPSHOT",
+                                 os.path.join(ROOT, "data", "sampling_snapshot.json"))
+
 # Per-ROUND output cap sent to the engine. It used to be a hardcoded 4096 that ALSO ignored the
 # composer's own max_tokens, so one long reasoning round (or a whole file written inside a single
 # tool call) ran out of budget mid-way: the round ended with finish_reason="length", no answer text
@@ -1940,6 +1945,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/interrupt-log":
             self._api_interrupt_log(method)
             return True
+        if path.rstrip("/") == "/api/sampling-snapshot":
+            self._api_sampling_snapshot(method)   # [sampling snapshot 2026-11-24] 整套采样设置落盘
+            return True
         if path.rstrip("/") == "/api/version":
             # the web app's brand badge: single-source VERSION file (ROOT/VERSION) + the
             # last commit's short sha and date (git runs with cwd=ROOT). On any failure the
@@ -2732,6 +2740,36 @@ class GatewayHandler(BaseHTTPRequestHandler):
             except Exception:                              # noqa: BLE001 - one bad line must not hide the rest
                 continue
         self._json(200, {"ok": True, "path": path, "count": len(entries), "entries": entries})
+
+    def _api_sampling_snapshot(self, method: str):
+        """POST /api/sampling-snapshot {settings...} 覆盖写快照；GET 读回落盘值。"""
+        path = SAMPLING_SNAPSHOT
+        if method == "POST":
+            body = self._read_json()
+            if not isinstance(body, dict) or not body:
+                self._json(400, {"error": {"type": "invalid_request",
+                                           "message": "settings object required"}})
+                return
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with io.open(path, "w", encoding="utf-8") as fh:
+                    json.dump(body, fh, ensure_ascii=False, indent=2)
+            except OSError as e:
+                print("[sampling-snapshot] write failed: %s" % e, file=sys.stderr)
+                self._json(500, {"error": {"type": "internal", "message": f"cannot write snapshot: {e}"}})
+                return
+            self._json(200, {"ok": True, "path": path})
+            return
+        if method != "GET":
+            self._json(405, {"error": {"type": "method_not_allowed", "message": f"{method} not allowed"}})
+            return
+        try:
+            with io.open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError) as e:
+            print("[sampling-snapshot] read failed: %s" % e, file=sys.stderr)
+            data = {}
+        self._json(200, {"ok": True, "path": path, "settings": data})
 
     def _api_models(self, method: str, path: str):
         """GET/POST /api/models, POST /api/models/test - the composer's model switcher."""

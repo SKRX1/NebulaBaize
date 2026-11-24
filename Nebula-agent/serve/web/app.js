@@ -9962,6 +9962,16 @@ $("seed-lock").onclick = () => {
   renderSeedNote();
   toast("success", t("toast.seed.locked.title"), t("toast.seed.locked.msg", {n: lastSeedUsed}));
 };
+// 方案C 采样快照上报（2026-11-24）：把整套采样设置 POST 给网关落 data/sampling_snapshot.json，
+// 让后端 agent 能跨进程读到浏览器里这套浏览器本地值（采样设置无后端副本，agent 默认读不到）。
+// boot 加载即上报当前生效值，「应用」保存后再上报一次；fire-and-forget，失败绝不影响对话/保存。
+function reportSampling() {
+  try {
+    fetch("api/sampling-snapshot", {method: "POST", headers: headers(true),
+      body: JSON.stringify(settings)}).catch(() => {});
+  } catch (e) { /* fetch/JSON 异常：best-effort，忽略 */ }
+}
+reportSampling();   // boot: 页面加载即上报当前生效的采样设置
 $("s-apply").onclick = async () => {
   const sel = [...$("s-thinking").children].find((b) => b.getAttribute("aria-checked") === "true");
   // Per-task: pin it on the ACTIVE task (so this task keeps it) AND keep it as the global default,
@@ -10007,6 +10017,7 @@ $("s-apply").onclick = async () => {
               designAuto: $("s-designauto").getAttribute("aria-checked") === "true",
               persona: $("s-persona").value.trim()};
   store.set("sampling", settings);
+  reportSampling();   // 方案C: 保存即上报整套设置给后端快照
   // plan-B+: turning archiveOff on SAVE -> sweep existing cold archives to Recycle Bin.
   if (_oldArchiveOn && settings.archiveOn === false) { archiveOnOffSweep(); }
   const share = $("s-share").getAttribute("aria-checked") === "true";
