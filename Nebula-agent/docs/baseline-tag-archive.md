@@ -319,3 +319,20 @@ git tag -a v-baseline-2026-11-25-a e73c3d5321e93d8cb9f59c2a7c04937e15a5f585 -m "
 ```bat
 git tag -a v-baseline-2026-11-25-b ab580073b2a5fb2dfcf4f39697112fb4ab2f0153 -m "baseline 2026-11-25-b: chore(config) models.json drift landing at ab58007. Verified this round: git fsck --full clean (only dangling, no missing/broken/fatal); E/F bundle strata-bundle-20261125-002954 byte-identical both drives (14 common MD5 all OK); origin/main synced to ab58007 (0 0)."
 ```
+
+## 2026-11-25 系列（继）：补登命名回滚点 c（账本登记 commit 本身作回滚点，对齐 a/b/c）
+
+本轮补登命名回滚点 `v-baseline-2026-11-25-c`，指向上一登记 commit `ea2d93d` 本身，沿用 `-g`
+「账本登记点本身命名作回滚点」惯例，让登记 commit 也成为命名回滚点。`ea2d93d` 为纯文档登记 commit
+（仅本账本追加 `-b` 当前回滚点节），无代码改动。本轮补登使本「2026-11-25 系列」小节的 a/b/c 三 tag 完全对齐。
+`-c` 为本地 tag（按仓库惯例未自动推 origin，远端同步留待主人另行拍板）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-25-c | ea2d93dbca09451fd6c41784198f01966cba47a3 | docs(ledger): register v-baseline-2026-11-25-b as current rollback point（账本登记 commit ea2d93d 本身命名作回滚点；doc-only；对齐 a/b/c 三 tag） |
+
+### 重建命令（如需精确恢复命名回滚点 c）
+
+```bat
+git tag -a v-baseline-2026-11-25-c ea2d93dbca09451fd6c41784198f01966cba47a3 -m "baseline 2026-11-25-c: ledger-sync commit ea2d93d (register v-baseline-2026-11-25-b as current rollback point, models.json drift @ab58007). Doc-only; naming the ledger-registration commit itself as a rollback point, per the -g convention."
+```
