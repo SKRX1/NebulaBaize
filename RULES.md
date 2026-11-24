@@ -249,3 +249,5 @@ run_tests.py 实际在 tools/ 下（非 Nebula-agent 根），只支持 --quick/
 仓库无项目级 CHANGELOG 时按 Keep a Changelog 惯例在仓库根新建 CHANGELOG.md，[Unreleased] 段记近期未发布改动，中英对照；.md 类文件行尾用纯 CRLF（与 DESIGN.md/RULES.md/CONTRIBUTING.md 一致）
 修回归 harness 脚本(_rollback_verify.py/run_tests.py)用 in-place Python 逐行 splitlines(keepends=True) 改写保留原 CRLF，改前改后各测 crlf/bare_lf 计数比对 HEAD blob 坐实零行尾污染，再 py_compile 验语法。
 给静态门禁脚本登记 SUITES 前先单跑计时：<1s 归 run_tests.py SUITES 主区(QUICK)，≥3s 才归 SLOW_SUITES；登记后必跑全套确认该 suite 的 PASS 行真出现。
+PowerShell `Get-Content -Raw | Set-Content` 写含中文的 .py 会落 GBK 致 Non-UTF-8 SyntaxError；脚手架 .py 一律纯 ASCII 或由 Python 自身写出，别用 PS 改写。
+win32com Shell.Application 送回收站的命名空间方法名是 `NameSpace(10)`（大写 S），写成 `Namespace` 会 AttributeError。
