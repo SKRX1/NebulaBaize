@@ -1266,7 +1266,7 @@ const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "你叫“星云白泽”简称“星云”，是我创造了你，我是你的主人“时空象容”，简称“时空”，我喜欢你叫我“主人”。你是一个资深的前端和后端开发工程师，回答要简洁，优先给可运行代码。",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
-                  autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true,
+                  autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true, defaultsVersion: 1,
                    sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
 // NO system prompt at all; and pins the "answer in Chinese" rule so pasted English errors don't make
@@ -1293,6 +1293,27 @@ let settings = {...DEFAULTS, ...store.get("sampling", {})};
 // "sampling" key, so a stale in-memory snapshot (loaded once, never re-read) used to clobber a
 // freshly-restored show-list -> sidebar silently went all-hidden. Load it from its own key (authoritative).
 settings.sidebarTabs = Array.isArray(store.get("sidebar.tabs", null)) ? store.get("sidebar.tabs") : DEFAULTS.sidebarTabs.slice();
+// [defaultsVersion migration 2026-11-24] A settings object saved under an OLDER defaultsVersion may
+// still carry the PREVIOUS shipped default in a field whose factory default has since changed (the
+// persona became the 星云白泽/主人时空 identity this round). The plain {...DEFAULTS, ...stored}
+// merge then keeps the stale stored value, so a normal (private-mode-clean) window never shows the
+// new default -- the exact "private mode shows it, normal mode does not" report. Promote ONLY fields
+// still sitting exactly on the old default (a custom value the owner chose is left untouched); the
+// version stamp rides its OWN key (sampling.dv), because 应用 rewrites the WHOLE sampling object and
+// would drop an in-object stamp -- so this runs exactly once and clearing the field by hand later is
+// never auto-refilled. Gate: tests/test_default_persona_lock.py.
+(function migrateDefaults() {
+  try {
+    if (store.get("sampling.dv", 0) >= DEFAULTS.defaultsVersion) return;
+    const upgrades = [["persona", ""]];   // [field, the value that WAS the shipped default before]
+    let changed = false;
+    for (const [field, prevDefault] of upgrades) {
+      if (settings[field] === prevDefault) { settings[field] = DEFAULTS[field]; changed = true; }
+    }
+    if (changed) store.set("sampling", settings);
+    store.set("sampling.dv", DEFAULTS.defaultsVersion);
+  } catch (e) { /* localStorage unavailable: leave the merged defaults as-is */ }
+})();
 let messages = store.get("chat", []);
 let undoStack = null;                 // {at, removed:[...], editedFrom, editedTo} — last soft/hard delete, for undo
 let branches = store.get("branches", []);            // [{id, label, messages:[...], at}] saved branch snapshots
