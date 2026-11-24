@@ -100,6 +100,7 @@ A local-first agent you run entirely on your own machine, with the model of your
   `pillow / psutil / PySocks` (all pre-built wheels, no local compiler needed).
   `PyYAML / send2trash / strata_tokenizer` are optional and degrade gracefully via `try` /
   `find_spec`, so they are deliberately left out of requirements.
+- **Browser (for the front end)** - needs a browser with **full modern HTML / CSS / JS** support: the front end leans heavily on CSS custom properties, `fetch` + SSE streaming, `async/await`, contenteditable rich input and newer selectors like `:has()`. **Prefer the latest Microsoft Edge or Google Chrome** (Chromium/Blink). The Alibaba-family domestic browsers (Quark, UC, ...) are also Chromium/Blink shells, so they should work in principle, but their engines are often older and heavily modified, so a missing newer feature (e.g. `:has()` needs Chromium 105+) or intercepted popups / fullscreen can limit parts of the UI - **usable but not the first choice**; switch to Edge/Chrome if anything misbehaves.
 
 ## How it gets smarter with use
 
