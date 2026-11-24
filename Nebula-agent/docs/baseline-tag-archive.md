@@ -247,3 +247,22 @@ ROLLBACK POINT (ALL GREEN)`；numstat==--ignore-cr-at-eol 零行尾污染；按�
 ```bat
 git tag -a v-baseline-2026-11-24-f df7b012448792ef6debee1d1f562c69b8fdf25b1 -m "baseline 2026-11-24-f: sampling drawer snapshot wiring (reportSampling + /api/sampling-snapshot) + prior-line RULES landing; full regression incl. post-green ALL GREEN (VERDICT=WORKING ROLLBACK POINT); main synced to origin; single tag pushed; E/F bundle byte-identical"
 ```
+
+## 2026-11-24 系列（继2）：新增命名回滚点 g（账本登记 commit，保留）
+
+本轮为「账本登记 commit `de62e1e`」补打命名回滚点 `v-baseline-2026-11-24-g`（此前已打的 `-f` 指向
+其父 commit `df7b012`，`-g` 把"账本同步点"本身也纳入命名回滚点）。`de62e1e` 为纯文档登记 commit
+（仅 baseline-tag-archive.md 追加 -f 当前回滚点节），无代码改动；已实测：它是上一轮 bundle
+`strata-bundle-20261124-185904` 的权威 HEAD（HEAD/commits=825/tags=73/main 可达 四计数全对、clone
+演练复现），`origin/main` 已同步至 `de62e1e`（`0 0`）。本轮把 `-g` 单推 origin（main 已就绪，仅新增
+此一个 tag），再登记进本账本，并随后 push + bundle 滚动固化（让 `-g` 进新一轮 E/F 双盘 bundle）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-24-g | de62e1eeaaa322c05381c6da396fe9dd0c4bead3 | docs(ledger): register -f as current rollback point（账本登记点本身命名为回滚点；doc-only；已作 bundle 权威 HEAD 四计数全对+clone 演练复现） |
+
+### 重建命令（如需精确恢复命名回滚点 g）
+
+```bat
+git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "baseline 2026-11-24-g: ledger-sync commit de62e1e (register v-baseline-2026-11-24-f as current rollback point). Doc-only; captured as authoritative HEAD of E/F bundle strata-bundle-20261124-185904 (four-counts OK + clone-rehearsal); origin/main synced to de62e1e."
+```
