@@ -7,6 +7,9 @@
  * list via renderSpark() and restores it. This gate drives the REAL handlers in jsdom:
  *   - before edit:        card draggable === "true"   (reorder capability intact)
  *   - after clicking edit: card draggable === "false"  (selection in the editor is not hijacked)
+ *   - the tag input (a native <input>, lives inside this card) is therefore on a non-draggable
+ *     card too, so selecting text in it is doubly safe (native inputs already never get hijacked
+ *     by an ancestor's HTML5 drag)
  *   - after cancel:        card draggable === "true"   (renderSpark restored it)
  * It complements test_spark.mjs M3-C, which proves non-edit reorder still works (it dispatches
  * dragstart on a non-edit card, unaffected by the attribute).
@@ -68,10 +71,11 @@ const main = async () => {
   console.log("=== Sparks edit-mode no-drag regression ===");
   await sleep(40);
 
-  // seed one spark via the tab add box
+  // seed one spark via the tab add box (with a tag so the tag input is populated)
   $("#tab-btn-spark").click();
   await sleep(20);
   $("#spark-add-input").textContent = "drag me only when NOT editing";
+  const at = $("#spark-add-tags"); if (at) at.value = "perf, cache";
   $("#spark-add-btn").click();
 
   const card = () => $("#spark-list .spark-item");
@@ -87,6 +91,14 @@ const main = async () => {
   check("edit rich box present", !!$(`#spark-list .spark-item[data-id="${id}"] .spark-edit-ta`));
   check("edit-mode card is draggable=false", card().getAttribute("draggable") === "false",
         `got=${card().getAttribute("draggable")}`);
+
+  // (2b) the tag input must exist AND live inside this non-draggable card, so selecting text in it
+  //      is not hijacked by a card drag (double-safe: native <input> selections are never taken by
+  //      an ancestor's HTML5 drag, and now the card itself is draggable=false anyway).
+  const tagInput = $(`#spark-list .spark-item[data-id="${id}"] .spark-edit-tags`);
+  check("edit-mode tag input present", !!tagInput);
+  check("tag input lives inside the draggable=false card", !!tagInput && tagInput.closest(".spark-item") === card()
+        && card().getAttribute("draggable") === "false");
 
   // (3) cancel -> renderSpark rebuilds the list and restores reorder capability
   card().querySelector(".spark-edit-cancel").click();

@@ -6724,7 +6724,7 @@ function editSpark(id) {
   const item = document.querySelector(`#spark-list .spark-item[data-id="${id}"]`);
   if (!item) return;
   item.setAttribute("draggable", "false");   // [编辑态禁拖 2026-11-24] the .spark-item template is permanently draggable="true" (note reorder). Leaving it on while editing lets a native dragstart fire the instant the caret selection escapes the text into card padding -- the "selecting past the text turns into a card-drag" report. Drop it for THIS card only; save/cancel both go through renderSpark(), which rebuilds the list and restores draggable, and the reorder dragstart/drop delegation is untouched. Gate: tests/test_spark.mjs M3-C (non-edit reorder still works) + tests/test_spark_edit_nodrag.mjs (edit mode clears draggable).
-item.querySelector(".spark-item__actions").hidden = true;
+  item.querySelector(".spark-item__actions").hidden = true;
   const body = item.querySelector(".spark-item__body");
   const txtEl = body.querySelector(".spark-item__text");
   txtEl.hidden = true;
