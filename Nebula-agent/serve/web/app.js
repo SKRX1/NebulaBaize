@@ -6418,6 +6418,7 @@ function setBusy(on) {
 const SPARK_MAX_RETRIES = 2;            // 1 initial send + up to 2 auto retries = 3 attempts
 let sparkFilter = "all";                // "all" or a tag string
 let sparkSortMode = store.get("spark.sortMode", "time");   // [排序方式 2026-11-24] "time" (auto: 未执行置顶、已执行按 executedAt 旧在下) | "custom" (stored array order, drag-reorder). Own key so other spark writes never clobber it.
+let sparkGroupsCollapsed = store.get("spark.groups", { pending: false, executed: false }) || { pending: false, executed: false };   // [分组折叠 2026-11-24] time-mode executed/unexecuted section headers can collapse to keep a long list readable. Own key; shape-guarded so a stale value can't break rendering.
 const sparkSel = new Set();             // ids selected for bulk delete
 let sparkDragId = null;                 // id being dragged
 
@@ -6558,24 +6559,14 @@ function sparkVisible(s) {
   return (s.tags || []).includes(sparkFilter);
 }
 
-function renderSpark() {
-  const list = $("spark-list");
-  if (!list) return;
-  const all = getSparks();
-  const active = all.filter((s) => !s.archived);
-  let view = active.filter(sparkVisible);
-  if (sparkSortMode === "time") view = view.slice().sort(sparkTimeCompare);   // custom mode keeps the stored array order verbatim
-  const empty = $("spark-empty");
-  if (!active.length) {
-    if (empty) empty.hidden = false;
-    list.innerHTML = "";
-    renderSparkFilters();
-    renderSparkMemory();
-    return;
-  }
-  if (empty) empty.hidden = true;
-  list.innerHTML = view.map((s) => `
-    <div class="kb-item spark-item" data-id="${s.id}" draggable="${sparkSortMode === "custom" ? "true" : "false"}">   // [排序方式] only custom mode is drag-reorderable; time mode is auto-sorted so dragging is disabled
+// [排序方式修复 2026-11-24] Card template moved OUT of renderSpark into its own function. This is where
+// the card markup lives; a `//` comment that had leaked INSIDE the old inline template literal rendered
+// as literal TEXT on every card (the "saved notes no longer display" bug) -- a `//` inside a backtick
+// string is text, not a comment. draggable is mode-driven: only custom mode is drag-reorderable.
+function sparkCardHtml(s) {
+  const drag = (sparkSortMode === "custom") ? "true" : "false";
+  return `
+    <div class="kb-item spark-item" data-id="${s.id}" draggable="${drag}">
       <label class="spark-item__sel"><input type="checkbox" class="spark-sel" data-id="${s.id}" ${sparkSel.has(s.id) ? "checked" : ""}></label>
       <div class="spark-item__body">
         <pre class="spark-item__text"></pre>
@@ -6593,7 +6584,49 @@ function renderSpark() {
         <button type="button" class="st-btn st-btn--small st-btn--ghost spark-del" data-id="${s.id}" data-i18n="spark.item.del">Delete</button>
         <button type="button" class="st-btn st-btn--small st-btn--ghost spark-promote" data-id="${s.id}" data-i18n="spark.promote.btn">Promote</button>
       </div>
-    </div>`).join("");
+    </div>`;
+}
+
+// [分组折叠 2026-11-24] time mode splits the list into 未执行 / 已执行 sections with a collapsible header
+// each (aria-expanded + aria-controls -> the group body) so a long list stays scannable. Custom mode stays
+// a flat list (its order is manual; grouping would fight the drag layout). Collapsed state: sparkGroupsCollapsed.
+function sparkGroupHeaderHtml(gid, labelKey, count, collapsed) {
+  const chev = collapsed ? "&#9654;" : "&#9660;";   // ▶ / ▼ (aria-hidden; the button carries the real state)
+  return `<button type="button" class="spark-group__head" data-group="${gid}" aria-expanded="${collapsed ? "false" : "true"}" aria-controls="spark-group-${gid}">
+      <span class="spark-group__chev" aria-hidden="true">${chev}</span>
+      <span class="spark-group__label" data-i18n="${labelKey}">${esc(t(labelKey))}</span>
+      <span class="spark-group__count">${count}</span>
+    </button>`;
+}
+function sparkListViewHtml(view) {
+  if (sparkSortMode !== "time") return view.map(sparkCardHtml).join("");   // custom: flat list, manual drag order
+  const group = (gid, labelKey, items, collapsed) => items.length
+    ? `<div class="spark-group">` + sparkGroupHeaderHtml(gid, labelKey, items.length, collapsed)
+      + `<div class="spark-group__body" id="spark-group-${gid}"${collapsed ? " hidden" : ""}>` + items.map(sparkCardHtml).join("") + `</div></div>`
+    : "";
+  const pend = view.filter((s) => !sparkIsExecuted(s));
+  const done = view.filter((s) => sparkIsExecuted(s));
+  return group("pending", "spark.group.pending", pend, !!sparkGroupsCollapsed.pending)
+       + group("executed", "spark.group.executed", done, !!sparkGroupsCollapsed.executed);
+}
+
+function renderSpark() {
+  const list = $("spark-list");
+  if (!list) return;
+  const all = getSparks();
+  const active = all.filter((s) => !s.archived);
+  let view = active.filter(sparkVisible);
+  if (sparkSortMode === "time") view = view.slice().sort(sparkTimeCompare);   // custom mode keeps the stored array order verbatim
+  const empty = $("spark-empty");
+  if (!active.length) {
+    if (empty) empty.hidden = false;
+    list.innerHTML = "";
+    renderSparkFilters();
+    renderSparkMemory();
+    return;
+  }
+  if (empty) empty.hidden = true;
+  list.innerHTML = sparkListViewHtml(view);
   // Render note body. `html` is sanitized at save time, so innerHTML is safe here;
   // if a spark has no html we fall back to textContent (never innerHTML for raw text).
   for (const el of list.querySelectorAll(".spark-item")) {
@@ -6611,10 +6644,13 @@ function renderSpark() {
 function renderSparkSortBar() {
   const bar = $("spark-sortbar");
   if (!bar) return;
-  bar.querySelectorAll("[data-sort]").forEach((b) => {
+  const btns = Array.prototype.slice.call(bar.querySelectorAll("[data-sort]"));
+  btns.forEach((b) => {
     const on = b.dataset.sort === sparkSortMode;
     b.classList.toggle("is-active", on);
-    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", on ? "true" : "false");
+    b.setAttribute("tabindex", on ? "0" : "-1");   // roving tabindex: the group is ONE tab stop, the active chip is the stop
   });
 }
 
@@ -7083,11 +7119,33 @@ function bindSparks() {
   });
 
   const sortBar = $("spark-sortbar");
-  if (sortBar) sortBar.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-sort]");
-    if (!btn) return;
-    setSparkSortMode(btn.dataset.sort);
-  });
+  if (sortBar) {
+    sortBar.setAttribute("role", "radiogroup");
+    sortBar.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-sort]");
+      if (!btn) return;
+      setSparkSortMode(btn.dataset.sort);
+    });
+    // [键盘可达性 2026-11-24] arrow keys move between the [时间|自定义] chips and SELECT them (radiogroup
+    // pattern); focus follows the selection so a keyboard/AT user is never stranded after the re-render
+    // wipes the chips. Enter/Space are native <button> activations and need no extra handling.
+    sortBar.addEventListener("keydown", (e) => {
+      const k = e.key;
+      if (k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
+      const chips = Array.prototype.slice.call(sortBar.querySelectorAll("[data-sort]"));
+      if (!chips.length) return;
+      e.preventDefault();
+      let i = chips.findIndex((c) => c.dataset.sort === sparkSortMode);
+      if (i < 0) i = 0;
+      if (k === "ArrowRight") i = (i + 1) % chips.length;
+      else if (k === "ArrowLeft") i = (i - 1 + chips.length) % chips.length;
+      else if (k === "Home") i = 0;
+      else i = chips.length - 1;
+      setSparkSortMode(chips[i].dataset.sort);
+      const focusTarget = sortBar.querySelector('[data-sort="' + chips[i].dataset.sort + '"]');
+      if (focusTarget && focusTarget.focus) focusTarget.focus();   // renderSpark rebuilt the chips; re-seat focus
+    });
+  }
 
   const selall = $("spark-selall");
   if (selall) selall.onchange = () => {
@@ -7109,6 +7167,16 @@ function bindSparks() {
     // double-click an image inside a spark note to open the viewer (notes render their html via innerHTML)
     list.addEventListener("dblclick", (e) => { const im = e.target.closest && e.target.closest("img"); if (im && im.getAttribute("src")) openImageView(im.getAttribute("src"), im.alt); });
     list.addEventListener("click", (e) => {
+      const head = e.target.closest("button[data-group]");
+      if (head) {   // [分组折叠 2026-11-24] toggle a time-mode section open/closed and persist it (own key)
+        const gid = head.dataset.group;
+        if (gid === "pending" || gid === "executed") {
+          sparkGroupsCollapsed[gid] = !sparkGroupsCollapsed[gid];
+          store.set("spark.groups", sparkGroupsCollapsed);
+          renderSpark();
+        }
+        return;
+      }
       const btn = e.target.closest("button[data-id]");
       if (!btn) return;
       const id = btn.dataset.id;
