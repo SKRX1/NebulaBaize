@@ -267,6 +267,41 @@ git tag -a v-baseline-2026-11-24-f df7b012448792ef6debee1d1f562c69b8fdf25b1 -m "
 git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "baseline 2026-11-24-g: ledger-sync commit de62e1e (register v-baseline-2026-11-24-f as current rollback point). Doc-only; captured as authoritative HEAD of E/F bundle strata-bundle-20261124-185904 (four-counts OK + clone-rehearsal); origin/main synced to de62e1e."
 ```
 
+
+## 2026-11-24 系列（继 3）：补登命名回滚点 h（消除账本 g→b 断层）
+
+本轮补登此前已打但本账本当时未登记的命名回滚点 `v-baseline-2026-11-24-h`（其时账本停在 `-g`）。
+`-h` 为纯代码功能锚点 `feat(auto-resume)`：early-done 续跑通道增「悬空 narration」子类，无 plan 块也能续跑被打断的承诺。
+其 tag message 自述：同 anchor `78c5142` 曾有的 `v-baseline-2026-11-27-a` 已被删除并由 `-h` 取代（历史事实，如实记录）；
+本轮据 `git merge-base --is-ancestor` 坐实 anc=0 在 HEAD 链上，补登仅为账本与 tag 历史对齐，不改动该 commit 本身。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-24-h | 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 | feat(auto-resume): early-done lane 增「悬空 narration」子类，无 plan 块也能续跑被打断的承诺 |
+
+### 重建命令（如需精确恢复命名回滚点 h）
+
+```bat
+git tag -a v-baseline-2026-11-24-h 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 -m "baseline (real-date aligned): early-done narration sub-lane at 78c5142 (pushed to origin/main). Sole rollback anchor: SUPERSEDES and replaces the now-deleted v-baseline-2026-11-27-a (same anchor 78c5142). local only, not pushed, per repo convention."
+```
+
+## 2026-11-25 系列（前序）：补登命名回滚点 a（消除账本断层）
+
+本轮补登此前已打但本账本当时未登记的命名回滚点 `v-baseline-2026-11-25-a`（其时账本停在 `-g`）。
+`-a` 锚点 `fix(models)`：为选中本地模型 `qwen3.8-flash-next-iq3_s` 声明 context_window 131072（kind=local + 空 base_url
+模型须在 config/models.json 声明 context_window，否则后端 ctx_window() 回退探测与前端分母不一致致低占用误判 overflow）。
+本轮据 `git merge-base --is-ancestor` 坐实 anc=0 在 HEAD 链上；`-a` 已在 origin 远端。补登仅为账本与 tag 历史对齐。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-25-a | e73c3d5321e93d8cb9f59c2a7c04937e15a5f585 | fix(models): declare context_window 131072 for selected local model qwen3.8-flash-next-iq3_s（含 RULES 规则：local+空 base_url 模型必须声明 context_window） |
+
+### 重建命令（如需精确恢复命名回滚点 a）
+
+```bat
+git tag -a v-baseline-2026-11-25-a e73c3d5321e93d8cb9f59c2a7c04937e15a5f585 -m "v-baseline 2026-11-25-a: fix(models) ctx_window 131072 for qwen3.8-flash-next-iq3_s"
+```
+
 ## 2026-11-25 系列：当前回滚点（保留）
 
 本轮为 `chore(config) models.json 运行态漂移落账` 的 HEAD `ab58007` 打新基线 `v-baseline-2026-11-25-b`，
