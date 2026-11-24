@@ -29,6 +29,9 @@ const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
 let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 const css = fs.readFileSync(path.join(WEB, "app.css"), "utf8");
+// EOL-agnostic source for the structural CSS locks below: app.css ships CRLF, so a needle
+// ending in "\n" would miss on a CR+LF file (the historical I2 false red). Normalise once.
+const cssLF = css.replace(/\r\n/g, "\n");
 
 /* ── static locks (definition + call-site pairs, anti-drift) ── */
 console.log("\n=== A. static locks ===");
@@ -198,8 +201,8 @@ check("I1 html mounts the fused shell (fusion bar: tabs + search + sort)",
       html.includes('id="img-fusion"') && html.includes('id="img-fusion-tabs"') &&
       html.includes('id="img-fusion-search"') && html.includes('id="img-fusion-sort"'));
 check("I2 the fused grid no longer owns a scrollbar (single scroll container)",
-      css.includes(".img-gallery__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--st-s-2)}\n") &&
-      !/\.img-gallery__grid\{[^}]*max-height/.test(css));
+      cssLF.includes(".img-gallery__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--st-s-2)}\n") &&
+      !/\.img-gallery__grid\{[^}]*max-height/.test(cssLF));
 {
   // entry state after section H: one unsaved entry in the index
   const cells = () => win.document.querySelectorAll(".img-gallery__cell").length;
