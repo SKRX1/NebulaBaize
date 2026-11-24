@@ -55,6 +55,11 @@ check("BUSY origin prefers the snapshot", /busy = \{controller, msg: m, stopId, 
 // ---------------- BEHAVIORAL extraction anchors (anti-drift: each chain body must still be extractable) ----
 const gm1 = /function maybeAutoResume\(m(?:, targetSession = null)?\) \{[\s\S]*?\n\}/.exec(SRC_JS);
 check("ANCHOR auto-resume: maybeAutoResume extractable (anti-drift)", !!gm1);
+// maybeAutoResume now calls looksLikeNarration (defined OUTSIDE its body); the extracted GATE would
+// throw ReferenceError without it -> extract the REAL helper from SRC_JS too (anti-drift) and inject it
+// ahead of the gate body inside the runAutoResume realm.
+const gmNarr = /const EARLY_NARRATE_RE[\s\S]*?\n(?=function maybeAutoResume)/.exec(SRC_JS);
+check("ANCHOR auto-resume: looksLikeNarration helper extractable (narration sub-lane dep)", !!gmNarr);
 const gm2 = /function maybeAutoDrive\(m(?:, targetSession = null)?\) \{[\s\S]*?\n\}/.exec(SRC_JS);
 check("ANCHOR auto-drive: maybeAutoDrive extractable (anti-drift)", !!gm2);
 // compaction-resume is an inline slice inside streamAssistant(): capture just the owner-binding statement
@@ -62,7 +67,7 @@ check("ANCHOR auto-drive: maybeAutoDrive extractable (anti-drift)", !!gm2);
 const gm3 = /\/\/ Owner-binding: this finalize ran ON the owning view[\s\S]*?renderInspector\(\);/.exec(SRC_JS);
 check("ANCHOR compaction-resume: finalize slice extractable (anti-drift)", !!gm3);
 
-if (!gm1 || !gm2 || !gm3) { console.log("\nHALTED: anchor(s) not found"); process.exit(1); }
+if (!gm1 || !gm2 || !gm3 || !gmNarr) { console.log("\nHALTED: anchor(s) not found"); process.exit(1); }
 
 // ---- realm harnesses: self-contained realm, synchronous setTimeout, recording send/sendSelectedSteps.
 // FIX runs the real extracted body; CONTROL strips the ONE forward argument. Single-variable flip.
@@ -81,6 +86,7 @@ function ceSetText(){} function $(){return {value:""};}
 let _activeSessionObj={id:'sessA'}; function activeSession(){return _activeSessionObj;}
 let __firedTarget='UNSET';
 function send(human, targetSession){ __firedTarget = targetSession ? targetSession.id : '(no arg -> follows viewed session)'; return undefined; }
+${gmNarr[0]}
 ${body}
 const m={text:'closing line', truncated:true, plan:[]};
 maybeAutoResume(m);

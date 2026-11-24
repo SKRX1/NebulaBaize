@@ -36,6 +36,12 @@ const gm = /function maybeAutoResume\(m(?:, targetSession = null)?\) \{[\s\S]*?\
 check("maybeAutoResume extractable from app.js (anti-drift anchor)", !!gm);
 if (!gm) { console.log("\nHALTED: gate body not found"); process.exit(1); }
 const GATE = gm[0];
+// D2: maybeAutoResume now calls looksLikeNarration (defined OUTSIDE the gate body), so the
+// extracted GATE would throw ReferenceError without it. Extract the REAL helper from app.js
+// too (anti-drift) and inject it ahead of GATE in every harness closure.
+const gn = /const EARLY_NARRATE_RE[\s\S]*?\n(?=function maybeAutoResume)/.exec(appSrc);
+check("looksLikeNarration helper extractable (narration sub-lane dep)", !!gn);
+const NARR = gn ? gn[0] : "";
 
 // the early lane must exist IN THE SOURCE (anti-drift): its own counter + own budget, chained before empty.
 check("source declares earlyDoneChain", /\bearlyDoneChain\b/.test(appSrc));
@@ -52,6 +58,7 @@ function toast(kind,k1,k2){tLog.push("TOAST:"+k1+"|"+(k2||""));}
 function renderChat(){} function ceSetText(el,txt){} let pendingResume=null;
 function send(x){tLog.push("SEND:"+x);} let resumeBadge=null; function renderInspector(){} function $(){return {value:""};}
 function activeSession(){return null;}   // owner-binding: the snapshot line resolves to null in this realm
+${NARR.replace(/\r\n/g, "\n")}
 ${GATE.replace(/\r\n/g, "\n")}
 return { run: function(s, cm0, ce0, ed0, m){ busy=false; settings=s; tLog=[]; autoResumeChain=cm0||0; emptyRoundChain=ce0||0; earlyDoneChain=ed0||0; pendingResume=null; resumeBadge=null; return maybeAutoResume(m); },
          tlog: ()=>tLog };`;
@@ -192,6 +199,32 @@ console.log("\n=== C: i18n keys present in BOTH zh and en blocks + B hard-constr
   const hasEnRecheck     = cmdLines.some(l => /re-?check/i.test(l) && /closing sentence|unchecked/i.test(l));
   check("B: a resume command carries the plan self-check (zh)", hasZhSelfCheck);
   check("B: a resume command carries the plan re-check (en)", hasEnRecheck, JSON.stringify(cmdLines.map(x=>x.trim().slice(0,52))));
+}
+
+console.log("\n=== D2 (2026-11-27): a dangling 'I will now do X' close with NO plan box is caught by the early lane ===");
+{
+  // The reported ROOT-CAUSE shape: finish=stop, no truncated, no resumable notice, NO ```plan
+  // fence, text ends on a forward-looking verb. Before the fix none of the lanes fired (plan lane
+  // needs openPlan>0; the others need truncated/notice) so the human had to click 继续. The new
+  // narration sub-lane (openPlan===0 && looksLikeNarration) now carries it.
+  const narr = () => ({text:"目录为空、Node v24 可用。现在开始写 app.js 综合 patch。"});   // no plan/notice/limit/stopped/error
+  const carried = run(makeHarness(24), {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, narr());
+  check("D2 no-plan dangling narration -> early lane carries true (the narration sub-lane is the reason)", carried === true);
+
+  // Single-variable decoy: the SAME no-plan/notice shape but a NON-narrating close (no forward-
+  // looking verb, under the 400 cap) -> looksLikeNarration===false -> isEarlyLane false -> treated
+  // as a real finish. Flipping ONLY the verb presence flips the verdict, so the narration sub-lane
+  // (not the main/empty/plan lane) is provably what carried the case above.
+  const done = {text:"目录为空、Node v24 可用。本轮改动已落地，门禁全绿。"};   // no forward verb, no 你/？
+  const notCarried = run(makeHarness(24), {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, done);
+  check("D2 control: same no-plan shape WITHOUT a forward verb -> not carried false [narration sub-lane is load-bearing]", notCarried === false);
+
+  // The narration sub-lane still respects the awaitingReply guard (a live decision card means the
+  // model IS waiting on the human, so a dangling verb must NOT auto-carry).
+  const hcard = makeHarness(24);
+  const narrCard = {text:"现在开始写 patch。", proposals:[{dismissed:false}]};
+  check("D2 dangling narration BUT a live decision card -> refuses false [awaitingReply guard spans both sub-lanes]",
+        run(hcard, {autoresume:true,autoresumeMax:24,emptyRoundMax:2}, 0,0,0, narrCard) === false);
 }
 
 console.log("");

@@ -3377,6 +3377,24 @@ function ilogRowHtml(e) {
 // Capped at AUTO_RESUME_MAX consecutive automatic retries, then control goes back to the human, so a
 // permanently wedged engine can't spin forever. Reuses the compaction-resume machinery (badge + 3s
 // undo window), so every automatic retry is still visible and cancellable.
+// D2(early-done narration sub-lane): the model sometimes ENDS a turn by only PROMISING the next
+// step and never performing it ("...现写 app.js 综合 patch。" then EOS, no tool call, no ```plan
+// fence). The backend's looks_like_narration (toolcall_parse.py:159) is the authority for that
+// shape, but its in-loop nudge budget (nudges<2) can run dry on a long task; the turn then breaks
+// as a normal final answer with NO resumable notice, so none of the existing auto-resume lanes
+// (truncated / notice / empty_round / plan-based early-done) fire and the human must click 继续.
+// This front replica of the SAME conservative rules lets the early-done lane catch that dangling
+// narration even when there is NO plan checklist. Kept byte-aligned with the backend on purpose
+// (single source of truth): the verb/done token lists and the 400-char / 160-tail / 你 / ？ guards.
+const EARLY_NARRATE_RE = /开始|接下来|现在|下面|下一步|让我|我来|我会|正在|准备|继续|接着|然后|先/;
+const EARLY_DONE_RE = /已完成|已经完成|全部完成|都完成了|完成了|写好|写好了|搞定|完毕|大功告成|总结|以下是|详见|请查收|无需|不需要再/;
+function looksLikeNarration(s) {
+  s = (s || "").trim();
+  if (!s || s.length > 400) return false;
+  if (s.indexOf("?") >= 0 || s.indexOf("\uff1f") >= 0 || s.indexOf("\u4f60") >= 0) return false;  // ? / ？ / 你  -> advice, a finished answer
+  if (EARLY_DONE_RE.test(s)) return false;            // an explicit completion marker anywhere
+  return EARLY_NARRATE_RE.test(s.slice(-160));        // a forward-looking verb in the tail before EOS
+}
 function maybeAutoResume(m, targetSession = null) {
   if (busy || !m) return false;
   if (!settings.autoresume) return false;               // master switch off -> never auto-resume
@@ -3401,7 +3419,11 @@ function maybeAutoResume(m, targetSession = null) {
   // human -- a leftover unchecked plan box is then expected, NOT a premature close. Mirror maybeAutoDrive's
   // existing proposal guard (line ~2988) so the two auto-runners agree on 'is this turn awaiting a reply'.
   const awaitingReply = (m.proposals || []).some((p) => !p.dismissed) || (m.steps || []).some((st) => st.hold);
-  const isEarlyLane = !mainResumable && openPlan > 0 && !awaitingReply && !!(m.text || "").trim();   // ONLY when no existing lane took it, the turn is NOT waiting on the human, its own plan has boxes left AND there is real text -> near-zero misjudge on a genuine short answer
+  // D2 sub-lane: even with NO plan checklist, a dangling "I will now do X" close (no tool call,
+  // no resumable notice) is the same premature-close shape. Reuse the SAME tiny earlyCap budget.
+  // Disjoint from the plan sub-lane (openPlan === 0) so the existing openPlan>0 path is untouched.
+  const earlyNarration = openPlan === 0 && looksLikeNarration((m.text || "").trim());
+  const isEarlyLane = !mainResumable && (openPlan > 0 || earlyNarration) && !awaitingReply && !!(m.text || "").trim();   // early lane = no other lane took it, NOT waiting on the human, AND either its plan has boxes left OR (no plan AND text is dangling narration) AND there is real text
   if (!isEarlyLane && !mainResumable) return false;   // early lane IS a mainResumable=false case, so let it through the gate too
   let chainN, chainMax;                                  // per-lane count/max so the toast never mixes the two chains
   if (isEarlyLane) {                                  // D: its OWN counter + small budget; never borrows the main-chain count
