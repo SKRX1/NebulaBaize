@@ -224,3 +224,26 @@ origin 坐实 0 0，再把 `-e` 单独推上远端（远端仅新增此一个 ta
 ```bat
 git tag -a v-baseline-2026-11-24-e 0dd37be4085fe4fb4d0de48dc99dd88460867f4d -m "v-baseline 2026-11-24-e: chore(rules) land 2 pending memory rules from prior line. Clean working tree at HEAD 0dd37be; doc-only landing, no code change."
 ```
+
+## 2026-11-24 系列（继）：当前最新回滚点升级为 f（保留）
+
+本轮为「采样抽屉快照上报接线 + 别线 RULES.md 未落账记忆独立 chore 落账」的 HEAD 打新基线
+`v-baseline-2026-11-24-f`，作为**当前最新回滚点**保留；它取代上方 11-24-e 成为最新基线（11-24-e 退为次新）。
+本轮含代码改动（app.js 新增 `reportSampling()`，boot 期与 s-apply 提交后各上报一次采样配置快照；
+http_server.py 新增 `SAMPLING_SNAPSHOT` 落盘路径 + `_api_sampling_snapshot` 处理器 + 路由分支）+ 新静态接线
+门禁 `tests/test_sampling_snapshot_wiring.mjs`（13/13，含 2 条 decoy 差分证 load-bearing）登记 SUITES 主区；
+并独立 chore 落账别线 RULES.md 2 条（PowerShell 写含中文 py 落 GBK、win32com `NameSpace(10)` 大写 S）。
+已实测：新门禁单跑 13/13 PASS；全套回归（含 post-green）ALL GREEN，post-green `VERDICT: TAG IS A WORKING
+ROLLBACK POINT (ALL GREEN)`；numstat==--ignore-cr-at-eol 零行尾污染；按铁律「先 main 后单 tag」先把 main
+推上 origin 坐实 0 0，再把 `-f` 单独推上远端（`git ls-remote v-baseline-2026-11-24-f^{}=df7b012` 解引用坐实），
+并纳入 E/F 双盘 `--all` bundle（最新 bundle 两盘逐字节一致 MD5 同、HEAD/commit/tag 三计数全对、main 可达、clone 演练复现）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-24-f | df7b012448792ef6debee1d1f562c69b8fdf25b1 | feat(sampling): 采样抽屉快照上报接线 + 后端 /api/sampling-snapshot 落盘点 + 别线 RULES.md 落账（全绿锚点） |
+
+### 重建命令（如需精确恢复当前回滚点 f）
+
+```bat
+git tag -a v-baseline-2026-11-24-f df7b012448792ef6debee1d1f562c69b8fdf25b1 -m "baseline 2026-11-24-f: sampling drawer snapshot wiring (reportSampling + /api/sampling-snapshot) + prior-line RULES landing; full regression incl. post-green ALL GREEN (VERDICT=WORKING ROLLBACK POINT); main synced to origin; single tag pushed; E/F bundle byte-identical"
+```
