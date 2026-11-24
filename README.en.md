@@ -17,19 +17,19 @@
 A one-line picture of "what this repo ships" vs "what it runs on top of":
 
 ```
-+--------------------------------------------------------+
-|  Nebula Baize / 星云白泽  (THIS repository)             |   <- original application layer
-|  gateway · runtime · skills · scheduler · memory · tools   |      (AGPL-3.0, (c) 2026 时空象容)
-|  web frontend (serve/web)                               |
-+--------------------------------------------------------+
-                          |
-                    --url (HTTP / OpenAI-compatible)
-                          |
-                          v
-+--------------------------------------------------------+
++---------------------------------------------------------------+
+|  Nebula Baize / 星云白泽  (THIS repository)                   |   <- original application layer
+|  gateway · runtime · skills · scheduler · memory · tools      |      (AGPL-3.0, (c) 2026 时空象容)
+|  web frontend (serve/web)                                     |
++---------------------------------------------------------------+
+                                |
+                --url (HTTP / OpenAI-compatible)
+                                |
+                                v
++---------------------------------------------------------------+
 |  Strata inference engine  (runtime prerequisite, NOT bundled) |   <- runtime dep
-|  native backend: src · include · metal · sycl · third_party|      (separately licensed by its authors)
-+--------------------------------------------------------+
+|  native backend: src · include · metal · sycl · third_party   |      (separately licensed by its authors)
++---------------------------------------------------------------+
 ```
 
 The arrow `--url` is the *only* link between the two. This repository = the top box only.
