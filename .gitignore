@@ -134,6 +134,9 @@ Nebula-agent/tools/_verifyast_scan.py
 /_p_*.diff
 /_t_*.diff
 /_q_*.py
+# 2026-11: same round's scratch landed under tools/ as .mjs (the existing _q_*.py is ROOT-anchored
+# and .py-only, so tools/_q_*.mjs leaked); cover the symmetric location/extension.
+Nebula-agent/tools/_q_*.mjs
 /_rt_backup_mixed.txt
 # per-hunk attribution round one-shot scripts (transient; test_pill_closeout_align.mjs is NOT here
 # on purpose -- it belongs to the pill-closeout round, not this scratch cleanup)
@@ -175,4 +178,8 @@ Nebula-agent/gateway.dist/
 # is a runtime-generated output dir. Both are regenerated at runtime, kept on disk,
 # never committed -- so the tree stays clean.
 /data/
+# 2026-11: autonomous-memory runtime writes a bare memory/ at the repo root (compressed_lessons /
+# experience-compressed exports); .gitignore already covers .Nebula-memory/ + .strata-memory/, this
+# covers the un-dotted one. ROOT-anchored so it never matches a same-named subtree.
+/memory/
 /自动
