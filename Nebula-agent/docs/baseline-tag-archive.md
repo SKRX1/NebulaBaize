@@ -266,3 +266,21 @@ git tag -a v-baseline-2026-11-24-f df7b012448792ef6debee1d1f562c69b8fdf25b1 -m "
 ```bat
 git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "baseline 2026-11-24-g: ledger-sync commit de62e1e (register v-baseline-2026-11-24-f as current rollback point). Doc-only; captured as authoritative HEAD of E/F bundle strata-bundle-20261124-185904 (four-counts OK + clone-rehearsal); origin/main synced to de62e1e."
 ```
+
+## 2026-11-25 系列：当前回滚点（保留）
+
+本轮为 `chore(config) models.json 运行态漂移落账` 的 HEAD `ab58007` 打新基线 `v-baseline-2026-11-25-b`，
+作为**当前最新回滚点**保留（取代此前已打 tag 但本账本当时未登记的 `-h` / `-a`）。
+本轮已实测：`git fsck --full` 对象库健康（仅 dangling，无 missing/broken/fatal）；E/F 双盘 bundle
+`strata-bundle-20261125-002954` 共有 14 份逐名 MD5 全一致、无镜像分叉；`origin/main` 已快进同步至 `ab58007`
+（`0 0`），`-b` 已单推 origin（`* [new tag]`，解引用 commit `ab58007`）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-25-b | ab580073b2a5fb2dfcf4f39697112fb4ab2f0153 | chore(config): models.json daemon 运行态漂移落账（模型列表重排 + 补全 ctx_in/context_window）；fsck 健康 + E/F bundle 字节一致 + origin/main 已同步 |
+
+### 重建命令（如需精确恢复命名回滚点 b）
+
+```bat
+git tag -a v-baseline-2026-11-25-b ab580073b2a5fb2dfcf4f39697112fb4ab2f0153 -m "baseline 2026-11-25-b: chore(config) models.json drift landing at ab58007. Verified this round: git fsck --full clean (only dangling, no missing/broken/fatal); E/F bundle strata-bundle-20261125-002954 byte-identical both drives (14 common MD5 all OK); origin/main synced to ab58007 (0 0)."
+```
