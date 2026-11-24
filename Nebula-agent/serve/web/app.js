@@ -4608,10 +4608,28 @@ function settleBottom() {
   if (typeof ResizeObserver !== "undefined") {
     const chat = $("chat");
     let lastH = chat ? chat.getBoundingClientRect().height : 0;
+    // Baseline for the bottom-pin test, captured BEFORE the next async grow. A scroll event updates it
+    // (the user moved); a re-stick updates it to the post-grow height. This is the ONLY way to tell a
+    // bottom-pinned view from a scrolled-up reader once content has already grown: inside the RO callback
+    // the lazy image / archive card is ALREADY taller, so a live nearBottom() would read a freshly
+    // enlarged gap and wrongly report "not at bottom". Comparing scrollTop against the PRE-growth bottom
+    // (lastSH) preserves the truth of where the view was the instant before the grow.
+    let lastSH = s.scrollHeight;
+    s.addEventListener("scroll", () => { lastSH = s.scrollHeight; });   // user-driven move resets the baseline
     const ro = new ResizeObserver(() => {
       const h = chat ? chat.getBoundingClientRect().height : 0;
-      if (h > lastH + 4 && streamingFollow) s.scrollTop = s.scrollHeight;   // content grew under us while following -> re-stick
-      lastH = h;
+      // re-stick when content grew under us AND the view was bottom-pinned just before the grow. The
+      // bottom condition is `streamingFollow || pinned`: streamingFollow covers a live turn; `pinned`
+      // (scrollTop sits at the previous bottom) covers the BOOT-SEND RACE -- renderChat's sync
+      // scrollDown(true) parks scrollTop at the THEN-current scrollHeight, lazy images / IO-expanded
+      // cards grow it AFTERWARDS WITHOUT a scroll event, so streamingFollow never flips back on. The view
+      // IS at the bottom yet streamingFollow still reads false, so the old `&& streamingFollow`-only guard
+      // skipped the re-stick -> "won't scroll to the newest". A reader scrolled up to read history has
+      // scrollTop well above lastSH - 120, so pinned is false and they stay untouched -- the original
+      // "don't yank the reader" invariant still holds.
+      const pinned = s.scrollTop >= lastSH - 120;
+      if (h > lastH + 4 && (streamingFollow || pinned)) s.scrollTop = s.scrollHeight;
+      lastH = h; lastSH = s.scrollHeight;
     });
     if (chat) ro.observe(chat);
   }
