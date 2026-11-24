@@ -205,3 +205,22 @@ git tag -a v-baseline-2026-11-22-e d9d6b1d1f51a8050d311738fe6f8fe2529d63d44 -m "
 ```bat
 git tag -a v-baseline-2026-11-23-c c64de97067f543e7ff6698090eb80727e99121de -m "baseline: setup fs-allowlist auto-reset + one-shot backup_once (reset_fs_allowed_roots / --keep-roots; setup.bat forwards %* / setup.sh forwards \"$@\"; test_setup_backup_lock), full suite ALL GREEN, main synced to origin"
 ```
+
+## 2026-11-24 系列：当前最新回滚点升级为 e（保留）
+
+本轮为「别线 RULES.md 未落账记忆独立 chore 落账」的 HEAD 打新基线 `v-baseline-2026-11-24-e`，
+作为**当前最新回滚点**保留；它取代上方 11-23-c 成为最新基线（11-23 系列退为历史次新）。
+本轮为纯文档落账（仅 RULES.md 追加 2 条记忆规则：harness 脚本 in-place 改写保 CRLF、
+SUITES 登记前先单跑计时定档），工作树落账后转干净；已按铁律「先 main 后单 tag」把 main 推上
+origin 坐实 0 0，再把 `-e` 单独推上远端（远端仅新增此一个 tag），并纳入 E/F 双盘 `--all` bundle
+（HEAD=0dd37be、commit/tag 三计数全对、main 可达、clone 演练复现）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-24-e | 0dd37be4085fe4fb4d0de48dc99dd88460867f4d | chore(rules): land 2 pending memory rules from prior line (harness CRLF in-place rewrite; SUITES timing gate) |
+
+### 重建命令（如需精确恢复当前回滚点 e）
+
+```bat
+git tag -a v-baseline-2026-11-24-e 0dd37be4085fe4fb4d0de48dc99dd88460867f4d -m "v-baseline 2026-11-24-e: chore(rules) land 2 pending memory rules from prior line. Clean working tree at HEAD 0dd37be; doc-only landing, no code change."
+```
