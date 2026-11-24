@@ -2114,6 +2114,7 @@ function openWorkspacePicker(newSession) {
   $("ws-path").value = (newSession ? "" : ((activeSession() || {}).workspace || ""));
   $("ws-new").value = "";
   $("ws-persona").value = (newSession ? "" : ((activeSession() || {}).persona || ""));
+  renderWsPersonaCount();
   // Group: a real <select> lists existing groups (option text localized, value stays the real name),
   // pre-selected to an existing session's current group; a new task starts on the "(blank = auto)"
   // row = no-op (Plan-C auto-detect stays live). The free-text field below (ws-groupnew) still lets
@@ -9915,12 +9916,22 @@ function personaWarnThreshold() {
 function renderPersonaCount() {
   const ta = $("s-persona"); const el = $("persona-count");
   if (!ta || !el) return;
-  const txt = ta.value || "";
+  paintPersonaCount(ta.value || "", el);
+}
+// 通用计数渲染：把「字数/token 文本 + 是否超阈值」的计算抽出来，
+// 默认人设(s-persona)与工作区人设(ws-persona)共用同一阈值(personaWarnThreshold)与文案。
+function paintPersonaCount(txt, el) {
+  if (!el) return;
   if (!txt.trim()) { el.textContent = ""; el.classList.remove("is-over"); return; }
   let s = t("drawer.persona.count", {c: txt.length, tk: _memEstTokens(txt)});
   if (_memEstTokens(txt) > personaWarnThreshold()) { s += t("drawer.persona.count.over"); el.classList.add("is-over"); }
   else el.classList.remove("is-over");
   el.textContent = s;
+}
+function renderWsPersonaCount() {
+  const ta = $("ws-persona"); const el = $("ws-persona-count");
+  if (!ta || !el) return;
+  paintPersonaCount(ta.value || "", el);
 }
 function personaRestoreDefault() {
   const msg = t("drawer.persona.restore.confirm");
@@ -10024,6 +10035,10 @@ $("s-debugfold").onclick = () => $("s-debugfold").setAttribute("aria-checked", S
 $("s-memfold").onclick = () => $("s-memfold").setAttribute("aria-checked", String($("s-memfold").getAttribute("aria-checked") !== "true"));
 if ($("s-designauto")) $("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
 $("s-persona").addEventListener("input", renderPersonaCount);
+  if ($("ws-persona")) {
+    $("ws-persona").addEventListener("input", renderWsPersonaCount);
+    $("ws-persona").addEventListener("compositionend", renderWsPersonaCount);
+  }
 if ($("persona-restore")) $("persona-restore").onclick = personaRestoreDefault;
 if ($("persona-save-preset")) $("persona-save-preset").onclick = personaSavePreset;
 if ($("persona-del-preset")) $("persona-del-preset").onclick = personaDelPreset;
