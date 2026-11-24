@@ -251,3 +251,6 @@ run_tests.py 实际在 tools/ 下（非 Nebula-agent 根），只支持 --quick/
 给静态门禁脚本登记 SUITES 前先单跑计时：<1s 归 run_tests.py SUITES 主区(QUICK)，≥3s 才归 SLOW_SUITES；登记后必跑全套确认该 suite 的 PASS 行真出现。
 PowerShell `Get-Content -Raw | Set-Content` 写含中文的 .py 会落 GBK 致 Non-UTF-8 SyntaxError；脚手架 .py 一律纯 ASCII 或由 Python 自身写出，别用 PS 改写。
 win32com Shell.Application 送回收站的命名空间方法名是 `NameSpace(10)`（大写 S），写成 `Namespace` 会 AttributeError。
+web 功能改动落地链：HTML(index.html 按行号替块)+i18n.js(双语各补同键，跑 test_i18n.mjs 验 parity)+app.css(追加块)+app.js(锚点 replace) → 每步 node --check/门禁即时验 → run_tests.py --quick 全套 ALL GREEN → 浏览器实测 → git numstat==--ignore-cr-at-eol 对账 → commit -F(UTF-8 msg 文件) → push origin main → 脚手架 win32com MoveHere 自送回收站。
+ws-persona（工作区人设）字数/token 预警复用 app.js 的 paintPersonaCount(txt,el) + personaWarnThreshold（共用 s-pwarn 阈值）与 i18n 键 drawer.persona.count/.count.over，刻意不加恢复/预设；renderPersonaCount(s-persona) 已重构为委派 paintPersonaCount，改计数逻辑须同步测 test_ws_persona_count.mjs。
+门禁源码断言用 includes("...<css/js 内容>\n") 这类【带裸 LF 结尾的精确串】时，若目标文件是 CRLF（app.css/app.js 皆然），「}」后实为 \r\n，needle 以 \n 收尾必假红（node 实测 crlf_file=true→includesLF=false、CRLF 变体=true）。修法：readFileSync 后 .replace(/\r\n/g,"\n") 归一化出 LF 副本再判（绝不为迎合 needle 去改 CSS/JS 内容本身）。实例：test_img_gallery_jsdom.mjs 的 I2 自初始发布即因此假红（2026-11-24 拔掉，全套转 0-FAIL）。
