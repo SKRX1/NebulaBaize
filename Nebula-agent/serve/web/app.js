@@ -232,8 +232,9 @@ for (const b of document.querySelectorAll(".st-tab")) b.onclick = () => showTab(
 // new settings modal can toggle it per tab. images/tools stay hidden by default; everything
 // else in DEFAULTS.sidebarTabs shows the sidebar. The class is added to <body>, CSS:662 does
 // the hiding (and hides #rh-left with it) -- mechanism unchanged, only the source of truth moved.
+function sidebarShowList() { const a = store.get("sidebar.tabs", null); return Array.isArray(a) ? a : (Array.isArray(settings.sidebarTabs) ? settings.sidebarTabs : []); }
 function sidebarVisApply(t) {
-  const show = settings.sidebarTabs || [];
+  const show = sidebarShowList();
   document.body.classList.toggle("no-sidebar", !show.includes(t));
 }
 function sidebarVisSave() { store.set("sidebar.tabs", settings.sidebarTabs); }
@@ -244,7 +245,7 @@ function openSidebarSettings() {
 }
 function closeSidebarSettings() { const m = $("sidebar-modal"); if (m) m.hidden = true; }
 function renderSidebarSettings() {
-  const show = settings.sidebarTabs || [];
+  const show = sidebarShowList();
   for (const row of document.querySelectorAll("#sidebar-modal [data-sidevis]"))
     row.setAttribute("aria-checked", String(show.includes(row.dataset.sidevis)));
 }
