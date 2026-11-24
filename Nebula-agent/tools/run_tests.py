@@ -495,6 +495,7 @@ SUITES = [
 
     "tests/test_resident_retry.py",   # 2026-10-24: resident-contention vs true-overflow split (quiet retry, budget is one)
     "tests/test_contention_code_split.py",   # 2026-11: low-occupancy 400 is KV-pool CONTENTION not overflow; distinct notice code so the frontend does not force a no-op compaction and auto-resume flows (differential source lock)
+    "tests/test_rollback_restore_branch.py",   # 2026-11-24 post-green rollback verify: restore to the branch we actually STARTED on (git symbolic-ref + orig-sha fallback when detached), NOT a hardcoded 'master'. ROOT-CAUSE: on a 'main'-default box the old `git checkout master` in the finally-style restore printed "pathspec master did not match" and left HEAD detached on the temp rollback tag -> next commit orphaned with main unmoved. Static decoy re-adds the master restore and MUST flip the predicate red (load-bearing). Pure stdlib, reads the shipped script only.
 
     "tests/test_vision_degrade.py",  # 2026-10-31: [VISION-DEGRADE] pure-helper grab: image->text placeholder + narrow vision-failure predicate (pos/neg differential)
 

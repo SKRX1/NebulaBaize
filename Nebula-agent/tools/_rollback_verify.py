@@ -75,6 +75,11 @@ def main():
               % ', '.join(runtime_dirty))
 
     orig = git(['rev-parse', '--short', 'HEAD']).strip()
+    # Restore target = the branch we actually started on (NOT a hardcoded 'master').
+    # On a detached HEAD there is no branch, so fall back to the original commit sha.
+    # Fixes detached-HEAD residue on machines whose default branch is not 'master' (e.g. main).
+    _sym = git(['symbolic-ref', '--short', '-q', 'HEAD']).strip()
+    restore_target = _sym or orig
     ref = git(['rev-parse', '--short', tag + '^{}']).strip()
     print('ORIG HEAD = %s' % orig)
     print('TAG %s -> commit %s' % (tag, ref))
@@ -100,9 +105,10 @@ def main():
                     or 'FAIL' in line or 'TIMEOUT' in line):
                 print(line)
 
-    # ALWAYS restore to the master branch no matter what (avoids detached-HEAD residue)
-    print('RESTORING HEAD -> master (was %s)' % orig)
-    print(git(['checkout', 'master']).strip().splitlines()[-1])
+    # ALWAYS restore to the branch we started on (no hardcoded 'master'), so a machine
+    # machine whose default branch is 'main' returns there too and HEAD never stays detached.
+    print('RESTORING HEAD -> %s (was %s)' % (restore_target, orig))
+    print(git(['checkout', restore_target]).strip().splitlines()[-1])
     if stashed:
         print(git(['stash', 'pop']).strip())
     post = git(['status', '--porcelain']).strip()
