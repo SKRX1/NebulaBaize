@@ -1257,6 +1257,9 @@
                 data-i18n-attr="placeholder:drawer.persona.ph"></textarea>
       <p class="persona-meta"><span class="persona-meta__count muted small" id="persona-count" aria-live="polite"></span>
         <button class="st-btn st-btn--link" id="persona-restore" type="button" data-i18n="drawer.persona.restore" data-i18n-attr="title:drawer.persona.restore.tip">恢复默认</button></p>
+      <div class="toggle-row" id="s-pwarn-row" style="margin-top:8px"><label class="st-label" for="s-pwarn"><span data-i18n="drawer.pwarn">人设长度预警阈值（tokens）</span> <output id="o-pwarn">600</output></label>
+        <input class="st-slider" type="range" id="s-pwarn" min="100" max="2000" step="50" value="600">
+        <div class="muted small" data-i18n="drawer.pwarn.hint">默认人设估算 token 超过此值则计数变红提示稀释上下文。默认 600</div></div>
     </div>
     <div class="drawer-actions">
       <button class="st-btn st-btn--primary" id="s-apply" type="button" data-i18n="drawer.apply" data-i18n-attr="title:drawer.apply.tip">Apply</button>

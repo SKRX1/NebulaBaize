@@ -1263,7 +1263,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 
 // ------------------------------------------------------------------ Chat
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
-                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "你叫星云白泽简称星云，是我创造了你，我是你的主人时空象容，简称时空，我喜欢你叫我主人，你是一个资深的前端和后端开发工程师，回答要简洁，优先给可运行代码。",
+                  recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, personaTokenWarn: 600, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "你叫星云白泽简称星云，是我创造了你，我是你的主人时空象容，简称时空，我喜欢你叫我主人，你是一个资深的前端和后端开发工程师，回答要简洁，优先给可运行代码。",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
                   autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
                   autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true, defaultsVersion: 1,
@@ -9846,6 +9846,7 @@ function loadDrawer(s = settings) {
   $("s-precondmax").value = (+s.precondenseMax >= 1) ? +s.precondenseMax : 2;
   $("s-sparkfreeze").value = (+s.sparkFreezeN >= 0) ? +s.sparkFreezeN : 10;
   $("s-sparkmax").value = (+s.sparkMaxBars >= 1) ? +s.sparkMaxBars : 24;
+  $("s-pwarn").value = (+s.personaTokenWarn >= 1) ? +s.personaTokenWarn : 600;
   var mc = (+s.memCompactChunkTokens || 0);
   $("s-memchunk").value = (mc > 0 && mc <= 12000) ? mc : 0;
   $("o-memchunk").textContent = mc > 0 ? String(mc) : "auto";
@@ -9906,14 +9907,18 @@ function projectionLoaded() {
 // ===== persona helpers (方案B: 字数预警 + 恢复默认 + 多预设切换) =====
 // 复用 _memEstTokens 估算注入 token。人设每轮都作为 system 消息常驻，估算偏长即提示，
 // 避免主人把过长文本塞进默认人设而不知不觉稀释上下文。
-const PERSONA_TOKEN_WARN = 600;
+function personaWarnThreshold() {
+  var el = $("s-pwarn");
+  var v = (el && el.value != null && el.value !== "") ? +el.value : +settings.personaTokenWarn;
+  return v >= 1 ? v : 600;
+}
 function renderPersonaCount() {
   const ta = $("s-persona"); const el = $("persona-count");
   if (!ta || !el) return;
   const txt = ta.value || "";
   if (!txt.trim()) { el.textContent = ""; el.classList.remove("is-over"); return; }
   let s = t("drawer.persona.count", {c: txt.length, tk: _memEstTokens(txt)});
-  if (_memEstTokens(txt) > PERSONA_TOKEN_WARN) { s += t("drawer.persona.count.over"); el.classList.add("is-over"); }
+  if (_memEstTokens(txt) > personaWarnThreshold()) { s += t("drawer.persona.count.over"); el.classList.add("is-over"); }
   else el.classList.remove("is-over");
   el.textContent = s;
 }
@@ -9932,14 +9937,15 @@ function renderPersonaPresets() {
   const sel = $("persona-preset"); const wrap = $("persona-presets");
   if (!sel || !wrap) return;
   const list = personaPresets();
-  if (!list.length) { wrap.hidden = true; sel.innerHTML = ""; return; }
-  wrap.hidden = false;
+  wrap.hidden = false;   // 始终显示：内含不可删的「设为出厂」固定项
   const cur = sel.value;
-  sel.innerHTML = '<option value="">' + t("drawer.persona.preset") + '</option>' +
+  const opts = ['<option value="">' + t("drawer.persona.preset") + '</option>',
+    '<option value="__factory__">' + t("drawer.persona.factory") + '</option>'];
+  sel.innerHTML = opts.join("") +
     list.map(function (pt) { return '<option value="' + pt.name.replace(/"/g, '&quot;') + '">' + pt.name.replace(/</g, '&lt;') + '</option>'; }).join("");
-  if (cur && list.some(function (pt) { return pt.name === cur; })) sel.value = cur;
+  if (cur && (cur === "__factory__" || list.some(function (pt) { return pt.name === cur; }))) sel.value = cur;
   const del = $("persona-del-preset");
-  if (del) del.disabled = !sel.value;
+  if (del) del.disabled = (sel.value === "" || sel.value === "__factory__");
 }
 function personaSavePreset() {
   const ta = $("s-persona"); if (!ta) return;
@@ -9957,7 +9963,7 @@ function personaSavePreset() {
   toast("success", t("drawer.persona.preset.saved").replace("{n}", name), "");
 }
 function personaDelPreset() {
-  const sel = $("persona-preset"); if (!sel || !sel.value) return;
+  const sel = $("persona-preset"); if (!sel || !sel.value || sel.value === "__factory__") return;
   const name = sel.value;
   const msg = t("drawer.persona.preset.del.confirm").replace("{n}", name);
   let ok = false;
@@ -9988,11 +9994,12 @@ function outputs() {
   $("o-memchunk").textContent = mcV > 0 ? (mcV + " tok") : "auto";
   var mrV = +$("s-memreserve").value;
   $("o-memreserve").textContent = (mrV >= 5 ? mrV : 25) + "%";
+  $("o-pwarn").textContent = (+$("s-pwarn").value >= 1 ? +$("s-pwarn").value : 600) + " tok";
   $("s-memreserve").disabled = mcV > 0;   // reserve only feeds the AUTO budget; a pinned chunk bypasses it   // pinned threshold = pure window rule, speed channel sleeps
   renderPersonaCount();
 }
 for (const b of $("s-thinking").children) b.onclick = () => { for (const x of $("s-thinking").children) x.setAttribute("aria-checked", String(x === b)); outputs(); };
-for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-sparkfreeze", "s-sparkmax", "s-memchunk", "s-memreserve"]) $(id).oninput = outputs;
+for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-sparkfreeze", "s-sparkmax", "s-memchunk", "s-memreserve", "s-pwarn"]) $(id).oninput = outputs;
 $("s-show").onclick = () => $("s-show").setAttribute("aria-checked", String($("s-show").getAttribute("aria-checked") !== "true"));
 $("s-esp").onclick = () => $("s-esp").setAttribute("aria-checked", String($("s-esp").getAttribute("aria-checked") !== "true"));
 $("s-mcp").onclick = () => $("s-mcp").setAttribute("aria-checked", String($("s-mcp").getAttribute("aria-checked") !== "true"));
@@ -10022,9 +10029,9 @@ if ($("persona-save-preset")) $("persona-save-preset").onclick = personaSavePres
 if ($("persona-del-preset")) $("persona-del-preset").onclick = personaDelPreset;
 if ($("persona-preset")) $("persona-preset").onchange = function () {
   const v = $("persona-preset").value; if (!v) return;
-  const pt = personaPresets().find(function (x) { return x.name === v; });
-  if (pt) { $("s-persona").value = pt.text; renderPersonaCount(); }
-  const del = $("persona-del-preset"); if (del) del.disabled = false;
+  if (v === "__factory__") { $("s-persona").value = DEFAULTS.persona || ""; renderPersonaCount(); }
+  else { const pt = personaPresets().find(function (x) { return x.name === v; }); if (pt) { $("s-persona").value = pt.text; renderPersonaCount(); } }
+  const del = $("persona-del-preset"); if (del) del.disabled = (v === "__factory__");
 };
 $("s-reset").onclick = () => { const d = store.get("sampling.default", null); loadDrawer(d ? {...DEFAULTS, ...d} : DEFAULTS); };  // 方案A: 重置回到「设为默认值」存的基线 sampling.default，没设过则回落出厂 DEFAULTS（只刷界面，仍需点「应用」才写盘）
 $("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); try { store.set("sampling.default", JSON.parse(JSON.stringify(settings))); } catch (e) {} };  // 方案A: 先把当前界面值 apply（写 sampling 立即生效），再把它固化成「重置时回到的默认值」sampling.default
@@ -10081,6 +10088,7 @@ $("s-apply").onclick = async () => {
               precondenseMax: (+(+$("s-precondmax").value) || 2) >= 1 ? +(+$("s-precondmax").value) : 2,
               sparkFreezeN: +($("s-sparkfreeze").value || 10),
               sparkMaxBars: (+($("s-sparkmax").value) >= 1) ? +(+$("s-sparkmax").value) : 24,
+              personaTokenWarn: (+($("s-pwarn").value) >= 1) ? +(+$("s-pwarn").value) : 600,
               memCompactChunkTokens: Math.min(12000, Math.max(0, +($("s-memchunk").value) || 0)),
               memCompactReservePct: Math.min(50, Math.max(5, +($("s-memreserve").value) || 25)),
               autoresumeMax: ((Number($("s-autoresumeMax").value) || 24) >= AUTO_RESUME_FLOOR ? (Number($("s-autoresumeMax").value) || 24) : 24), emptyRoundMax: (parseInt($("s-emptyRoundMax").value,10)>=0?parseInt($("s-emptyRoundMax").value,10):2), earlyDoneCap: (parseInt($("s-earlyDoneCap").value,10)>=0?parseInt($("s-earlyDoneCap").value,10):2),   // 2026-11 plan-A: below the floor -> back to the default; earlyDoneCap clamps to >=0 -> default 2

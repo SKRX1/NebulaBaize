@@ -764,6 +764,9 @@
       "drawer.persona.preset.del.confirm": "删除预设「{n}」？",
       "drawer.persona.count": "{c} 字 · 约 {tk} tokens",
       "drawer.persona.count.over": " · 偏长，将稀释上下文",
+      "drawer.pwarn": "人设长度预警阈值（tokens）",
+      "drawer.pwarn.hint": "默认人设估算 token 超过此值则计数变红提示稀释上下文。默认 600",
+      "drawer.persona.factory": "★ 设为出厂（星云白泽）",
 
       /* ── Workspace modal ── */
       "ws.title": "工作区",
@@ -2179,6 +2182,9 @@
       "drawer.persona.preset.del.confirm": "Delete preset \"{n}\"?",
       "drawer.persona.count": "{c} chars · ~{tk} tokens",
       "drawer.persona.count.over": " · long, dilutes the context",
+      "drawer.pwarn": "Persona length warning (tokens)",
+      "drawer.pwarn.hint": "When the default persona exceeds this many estimated tokens the counter turns red to warn it dilutes context. Default 600",
+      "drawer.persona.factory": "★ Set to factory (Nebula Baize)",
 
       /* ── Workspace modal ── */
       "ws.title": "Workspace",
