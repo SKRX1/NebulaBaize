@@ -9861,6 +9861,8 @@ function loadDrawer(s = settings) {
   $("s-designlang").value = s.designLang || "auto";
   $("s-designauto").setAttribute("aria-checked", String(s.designAuto !== false));
   $("s-persona").value = s.persona || "";
+  renderPersonaPresets();
+  renderPersonaCount();
   renderSeedNote();               // "this turn used 823741" only shows while the field is empty
   outputs();
 }
@@ -9901,6 +9903,69 @@ function projectionLoaded() {
   const c = lastMetrics && lastMetrics.engine ? lastMetrics.engine.cvec : 0;
   return !!c && c !== "0";
 }
+// ===== persona helpers (方案B: 字数预警 + 恢复默认 + 多预设切换) =====
+// 复用 _memEstTokens 估算注入 token。人设每轮都作为 system 消息常驻，估算偏长即提示，
+// 避免主人把过长文本塞进默认人设而不知不觉稀释上下文。
+const PERSONA_TOKEN_WARN = 600;
+function renderPersonaCount() {
+  const ta = $("s-persona"); const el = $("persona-count");
+  if (!ta || !el) return;
+  const txt = ta.value || "";
+  if (!txt.trim()) { el.textContent = ""; el.classList.remove("is-over"); return; }
+  let s = t("drawer.persona.count", {c: txt.length, tk: _memEstTokens(txt)});
+  if (_memEstTokens(txt) > PERSONA_TOKEN_WARN) { s += t("drawer.persona.count.over"); el.classList.add("is-over"); }
+  else el.classList.remove("is-over");
+  el.textContent = s;
+}
+function personaRestoreDefault() {
+  const msg = t("drawer.persona.restore.confirm");
+  let ok = false;
+  try { ok = window.confirm(msg); } catch (e) { ok = confirm(msg); }
+  if (!ok) return;
+  $("s-persona").value = DEFAULTS.persona || "";
+  if ($("persona-preset")) $("persona-preset").value = "";
+  renderPersonaCount();
+}
+// 预设：settings.personaPresets = [{name, text}]，存于 sampling 对象（与其它采样设置同生命周期）。
+function personaPresets() { return (settings.personaPresets && Array.isArray(settings.personaPresets)) ? settings.personaPresets : []; }
+function renderPersonaPresets() {
+  const sel = $("persona-preset"); const wrap = $("persona-presets");
+  if (!sel || !wrap) return;
+  const list = personaPresets();
+  if (!list.length) { wrap.hidden = true; sel.innerHTML = ""; return; }
+  wrap.hidden = false;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">' + t("drawer.persona.preset") + '</option>' +
+    list.map(function (pt) { return '<option value="' + pt.name.replace(/"/g, '&quot;') + '">' + pt.name.replace(/</g, '&lt;') + '</option>'; }).join("");
+  if (cur && list.some(function (pt) { return pt.name === cur; })) sel.value = cur;
+  const del = $("persona-del-preset");
+  if (del) del.disabled = !sel.value;
+}
+function personaSavePreset() {
+  const ta = $("s-persona"); if (!ta) return;
+  const txt = ta.value.trim();
+  if (!txt) { toast("warn", t("drawer.persona.preset.name"), t("drawer.persona.ph")); return; }
+  let name = "";
+  try { name = window.prompt(t("drawer.persona.preset.name"), ""); } catch (e) { name = prompt(t("drawer.persona.preset.name"), ""); }
+  if (name == null) return;
+  name = name.trim(); if (!name) return;
+  const list = personaPresets().filter(function (pt) { return pt.name !== name; });
+  list.push({name: name, text: txt});
+  settings.personaPresets = list;
+  renderPersonaPresets();
+  if ($("persona-preset")) $("persona-preset").value = name;
+  toast("success", t("drawer.persona.preset.saved").replace("{n}", name), "");
+}
+function personaDelPreset() {
+  const sel = $("persona-preset"); if (!sel || !sel.value) return;
+  const name = sel.value;
+  const msg = t("drawer.persona.preset.del.confirm").replace("{n}", name);
+  let ok = false;
+  try { ok = window.confirm(msg); } catch (e) { ok = confirm(msg); }
+  if (!ok) return;
+  settings.personaPresets = personaPresets().filter(function (pt) { return pt.name !== name; });
+  renderPersonaPresets();
+}
 function outputs() {
   const tempV = +$("s-temp").value;
   $("o-temp").textContent = tempV === 0 ? "0 · greedy" : tempV.toFixed(2);
@@ -9924,6 +9989,7 @@ function outputs() {
   var mrV = +$("s-memreserve").value;
   $("o-memreserve").textContent = (mrV >= 5 ? mrV : 25) + "%";
   $("s-memreserve").disabled = mcV > 0;   // reserve only feeds the AUTO budget; a pinned chunk bypasses it   // pinned threshold = pure window rule, speed channel sleeps
+  renderPersonaCount();
 }
 for (const b of $("s-thinking").children) b.onclick = () => { for (const x of $("s-thinking").children) x.setAttribute("aria-checked", String(x === b)); outputs(); };
 for (const id of ["s-temp", "s-topp", "s-topk", "s-compactpct", "s-targetpct", "s-speeddrop", "s-precondmax", "s-sparkfreeze", "s-sparkmax", "s-memchunk", "s-memreserve"]) $(id).oninput = outputs;
@@ -9949,7 +10015,17 @@ $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", Strin
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
 $("s-debugfold").onclick = () => $("s-debugfold").setAttribute("aria-checked", String($("s-debugfold").getAttribute("aria-checked") !== "true"));
 $("s-memfold").onclick = () => $("s-memfold").setAttribute("aria-checked", String($("s-memfold").getAttribute("aria-checked") !== "true"));
-$("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
+if ($("s-designauto")) $("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
+$("s-persona").addEventListener("input", renderPersonaCount);
+if ($("persona-restore")) $("persona-restore").onclick = personaRestoreDefault;
+if ($("persona-save-preset")) $("persona-save-preset").onclick = personaSavePreset;
+if ($("persona-del-preset")) $("persona-del-preset").onclick = personaDelPreset;
+if ($("persona-preset")) $("persona-preset").onchange = function () {
+  const v = $("persona-preset").value; if (!v) return;
+  const pt = personaPresets().find(function (x) { return x.name === v; });
+  if (pt) { $("s-persona").value = pt.text; renderPersonaCount(); }
+  const del = $("persona-del-preset"); if (del) del.disabled = false;
+};
 $("s-reset").onclick = () => { const d = store.get("sampling.default", null); loadDrawer(d ? {...DEFAULTS, ...d} : DEFAULTS); };  // 方案A: 重置回到「设为默认值」存的基线 sampling.default，没设过则回落出厂 DEFAULTS（只刷界面，仍需点「应用」才写盘）
 $("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); try { store.set("sampling.default", JSON.parse(JSON.stringify(settings))); } catch (e) {} };  // 方案A: 先把当前界面值 apply（写 sampling 立即生效），再把它固化成「重置时回到的默认值」sampling.default
 // "Pin this seed": one click turns the last random seed into the fixed one (field + saved settings),
@@ -10015,7 +10091,8 @@ $("s-apply").onclick = async () => {
               memFold: $("s-memfold").getAttribute("aria-checked") === "true",
               designLang: $("s-designlang").value || "auto",
               designAuto: $("s-designauto").getAttribute("aria-checked") === "true",
-              persona: $("s-persona").value.trim()};
+              persona: $("s-persona").value.trim(),
+               personaPresets: personaPresets()};
   store.set("sampling", settings);
   reportSampling();   // 方案C: 保存即上报整套设置给后端快照
   // plan-B+: turning archiveOff on SAVE -> sweep existing cold archives to Recycle Bin.

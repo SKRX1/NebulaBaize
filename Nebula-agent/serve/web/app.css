@@ -1724,3 +1724,13 @@ audio.md-media { height: 38px; }
 .mem-group-panel[hidden]{display:none}
 .mem-group-panel__row{display:flex;gap:8px;align-items:center;margin-top:6px}
 .mem-group-panel__row .st-input{min-width:0}
+
+/* persona meta row: live char/token count + restore-default link under the persona textarea */
+.persona-presets { display: flex; flex-wrap: wrap; gap: var(--st-s-2); margin-bottom: var(--st-s-2); }
+.persona-presets select { flex: 1 1 auto; min-width: 0; }
+.persona-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--st-s-2); margin: 4px 0 0; }
+.persona-meta__count { flex: 1 1 auto; min-width: 0; }
+.persona-meta__count.is-over { color: var(--st-danger, #d64545); }
+.st-btn--link { background: transparent; border: 0; padding: 2px 4px; color: var(--st-accent);
+               font: inherit; font-size: var(--st-fs-xs); cursor: pointer; text-decoration: underline; }
+.st-btn--link:hover { color: var(--st-accent-hover, var(--st-accent)); }

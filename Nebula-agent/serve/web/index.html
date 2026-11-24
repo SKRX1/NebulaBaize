@@ -1247,9 +1247,16 @@
       <button class="st-toggle" id="s-designauto" role="switch" aria-checked="true" aria-label="Auto-save design docs"></button></div>
     <div class="st-field">
       <label class="st-label" for="s-persona"><span data-i18n="drawer.persona">默认人设 / 系统提示</span></label>
+      <div class="persona-presets" id="persona-presets" hidden>
+        <select class="st-input" id="persona-preset" data-i18n-attr="aria-label:drawer.persona.preset" aria-label="Persona presets"></select>
+        <button class="st-btn st-btn--secondary" id="persona-save-preset" type="button" data-i18n="drawer.persona.savepreset" data-i18n-attr="title:drawer.persona.savepreset.tip">存为预设</button>
+        <button class="st-btn st-btn--secondary" id="persona-del-preset" type="button" data-i18n="drawer.persona.delpreset" data-i18n-attr="title:drawer.persona.delpreset.tip">删除预设</button>
+      </div>
       <textarea class="st-input st-textarea" id="s-persona" rows="3"
                 placeholder="例如：你是一名资深后端工程师，回答要简洁、优先给可运行代码"
                 data-i18n-attr="placeholder:drawer.persona.ph"></textarea>
+      <p class="persona-meta"><span class="persona-meta__count muted small" id="persona-count" aria-live="polite"></span>
+        <button class="st-btn st-btn--link" id="persona-restore" type="button" data-i18n="drawer.persona.restore" data-i18n-attr="title:drawer.persona.restore.tip">恢复默认</button></p>
     </div>
     <div class="drawer-actions">
       <button class="st-btn st-btn--primary" id="s-apply" type="button" data-i18n="drawer.apply" data-i18n-attr="title:drawer.apply.tip">Apply</button>
