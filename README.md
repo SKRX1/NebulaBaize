@@ -88,7 +88,7 @@
 - **Python 依赖** — 见 `Nebula-agent/requirements.txt`：运行时硬依赖仅 `pillow / psutil / PySocks`
   （均为预编译 wheel，无需本机编译器）。`PyYAML / send2trash / strata_tokenizer` 属可选依赖，代码用
   `try` / `find_spec` 优雅降级，故有意不列入 requirements。
-- **浏览器（访问前端用）** — 需要一款**完整支持现代 HTML / CSS / JS** 的浏览器：前端大量依赖 CSS 自定义属性、`fetch` + SSE 实时流式、`async/await`、可编辑富文本输入与 `:has()` 等新选择器。**首选最新版 Microsoft Edge 或 Google Chrome**（Chromium 内核）。安卓系国产浏览器（夸克、UC 等）本质也是 Chromium/Blink 套壳，理论上可用；但其内核版本常偏旧且多有魔改，可能因缺少较新牉本（如需 Chromium 105+ 的 `:has()`）或拦截弹窗/全屏而导致部分功能受限，故**可以用但非首选**，如遇异常请切回 Edge/Chrome。
+- **浏览器（访问前端用）** — 需要一款**完整支持现代 HTML / CSS / JS** 的浏览器：前端大量依赖 CSS 自定义属性、`fetch` + SSE 实时流式、`async/await`、可编辑富文本输入与 `:has()` 等新选择器。**首选最新版 Microsoft Edge 或 Google Chrome**（Chromium 内核）。安卓系国产浏览器（夸克、UC 等）本质也是 Chromium/Blink 套壳，理论上可用；但其内核版本常偏旧且多有魔改，可能因缺少较新版本（如需 Chromium 105+ 的 `:has()`）或拦截弹窗/全屏而导致部分功能受限，故**可以用但非首选**，如遇异常请切回 Edge/Chrome。
 
 ## 越用越聪明
 
