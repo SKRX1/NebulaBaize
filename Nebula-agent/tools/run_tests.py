@@ -161,6 +161,8 @@ SUITES = [
 "tests/test_edit_modal_e2e.mjs",   # 2026-10-29: edit-modal E2E - paste image+type, delete-last-image, request side all agree after hard-delete+regenerate (locks editResend empty-list = real-delete-intent)
 
     "tests/test_steps_fold.mjs",        # 2026-10-20: 执行过程折叠（工具回合收纳中间段，结束自动折叠）
+    "tests/test_debug_section_collapse.mjs",   # 2026-11-22: 调试页卡片折叠持久化（默认折叠+记忆页展开差分+点击写strata.memCollapse+重启存活，端到端真实点击）
+    "tests/test_card_fold_settings.mjs",   # 2026-11-24: 调试/记忆页卡片默认折叠双开关(settings.debugFold默认true/settings.memFold默认false)可控性——四象限+单变量差分(load-bearing)+跨隔离(各开关只动自己的卡)+用户手动toggle优先于开关；补 section_collapse 留下的开关可控性缺口
 
     "tests/test_think_segments.mjs",
 

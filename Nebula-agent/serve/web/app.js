@@ -1264,7 +1264,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true,
+                  autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
                   autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true,
                    sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
@@ -9660,6 +9660,8 @@ function loadDrawer(s = settings) {
   renderArchiveManager();   // fire-and-forget: refresh the cold-archive panel
   $("s-cnthink").setAttribute("aria-checked", String(!!s.cnThink));
   $("s-stepsfold").setAttribute("aria-checked", String(s.stepsFold !== false));
+  $("s-debugfold").setAttribute("aria-checked", String(s.debugFold !== false));
+  $("s-memfold").setAttribute("aria-checked", String(s.memFold === true));
   $("s-designlang").value = s.designLang || "auto";
   $("s-designauto").setAttribute("aria-checked", String(s.designAuto !== false));
   $("s-persona").value = s.persona || "";
@@ -9749,6 +9751,8 @@ $("s-autofix").onclick = () => $("s-autofix").setAttribute("aria-checked", Strin
 if ($("s-autoverifyfix")) $("s-autoverifyfix").onclick = () => $("s-autoverifyfix").setAttribute("aria-checked", String($("s-autoverifyfix").getAttribute("aria-checked") !== "true"));
 $("s-cnthink").onclick = () => $("s-cnthink").setAttribute("aria-checked", String($("s-cnthink").getAttribute("aria-checked") !== "true"));
 $("s-stepsfold").onclick = () => $("s-stepsfold").setAttribute("aria-checked", String($("s-stepsfold").getAttribute("aria-checked") !== "true"));
+$("s-debugfold").onclick = () => $("s-debugfold").setAttribute("aria-checked", String($("s-debugfold").getAttribute("aria-checked") !== "true"));
+$("s-memfold").onclick = () => $("s-memfold").setAttribute("aria-checked", String($("s-memfold").getAttribute("aria-checked") !== "true"));
 $("s-designauto").onclick = () => $("s-designauto").setAttribute("aria-checked", String($("s-designauto").getAttribute("aria-checked") !== "true"));
 $("s-reset").onclick = () => loadDrawer(DEFAULTS);
 $("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); };  // apply the CURRENT on-screen settings as the saved default (does NOT reset untouched fields to factory defaults)
@@ -9801,6 +9805,8 @@ $("s-apply").onclick = async () => {
               archiveOn: $("s-archiveon").getAttribute("aria-checked") === "true",
               cnThink: $("s-cnthink").getAttribute("aria-checked") === "true",
               stepsFold: $("s-stepsfold").getAttribute("aria-checked") === "true",
+              debugFold: $("s-debugfold").getAttribute("aria-checked") === "true",
+              memFold: $("s-memfold").getAttribute("aria-checked") === "true",
               designLang: $("s-designlang").value || "auto",
               designAuto: $("s-designauto").getAttribute("aria-checked") === "true",
               persona: $("s-persona").value.trim()};
@@ -11546,7 +11552,9 @@ function memCardKey(card){ return card.dataset.db || card.dataset.mem; }
 function memCardCollapsed(card){
   const key = memCardKey(card);
   if (Object.prototype.hasOwnProperty.call(memCollapsed, key)) return !!memCollapsed[key];
-  return !!card.dataset.db;   // debug sections default collapsed; memory sections default expanded
+  // [调试页折叠可配置 2026-11-23] a debug card honours the 调试页卡片默认折叠 setting (settings.debugFold, default true=collapsed); a memory card always defaults to expanded. An explicit user toggle (memCollapsed key) already short-circuited above and wins over both.
+  if (card.dataset.db) return settings.debugFold !== false;   // debug default collapsed (setting)
+  return settings.memFold === true;   // memory default expanded, unless the 记忆页卡片默认折叠 setting is on
 }
 function memCollapseSet(key, collapsed){
   memCollapsed[key] = collapsed;
