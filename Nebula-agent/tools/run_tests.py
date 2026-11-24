@@ -239,6 +239,7 @@ SUITES = [
 
     "tests/test_card_guard_no_autodrive.mjs",   # 2026-10-23: decision card this turn -> never auto-driven (waiting for the human pick); red/blue never run
     "tests/test_arc_scrolltop_autoexpand.mjs",   # 2026-11-11: scroll-top auto-expand static lock (root=#chat-scroll load-bearing+hit calls autoExpandCard+reverse differential proves the lock is not decorative)
+    "tests/test_scroll_catchup_jsdom.mjs",   # 2026-11-27 ROOT-CAUSE: long-history profile parked mid-list (normal window won't scroll to bottom; private/cleared fine). renderChat's sync scrollDown(true) runs BEFORE lazy images (loading=lazy) + IO auto-expanded archive cards grow the transcript from under it. Fix: a ResizeObserver in setupAutoScroll re-sticks to bottom ONLY while streamingFollow AND #chat grew >4px. Deterministic body-extract gate (jsdom ships no ResizeObserver, app guards with typeof): T1 following+grow->restick; T2 guard LOAD-BEARING (scrolled-up reader NOT yanked); T3 4px noise band; T4 no-grow; D1/D2 decoy strips each guard -> its case flips red. node+new Function, no jsdom.
     "tests/test_arc_card_single_mount.mjs",   # 2026-11-11: single-card mount static lock (gate keeps ONLY st-msg--system compaction-summary; reverse differential proves it is not decorative -> triple-card fix)
     "tests/test_arc_content_system_mount.mjs",   # 2026-11-11 C-fix lock: content-only system block renders VISIBLE text (answerSpec m.text||m.content) + pointer gate drops workspace hard-cond; each POSITIVE paired with a reverse differential proving it is load-bearing
 

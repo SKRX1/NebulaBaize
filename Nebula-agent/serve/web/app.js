@@ -4576,7 +4576,24 @@ function settleBottom() {
     streamingFollow = nearBottom();             // back to bottom -> resume; scrolled up -> pause
     btn.hidden = streamingFollow;               // show the pill only while paused
   });
-  btn.onclick = () => { streamingFollow = true; scrollDown(true); btn.hidden = true; };
+  // [boot bottom-catch-up 2026-11-24] renderChat's synchronous scrollDown(true) runs BEFORE the
+  // transcript finishes growing from under it: lazy images (loading="lazy", mdImageTag) and the IO-
+  // auto-expanded archive cards (autoExpandCard, body.hidden=false) both push content DOWN after the
+  // jump, so a long-history profile parks the view mid-list while a clean (private / cleared) profile
+  // is fine -- the "normal window won't scroll to the bottom" report. Re-stick whenever #chat grows
+  // from under the pinned bottom, but ONLY while the user is still following (streamingFollow); once
+  // they scroll up to read history the observer leaves them alone. Guarded so jsdom (no
+  // ResizeObserver) degrades to a no-op, same policy as revealBlock.
+  if (typeof ResizeObserver !== "undefined") {
+    const chat = $("chat");
+    let lastH = chat ? chat.getBoundingClientRect().height : 0;
+    const ro = new ResizeObserver(() => {
+      const h = chat ? chat.getBoundingClientRect().height : 0;
+      if (h > lastH + 4 && streamingFollow) s.scrollTop = s.scrollHeight;   // content grew under us while following -> re-stick
+      lastH = h;
+    });
+    if (chat) ro.observe(chat);
+  }
 })();
 
 $("chat").addEventListener("click", (e) => {
@@ -6750,6 +6767,12 @@ function sparkToPush(s) {
 }
 // Send arbitrary text as a user message into the current chat (shared by spark exec).
 // When sparkId is given, the turn's outcome is written back to that spark afterwards.
+// A spark push switches the chat view from hidden->visible (executeSpark's showTab("chat")) right
+// before it streams, and a mid-stream revealNode() can pull the view UP while a long thinking/tool
+// block grows. The finish only hard-snaps when streamingFollow is still true (settleBottom, 4568).
+// When the turn was started BY A SPARK PUSH we force a plain scroll-to-bottom at the finish so the
+// user always lands on the newest content. Scoped to this path ONLY -- a normal send() never sets it.
+let _sparkPushScroll = false;
 async function sendUserMessage(text, sparkId, images) {
   if (busy) return false;
   text = (text || "").trim();
@@ -6757,6 +6780,7 @@ async function sendUserMessage(text, sparkId, images) {
   if (!text && !imgs.length) return false;
   messages.push({ role: "user", text, images: imgs, files: [], time: Date.now() });
   ceSetText($("input"), "");
+  _sparkPushScroll = true;   // mark: this turn came from a spark push -> jump to the real bottom at its end
   await streamAssistant();
   if (sparkId) await markSparkExecuted(sparkId);
   return true;
@@ -8396,6 +8420,7 @@ async function streamAssistant(targetSession = null) {
   if (ran) m.meta = `${m.meta ? `${m.meta} · ` : ""}${t("chat.toolcalls", {n: ran})}`;
   if (m.limit) m.meta = `${m.meta ? `${m.meta} · ` : ""}${t("chat.toollimit", {n: m.limit})}`;
   const _ownerSid = busy.sessionId, _origin = busy.origin;
+  const _sparkJump = _sparkPushScroll; _sparkPushScroll = false;   // consume+reset once per finished turn
   let _xowner = null;   // cross-session finalize: the originating session the resume chain must land back on
   busy = null;
   setBusy(false);
@@ -8424,7 +8449,8 @@ async function streamAssistant(targetSession = null) {
     renderChat();
   } else {
     saveChat();
-    settleBottom();
+    if (_sparkJump) scrollDown(true);   // spark push: always reveal the newest content, even if the view was just made visible / pulled up mid-stream
+    else settleBottom();
   }
   renderSessions();   // the running badge goes out (either path)            // the turn just added the stats footer + next-step chips: keep them above the composer
   _dbg.turn = null;          // Step1-F: this turn's capture window is closed; later errors aren't attributed to it
