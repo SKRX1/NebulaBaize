@@ -418,6 +418,30 @@ ls-remote 命中 tag -l；bundle `strata-bundle-20261125-143554` 已含 -l，E/F
 git tag -a v-baseline-2026-11-25-l 5f136f1a2c24ea90725827726731ccb9e4115510 -m "baseline: lock rollback point at 5f136f1 (second back-end extraction: serve/approval.py family); full regression ALL GREEN"
 ```
 
+## 2026-11-25 系列（续）：当前最新回滚点升级为 m（后端模块化第三步：serve/conv_cache.py + bump 0.1.1-rc.1，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-m`，指向 commit `be31910`（`feat(serve): extract conv_cache family
+into serve/conv_cache.py + bump 0.1.1-rc.1`）：把 serve/server.py 里彼此零耦合的「会话缓存日志读取」一族
+（`ConvCacheLog` 引擎 stderr 日志读取器 + `conversation_cache_view` Monitor 卡片组装）整搬进新模块
+`serve/conv_cache.py`，仅依赖 stdlib os/re/time、无 server 全局；调用点保持原名经 try/except import 兜回，
+无文本正则抓取源牵连（引用仅 server.py 两处调用点）；test_pure_modules.py 加第 14 个纯模块（2 个
+load-bearing 测试）。同轮把 [Unreleased] 已验证内容固化进 CHANGELOG 新段 [0.1.1-rc.1] - 2026-11-25，并同步
+bump VERSION 0.1.0 -> 0.1.1-rc.1（后端 /api/version 单源读 VERSION）与 index.html 静态兜底角标。本轮实测
+全套回归 ALL GREEN。这是抽离链后端 server.py 的第三个命名回滚点（继 -k tokenizer、-l approval 之后）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-m | `be319105105fb8ecdcdca802df8d41a9e16d5a76` | feat(serve): conv_cache 族抽离 + bump 0.1.1-rc.1（后端模块化第三步；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-m，main 0 0 同步，
+ls-remote 命中 tag -m；bundle `strata-bundle-20261125-150412` 已含 -m，E/F 双盘 clone 演练复现）。
+
+### 重建命令（如需精确恢复命名回滚点 m）
+
+```bat
+git tag -a v-baseline-2026-11-25-m be319105105fb8ecdcdca802df8d41a9e16d5a76 -m "baseline: lock rollback point at be31910 (3rd back-end extraction: serve/conv_cache.py; bump VERSION+CHANGELOG to 0.1.1-rc.1); full regression ALL GREEN"
+```
+
 ### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。

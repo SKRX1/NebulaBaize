@@ -191,3 +191,31 @@ git tag -a v-baseline-2026-11-25-k f4f7d4d753f6ba1be6aa9964c7fff5ca15b070eb -m "
 git tag -a v-baseline-2026-11-25-l 5f136f1a2c24ea90725827726731ccb9e4115510 -m "baseline: lock rollback point at 5f136f1 (second back-end extraction: serve/approval.py family); full regression ALL GREEN"
 ```
 
+
+## 2026-11-25 series (cont.): current rollback point upgraded to m (3rd back-end extraction: serve/conv_cache.py + bump 0.1.1-rc.1, all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-m`, pointing at commit `be31910`
+(`feat(serve): extract conv_cache family into serve/conv_cache.py + bump 0.1.1-rc.1`): the mutually decoupled
+*conversation-cache log reader* family (`ConvCacheLog`, the engine-stderr log reader + `conversation_cache_view`,
+the Monitor card assembler) lifted whole into a new module `serve/conv_cache.py` — stdlib `os`/`re`/`time` only, no
+server globals; call sites keep their original names via a try/except import, no textual-regex capture source was
+involved (only two call sites in server.py); test_pure_modules.py gained its 14th module (2 load-bearing tests).
+The same round sealed the verified [Unreleased] content into a new CHANGELOG section [0.1.1-rc.1] - 2026-11-25 and
+bumped VERSION 0.1.0 -> 0.1.1-rc.1 (the back-end /api/version single-sources the VERSION file) plus the index.html
+static fallback badge. Full regression measured ALL GREEN. This is the third back-end extraction in the chain
+(after -k tokenizer, -l approval).
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-m | `be319105105fb8ecdcdca802df8d41a9e16d5a76` | feat(serve): conv_cache family extraction + bump 0.1.1-rc.1 (3rd back-end step; full regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + push origin v-baseline-2026-11-25-m,
+main 0 0 synced, ls-remote hits tag -m; bundle `strata-bundle-20261125-150412` already contains -m, E/F dual-drive
+clone-rehearsal reproduced).
+
+### Rebuild command (to restore named rollback point m)
+
+```bat
+git tag -a v-baseline-2026-11-25-m be319105105fb8ecdcdca802df8d41a9e16d5a76 -m "baseline: lock rollback point at be31910 (3rd back-end extraction: serve/conv_cache.py; bump VERSION+CHANGELOG to 0.1.1-rc.1); full regression ALL GREEN"
+```
+
