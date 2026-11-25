@@ -288,3 +288,32 @@ clone-rehearsal reproduced).
 git tag -a v-baseline-2026-11-25-o a6afc2a6ee1e8ea07b5740d77814a4044d9411b6 -m "baseline: lock rollback point at a6afc2a (5th back-end extraction: serve/exceptions.py engine/session exception hierarchy; full regression ALL GREEN)"
 ```
 
+
+## 2026-11-25 series (cont.): current rollback point upgraded to p (front-end chain new round serve/web/app_utils.js splitPath + back-end wrap-up doc, all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-p`, pointing at commit `58d0955` (`feat(web): extract
+splitPath into app_utils.js`): after the back-end chain concluded naturally, the extraction turned to the front-end
+`app.js` (an 11,935-line monolith) and, under the same discipline, surfaced the zero-dependency cohesive leaf
+`splitPath` (splits an absolute path into clickable breadcrumb segments, Windows-flavoured: C:->C:\ drive root, a
+leading / is root-relative) — it belongs to the same *path-handling* family as the existing firstPath already in
+app_utils.js and was lifted whole into `app_utils.js`. It references only its argument + String/Array/RegExp builtins,
+zero app.js globals, zero DOM; referenced in exactly two places in app.js with no textual-capture source, and the call
+site keeps its original name. Blast radius: test_app_utils_contract.mjs EXPORTS gains splitPath, test_app_utils_jsdom.mjs
+gains a behaviour gate, and test_workspace_picker.mjs merges app_utils.js + app.js into one win.eval scope. This round
+also registered the back-end modularization wrap-up (CHANGELOG) + the ledger top overview (o→p). Full regression
+measured ALL GREEN. This is the first rollback point of the front-end chain's new round after the spark family pause.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-p | `58d0955c379e8fc944b1b0372c91cb2294d21d09` | feat(web): splitPath extraction into app_utils.js (front-end chain new round + back-end wrap-up doc; full regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + push origin v-baseline-2026-11-25-p, main 0 0
+synced, ls-remote hits tag -p; bundle `strata-bundle-20261125-164121` already contains -p, E/F dual-drive clone-rehearsal
+reproduced, keep-14 pruned).
+
+### Rebuild command (to restore named rollback point p)
+
+```bat
+git tag -a v-baseline-2026-11-25-p 58d0955c379e8fc944b1b0372c91cb2294d21d09 -m "baseline: lock rollback point at 58d0955 (front-end chain new round: splitPath extracted into app_utils.js; back-end modularization wrap-up doc; full regression ALL GREEN)"
+```
+

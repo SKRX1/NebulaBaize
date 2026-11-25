@@ -9,10 +9,10 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-25-o`（commit `a6afc2a6ee1e8ea07b5740d77814a4044d9411b6`，后端模块化第五步 `serve/exceptions.py`
-> 引擎/会话异常层级抽离，全套回归 ALL GREEN）。下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，
-> 是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n… 各为其当时最新基线）；凡与本速览
-> 不一致，一律以本节（最新 = o）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-25-p`（commit `58d0955c379e8fc944b1b0372c91cb2294d21d09`，前端续抽链新一轮 `splitPath` 抽离进 `app_utils.js`，
+> 并登记后端模块化收官小结，全套回归 ALL GREEN）。下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，
+> 是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n、11-25-o… 各为其当时最新基线）；
+> 凡与本速览不一致，一律以本节（最新 = p）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -501,7 +501,30 @@ ls-remote 命中 tag -o；bundle `strata-bundle-20261125-160340` 已含 -o，E/F
 git tag -a v-baseline-2026-11-25-o a6afc2a6ee1e8ea07b5740d77814a4044d9411b6 -m "baseline: lock rollback point at a6afc2a (5th back-end extraction: serve/exceptions.py engine/session exception hierarchy; full regression ALL GREEN)"
 ```
 
-### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
+## 2026-11-25 系列（续）：当前最新回滚点升级为 p（前端续抽链新一轮 serve/web/app_utils.js splitPath + 后端收官文档，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-p`，指向 commit `58d0955`（`feat(web): extract splitPath into app_utils.js`）：
+后端续抽链自然收尾后转前端 `app.js`（11,935 行单体）开新一轮，按同纪律扫出零依赖内聚纯叶子 `splitPath`（把绝对路径
+拆成可点击面包屑段，Windows 风味 C:→C:\ 盘符根、前导 / → 根相对），与 app_utils.js 既有的 firstPath 同属「路径处理」
+族，整搬进 `app_utils.js`。只引用参数 + String/Array/RegExp 内建、零 app.js 全局、零 DOM；全仓仅 app.js 两处引用、无
+测试文本抓源，调用点保持原名。连带 test_app_utils_contract.mjs EXPORTS 加 splitPath、test_app_utils_jsdom.mjs 加行为门禁、
+test_workspace_picker.mjs boot 链合并 app_utils.js+app.js 同作用域。同轮登记后端模块化收官小结（CHANGELOG）+ 账本顶栏
+速览（o→p）。本轮实测全套回归 ALL GREEN。这是前端续抽链 spark 族停滞后新一轮的首个回滚点。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-p | `58d0955c379e8fc944b1b0372c91cb2294d21d09` | feat(web): splitPath 抽离进 app_utils.js（前端续抽链新一轮 + 后端收官文档；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-p，main 0 0 同步，
+ls-remote 命中 tag -p；bundle `strata-bundle-20261125-164121` 已含 -p，E/F 双盘 clone 演练复现，keep-14 已裁剪）。
+
+### 重建命令（如需精确恢复命名回滚点 p）
+
+```bat
+git tag -a v-baseline-2026-11-25-p 58d0955c379e8fc944b1b0372c91cb2294d21d09 -m "baseline: lock rollback point at 58d0955 (front-end chain new round: splitPath extracted into app_utils.js; back-end modularization wrap-up doc; full regression ALL GREEN)"
+```
+
+### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 34）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。
 加载序铁律：index.html 必须先 `<script src="web/app_utils.js">` 再 `web/app.js`，靠 app_utils 先加载把下列符号暴露为全局供 app.js 调用点使用。
@@ -535,4 +558,12 @@ git tag -a v-baseline-2026-11-25-o a6afc2a6ee1e8ea07b5740d77814a4044d9411b6 -m "
 | 25 | `computeWaterfall` | 流式/会话记录 |
 | 26 | `nebTaskFromTool` | 工具/任务名解析 |
 | 27 | `inflightToolName` | 工具/任务名解析 |
+| 28 | `mdKindOf` | markdown 渲染（按 url 判 kind） |
+| 29 | `mdImageTag` | markdown 渲染（图片标签构造） |
+| 30 | `buildCtxArr` | 上下文压缩（构造压缩输入数组） |
+| 31 | `renderMsgForCompact` | 上下文压缩（逐消息渲染截断） |
+| 32 | `sparkIsExecuted` | spark 执行判定（纯布尔） |
+| 33 | `sparkTimeCompare` | spark 排序（纯比较器） |
+| 34 | `splitPath` | 路径/作用域（本轮：app.js → app_utils.js） |
+
 
