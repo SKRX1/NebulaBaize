@@ -43,6 +43,7 @@ import sys
 import threading
 import time
 import uuid
+from email.utils import formatdate, parsedate_to_datetime
 from concurrent import futures
 
 # Serializes the per-turn judge's append to judge_stream.jsonl so concurrent turns
@@ -1712,11 +1713,57 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._json(500, {"error": {"type": "server_error", "message": str(e)}})
             return
 
+        # Cache validation (2026-11-26): Last-Modified + ETag so a changed app.js/app.css is
+        # picked up on a plain reload -- no hard-refresh dance after deploying frontend edits.
+        # no-cache keeps the browser revalidating every load; the validators below make an
+        # unchanged file answer 304 (a few bytes) instead of re-downloading the whole body.
+        try:
+            st = filepath.stat()
+        except OSError as e:
+            self._json(500, {"error": {"type": "server_error", "message": str(e)}})
+            return
+        etag = '"%x-%x"' % (st.st_size, st.st_mtime_ns)
+        last_modified = formatdate(int(st.st_mtime), usegmt=True)
+
+        def _not_modified() -> bool:
+            inm = (self.headers.get("If-None-Match") or "").strip()
+            if inm:
+                if inm == "*":
+                    return True
+                for token in inm.split(","):
+                    token = token.strip()
+                    if token.startswith("W/"):
+                        token = token[2:]
+                    if token == etag or ("W/" + token) == etag:
+                        return True
+                return False                       # a present ETag wins over If-Modified-Since (RFC 7232)
+            ims = (self.headers.get("If-Modified-Since") or "").strip()
+            if ims:
+                try:
+                    since = parsedate_to_datetime(ims)
+                except (TypeError, ValueError):
+                    return False                   # a junk date header: answer the full body
+                import datetime as _dt
+                mtime = _dt.datetime.fromtimestamp(int(st.st_mtime), _dt.timezone.utc)
+                return mtime <= since
+            return False
+
+        if _not_modified():
+            self.send_response(304)
+            self._cors()
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", last_modified)
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            return
+
         self.send_response(200)
         self._cors()
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("ETag", etag)
+        self.send_header("Last-Modified", last_modified)
         self.end_headers()
         self.wfile.write(body)
 

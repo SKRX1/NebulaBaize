@@ -191,6 +191,36 @@ def main():
         assert wr["listing"] is None and wr["drives"], "no path must return drive roots"
         print("gateway /workspace/list: existing folder + roots OK")
 
+        # 3i) Static cache validation (2026-11-26): a changed app.js/app.css must be picked up
+        #     on a plain reload -- Last-Modified + ETag make revalidation cost a 304, not a
+        #     full re-download, and no hard-refresh dance after deploying frontend edits.
+        import urllib.error as _ue
+        from email.utils import formatdate as _fd
+
+        def _static(url, headers=None):
+            rq = urllib.request.Request(url, headers=headers or {})
+            try:
+                rp = urllib.request.urlopen(rq, timeout=5)
+                return rp.status, dict(rp.headers), rp.read()
+            except _ue.HTTPError as er:
+                return er.code, dict(er.headers), er.read()
+
+        st1, hd1, body1 = _static(f"http://127.0.0.1:{GW_PORT}/app.js")
+        assert st1 == 200 and body1, "app.js must serve 200 with a body"
+        assert hd1.get("ETag"), "200 must carry an ETag"
+        assert hd1.get("Last-Modified"), "200 must carry Last-Modified"
+        assert (hd1.get("Cache-Control") or "").lower() == "no-cache", "must keep revalidating"
+        st2, hd2, body2 = _static(f"http://127.0.0.1:{GW_PORT}/app.js", {"If-None-Match": hd1["ETag"]})
+        assert st2 == 304 and not body2, "a matching ETag must answer 304 with no body"
+        assert hd2.get("ETag") == hd1["ETag"], "304 must echo the ETag"
+        st3, _, _ = _static(f"http://127.0.0.1:{GW_PORT}/app.js", {"If-Modified-Since": _fd(time.time() + 3600, usegmt=True)})
+        assert st3 == 304, "a future If-Modified-Since must answer 304"
+        st4, _, body4 = _static(f"http://127.0.0.1:{GW_PORT}/app.js", {"If-Modified-Since": _fd(time.time() - 86400 * 7, usegmt=True)})
+        assert st4 == 200 and body4 == body1, "a stale If-Modified-Since must answer the full body"
+        st5, _, body5 = _static(f"http://127.0.0.1:{GW_PORT}/app.js", {"If-None-Match": '"deadbeef"'})
+        assert st5 == 200 and body5 == body1, "a non-matching ETag must answer the full body"
+        print("gateway static cache: 200 validators + ETag/IMS 304 + stale/junk fallbacks OK")
+
         # 3c) /api/models — the model switcher's contract. Two rules the UI depends on:
         #     a) GET and POST answer the SAME shape, `probe` included. A write that dropped
         #        `probe` blanked the status dot until the next poll ("必须点击才刷新").
