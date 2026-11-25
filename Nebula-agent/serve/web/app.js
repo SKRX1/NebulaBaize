@@ -1207,10 +1207,20 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 }
 
 // ------------------------------------------------------------------ Chat
+// Single source of truth for the two 自主维护记忆 timing fields (min / max / default /
+// floor / range-warning key). DEFAULTS, the module fallbacks, the drawer hydrate,
+// bindNumGuard and collectSettings ALL read from here so index.html and app.js can
+// never drift apart on the numeric range. index.html keeps hardcoded min/max/value
+// purely as a no-JS fallback; boot re-applies these exact values so the live DOM
+// always matches this table (locked by tests/test_mem_field_specs_parity.mjs).
+const MEM_FIELD_SPECS = {
+  memCompactIdleSec:   { inputId: "s-memidle",  warnId: "s-memidle-warn",  min: 0, max: 600, def: 12, floor: 0, rangeKey: "drawer.memidle.range" },
+  memActivityGraceSec: { inputId: "s-memidle2", warnId: "s-memidle2-warn", min: 1, max: 600, def: 6,  floor: 1, rangeKey: "drawer.memidle2.range" }
+};
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, personaTokenWarn: 600, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "你叫星云白泽简称星云，是我创造了你，我是你的主人时空象容，简称时空，我喜欢你叫我主人，你是一个资深的前端和后端开发工程师，回答要简洁，优先给可运行代码。",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autoRulesMemory: true, memCompactIdleSec: 12, memActivityGraceSec: 3, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
+                  autoMemory: false, autoRulesMemory: true, memCompactIdleSec: MEM_FIELD_SPECS.memCompactIdleSec.def, memActivityGraceSec: MEM_FIELD_SPECS.memActivityGraceSec.def, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
                   autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true, defaultsVersion: 1,
                    sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
@@ -5161,7 +5171,7 @@ let pendingCompactionUndo = null;
 // Required quiet stretch before the background merge fires, in SECONDS, user-tunable via the
 // 自主维护记忆 drawer field (settings.memCompactIdleSec). A small module override keeps the jsdom
 // compaction tests instant without touching the user's real setting.
-const MEMCOMPACT_IDLE_DEFAULT_SEC = 12;   // fallback if the setting is missing/invalid
+const MEMCOMPACT_IDLE_DEFAULT_SEC = MEM_FIELD_SPECS.memCompactIdleSec.def;   // fallback if the setting is missing/invalid
 let _memCompactIdleMsOverride = null;     // test seam: a number wins outright
 function setMemCompactIdleMs(ms) { _memCompactIdleMsOverride = (typeof ms === "number" && ms >= 0) ? ms : null; }
 function memCompactIdleMs() {
@@ -5174,7 +5184,7 @@ function memCompactIdleMs() {
 // 自主维护记忆 drawer (settings.memActivityGraceSec), so an owner who wants the tidy to follow
 // them more eagerly can shrink ONLY this knob. Runtime floors it at 1s so it stays strictly
 // above waitIdle's 1s poll step -- otherwise a motion could land between two polls and be missed.
-const MEMACTIVITY_GRACE_DEFAULT_SEC = 3;
+const MEMACTIVITY_GRACE_DEFAULT_SEC = MEM_FIELD_SPECS.memActivityGraceSec.def;
 let _memActivityGraceMsOverride = null;     // test seam: a number wins outright (incl. 0)
 function setMemActivityGraceMs(ms) { _memActivityGraceMsOverride = (typeof ms === "number" && ms >= 0) ? ms : null; }
 function memActivityGraceMs() {
@@ -9551,8 +9561,8 @@ function loadDrawer(s = settings) {
   $("s-recall").setAttribute("aria-checked", String(s.recall !== false));
   $("s-autolearn").setAttribute("aria-checked", String(!!s.autolearn));
   $("s-automemory").setAttribute("aria-checked", String(!!s.autoMemory));
-  $("s-memidle").value = (Number.isFinite(+s.memCompactIdleSec) && +s.memCompactIdleSec >= 0) ? +s.memCompactIdleSec : 12;
-  $("s-memidle2").value = (Number.isFinite(+s.memActivityGraceSec) && +s.memActivityGraceSec >= 1) ? +s.memActivityGraceSec : 3;
+  $("s-memidle").value = (function () { const sp = MEM_FIELD_SPECS.memCompactIdleSec; const v = +s.memCompactIdleSec; return (Number.isFinite(v) && v >= sp.floor) ? v : sp.def; })();
+  $("s-memidle2").value = (function () { const sp = MEM_FIELD_SPECS.memActivityGraceSec; const v = +s.memActivityGraceSec; return (Number.isFinite(v) && v >= sp.floor) ? v : sp.def; })();
   $("s-autorules").setAttribute("aria-checked", String(s.autoRulesMemory !== false));
   $("s-memcompact").setAttribute("aria-checked", String(!!s.memCompactLLM));
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
@@ -9758,6 +9768,7 @@ $("input").addEventListener("compositionstart", markUserActivity);
 // field back to its default so a stray keystroke can never persist an out-of-range setting.
 function bindNumGuard(inputId, warnId, min, max, defVal, warnKey) {
   const inp = $(inputId); if (!inp) return;
+  inp.setAttribute("min", min); inp.setAttribute("max", max);   // DOM min/max follow MEM_FIELD_SPECS (single source)
   const warn = $(warnId);
   inp.addEventListener("blur", function () {
     const v = +inp.value;
@@ -9768,8 +9779,10 @@ function bindNumGuard(inputId, warnId, min, max, defVal, warnKey) {
     } else if (warn) { warn.hidden = true; }
   });
 }
-bindNumGuard("s-memidle",  "s-memidle-warn",  0, 600, 12, "drawer.memidle.range");
-bindNumGuard("s-memidle2", "s-memidle2-warn", 1, 600,  3, "drawer.memidle2.range");
+for (const _mk of Object.keys(MEM_FIELD_SPECS)) {
+  const _sp = MEM_FIELD_SPECS[_mk];
+  bindNumGuard(_sp.inputId, _sp.warnId, _sp.min, _sp.max, _sp.def, _sp.rangeKey);
+}
 $("s-autorules").onclick = () => { const on = $("s-autorules").getAttribute("aria-checked") !== "true"; $("s-autorules").setAttribute("aria-checked", String(on)); settings.autoRulesMemory = on; store.set("sampling", settings); };
 $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked", String($("s-memcompact").getAttribute("aria-checked") !== "true"));
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
@@ -9839,8 +9852,8 @@ $("s-apply").onclick = async () => {
               recall: $("s-recall").getAttribute("aria-checked") === "true",
               autolearn: $("s-autolearn").getAttribute("aria-checked") === "true",
               autoMemory: $("s-automemory").getAttribute("aria-checked") === "true",
-              memCompactIdleSec: (function () { const v = +$("s-memidle").value; return (Number.isFinite(v) && v >= 0 && v <= 600) ? v : 12; })(),
-              memActivityGraceSec: (function () { const v = +$("s-memidle2").value; return (Number.isFinite(v) && v >= 1 && v <= 600) ? v : 3; })(),
+              memCompactIdleSec: (function () { const sp = MEM_FIELD_SPECS.memCompactIdleSec; const v = +$(sp.inputId).value; return (Number.isFinite(v) && v >= sp.min && v <= sp.max) ? v : sp.def; })(),
+              memActivityGraceSec: (function () { const sp = MEM_FIELD_SPECS.memActivityGraceSec; const v = +$(sp.inputId).value; return (Number.isFinite(v) && v >= sp.min && v <= sp.max) ? v : sp.def; })(),
               autoRulesMemory: $("s-autorules").getAttribute("aria-checked") === "true",
               memCompactLLM: $("s-memcompact").getAttribute("aria-checked") === "true",
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",

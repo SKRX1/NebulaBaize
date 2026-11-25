@@ -276,6 +276,14 @@ console.log("\n=== 8.6 the mouse/keyboard debounce window is its own knob, separ
   api.setMemActivityGraceMs(100);
   check("override 100ms wins over settings 30s", api.memActivityGraceMs() === 100, "got " + api.memActivityGraceMs());
   api.setMemActivityGraceMs(-1);           // clear override -> back to the settings-driven value
+
+  // Factory default: with the knob set to its out-of-the-box value (6s) and no override,
+  // the debounce window really is 6000ms -- a mouse/scroll wave keeps the tidy deferred and
+  // it only fires after 6 full seconds of stillness (pairs with the parity gate pinning
+  // MEM_FIELD_SPECS.memActivityGraceSec.def === 6). Removing the spec default -> RED.
+  api.setSettings({ memActivityGraceSec: 6 });
+  check("factory default 6s => 6000ms debounce window", api.memActivityGraceMs() === 6000, "got " + api.memActivityGraceMs());
+  api.setMemActivityGraceMs(-1);
 }
 
 // ================================================================ 9. range guard: blur snaps out-of-range back to default
@@ -296,7 +304,7 @@ console.log("\n=== 9. the two number fields reject out-of-range on blur, snap to
 
   // out-of-range LOW on the debounce field (min 1) -> snaps to 3, reveals its hint.
   B.value = "0"; blur(B);
-  check("s-memidle2 0 (<min1) snaps to default 3", B.value === "3", "got " + B.value);
+  check("s-memidle2 0 (<min1) snaps to default 6", B.value === "6", "got " + B.value);
   check("s-memidle2 0 reveals the range hint", BW.hidden === false && (BW.textContent || "").length > 0, "hidden=" + BW.hidden);
 
   // a NON-INTEGER on the wait field -> also rejected (Number.isInteger gate), snaps to 12.
@@ -317,7 +325,7 @@ console.log("\n=== 9. the two number fields reject out-of-range on blur, snap to
 console.log("\n=== 10. timing feel: a mouse wave keeps it busy; stopping past the debounce window frees it ===");
 {
   // Pin the debounce window small so the wait is observable in real time, but leave it above the
-  // 1s floor by clearing the override and reading the real setting (default 3s -> we instead pin a
+  // 1s floor by clearing the override and reading the real setting (default 6s -> we instead pin a
   // 200ms override purely to keep this test fast; real floor stays 1s in production).
   api.setMemActivityGraceMs(200);
   try { win.document.activeElement && win.document.activeElement.blur(); } catch (e) {}
