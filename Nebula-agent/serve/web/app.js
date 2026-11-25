@@ -1210,7 +1210,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, personaTokenWarn: 600, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "你叫星云白泽简称星云，是我创造了你，我是你的主人时空象容，简称时空，我喜欢你叫我主人，你是一个资深的前端和后端开发工程师，回答要简洁，优先给可运行代码。",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autoRulesMemory: true, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
+                  autoMemory: false, autoRulesMemory: true, memCompactIdleSec: 12, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
                   autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true, defaultsVersion: 1,
                    sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
@@ -5158,18 +5158,43 @@ let pendingCompactionUndo = null;
 // turn for the model. If the session stays busy past MAX_WAIT we give up on THIS
 // pass's LLM merge (the lossless exact-dedup still lands), and the next turn's
 // finalize re-triggers compaction -- nothing is lost, it is merely deferred.
-let MEMCOMPACT_IDLE_MS = 8000;     // required quiet stretch before the merge fires
-// Test seam: shrink the idle window in jsdom so compaction tests don't burn real seconds.
-function setMemCompactIdleMs(ms) { MEMCOMPACT_IDLE_MS = (typeof ms === "number" && ms >= 0) ? ms : 8000; }
+// Required quiet stretch before the background merge fires, in SECONDS, user-tunable via the
+// 自主维护记忆 drawer field (settings.memCompactIdleSec). A small module override keeps the jsdom
+// compaction tests instant without touching the user's real setting.
+const MEMCOMPACT_IDLE_DEFAULT_SEC = 12;   // fallback if the setting is missing/invalid
+let _memCompactIdleMsOverride = null;     // test seam: a number wins outright
+function setMemCompactIdleMs(ms) { _memCompactIdleMsOverride = (typeof ms === "number" && ms >= 0) ? ms : null; }
+function memCompactIdleMs() {
+  if (_memCompactIdleMsOverride != null) return _memCompactIdleMsOverride;
+  const sec = settings && settings.memCompactIdleSec;
+  return (Number.isFinite(sec) && sec >= 0 ? sec : MEMCOMPACT_IDLE_DEFAULT_SEC) * 1000;
+}
 let MEMCOMPACT_MAX_WAIT_MS = 60000; // never hold longer than this; then defer to next turn
 // Test seam: shrink the max-wait cap in jsdom so the busy-defer path can be exercised fast.
 function setMemCompactMaxWaitMs(ms) { MEMCOMPACT_MAX_WAIT_MS = (typeof ms === "number" && ms >= 0) ? ms : 60000; }
+// "Is the user still actively engaged?" -- the composer (#input) being focused with a non-empty
+// draft, OR a keystroke within the last ~3s, both count as busy, so the background merge never
+// fires while the human is mid-thought / mid-typing the next task. This is the signal the plain
+// !!busy check was missing (busy only reflects a live model STREAM, not the reading/thinking gap).
+let lastUserActivityMs = 0;
+function markUserActivity() { lastUserActivityMs = Date.now(); }
+function userIsEngaged() {
+  if (Date.now() - lastUserActivityMs < 3000) return true;          // typed/clicked just now
+  const el = document.activeElement;
+  const input = document.getElementById("input");
+  if (input && el === input) {                                       // focused composer with a draft
+    const txt = (input.textContent || "").trim();
+    if (txt) return true;
+  }
+  return false;
+}
 async function waitIdleForLlmCompact() {
+  const need = memCompactIdleMs();
   let quiet = 0, waited = 0;
   const step = 1000;
   while (true) {
-    const active = !!busy || !!pendingResume;   // a live stream or a queued auto-resume
-    if (!active) { quiet += step; if (quiet >= MEMCOMPACT_IDLE_MS) return true; }
+    const active = !!busy || !!pendingResume || userIsEngaged();   // model stream / queued resume / user engaged
+    if (!active) { quiet += step; if (quiet >= need) return true; }
     else { quiet = 0; }
     await new Promise((res) => setTimeout(res, step));
     waited += step;
@@ -9506,6 +9531,7 @@ function loadDrawer(s = settings) {
   $("s-recall").setAttribute("aria-checked", String(s.recall !== false));
   $("s-autolearn").setAttribute("aria-checked", String(!!s.autolearn));
   $("s-automemory").setAttribute("aria-checked", String(!!s.autoMemory));
+  $("s-memidle").value = (Number.isFinite(+s.memCompactIdleSec) && +s.memCompactIdleSec >= 0) ? +s.memCompactIdleSec : 12;
   $("s-autorules").setAttribute("aria-checked", String(s.autoRulesMemory !== false));
   $("s-memcompact").setAttribute("aria-checked", String(!!s.memCompactLLM));
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
@@ -9694,6 +9720,11 @@ $("s-share").onclick = () => $("s-share").setAttribute("aria-checked", String($(
 $("s-recall").onclick = () => $("s-recall").setAttribute("aria-checked", String($("s-recall").getAttribute("aria-checked") !== "true"));
 $("s-autolearn").onclick = () => $("s-autolearn").setAttribute("aria-checked", String($("s-autolearn").getAttribute("aria-checked") !== "true"));
 $("s-automemory").onclick = () => $("s-automemory").setAttribute("aria-checked", String($("s-automemory").getAttribute("aria-checked") !== "true"));
+// Feed the background-merge idle gate: any real typing in the composer resets its quiet counter,
+// so the idle window measures the human's actual inactivity, not just the absence of a model stream.
+$("input").addEventListener("input", markUserActivity);
+$("input").addEventListener("compositionstart", markUserActivity);
+$("input").addEventListener("keydown", markUserActivity);
 $("s-autorules").onclick = () => { const on = $("s-autorules").getAttribute("aria-checked") !== "true"; $("s-autorules").setAttribute("aria-checked", String(on)); settings.autoRulesMemory = on; store.set("sampling", settings); };
 $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked", String($("s-memcompact").getAttribute("aria-checked") !== "true"));
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
@@ -9763,6 +9794,7 @@ $("s-apply").onclick = async () => {
               recall: $("s-recall").getAttribute("aria-checked") === "true",
               autolearn: $("s-autolearn").getAttribute("aria-checked") === "true",
               autoMemory: $("s-automemory").getAttribute("aria-checked") === "true",
+              memCompactIdleSec: (function () { const v = +$("s-memidle").value; return (Number.isFinite(v) && v >= 0 && v <= 600) ? v : 12; })(),
               autoRulesMemory: $("s-autorules").getAttribute("aria-checked") === "true",
               memCompactLLM: $("s-memcompact").getAttribute("aria-checked") === "true",
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",

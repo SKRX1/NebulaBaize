@@ -78,6 +78,7 @@ appCode += `
   setMemCompactIdleMs,
   setLlmCompactFn, SOFT_BUDGET, getPendingCompactionUndo: () => pendingCompactionUndo,
   setMemCompactMaxWaitMs, setBusy: (v) => { busy = !!v; },
+  userIsEngaged, markUserActivity, memCompactIdleMs,
   getWorkspaceKnowledge: () => workspaceKnowledge, getWorkspaceRules: () => workspaceRules,
 };`;
 win.eval(appCode);
@@ -204,6 +205,34 @@ console.log("\n=== 7. idle-gate: a busy session skips the LLM merge but still de
   const rc = await api.compactMemoryStore("knowledge", "workspace", WS, "", { llm: () => { llmCalls2++; return "m1\nm2"; } });
   check("idle => LLM merge invoked (control)", llmCalls2 === 1, "calls=" + llmCalls2);
   check("idle => flagged as LLM (control)", rc.usedLLM === true);
+}
+
+// ================================================================ 8. USER-ENGAGED gate + settings-driven idle window
+console.log("\n=== 8. the merge is held while the user is engaged; idle window reads settings.memCompactIdleSec ===");
+{
+  const input = win.document.getElementById("input");
+  check("#input composer exists in the page", !!input);
+
+  // (1) engaged: composer focused WITH a draft -> must be treated as busy.
+  input.textContent = "正在打字的新任务";
+  try { input.focus(); } catch (e) {}
+  check("focused composer with a draft => engaged", api.userIsEngaged() === true);
+
+  // (2) NOT engaged: focused but the draft is cleared (and no recent keystroke).
+  input.textContent = "";
+  check("focused composer, empty draft => NOT engaged", api.userIsEngaged() === false);
+
+  // (3) engaged via recency: a fresh markUserActivity() makes the last-3s branch fire.
+  api.markUserActivity();
+  check("markUserActivity() just now => engaged", api.userIsEngaged() === true);
+
+  // (4) settings path: with no test override, the idle window tracks settings.memCompactIdleSec.
+  api.setMemCompactIdleMs(-1);                 // clears the override (setter nulls it for <0)
+  api.setSettings({ memCompactIdleSec: 30 });
+  check("settings.memCompactIdleSec=30 => 30000ms window", api.memCompactIdleMs() === 30000, "got " + api.memCompactIdleMs());
+  api.setSettings({ memCompactIdleSec: 0 });
+  check("settings.memCompactIdleSec=0 => 0ms window (no wait)", api.memCompactIdleMs() === 0, "got " + api.memCompactIdleMs());
+  api.setMemCompactIdleMs(0);                  // restore the fast override for any later section
 }
 
 // ------------------------------------------------------------------ result
