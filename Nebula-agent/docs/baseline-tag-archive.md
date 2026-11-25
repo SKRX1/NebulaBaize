@@ -372,6 +372,29 @@ git tag -a v-baseline-2026-11-25-e c6568a9d72fb57a70dafdea85ca4a6608c97f820 -m "
 git tag -a v-baseline-2026-11-25-g 704c3d0b5c8e506247c338860ea80e68cb621212 -m "baseline: stream-record duo extracted to app_utils.js; full regression ALL GREEN"
 ```
 
+## 2026-11-25 系列（续）：当前最新回滚点升级为 k（后端模块化第一步：serve/tokenizer.py，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-k`，指向 commit `f4f7d4d75`（`refactor(serve): extract tokenizer
+family out of server.py into serve/tokenizer.py`）：把 7,290 行单体 `serve/server.py` 里彼此零耦合的「增量解码
++ 停止串」一族（ByteTokenizer / Detokenizer / stop_strings + OPENAI_MAX_STOP / StopMatcher）整搬进新模块
+`serve/tokenizer.py`，仅依赖 stdlib codecs、无 server 全局；调用点保持原名经 try/except import 兜回。随抽离
+在 `test_pure_modules.py` 加第 12 个纯模块（3 个 load-bearing 测试）并在 CHANGELOG 补 Changed 条目（中英）。
+本轮实测全套回归 ALL GREEN。这是抽离链自 app_utils（前端 app.js）转向**后端 server.py** 的第一个命名回滚点。
+取代此前未及逐一登记的本日历史点（-h v0.1.0 角标、-i mdmedia+compact 链、-j spark 族）成为当前最新回滚点。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-k | `f4f7d4d753f6ba1be6aa9964c7fff5ca15b070eb` | refactor(serve): tokenizer 族抽离（后端模块化第一步；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-k，main 0 0 同步，
+ls-remote 命中 tag -k；bundle `strata-bundle-20261125-135313` 已含 -k，E/F 双盘 clone 演练复现）。
+
+### 重建命令（如需精确恢复命名回滚点 k）
+
+```bat
+git tag -a v-baseline-2026-11-25-k f4f7d4d753f6ba1be6aa9964c7fff5ca15b070eb -m "baseline: lock rollback point at f4f7d4d (first back-end extraction: serve/tokenizer.py family); full regression ALL GREEN"
+```
+
 ### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。
