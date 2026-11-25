@@ -442,6 +442,32 @@ ls-remote 命中 tag -m；bundle `strata-bundle-20261125-150412` 已含 -m，E/F
 git tag -a v-baseline-2026-11-25-m be319105105fb8ecdcdca802df8d41a9e16d5a76 -m "baseline: lock rollback point at be31910 (3rd back-end extraction: serve/conv_cache.py; bump VERSION+CHANGELOG to 0.1.1-rc.1); full regression ALL GREEN"
 ```
 
+## 2026-11-25 系列（续）：当前最新回滚点升级为 n（后端模块化第四步 serve/engine_diag.py + 模块化文档 + 固化正式发版 0.1.1，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-n`，指向 commit `29e1f10`（release 0.1.1）：本轮含两笔——
+`23c1588` 把 serve/server.py 里彼此零耦合的「引擎退出状态/启动日志诊断」一族（`start_failure_hint` /
+`engine_exit_words` / `engine_crashed` / `start_log_marks` 四纯函数 + `DRAFT_HEAD_FAIL` / `DRAFT_HEAD_HINT` /
+`_WIN_CRASH` / `TRANSIENT_START_MARKS` 四常量连搬）整搬进新模块 `serve/engine_diag.py`（仅 stdlib os/signal，
+无 server 全局；try/except import 兜回），test_pure_modules.py 加第 15 个纯模块，并新建中英对照文档
+`docs/backend-modularization(.en).md` 登记抽离链全量进度；`29e1f10` 把经全套回归反复 ALL GREEN 验证稳定的
+0.1.1-rc.1 去 -rc 后缀固化为正式发版 0.1.1（VERSION + index.html 角标 + CHANGELOG 段头三处同步）并打 v0.1.1
+版本 tag 触发 build-release.yml CI。`cpu_isa_words` / `start_exit_note` / `START_RETRIES` / `transient_start_failure`
+（启动重试与 CPU 指令集探测＝异质职责）留在 server.py。本轮实测全套回归 ALL GREEN。这是抽离链后端 server.py
+的第四个命名回滚点（继 -k tokenizer、-l approval、-m conv_cache 之后），也是第一个正式发版点。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-n | `29e1f10b60d7ec9e44ca1d11d03eb5ef945a3882` | release 0.1.1（engine_diag 抽离 + 模块化文档 + 去 RC 固化正式发版；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v0.1.1 + push origin v-baseline-2026-11-25-n，
+main 0 0 同步，ls-remote 命中 tag -n；bundle `strata-bundle-20261125-153044` 已含 -n，E/F 双盘 clone 演练复现）。
+
+### 重建命令（如需精确恢复命名回滚点 n）
+
+```bat
+git tag -a v-baseline-2026-11-25-n 29e1f10b60d7ec9e44ca1d11d03eb5ef945a3882 -m "baseline: lock rollback point at 29e1f10 (4th back-end extraction serve/engine_diag.py + backend-modularization doc + cut release 0.1.1 de-RC from 0.1.1-rc.1); full regression ALL GREEN"
+```
+
 ### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。

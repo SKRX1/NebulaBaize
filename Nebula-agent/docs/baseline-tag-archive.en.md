@@ -219,3 +219,33 @@ clone-rehearsal reproduced).
 git tag -a v-baseline-2026-11-25-m be319105105fb8ecdcdca802df8d41a9e16d5a76 -m "baseline: lock rollback point at be31910 (3rd back-end extraction: serve/conv_cache.py; bump VERSION+CHANGELOG to 0.1.1-rc.1); full regression ALL GREEN"
 ```
 
+
+## 2026-11-25 series (cont.): current rollback point upgraded to n (4th back-end extraction serve/engine_diag.py + modularization doc + cut release 0.1.1, all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-n`, pointing at commit `29e1f10` (release 0.1.1). It
+carries two commits: `23c1588` lifted the mutually decoupled *engine exit-status / start-log diagnostics* family
+(`start_failure_hint` / `engine_exit_words` / `engine_crashed` / `start_log_marks` — four pure functions — plus the
+four constants they read: `DRAFT_HEAD_FAIL` / `DRAFT_HEAD_HINT` / `_WIN_CRASH` / `TRANSIENT_START_MARKS`) whole into
+a new module `serve/engine_diag.py` (stdlib os/signal only, no server globals; try/except import shim); test_pure_
+modules.py gained its 15th module, and a bilingual doc `docs/backend-modularization(.en).md` was created logging the
+full extraction-chain progress. `29e1f10` de-RC'd the 0.1.1-rc.1 candidate — repeatedly ALL GREEN across the full
+regression — into the official release 0.1.1 (VERSION + the index.html badge + the CHANGELOG section header, three
+places in step) and cut the v0.1.1 release tag to trigger build-release.yml CI. `cpu_isa_words` / `start_exit_note` /
+`START_RETRIES` / `transient_start_failure` (start-retry + CPU-instruction-set probe, a heterogeneous responsibility)
+stay in server.py. Full regression measured ALL GREEN. This is the fourth back-end extraction rollback point in the
+chain (after -k tokenizer, -l approval, -m conv_cache) and the first official release point.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-n | `29e1f10b60d7ec9e44ca1d11d03eb5ef945a3882` | release 0.1.1 (engine_diag extraction + modularization doc + de-RC official release; full regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + push origin v0.1.1 + push origin
+v-baseline-2026-11-25-n, main 0 0 synced, ls-remote hits tag -n; bundle `strata-bundle-20261125-153044` already
+contains -n, E/F dual-drive clone-rehearsal reproduced).
+
+### Rebuild command (to restore named rollback point n)
+
+```bat
+git tag -a v-baseline-2026-11-25-n 29e1f10b60d7ec9e44ca1d11d03eb5ef945a3882 -m "baseline: lock rollback point at 29e1f10 (4th back-end extraction serve/engine_diag.py + backend-modularization doc + cut release 0.1.1 de-RC from 0.1.1-rc.1); full regression ALL GREEN"
+```
+
