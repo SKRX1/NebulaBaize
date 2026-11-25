@@ -9,10 +9,11 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-c`（commit `9d4699eed6a4fac7ffc16a016e801e4af4b6146b`，前端续抽链第四轮 memory
-> 文本度量族（`_memEstTokens`/`_memEntryCount`）抽离进 `app_utils.js`，累计 **42 符号 / 14 族**里程碑，全套回归 --full ALL GREEN）。
+> 当前最新回滚点 = `v-baseline-2026-11-26-d`（commit `505406e6741ce425202c43db7d32dcf4bbddac90`，后端续抽链第 6 步：`sampling_defaults_from_config`+`SAMPLING_ALIASES` 搬入
+> `serve/req_args`（byte-for-byte identical + load-bearing 差分测试）+ 修 schedule 契约测试 flaky（有界轮询）+ app_utils 42 符号/14 族自述索引文档，
+> 全套回归 --full ALL GREEN）。
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、
-> 11-25-n、11-25-o、11-25-p、11-25-q、11-26-a、11-26-b、11-26-c… 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-c）为准。
+> 11-25-n、11-25-o、11-25-p、11-25-q、11-26-a、11-26-b、11-26-c、11-26-d… 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-d）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -598,4 +599,19 @@ git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "
 | 41 | `_memEstTokens` | 记忆文本度量（本轮：app.js → app_utils.js） |
 | 42 | `_memEntryCount` | 记忆文本度量（本轮：app.js → app_utils.js） |
 
+## 2026-11-26 系列（续）：当前最新回滚点升级为 d（后端续抽链第 6 步 + flaky 修复 + app_utils 自述索引，全套绿）
 
+主人拍板：push 本轮 1 个 commit 上 origin（behind=0 快进直推坐实 0 0），再给 HEAD 打命名回滚点 `-d`（annotated）。
+`-d` 为 annotated tag，message 只写实跑验证过的事实（全套 --full ALL GREEN 含 post-green 钩子）。本轮 commit `505406e`：
+
+| tag | commit | 内容 |
+|---|---|---|
+| v-baseline-2026-11-26-d | `505406e6741ce425202c43db7d32dcf4bbddac90` | refactor(serve): sampling 块抽入 req_args（byte-identical + 差分测试）+ 修 schedule-contract flaky + app_utils 自述索引（全套回归 ALL GREEN） |
+
+**是否已在远端**：已在远端（本轮 push origin main 后单独 `git push origin v-baseline-2026-11-26-d` 推到远端，main 0 0 同步，ls-remote 命中 tag -d 解引用 == 505406e6741ce425202c43db7d32dcf4bbddac90）。
+
+### 重建命令（如需精确恢复命名回滚点 d）
+
+```bash
+git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed (bounded poll), app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN (incl post-green hooks)."
+```
