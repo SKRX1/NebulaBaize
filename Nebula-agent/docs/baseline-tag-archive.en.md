@@ -155,3 +155,39 @@ git tag -a v-baseline-2026-11-19-a bb06f16d380132ee820ecacc90f6a688b3958bee -m "
 git tag -a v-baseline-2026-11-20-a 47d1f0fb6ed1206677e7059dde57330e03cdee11 -m "feat(网关)：/api/version 路由补进 http_server 精确路由链（8099 重启后 tooltip 端到端生效）"
 git tag -a v-baseline-2026-11-21-h 93e4727c6b2eb41b5a24de5735ecefce2427d334 -m "chore: 版本号 0.1.00 → 0.1.0（VERSION 源 + 前端静态兜底角标）"
 ```
+
+## 2026-11-25 series (cont.): current rollback point upgraded to k then l (back-end modularization, all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-k`, pointing at commit `f4f7d4d75`
+(`refactor(serve): extract tokenizer family out of server.py into serve/tokenizer.py`): the mutually decoupled
+*incremental-decode + stop-string* family (ByteTokenizer / Detokenizer / stop_strings + OPENAI_MAX_STOP /
+StopMatcher) lifted whole out of the 7,290-line `serve/server.py` monolith into a new module
+`serve/tokenizer.py` — stdlib `codecs` only, no server globals; call sites keep their original names via a
+try/except import. `test_pure_modules.py` gained its 12th module (3 load-bearing tests); CHANGELOG gained a
+Changed entry (zh+en). Full regression measured ALL GREEN. This was the first back-end extraction in the chain.
+
+Then this round cut named rollback point `v-baseline-2026-11-25-l`, pointing at commit `5f136f1a2`
+(`refactor(serve): extract approval family out of server.py into serve/approval.py`): the mutually decoupled
+*tool-approval policy* family (_DESTRUCTIVE_SHELL / _DESTRUCTIVE_SYMBOLS / _APPROVAL_TOOLS / _needs_approval /
+_auto_deny / _approval_desc) lifted whole into a new module `serve/approval.py` — stdlib `json` + `re` only, no
+server globals; `_PERM_TIERS` stays, call sites keep their original names via a try/except import. The textual
+lockstep in tests/test_registry_server.py (approval.yaml ↔ frozenset) had its capture source moved from
+server.py to approval.py (load-bearing); test_pure_modules.py gained its 13th module (3 load-bearing tests).
+Full regression measured ALL GREEN. This is the second back-end extraction in the chain (after -k tokenizer).
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-k | `f4f7d4d753f6ba1be6aa9964c7fff5ca15b070eb` | refactor(serve): tokenizer family extraction (1st back-end step; full regression ALL GREEN; confirmed on remote via ls-remote) |
+| v-baseline-2026-11-25-l | `5f136f1a2c24ea90725827726731ccb9e4115510` | refactor(serve): approval family extraction (2nd back-end step; full regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: both are already on the remote (this round pushed origin main + each tag individually, main
+0 0 synced, ls-remote hits both tags; bundle `strata-bundle-20261125-143554` already contains -l, E/F dual-drive
+clone-rehearsal reproduced; the earlier bundle `strata-bundle-20261125-135313` contained -k).
+
+### Rebuild commands (to restore named rollback points k / l)
+
+```bat
+git tag -a v-baseline-2026-11-25-k f4f7d4d753f6ba1be6aa9964c7fff5ca15b070eb -m "baseline: lock rollback point at f4f7d4d (first back-end extraction: serve/tokenizer.py family); full regression ALL GREEN"
+git tag -a v-baseline-2026-11-25-l 5f136f1a2c24ea90725827726731ccb9e4115510 -m "baseline: lock rollback point at 5f136f1 (second back-end extraction: serve/approval.py family); full regression ALL GREEN"
+```
+

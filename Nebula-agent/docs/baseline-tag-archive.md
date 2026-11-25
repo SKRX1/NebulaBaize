@@ -395,6 +395,29 @@ ls-remote 命中 tag -k；bundle `strata-bundle-20261125-135313` 已含 -k，E/F
 git tag -a v-baseline-2026-11-25-k f4f7d4d753f6ba1be6aa9964c7fff5ca15b070eb -m "baseline: lock rollback point at f4f7d4d (first back-end extraction: serve/tokenizer.py family); full regression ALL GREEN"
 ```
 
+## 2026-11-25 系列（续）：当前最新回滚点升级为 l（后端模块化第二步：serve/approval.py，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-l`，指向 commit `5f136f1a2`（`refactor(serve): extract approval
+family out of server.py into serve/approval.py`）：把 serve/server.py 里彼此零耦合的「工具审批策略」一族
+（_DESTRUCTIVE_SHELL / _DESTRUCTIVE_SYMBOLS / _APPROVAL_TOOLS / _needs_approval / _auto_deny / _approval_desc）
+整搬进新模块 `serve/approval.py`，仅依赖 stdlib json + re、无 server 全局；`_PERM_TIERS` 留下，调用点保持原名
+经 try/except import 兜回。随抽离把 tests/test_registry_server.py 的 approval.yaml↔frozenset 文本对账抓取源由
+server.py 改到 approval.py（load-bearing），并在 test_pure_modules.py 加第 13 个纯模块（3 个 load-bearing 测试）。
+本轮实测全套回归 ALL GREEN。这是抽离链后端 server.py 的第二个命名回滚点（继 -k tokenizer 之后）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-l | `5f136f1a2c24ea90725827726731ccb9e4115510` | refactor(serve): approval 族抽离（后端模块化第二步；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-l，main 0 0 同步，
+ls-remote 命中 tag -l；bundle `strata-bundle-20261125-143554` 已含 -l，E/F 双盘 clone 演练复现）。
+
+### 重建命令（如需精确恢复命名回滚点 l）
+
+```bat
+git tag -a v-baseline-2026-11-25-l 5f136f1a2c24ea90725827726731ccb9e4115510 -m "baseline: lock rollback point at 5f136f1 (second back-end extraction: serve/approval.py family); full regression ALL GREEN"
+```
+
 ### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。
