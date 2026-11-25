@@ -352,3 +352,58 @@ git tag -a v-baseline-2026-11-25-c ea2d93dbca09451fd6c41784198f01966cba47a3 -m "
 git tag -a v-baseline-2026-11-25-e c6568a9d72fb57a70dafdea85ca4a6608c97f820 -m "baseline: classifyTool+TEST_RE+FILE_TOOL_BASE extracted to app_utils.js; full regression ALL GREEN"
 ```
 
+## 2026-11-25 系列（续）：当前回滚点 g（assembleStreamBubbles+computeWaterfall 抽离，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-g`，指向 commit `704c3d0b5`（`refactor(web): extract assembleStreamBubbles+computeWaterfall into app_utils.js`）：把「流式/会话记录纯变换」二件套（assembleStreamBubbles 按 session 分组折叠多块气泡；computeWaterfall 把 chunk_timeline 折叠成瀑布阶段段）从 app.js 整搬进 app_utils.js，连调用点不变、靠 app_utils 先于 app.js 加载共享全局；随抽离同步 contract 导出集 + test_session_stream / test_stream_debug 两 harness。chipForBackspace 经研判依赖真 DOM 未搬。本轮实测全套回归 ALL GREEN。
+
+`-g` 为 annotated tag，按主人拍板 push origin main 后单独 `git push origin v-baseline-2026-11-25-g` 推到远端（已在远端）。并已 `git bundle --keep 14` 把含 -f/-g 的回滚点固化进 E/F 双盘（HEAD 704c3d0→82 tag 一致、clone 演练通过）。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-25-e | c6568a9d72fb57a70dafdea85ca4a6608c97f820 | refactor(web): classifyTool 抽离 + realpage copy-list 锁 |
+| v-baseline-2026-11-25-f | e458249170c1a382efde04d13ff393d9332be213 | refactor(web): think 流三件套 snapSent+toolSeq+noteStreamPhase 抽离 |
+| v-baseline-2026-11-25-g | 704c3d0b5c8e506247c338860ea80e68cb621212 | refactor(web): 流式记录二件套 assembleStreamBubbles+computeWaterfall 抽离 |
+
+续抽落账点 `df0bc32f5`（`refactor(web): extract nebTaskFromTool+inflightToolName into app_utils.js`）是 `-g` 的下一代 commit（工具/任务名纯解析二件套），暂未打 tag、未单独 bundle，已在 main+远端，留作下一个 baseline 候选。
+
+### 重建命令（如需精确恢复命名回滚点 g）
+
+```bat
+git tag -a v-baseline-2026-11-25-g 704c3d0b5c8e506247c338860ea80e68cb621212 -m "baseline: stream-record duo extracted to app_utils.js; full regression ALL GREEN"
+```
+
+### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
+
+以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。
+加载序铁律：index.html 必须先 `<script src="web/app_utils.js">` 再 `web/app.js`，靠 app_utils 先加载把下列符号暴露为全局供 app.js 调用点使用。
+
+| # | 符号 | 主题组 |
+|---|---|---|
+| 1 | `timeStr` | misc 基础 |
+| 2 | `fmtBytesSel` | misc 基础 |
+| 3 | `parsePlanItems` | 计划/提案文本 |
+| 4 | `extractNextSteps` | 计划/提案文本 |
+| 5 | `extractProposalsFromText` | 计划/提案文本 |
+| 6 | `detectLang` | misc 基础 |
+| 7 | `firstPath` | 路径/作用域 |
+| 8 | `nextScopeUp` | 路径/作用域 |
+| 9 | `nextScopeDown` | 路径/作用域 |
+| 10 | `clone` | misc 基础 |
+| 11 | `classifyTool` | 工具结果分类 |
+| 12 | `bugBoxSigKey` | bug-box 聚合 |
+| 13 | `bugBoxStats` | bug-box 聚合 |
+| 14 | `bugBoxGroups` | bug-box 聚合 |
+| 15 | `thinkPeek` | think 文本纯变换 |
+| 16 | `dedupeThink` | think 文本纯变换 |
+| 17 | `configValue` | 无状态小工具 |
+| 18 | `safeCut` | 无状态小工具 |
+| 19 | `taskOrder` | 无状态小工具 |
+| 20 | `pickSeed` | 无状态小工具 |
+| 21 | `snapSent` | stream/think 路径 |
+| 22 | `toolSeq` | stream/think 路径 |
+| 23 | `noteStreamPhase` | stream/think 路径 |
+| 24 | `assembleStreamBubbles` | 流式/会话记录 |
+| 25 | `computeWaterfall` | 流式/会话记录 |
+| 26 | `nebTaskFromTool` | 工具/任务名解析 |
+| 27 | `inflightToolName` | 工具/任务名解析 |
+
