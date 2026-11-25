@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-25-r`
-> (commit `835dad49e1b1f52af17bb96cf8c840c32a4d948d`, the WorkBuddy-trace purge: 137 test createRequire anchors + display strings + node/python fallback unified onto the system nodejs; quick regression ALL GREEN, commit `835dad4` pushed to origin, ls-remote confirms `-r` is on the remote).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r, 11-26-d/e … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-25-r) section wins.
+> The current latest rollback point is `v-baseline-2026-11-25-t`
+> (commit `798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8`, the zh/en double-ledger alignment point: the en ledger synced to zh — backfilled the `-r` current-rollback-point section + the `2026-11-26` superseded-numbering cleanup section so zh/en are fully aligned; doc-only; quick regression ALL GREEN, commit `798a3d0` pushed to origin, ls-remote confirms `-t` is on the remote).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t, 11-26-d/e … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-25-t) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -472,4 +472,36 @@ git tag -a v-baseline-2026-11-26-b ca99cc274415a9bb7903acd20af8d203441df347 -m "
 git tag -a v-baseline-2026-11-26-c 9d4699eed6a4fac7ffc16a016e801e4af4b6146b -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
 git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed, app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN"
 git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only"
+```
+
+## 2026-11-25 series (cont.): current latest rollback point upgraded to s (zh ledger backfill of -r + superseded-numbering cleanup, doc-only)
+
+This round cut named rollback point `v-baseline-2026-11-25-s` at commit `b6a1777`, locking the state right after “the zh ledger backfilled the `-r` current-rollback-point section + registered the `2026-11-26` superseded-numbering cleanup” (doc-only: the zh ledger backfilled -r overview + the 11-26 cleanup section; no code / regression-scope change). Quick regression ALL GREEN, commit `b6a1777` pushed to origin (main 0 0), ls-remote confirms tag -s deref == commit `b6a1777` is on the remote.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-s | `b6a177736e4c5cd510a4e6dec4df305eddce05da` | zh ledger backfill of -r current-rollback-point section + registration of the 2026-11-26 superseded-numbering cleanup (doc-only; quick regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + pushed v-baseline-2026-11-25-s alone, main 0 0 synced, ls-remote hits tag -s deref == `b6a1777`).
+
+### Rebuild command (to restore named rollback point s)
+
+```bat
+git tag -a v-baseline-2026-11-25-s b6a177736e4c5cd510a4e6dec4df305eddce05da -m "baseline: lock rollback point at b6a1777 (zh ledger backfill of -r + 2026-11-26 superseded-numbering cleanup; doc-only; quick regression ALL GREEN)"
+```
+
+## 2026-11-25 series (cont.): current latest rollback point upgraded to t (en ledger synced to zh, doc-only)
+
+This round cut named rollback point `v-baseline-2026-11-25-t` at commit `798a3d0`, locking the “en ledger fully aligned to zh” point: the en ledger synced to zh — backfilled the `-r` current-rollback-point section (zh/en overviews both upgraded to `-r`) + the `2026-11-26` superseded-numbering cleanup section, making the zh/en ledgers fully aligned (doc-only; no code / regression-scope change). Quick regression ALL GREEN, commit `798a3d0` pushed to origin (main 0 0), ls-remote confirms tag -t deref == commit `798a3d0` is on the remote.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-t | `798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8` | en ledger synced to zh: backfilled -r section + 2026-11-26 cleanup section so zh/en fully aligned (doc-only; quick regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin v-baseline-2026-11-25-t, ls-remote hits tag -t deref == `798a3d0`).
+
+### Rebuild command (to restore named rollback point t)
+
+```bat
+git tag -a v-baseline-2026-11-25-t 798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8 -m "baseline: lock rollback point at 798a3d0 (en ledger synced to zh: -r current-rollback-point + 2026-11-26 cleanup backfilled; doc-only; quick regression ALL GREEN)"
 ```

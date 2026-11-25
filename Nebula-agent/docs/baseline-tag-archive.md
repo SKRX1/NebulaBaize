@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-25-r`
-> （commit `835dad49e1b1f52af17bb96cf8c840c32a4d948d`，WorkBuddy 痕迹清理：137 个测试 createRequire 锚点 + 展示文案 + node/python 兜底路径统一到系统 nodejs；quick 全套回归 ALL GREEN、commit `835dad4` 已推 origin、ls-remote 坐实 `-r` 已在远端）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r、11-26-d/e … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-25-r）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-25-t`
+> （commit `798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8`，中英双账本对齐点：en 账本同步补登 `-r` 当前回滚点节 + `2026-11-26` 超前标号清理节，使中英完全对齐；纯文档，quick 全套回归 ALL GREEN、commit `798a3d0` 已推 origin、ls-remote 坐实 `-t` 已在远端）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t、11-26-d/e … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-25-t）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -672,4 +672,36 @@ git tag -a v-baseline-2026-11-26-b ca99cc274415a9bb7903acd20af8d203441df347 -m "
 git tag -a v-baseline-2026-11-26-c 9d4699eed6a4fac7ffc16a016e801e4af4b6146b -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
 git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed, app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN"
 git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only"
+```
+
+## 2026-11-25 系列（续）：当前最新回滚点升级到 s（账本补登 -r + 超前标号清理落账，纯文档）
+
+本轮在 commit `b6a1777` 打命名回滚点 `v-baseline-2026-11-25-s`，锁定「中文账本补登 `-r` 当前回滚点节 + 登记 `2026-11-26` 超前标号清理」后的状态（纯文档：本账本补登 `-r` 速览升级与 11-26 清理节；无代码 / 回归范围变更）。quick 全套回归 ALL GREEN，commit `b6a1777` 已推 origin（main 0 0），ls-remote 坐实 `-s` deref == commit `b6a1777` 已在远端。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-s | `b6a177736e4c5cd510a4e6dec4df305eddce05da` | 账本补登 -r 当前回滚点节 + 登记 2026-11-26 超前标号清理（纯文档；quick 全套 ALL GREEN；ls-remote 坐实已在远端） |
+
+**远端**：已在远端（本轮 push origin main + 单推 v-baseline-2026-11-25-s，main 0 0 同步，ls-remote 命中 tag -s deref == `b6a1777`）。
+
+### 重建命令（如需恢复命名回滚点 s）
+
+```bat
+git tag -a v-baseline-2026-11-25-s b6a177736e4c5cd510a4e6dec4df305eddce05da -m "baseline: lock rollback point at b6a1777 (zh ledger backfill of -r + 2026-11-26 superseded-numbering cleanup; doc-only; quick regression ALL GREEN)"
+```
+
+## 2026-11-25 系列（续）：当前最新回滚点升级到 t（en 账本同步对齐中英，纯文档）
+
+本轮在 commit `798a3d0` 打命名回滚点 `v-baseline-2026-11-25-t`，锁定「en 账本完全对齐中文」点：英文账本同步补登 `-r` 当前回滚点节（中英速览均升级→`-r`）+ `2026-11-26` 超前标号清理节，使中英账本完全对齐（纯文档；无代码 / 回归范围变更）。quick 全套回归 ALL GREEN，commit `798a3d0` 已推 origin（main 0 0），ls-remote 坐实 `-t` deref == commit `798a3d0` 已在远端。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-t | `798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8` | en 账本同步补登 -r 节 + 2026-11-26 清理节使中英完全对齐（纯文档；quick 全套 ALL GREEN；ls-remote 坐实已在远端） |
+
+**远端**：已在远端（本轮 push origin v-baseline-2026-11-25-t，ls-remote 命中 tag -t deref == `798a3d0`）。
+
+### 重建命令（如需恢复命名回滚点 t）
+
+```bat
+git tag -a v-baseline-2026-11-25-t 798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8 -m "baseline: lock rollback point at 798a3d0 (en ledger synced to zh: -r current-rollback-point + 2026-11-26 cleanup backfilled; doc-only; quick regression ALL GREEN)"
 ```
