@@ -36,6 +36,30 @@ All notable changes to this project are documented in this file.
   - *Blast radius:* `test_pure_modules.py` gains its 12th module `serve/tokenizer` with three tests (byte
   round-trip / incremental hold / stop cap-and-type 400 + StopMatcher hold-tail), each with a load-bearing
   differential.
+- **`serve/approval.py` 抽离（后端模块化第二步）** — 延续 tokenizer 抽离链，把 serve/server.py 里彼此零耦合的
+  「工具审批策略」一族整搬进新模块 `serve/approval.py`：`_DESTRUCTIVE_SHELL` / `_DESTRUCTIVE_SYMBOLS`（破坏性
+  shell 命令的两组正则：词边界式 rm -rf 与分隔符锚定式 `> /dev/sda`/fork 炸弹）、`_APPROVAL_TOOLS`（六个 registry
+  写操作的 frozenset）、`_needs_approval` / `_auto_deny` / `_approval_desc` 三个纯谓词。仅依赖 stdlib json + re、无
+  server 全局（AST out-deps 扫描坐实 free names 仅 json/re + 参数名）。`_PERM_TIERS`（tier 列表，run_with_mcp 用）
+  留下。调用点保持原名经 try/except import 兜回。
+  - **连带面**：`tests/test_registry_server.py` 的 approval.yaml↔frozenset 文本对账，抓取源由 serve/server.py
+  改到 serve/approval.py（load-bearing，docstring 同步更新）；`test_pure_modules.py` 加第 13 个纯模块
+  `serve/approval`（三测试：六写操作 gate / 破坏性 shell deny + 词边界 vs 分隔符两组正则 / desc 320 字截断，
+  均带 load-bearing 差分）。
+
+  *`serve/approval.py` extraction (second back-end modularization step):* continuing the tokenizer chain, the
+  mutually decoupled *tool-approval policy* family is lifted whole out of `serve/server.py` into a new module
+  `serve/approval.py`: `_DESTRUCTIVE_SHELL` / `_DESTRUCTIVE_SYMBOLS` (the two destructive-shell regexes — word-
+  boundary `rm -rf` and separator-anchored `> /dev/sda` / fork-bomb forms), `_APPROVAL_TOOLS` (the frozenset of the
+  six registry mutations), and the three pure predicates `_needs_approval` / `_auto_deny` / `_approval_desc`.
+  Depends on stdlib `json` + `re` only, no server globals (AST out-deps scan: free names are json/re + parameters).
+  `_PERM_TIERS` (the tier tuple, used by run_with_mcp) stays. Call sites keep their original names via a try/except
+  import.
+  - *Blast radius:* `tests/test_registry_server.py`'s approval.yaml↔frozenset textual lockstep now reads its
+  capture source from serve/approval.py instead of serve/server.py (load-bearing; docstring updated in step), and
+  `test_pure_modules.py` gains its 13th module `serve/approval` with three tests (six-mutation gate / destructive-
+  shell deny covering both the word-boundary and separator-anchored regex sets / desc 320-char cap), each with a
+  load-bearing differential.
 
 ### Fixed / 修复
 

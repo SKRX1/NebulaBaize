@@ -1,4 +1,4 @@
-"""Unit tests for the twelve pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the thirteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -12,6 +12,7 @@
   serve/env_probe     - is a dir writable / is this a Linux desktop session
   serve/engine_stall  - the frozen-engine watchdog predicate + its two thresholds
   serve/tokenizer     - byte tokenizer stand-in / Detokenizer / stop_strings / StopMatcher
+  serve/approval      - tool-approval policy: registry-mutation set + destructive-shell deny + desc
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -37,6 +38,7 @@ from serve import gpu_config as GC          # noqa: E402
 from serve import env_probe as EP           # noqa: E402
 from serve import engine_stall as ES         # noqa: E402
 from serve import tokenizer as TK            # noqa: E402
+from serve import approval as AP             # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -761,6 +763,46 @@ def test_tokenizer_stop_strings_and_matcher():
     print("TOKENIZER stop_strings + StopMatcher: cap/type 400 + hold-tail ok")
 
 
+# ---------------------------------------------------------------- approval ----
+def test_approval_needs_registry_only():
+    # _needs_approval is True ONLY for the six registry *mutations*; reads, the probe and every
+    # other tool (and "") are False. LOAD-BEARING: a read like registry__list_servers must NOT
+    # gate, else the autonomous tier would pause on harmless introspection.
+    for m in ("registry__add_server", "registry__update_skill", "registry__delete_server"):
+        assert AP._needs_approval(m) is True
+    for r in ("registry__list_servers", "registry__get_server", "shell__exec", "filesystem__write", ""):
+        assert AP._needs_approval(r) is False
+    print("APPROVAL _needs_approval: six mutations True, reads/other/empty False ok")
+
+
+def test_approval_auto_deny_destructive():
+    # _auto_deny blocks a clearly destructive shell command but lets ordinary ones through.
+    # LOAD-BEARING: only shell/exec/run/command-named tools are screened (name gate), and the two
+    # pattern sets cover word-boundary forms (rm -rf) AND punctuation-anchored ones (> /dev/sda,
+    # the fork bomb) that a \b wrapper alone would miss.
+    deny, why = AP._auto_deny("shell__exec", {"command": "rm -rf /tmp/x"})
+    assert deny is True and "destructive" in why
+    # symbol form the \b(?:...) wrapper CANNOT match -> needs the separator-anchored set:
+    deny2, _ = AP._auto_deny("shell__exec", {"command": "cat x > /dev/sda"})
+    assert deny2 is True
+    # an ordinary build command that merely contains the substring must NOT be blocked:
+    assert AP._auto_deny("shell__exec", {"command": "npm run build"}) == (False, None)
+    # a NON-shell tool name with the same text is never screened (name gate):
+    assert AP._auto_deny("filesystem__write", {"path": "rm -rf"}) == (False, None)
+    print("APPROVAL _auto_deny: rm-rf/symbol True, benign/non-shell False ok")
+
+
+def test_approval_desc_truncates():
+    # _approval_desc renders "tool: args", coercing non-str args via json and capping at 320 chars
+    # with an ellipsis (LOAD-BEARING: an unbounded description would blow up the approval modal).
+    d = AP._approval_desc("shell__exec", {"command": "echo hi"})
+    assert d.startswith("shell__exec: ") and "echo hi" in d
+    long = AP._approval_desc("shell__exec", "x" * 500)
+    tail = long[len("shell__exec: "):]                 # strip the prefix; the cap is on the args part
+    assert tail.endswith("\u2026") and tail.count("x") == 320
+    print("APPROVAL _approval_desc: prefix + 320-cap ellipsis ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -795,6 +837,9 @@ def main():
     test_tokenizer_byte_roundtrip_and_specials()
     test_tokenizer_detokenizer_incremental()
     test_tokenizer_stop_strings_and_matcher()
+    test_approval_needs_registry_only()
+    test_approval_auto_deny_destructive()
+    test_approval_desc_truncates()
     print("PURE-MODULES TEST PASSED")
     return 0
 

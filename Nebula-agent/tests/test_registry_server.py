@@ -350,9 +350,9 @@ class TestStdioWire(unittest.TestCase):
 
 
 class TestApprovalLockstep(unittest.TestCase):
-    """server.py's _APPROVAL_TOOLS and approval.yaml must name the same set.
+    """approval.py's _APPROVAL_TOOLS and approval.yaml must name the same set.
 
-    Parasitic mode gates on _APPROVAL_TOOLS (serve/server.py), standalone mode on
+    Parasitic mode gates on _APPROVAL_TOOLS (serve/approval.py), standalone mode on
     config/approval.yaml's require_approval. Two lists, one meaning: if one gains a
     tool the other lacks, the same model call is sensitive in one mode and free in
     the other. Parsed textually on purpose — importing server.py here would drag in
@@ -360,10 +360,10 @@ class TestApprovalLockstep(unittest.TestCase):
     """
 
     def test_the_two_lists_agree(self):
-        with open(os.path.join(PROJECT, "serve", "server.py"), encoding="utf-8") as f:
+        with open(os.path.join(PROJECT, "serve", "approval.py"), encoding="utf-8") as f:
             src = f.read()
         m = re.search(r"_APPROVAL_TOOLS = frozenset\(\{(.*?)\}\)", src, re.S)
-        self.assertIsNotNone(m, "_APPROVAL_TOOLS block not found in serve/server.py")
+        self.assertIsNotNone(m, "_APPROVAL_TOOLS block not found in serve/approval.py")
         from_server = set(re.findall(r'"(registry__\w+)"', m.group(1)))
 
         with open(os.path.join(PROJECT, "config", "approval.yaml"), encoding="utf-8") as f:

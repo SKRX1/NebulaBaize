@@ -194,6 +194,10 @@ try:  # tokenizer family extracted to serve/tokenizer.py (call sites keep origin
     from serve.tokenizer import ByteTokenizer, Detokenizer, StopMatcher, stop_strings
 except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
     from tokenizer import ByteTokenizer, Detokenizer, StopMatcher, stop_strings  # noqa: E402
+try:  # approval policy extracted to serve/approval.py (call sites keep original names)
+    from serve.approval import _APPROVAL_TOOLS, _auto_deny, _approval_desc, _needs_approval
+except ImportError:  # run directly as `python serve/server.py` (serve/ is sys.path[0])
+    from approval import _APPROVAL_TOOLS, _auto_deny, _approval_desc, _needs_approval  # noqa: E402
 
 IM_END = "<|im_end|>"
 IMAGE_PAD = "<|image_pad|>"
@@ -4422,65 +4426,6 @@ def _debug_req(api, req, messages, tools, max_new, thinking, prompt_tokens):
 #            mkfs, fork bombs, pipe-to-shell, ...) so a stray instruction cannot wipe the disk.
 #   manual - every MCP tool call is paused and shown in the approval modal; the user approves or denies each one.
 _PERM_TIERS = ("full", "auto", "manual")
-# Destructive shell patterns we refuse to auto-run. Anchored with word boundaries (not a required
-# leading whitespace) so they still fire when the command is embedded in JSON arguments, while
-# ordinary build commands that merely contain these substrings (e.g. a path with "model") are not caught.
-_DESTRUCTIVE_SHELL = re.compile(
-    r"\b(?:"
-    r"rm\s+-rf|rm\s+-r\b|rmdir\s+/s|del\s+/[sq]|format\s+[a-z]:|mkfs|shutdown|reboot|"
-    r"shutil\.rmtree|dd\s+if=|"
-    r"curl\s+[^|]*\|\s*(?:ba)?sh|wget\s+[^|]*\|\s*(?:ba)?sh"
-    r")", re.I)
-# Patterns that START with punctuation cannot live inside the \b(?:...)\b wrapper above: a word
-# boundary never exists between two non-word characters, so "… > /dev/sda" and the classic
-# ":(){ :|:& };:" fork bomb silently never matched. They are anchored on a command separator
-# (start of string, whitespace, or a shell separator/quote) instead.
-_DESTRUCTIVE_SYMBOLS = re.compile(
-    r"(?:^|[\s;|&`\"'(])"
-    r"(?:>\s*/dev/sd|:\s*\(\)\s*\{\s*:)", re.I)
-
-
-# Tools whose effect outlives the conversation: the registry server's six mutations
-# (servers/registry_server.py) write config/mcp_servers.json or skills/*.yaml, i.e.
-# "start this program on the user's machine" — remote code execution by design. Even
-# the autonomous `auto` tier pauses for approval on these, exactly like `manual` does
-# for every tool. The read-only registry tools (list/get) and the probe (test_server,
-# which persists nothing) are deliberately absent. Keep in lockstep with
-# config/approval.yaml (the standalone mode's list) — the two must name the same set.
-_APPROVAL_TOOLS = frozenset({
-    "registry__add_server", "registry__update_server", "registry__delete_server",
-    "registry__add_skill", "registry__update_skill", "registry__delete_skill",
-})
-
-
-def _needs_approval(tool_name: str) -> bool:
-    """True for the registry mutations: a toolbox change always asks, even in `auto`."""
-    return (tool_name or "") in _APPROVAL_TOOLS
-
-
-def _auto_deny(tool_name: str, arguments) -> tuple[bool, str | None]:
-    """For the `auto` tier: return (deny, reason) when a tool call looks destructive enough to block."""
-    if not isinstance(arguments, str):
-        try:
-            arguments = json.dumps(arguments, ensure_ascii=False)
-        except Exception:
-            arguments = str(arguments)
-    name = (tool_name or "").lower()
-    if ("shell" in name or "exec" in name or name.endswith("run") or "command" in name) \
-            and (_DESTRUCTIVE_SHELL.search(arguments or "")
-                 or _DESTRUCTIVE_SYMBOLS.search(arguments or "")):
-        return True, "auto-review blocked a destructive shell command"
-    return False, None
-
-
-def _approval_desc(tool_name: str, arguments) -> str:
-    try:
-        a = arguments if isinstance(arguments, str) else json.dumps(arguments, ensure_ascii=False)
-    except Exception:
-        a = str(arguments)
-    if len(a) > 320:
-        a = a[:320] + "…"
-    return f"{tool_name}: {a}"
 
 
 def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new, max_req, sampling, cancel,
