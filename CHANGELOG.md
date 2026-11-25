@@ -9,6 +9,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed / 变更
+
+- **app_utils 纯函数抽离链（阶段性）** — 按「零 DOM、零 app.js 模块全局、无 mutation」纪律，从单体 `app.js` 持续摘取内聚纯叶子移入 `app_utils.js`。本轮 spark 族：`sparkIsExecuted`（判定便签是否已执行：`executedAt` 已设或 `status==done`）+ `sparkTimeCompare`（时间模式排序比较器：未执行置顶、新建在上，已执行置底、最近执行在上）整搬（commit `8d8a27d`），二者同族彼此依赖、对外零依赖；前序已固化 `buildCtxArr`+`renderMsgForCompact`、`mdKindOf`+`mdImageTag`+`MD_EXT_*` 等纯叶子。
+  - **连带面**：5 个 jsdom boot 类回归 harness（`test_spark_sort` / `test_spark_edit_imgdrag` / `test_spark_group_kbd` / `test_spark_thumb_delete` / `test_spark_image_only_save`）的 `appCode` 读源改为先拼 `app_utils.js` 再拼 `app.js`，确保 boot 作用域能解析已搬离的符号（`test_app_utils_contract.mjs` EXPORTS 双向锁同步扩面）。
+
+  *app_utils pure-function extraction chain (milestone):* by the discipline of *no DOM, no other app.js module globals, no mutation*, cohesive pure leaves are steadily lifted from the monolithic `app.js` into `app_utils.js`. This round the spark family: `sparkIsExecuted` (a note has run when `executedAt` is set or `status==done`) + `sparkTimeCompare` (the time-mode sort comparator: unexecuted on top / newest-created first, executed below / most-recently-executed first) moved whole (commit `8d8a27d`); the two depend only on each other and on nothing else. Earlier in the chain, `buildCtxArr`+`renderMsgForCompact` and `mdKindOf`+`mdImageTag`+`MD_EXT_*` were already extracted.
+  - *Blast radius:* 5 jsdom boot-style regression harnesses (`test_spark_sort` / `test_spark_edit_imgdrag` / `test_spark_group_kbd` / `test_spark_thumb_delete` / `test_spark_image_only_save`) now prepend `app_utils.js` before `app.js` in their `appCode` read so the boot scope can resolve the extracted symbols (`test_app_utils_contract.mjs` EXPORTS double-lock extended in step).
+
 ### Fixed / 修复
 
 - **侧边栏「所有标签页突然全部隐藏」bug** — 把便签推送到对话（或任意触发采样保存的操作）后，左侧任务栏会在【每个】标签页一起变隐藏、所有显隐开关显示为关，只有点「恢复默认」才救回（commit `a75ab84`）：
