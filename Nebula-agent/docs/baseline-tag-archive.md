@@ -548,7 +548,7 @@ ls-remote 命中 tag -q；bundle `strata-bundle-20261125-171323` 已含 -q，E/F
 git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "baseline: lock rollback point at 5e5cb71 (front-end chain round 2: proposalMarkdown extracted into app_utils.js markdown-render family; full regression ALL GREEN)"
 ```
 
-### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 40）
+### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 42）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。
 加载序铁律：index.html 必须先 `<script src="web/app_utils.js">` 再 `web/app.js`，靠 app_utils 先加载把下列符号暴露为全局供 app.js 调用点使用。
@@ -595,5 +595,7 @@ git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "
 | 38 | `endpointKey` | 字符串/标识符规范化（本轮：app.js → app_utils.js） |
 | 39 | `normalizeTags` | 字符串/标识符规范化（本轮：app.js → app_utils.js） |
 | 40 | `toolResultText` | 字符串/标识符规范化（本轮：app.js → app_utils.js） |
+| 41 | `_memEstTokens` | 记忆文本度量（本轮：app.js → app_utils.js） |
+| 42 | `_memEntryCount` | 记忆文本度量（本轮：app.js → app_utils.js） |
 
 

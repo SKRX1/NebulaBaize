@@ -4491,10 +4491,6 @@ $("chat-scroll").addEventListener("scroll", (e) => {
 // The workspace-specific system prompt (working dir + plan/next-steps conventions). Kept as a helper
 // so apiMessages can compose it with the always-on base prompt, persona, and RAG context.
 const LAZY_MEM_THRESHOLD = 3000; // chars: stores above this get summary-only injection
-function _memEntryCount(s) {
-  if (!s || !s.trim()) return 0;
-  return s.trim().split(/\n/).filter(function(l){ return l.trim() && !/^#/.test(l.trim()); }).length;
-}
 function _memInject(label, content) {
   if (!content || !content.trim()) return "";
   if (content.trim().length <= LAZY_MEM_THRESHOLD) return "\n\n\u3010" + label + "\u3011\n" + content.trim();
@@ -5088,10 +5084,6 @@ let _llmCompactFn = null;
 function setLlmCompactFn(fn) { _llmCompactFn = (typeof fn === "function") ? fn : null; }
 // Real impl: a one-shot chat completion that merges / summarises store entries. Fail-safe: any error -> null.
 // Rough token estimate aligned with estimate_tokens: CJK ~1 tok/char, latin ~4 char/tok.
-function _memEstTokens(s) {
-  var c = (s.match(/[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/g) || []).length;
-  return c + Math.floor((s.length - c) / 4);
-}
 // One semantic-merge LLM call over a single (already chunk-bounded) text block.
 async function _llmMergeOnce(text, store) {
   const sys = store === "knowledge"

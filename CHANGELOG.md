@@ -11,6 +11,22 @@ All notable changes to this project are documented in this file.
 
 ### Changed / 变更
 
+- **记忆文本度量族抽离到 `app_utils.js`（前端续抽链第四轮 · 42 符号刻度）** — 沿同纪律
+  （零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出同族内聚的「记忆文本度量」
+  纯叶子两个：`_memEstTokens`（对一段记忆 store 文本做 CJK 加权 token 粗估）、`_memEntryCount`
+  （数出非注释行数）。二者职责同质：都作用于一份 .md 记忆正文、返回一个纯度量值，均只引用入参
+  + String/Array/Math 内建；字节逐字一致整搬。app_utils.js 顶部族分组索引随之扩到 42 符号 / 14 族。
+  - **连带面**：`test_app_utils_contract.mjs` EXPORTS 40→42；`test_app_utils_jsdom.mjs` HELPERS/EXPOSE 补齐两个；
+  `test_mem_chunk_compact.mjs`、`test_ws_persona_count.mjs` 两测试 boot 此前只 eval app.js，运行时经 persona/compact
+  路径间接调用 `_memEstTokens`，补拼 app_utils.js boot（classic script 下 app_utils 全局先于 app.js 可见）。
+  - *Memory-text-metrics family extracted into `app_utils.js` (front-end chain, round 4 — 42-symbol milestone):*
+  same discipline surfaced two cohesive leaves: `_memEstTokens` (CJK-weighted token estimate over a memory-store
+  blob) and `_memEntryCount` (non-comment line count). Both measure a .md memory body and return a pure number,
+  referencing only their argument plus String/Array/Math builtins; byte-for-byte identical move. The FAMILY INDEX
+  header grows to 42 symbols / 14 families.
+  - *Blast radius:* `test_app_utils_contract.mjs` EXPORTS 40→42; `test_app_utils_jsdom.mjs` HELPERS/EXPOSE gains the two;
+  `test_mem_chunk_compact.mjs` and `test_ws_persona_count.mjs` booted by evaluating app.js only and reach
+  `_memEstTokens` through the persona/compact path at runtime, so their boot now prepends app_utils.js.
 - **字符串/标识符规范化族抽离到 `app_utils.js`（前端续抽链第三轮 · 40 符号刻度）** — 继 proposalMarkdown 那轮，同纪律
   （零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出同族内聚的「字符串/标识符规范化」纯叶子五个：
   `designFileName`（标题→安全 .md 文件名）、`safeGroup`（组名→去非法字符）、`endpointKey`（URL→匹配键）、

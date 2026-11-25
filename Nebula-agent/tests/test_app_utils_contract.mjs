@@ -34,6 +34,7 @@ const EXPORTS = [
   "proposalMarkdown",
   "designFileName", "safeGroup", "endpointKey",
   "normalizeTags", "toolResultText",
+  "_memEstTokens", "_memEntryCount",
 ];
 
 let fails = 0;

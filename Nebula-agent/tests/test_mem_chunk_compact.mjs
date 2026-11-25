@@ -61,7 +61,7 @@ win.fetch = async (url, o) => {
   return { ok: true, status: 200, json: async () => ({}) };
 };
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += "\n;window.__api = { realLlmCompact, memCompactChunkTokens, setSessions: (s)=>{sessions=s;}, setActiveId:(id)=>{activeId=id;}, setModel:(m)=>{activeSession=()=>({model:m});}, setSettings:(s)=>{settings=Object.assign({},settings,s);}, getSettings:()=>settings };";
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));

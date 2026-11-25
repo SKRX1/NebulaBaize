@@ -1,7 +1,7 @@
 // serve/web/app_utils.js - shared pure formatting helpers for app.js.
 
 // ====================================================================
-// FAMILY INDEX  app_utils.js groups (40 exported symbols in 13 families).
+// FAMILY INDEX  app_utils.js groups (42 exported symbols in 14 families).
 // Classic script; app_utils.js loads BEFORE app.js, so every name below is a
 // bare global that app.js call sites reference by original name. Truth source
 // for the export set: tests/test_app_utils_contract.mjs EXPORTS.
@@ -19,6 +19,8 @@
 //  F12 mdKindOf, mdImageTag, proposalMarkdown  (markdown render; MD_EXT_* Sets)
 //  F13 designFileName, safeGroup, endpointKey, normalizeTags, toolResultText
 //      (string/identifier normalization)
+//  F14 _memEstTokens, _memEntryCount
+//      (memory text metrics)
 //  then buildCtxArr, renderMsgForCompact (compaction) and sparkIsExecuted,
 //  sparkTimeCompare (spark) close the file; they are exported but not fenced
 //  by their own index family banner above.
@@ -442,6 +444,19 @@ function safeGroup(name) { return String(name || "").replace(/[<>:"/\\|?*]/g, ""
 function endpointKey(u) {
   return String(u || "").trim().toLowerCase()
     .replace(/^https?:\/\//, "").replace(/\/+$/, "").replace(/\/v1$/, "");
+}
+
+// ---- memory text metrics (extracted from app.js): pure measures over a memory-store text
+// body (a .md blob). Both are zero-dependency: argument string + String/Array/Math builtins
+// only, no DOM, no app.js module globals, no mutation. ----
+function _memEstTokens(s) {
+  var c = (s.match(/[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/g) || []).length;
+  return c + Math.floor((s.length - c) / 4);
+}
+
+function _memEntryCount(s) {
+  if (!s || !s.trim()) return 0;
+  return s.trim().split(/\n/).filter(function(l){ return l.trim() && !/^#/.test(l.trim()); }).length;
 }
 
 // ---- compaction pure transforms (extracted from app.js): buildCtxArr = per-turn context occupancy percent series from message stats (the single source shared by the sparkline + freeze so chart and freeze can never drift); renderMsgForCompact = render one message into a compact-summary string (role tag + text + tool_calls + image/file counts, cap-truncated). Both pure: Array/String/JSON/Math only over their arguments, no DOM, no app.js module globals, no mutation. ----

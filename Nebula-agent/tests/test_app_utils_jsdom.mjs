@@ -38,7 +38,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath", "proposalMarkdown", "designFileName", "safeGroup", "endpointKey", "normalizeTags", "toolResultText"];
+const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath", "proposalMarkdown", "designFileName", "safeGroup", "endpointKey", "normalizeTags", "toolResultText", "_memEstTokens", "_memEntryCount"];
 // publish the three function declarations onto window (model classic-script globals)
 const EXPOSE = `
 ;window.timeStr = typeof timeStr === "function" ? timeStr : undefined;
@@ -55,6 +55,8 @@ const EXPOSE = `
 ;window.endpointKey = typeof endpointKey === "function" ? endpointKey : undefined;
 ;window.normalizeTags = typeof normalizeTags === "function" ? normalizeTags : undefined;
 ;window.toolResultText = typeof toolResultText === "function" ? toolResultText : undefined;
+;window._memEstTokens = typeof _memEstTokens === "function" ? _memEstTokens : undefined;
+;window._memEntryCount = typeof _memEntryCount === "function" ? _memEntryCount : undefined;
 `;
 
 const utilSrc = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");
