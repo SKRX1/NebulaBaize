@@ -9,10 +9,10 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-25-p`（commit `58d0955c379e8fc944b1b0372c91cb2294d21d09`，前端续抽链新一轮 `splitPath` 抽离进 `app_utils.js`，
-> 并登记后端模块化收官小结，全套回归 ALL GREEN）。下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，
-> 是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n、11-25-o… 各为其当时最新基线）；
-> 凡与本速览不一致，一律以本节（最新 = p）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-25-q`（commit `5e5cb71fe9a73d95f38d9b9926063b9de3c78308`，前端续抽链第二轮 `proposalMarkdown` 抽离进 `app_utils.js`
+> markdown 渲染族，全套回归 ALL GREEN）。下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，
+> 是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n、11-25-o、11-25-p… 各为其当时最新基线）；
+> 凡与本速览不一致，一律以本节（最新 = q）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -522,6 +522,30 @@ ls-remote 命中 tag -p；bundle `strata-bundle-20261125-164121` 已含 -p，E/F
 
 ```bat
 git tag -a v-baseline-2026-11-25-p 58d0955c379e8fc944b1b0372c91cb2294d21d09 -m "baseline: lock rollback point at 58d0955 (front-end chain new round: splitPath extracted into app_utils.js; back-end modularization wrap-up doc; full regression ALL GREEN)"
+```
+
+## 2026-11-25 系列（续）：当前最新回滚点升级为 q（前端续抽链第二轮 serve/web/app_utils.js proposalMarkdown，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-q`，指向 commit `5e5cb71`（`feat(web): extract proposalMarkdown into app_utils.js`）：
+沿 splitPath 那轮，同纪律（零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出零依赖内聚纯叶子 
+`proposalMarkdown`（把建议决策卡对象序列化为人类可读 markdown：标题 + 验证状态 + 选项对照表 + 验证方式 + 下一步），与 
+app_utils.js 既有的 mdKindOf/mdImageTag 同属「markdown 渲染」族，整搬进 `app_utils.js`。只引用参数字段 + Array/String/
+模板内建；全仓仅 app.js 两处引用（saveProposalToFile 里 1 调用点 + 1 定义）、无测试正则抓源，调用点保持原名。连带 
+test_app_utils_contract.mjs EXPORTS 加 proposalMarkdown、test_app_utils_jsdom.mjs 加 5 项行为门禁、test_proposal_card.mjs 
+boot 清单 Object.assign 补 proposalMarkdown（outside-only 下 function 不跨 win.eval 作用域）。同轮 CHANGELOG 登记前端续抽
+链第二轮条目 + 账本符号清单补 #35 proposalMarkdown（标题计数 34→35）+ 顶栏速览（p→q）。本轮实测全套回归 ALL GREEN。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-q | `5e5cb71fe9a73d95f38d9b9926063b9de3c78308` | feat(web): proposalMarkdown 抽离进 app_utils.js（前端续抽链第二轮 markdown 渲染族；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-q，main 0 0 同步，
+ls-remote 命中 tag -q；bundle `strata-bundle-20261125-171323` 已含 -q，E/F 双盘 clone 演练复现，keep-14 已裁剪）。
+
+### 重建命令（如需精确恢复命名回滚点 q）
+
+```bat
+git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "baseline: lock rollback point at 5e5cb71 (front-end chain round 2: proposalMarkdown extracted into app_utils.js markdown-render family; full regression ALL GREEN)"
 ```
 
 ### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 35）

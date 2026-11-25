@@ -317,3 +317,33 @@ reproduced, keep-14 pruned).
 git tag -a v-baseline-2026-11-25-p 58d0955c379e8fc944b1b0372c91cb2294d21d09 -m "baseline: lock rollback point at 58d0955 (front-end chain new round: splitPath extracted into app_utils.js; back-end modularization wrap-up doc; full regression ALL GREEN)"
 ```
 
+
+## 2026-11-25 series (cont.): current rollback point upgraded to q (front-end chain round 2 serve/web/app_utils.js proposalMarkdown, all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-q`, pointing at commit `5e5cb71` (`feat(web): extract
+proposalMarkdown into app_utils.js`): continuing the splitPath round, under the same discipline (zero external
+dependency AST out-deps=0, zero app.js globals, zero DOM, no mutation) the cohesive leaf `proposalMarkdown` surfaced
+(it serialises a proposal decision-card object into a human-readable markdown document: title + verified-state + options
+comparison table + evidence + next) — it belongs to the same *markdown-render* family as the existing mdKindOf/mdImageTag
+already in app_utils.js and was lifted whole into `app_utils.js`. It references only its argument's fields plus
+Array/String/template builtins; referenced in exactly two places in app.js (one call site inside saveProposalToFile + one
+definition), no regex-source capture, and the call site keeps its original name. Blast radius: test_app_utils_contract.mjs
+EXPORTS gains proposalMarkdown, test_app_utils_jsdom.mjs gains a 5-assertion behaviour gate, and test_proposal_card.mjs's
+Object.assign boot list gains proposalMarkdown (under outside-only, a top-level function does not cross win.eval scope).
+This round also added the front-end round-2 CHANGELOG entry + ledger symbol-list row #35 (title count 34→35) + the top
+overview (p→q). Full regression measured ALL GREEN.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-q | `5e5cb71fe9a73d95f38d9b9926063b9de3c78308` | feat(web): proposalMarkdown extraction into app_utils.js (front-end chain round 2, markdown-render family; full regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + push origin v-baseline-2026-11-25-q, main 0 0
+synced, ls-remote hits tag -q; bundle `strata-bundle-20261125-171323` already contains -q, E/F dual-drive clone-rehearsal
+reproduced, keep-14 pruned).
+
+### Rebuild command (to restore named rollback point q)
+
+```bat
+git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "baseline: lock rollback point at 5e5cb71 (front-end chain round 2: proposalMarkdown extracted into app_utils.js markdown-render family; full regression ALL GREEN)"
+```
+
