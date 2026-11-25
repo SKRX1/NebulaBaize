@@ -260,3 +260,4 @@ baseline-tag-archive.md 补登计数断言勿写死 ==3：若新节语义列或 
 账本节内「是否已在远端」措辞须由脚本 ls-remote origin refs/tags/<tag> 实时查 onremote 注入（本地已打 tag ≠ 远端已推），据实写「已在远端」或「本地 tag、按惯例未推、留待拍板」，禁止照抄旧节写死
 抽离 serve/ 下新纯模块时，调用点 import 必须镜像 server.py 的 try/except 双路径（`from serve.X import ...` / `except ImportError: from X import ...`），因 server.py 可被 `python serve/server.py` 直接运行（serve/ 是 sys.path[0]）——这是后端抽离专属约定，前端 app_utils 全局共享模式无此条。
 抽离新纯模块的行为测试往既有 tests/test_pure_modules.py 内加（它已登记在 run_tests SUITES 且是逐模块汇总文件），不必新登记 run_tests.py；新模块加进其 docstring 模块清单 + main() 调用列表即可。
+删除被跟踪文件前先 git grep 坐实全仓无引用、并单独重跑相关门禁（如 baseline gate）验证零破坏，再 commit+push+重跑 --full 全绿收尾。
