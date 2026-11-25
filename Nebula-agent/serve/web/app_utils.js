@@ -228,3 +228,25 @@ function pickSeed() {
     return 1 + Math.floor(Math.random() * 2147483646);
   }
 }
+
+
+// ---- stream/think-path helpers (extracted from app.js): snapSent = snap a streaming cut index forward to the next newline/CJK-terminator; toolSeq = fold consecutive identical (tool,server) calls into an {i,n} sequence badge or null; noteStreamPhase = tag the passed message object with the current streaming phase (+ alive tool name). All operate on their arguments only -- no app.js module globals, no DOM (noteStreamPhase mutates its `m` argument by design). ----
+function snapSent(src, to, limit) {
+  for (let i = to; i <= limit; i++) {
+    const c = src[i - 1];
+    if (c === "\n" || "。！？!?；;".includes(c)) return i;
+  }
+  return to;
+}
+function toolSeq(tools, k) {
+  const a = tools[k], same = (b) => !!b && b.tool === a.tool && b.server === a.server;
+  let i = 1, n = 1;
+  for (let j = k - 1; j >= 0 && same(tools[j]); j--) { i++; n++; }
+  for (let j = k + 1; j < tools.length && same(tools[j]); j++) n++;
+  return n > 1 ? {i, n} : null;
+}
+function noteStreamPhase(m, phase, tool) {
+  if (!m) return;
+  m._phase = phase;
+  m._phaseTool = phase === "tool" ? (tool || m._phaseTool || null) : null;
+}

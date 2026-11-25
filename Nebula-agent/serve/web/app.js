@@ -2603,13 +2603,6 @@ function tickToolTimers(root, m) {
 // A raw offset cuts wherever the model happened to be when it called the tool - often mid-sentence, which then
 // ends up split across the tool block ("…只是默认" | tool | "值。三个文件…"). Snap forward to the end of that
 // sentence instead, but never past the next tool's boundary, so no segment can swallow another's text.
-function snapSent(src, to, limit) {
-  for (let i = to; i <= limit; i++) {
-    const c = src[i - 1];
-    if (c === "\n" || "。！？!?；;".includes(c)) return i;
-  }
-  return to;
-}
 function answerSpec(m) {
   // content-only messages (the compaction summary block is {role:system, content:...} with no .text): fall back to
   // content so the bubble is not blank. Assistant turns always have .text and are unaffected.
@@ -2646,13 +2639,6 @@ function toolNode(tool, k, slot, seq) {
   return node;
 }
 // A burst of identical calls (three file reads in a row) is labelled "2/3" instead of reading as loose blocks.
-function toolSeq(tools, k) {
-  const a = tools[k], same = (b) => !!b && b.tool === a.tool && b.server === a.server;
-  let i = 1, n = 1;
-  for (let j = k - 1; j >= 0 && same(tools[j]); j--) { i++; n++; }
-  for (let j = k + 1; j < tools.length && same(tools[j]); j++) n++;
-  return n > 1 ? {i, n} : null;
-}
 
 // ------------------------------------------------------------------ Thoughts (reasoning segments)
 // One reasoning segment: collapsed it shows a one-line summary (so a finished turn stays scannable), open it
@@ -3165,11 +3151,6 @@ const _bugBox = { _lastTs: 0, _lastMsg: null };   // de-dupe state for the off-t
 // Called from the streaming loop as each kind of activity arrives. The phase is what the user
 // was LOOKING AT when the turn died, which is exactly what they report ("it stopped while
 // thinking" / "it stopped inside that shell command").
-function noteStreamPhase(m, phase, tool) {
-  if (!m) return;
-  m._phase = phase;
-  m._phaseTool = phase === "tool" ? (tool || m._phaseTool || null) : null;
-}
 // Pure: build the record for one interrupted turn. `kind` is decided by recordInterruption().
 function interruptRecord(m, kind) {
   if (!m) return null;

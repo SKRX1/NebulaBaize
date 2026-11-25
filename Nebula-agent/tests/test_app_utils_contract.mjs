@@ -24,6 +24,7 @@ const EXPORTS = [
   "bugBoxSigKey", "bugBoxStats", "bugBoxGroups",
   "thinkPeek", "dedupeThink",
   "configValue", "safeCut", "taskOrder", "pickSeed",
+  "snapSent", "toolSeq", "noteStreamPhase",
 ];
 
 let fails = 0;
