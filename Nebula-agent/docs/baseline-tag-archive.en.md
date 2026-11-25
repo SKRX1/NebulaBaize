@@ -10,6 +10,14 @@ the master chain already contains them; a tag is only a named pointer, rebuildab
 below. The old bundles (keeping the newest 14 each on the E/F drives) also contain these tags, so
 cloning an old bundle can also restore them.
 
+## Current rollback point (overview · this section is authoritative)
+
+> The current latest rollback point is `v-baseline-2026-11-25-o` (commit `a6afc2a6ee1e8ea07b5740d77814a4044d9411b6`, the 5th back-end
+> modularization step: `serve/exceptions.py` engine/session exception-hierarchy extraction, full regression ALL
+> GREEN). The "current rollback point / current latest rollback point" wording in each section heading below is a
+> point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n … each was the newest
+> baseline at its time); wherever it disagrees with this overview, this (newest = o) section wins.
+
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
 On 2026-11-21 eight all-green milestone tags a~h were cut densely, forming a linear chain; `-h`

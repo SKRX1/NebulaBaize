@@ -281,3 +281,59 @@ loop（`runtime/loop.py` 与 `runtime/http_server.py` 的 Loop B）历来以 `co
 ### 代价（诚实记录）
 - 归一只发生在 wire 边界，内存历史仍存 `content=None`——展示层语义不受影响，
   但读代码时须知「历史里的 None 是合法内部表示，非缺陷」。
+
+## §7 引擎/会话异常层级：一张图讲清 9 类的捕获语义（2026-11-25 后端模块化第五步 serve/exceptions.py）
+
+### 背景
+serve/server.py 里有九个跨引擎 / 请求 / 会话路径抛出的异常类，过去散落在文件顶部，新人难以一眼
+看清「哪些是致命引擎故障、哪些是会话状态错、捕获时应返回 503 还是 400」。后端模块化第五步把它们整搬
+进 `serve/exceptions.py`（commit `a6afc2a`），本节留一张继承树 + 捕获语义表便于理解。
+
+### 继承树（仅继承内置异常或同族，零 import）
+
+```text
+BaseException
+├── Exception
+│   └── ClientGone                    客户端在备请求期间挂断 → 无需应答，静默丢弃
+├── RuntimeError
+│   ├── EngineDied                    引擎进程在请求中途结束（OOM 等）→ 致命，记错并重启引擎
+│   │   └── EngineSilent              引擎静默超时 / 未确认 STOP → 仍是 EngineDied，走同一恢复
+│   ├── EngineStarting                引擎在 (重) 启未报 READY → 无 context 可规划，503
+│   ├── ModelBusy                     显式模型控制不得打断活跃 / 排队请求 → 503
+│   ├── EngineStuck                   QUIT/terminate/kill 后进程仍在 → 保留进程并如实上报
+│   └── GpuBusy                       显存不足 → 不启引擎，503 + Retry-After(retry_after)
+└── ValueError（流已开始 → 以 error 事件上报）
+    ├── EngineNonFinite               某窗 logits 出现 NaN/Inf → 丢缓存、下次从 token 0 重读
+    └── SessionRefused                引擎拒绝 / 失败一次 SAVE / RESTORE → 按 kind 映射 HTTP 状态
+```
+
+### 捕获语义要点（新人速查）
+
+| 类 | 基类 | HTTP / 处置 | 关键载荷 |
+|---|---|---|---|
+| EngineDied | RuntimeError | 记错 + 重启引擎 | 无 |
+| EngineSilent | EngineDied | 同上（继承致命语义）| 无 |
+| EngineStarting | RuntimeError | 503（非 400）| 无 |
+| ModelBusy | RuntimeError | 拒绝打断，503 | 无 |
+| EngineStuck | RuntimeError | 保留进程、如实上报 | 无 |
+| GpuBusy | RuntimeError | 503 + Retry-After | `retry_after`（秒，可 None）|
+| EngineNonFinite | ValueError | 流已开始的 error 事件 | 无 |
+| SessionRefused | ValueError | 按 kind 映射：invalid 400 / storage 507 / memory 503 / io 500 | `kind` / `published` / `status` 属性 |
+| ClientGone | Exception | 客户端已走，静默 | 无 |
+
+### 决策 / 关键不变量
+- `EngineSilent` 必须是 `EngineDied` 的子类（而非并列），这样「引擎静默」也被上层 `except EngineDied`
+  兜住走同一恢复——这条继承关系由 `test_pure_modules.py` 的 `test_exceptions_hierarchy_and_payload` 锁死。
+- 三个基类（Exception / RuntimeError / ValueError）互不相同是 load-bearing：ValueError 系（EngineNonFinite /
+  SessionRefused）让「已开始的流」以 error 事件上报，RuntimeError 系走 503，Exception 系（ClientGone）静默。
+- `SessionRefused` 未知 kind 回退 `io`/500（不得 KeyError）。
+
+### 锁（防退化的常驻门禁，已并入 run_tests）
+- `tests/test_pure_modules.py::test_exceptions_hierarchy_and_payload`：EngineSilent<EngineDied 继承 +
+  三基类互不相同差分 + SessionRefused kind→status 映射（含未知回退 io 500）+ published 标志 +
+  GpuBusy retry_after 载荷与默认 None，带 load-bearing 差分。
+
+### 代价（诚实记录）
+- 九个类的 raise / except 调用点全在 server.py 内，经 try/except 双路径 import 兜回，调用点名称不变；
+  读代码时须知「异常定义不在 server.py，在 serve/exceptions.py」。
+
