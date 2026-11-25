@@ -16,6 +16,26 @@ All notable changes to this project are documented in this file.
 
   *app_utils pure-function extraction chain (milestone):* by the discipline of *no DOM, no other app.js module globals, no mutation*, cohesive pure leaves are steadily lifted from the monolithic `app.js` into `app_utils.js`. This round the spark family: `sparkIsExecuted` (a note has run when `executedAt` is set or `status==done`) + `sparkTimeCompare` (the time-mode sort comparator: unexecuted on top / newest-created first, executed below / most-recently-executed first) moved whole (commit `8d8a27d`); the two depend only on each other and on nothing else. Earlier in the chain, `buildCtxArr`+`renderMsgForCompact` and `mdKindOf`+`mdImageTag`+`MD_EXT_*` were already extracted.
   - *Blast radius:* 5 jsdom boot-style regression harnesses (`test_spark_sort` / `test_spark_edit_imgdrag` / `test_spark_group_kbd` / `test_spark_thumb_delete` / `test_spark_image_only_save`) now prepend `app_utils.js` before `app.js` in their `appCode` read so the boot scope can resolve the extracted symbols (`test_app_utils_contract.mjs` EXPORTS double-lock extended in step).
+- **`serve/tokenizer.py` 抽离（后端模块化第一步）** — 把 serve/server.py（7,290 行单体）里彼此零耦合的
+  「增量解码 + 停止串」一族整搬进新模块 `serve/tokenizer.py`：`ByteTokenizer`（测试用字节分词替身：每
+  UTF-8 字节一个 id、special 为 id≥256）、`Detokenizer`（增量解码，跨 token 拆分的多字节字符挂起至完整）、
+  `stop_strings` + `OPENAI_MAX_STOP`（解析 OpenAI `stop` / Anthropic `stop_sequences`，越限/错型抛 400）、
+  `StopMatcher`（在首个停止串处截断，挂住可能开启停止串的尾部）。仅依赖 stdlib codecs、无 server 全局。
+  调用点（构造 / `stop_strings`）保持原名经 try/except import 兜回。
+  - **连带面**：`test_pure_modules.py`（纯模块行为锁文件）新增第 12 个模块 `serve/tokenizer` 的三个测试
+  （字节往返 / 增量解码挂起 / stop 上限与错型 400 + StopMatcher 挂尾），均带 load-bearing 差分。
+
+  *`serve/tokenizer.py` extraction (first back-end modularization step):* the mutually decoupled
+  *incremental-decode + stop-string* family is lifted whole out of the 7,290-line `serve/server.py` monolith into
+  a new module `serve/tokenizer.py`: `ByteTokenizer` (a test stand-in tokenizer: one id per UTF-8 byte, specials
+  as ids >= 256), `Detokenizer` (incremental decode; a multi-byte character split across tokens is held until
+  complete), `stop_strings` + `OPENAI_MAX_STOP` (parse OpenAI `stop` / Anthropic `stop_sequences`; over-cap /
+  wrong-type raise a 400) and `StopMatcher` (cut at the first stop string, holding back a tail that could still
+  start one). Depends on stdlib `codecs` only, no server globals. Call sites keep their original names via a
+  try/except import.
+  - *Blast radius:* `test_pure_modules.py` gains its 12th module `serve/tokenizer` with three tests (byte
+  round-trip / incremental hold / stop cap-and-type 400 + StopMatcher hold-tail), each with a load-bearing
+  differential.
 
 ### Fixed / 修复
 

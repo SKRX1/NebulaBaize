@@ -1,4 +1,4 @@
-"""Unit tests for the eleven pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the twelve pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -11,6 +11,7 @@
   serve/gpu_config    - the config's GPU list / whether naming several is a split
   serve/env_probe     - is a dir writable / is this a Linux desktop session
   serve/engine_stall  - the frozen-engine watchdog predicate + its two thresholds
+  serve/tokenizer     - byte tokenizer stand-in / Detokenizer / stop_strings / StopMatcher
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -35,6 +36,7 @@ from serve import path_locate as PL         # noqa: E402
 from serve import gpu_config as GC          # noqa: E402
 from serve import env_probe as EP           # noqa: E402
 from serve import engine_stall as ES         # noqa: E402
+from serve import tokenizer as TK            # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -704,6 +706,61 @@ def test_stall_engine_frozen():
     print("STALL engine_frozen: idle->True, cpu-busy/io-busy/over-bound->False (differential) ok")
 
 
+# ---------------------------------------------------------------- tokenizer ----
+def test_tokenizer_byte_roundtrip_and_specials():
+    # ByteTokenizer: one id per UTF-8 byte; specials become ids >= 256 ONLY with parse_special,
+    # and a plain= range suppresses that even when parse_special is on (LOAD-BEARING).
+    bt = TK.ByteTokenizer()
+    assert bt.encode("ab") == [97, 98]
+    assert bt.encode("<|im_end|>", parse_special=True) == [256 + 1]      # the im_end id
+    assert bt.encode("<|im_end|>") == list("<|im_end|>".encode())        # NO parse -> plain bytes
+    assert bt.encode("<|im_end|>", parse_special=True, plain=[(0, 10)]) == list("<|im_end|>".encode())
+    assert bt.decode(bt.encode("h\u00e9llo")) == "h\u00e9llo"
+    print("TOKENIZER ByteTokenizer: byte round-trip / special-parse / plain-block ok")
+
+
+def test_tokenizer_detokenizer_incremental():
+    # Over a tok WITHOUT token_bytes (the byte tokenizer) Detokenizer keeps the re-decode path:
+    # a multi-byte char split across byte tokens is HELD until complete (LOAD-BEARING: a naive
+    # per-token decode would emit a stray replacement char mid-character).
+    bt = TK.ByteTokenizer()
+    d = TK.Detokenizer(bt)
+    assert d.push(ord("A")) == "A"
+    e = "\u00e9".encode("utf-8")           # 0xC3 0xA9, split across two byte tokens
+    d2 = TK.Detokenizer(bt)
+    out = d2.push(e[0]) + d2.push(e[1])
+    assert out == "\u00e9"
+    d3 = TK.Detokenizer(bt); d3.push(e[0])
+    assert d3.pending() is True                          # a character is split -> held
+    print("TOKENIZER Detokenizer: incremental decode / held-partial ok")
+
+
+def test_tokenizer_stop_strings_and_matcher():
+    # stop_strings accepts OpenAI `stop` (str/list, max OPENAI_MAX_STOP) or Anthropic
+    # `stop_sequences`, drops empty strings, and raises ValueError (a 400) on bad types / too many
+    # (LOAD-BEARING: the >max and wrong-type branches MUST raise, else a malformed request reaches the engine).
+    assert TK.stop_strings({}) == []
+    assert TK.stop_strings({"stop": "x"}) == ["x"]
+    assert TK.stop_strings({"stop": ["a", "", "b"]}) == ["a", "b"]
+    assert TK.stop_strings({"stop_sequences": ["s1"]}) == ["s1"]
+    assert TK.stop_strings({"stop": ["a", "b", "c", "d"]}) == ["a", "b", "c", "d"]   # at the cap
+    assert TK.OPENAI_MAX_STOP == 4
+    for bad in ({"stop": ["a", "b", "c", "d", "e"]}, {"stop": 123}):     # over-cap / wrong type
+        try:
+            TK.stop_strings(bad); raise AssertionError("expected ValueError for %r" % (bad,))
+        except ValueError:
+            pass
+    # StopMatcher holds the longest tail of the buffer that a stop string could still start with.
+    sm = TK.StopMatcher(["##"])
+    assert sm.push("hello #") == "hello "              # trailing '#' held back
+    assert sm.push("#world") == ""                     # completes '##' -> stop fires
+    assert sm.hit == "##"
+    assert sm.push("more") == ""                        # after a hit, nothing more
+    sm2 = TK.StopMatcher(["STOP"])
+    assert (sm2.push("abc"), sm2.push("def"), sm2.flush()) == ("abc", "def", "")
+    print("TOKENIZER stop_strings + StopMatcher: cap/type 400 + hold-tail ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -735,6 +792,9 @@ def main():
     test_env_linux_desktop()
     test_stall_threshold_constants()
     test_stall_engine_frozen()
+    test_tokenizer_byte_roundtrip_and_specials()
+    test_tokenizer_detokenizer_incremental()
+    test_tokenizer_stop_strings_and_matcher()
     print("PURE-MODULES TEST PASSED")
     return 0
 
