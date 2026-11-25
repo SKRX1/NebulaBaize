@@ -320,3 +320,31 @@ function inflightToolName(m) {
   }
   return "";
 }
+
+
+// ---- markdown media type/tag pure helpers (extracted from app.js): mdKindOf = classify a url/data:-URI into img/video/audio/doc/link by stripped extension or MIME half; mdImageTag = emit the lazy <img> tag. Both pure: String/RegExp only over their argument, read the co-moved MD_EXT_* keyword Sets (plain literals), no DOM, no app.js module globals, no mutation. ----
+const MD_EXT_IMG = new Set(["png", "jpg", "jpeg", "gif", "webp", "apng", "avif", "bmp", "svg"]);
+const MD_EXT_VIDEO = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
+const MD_EXT_AUDIO = new Set(["mp3", "wav", "ogg", "oga", "m4a", "flac", "aac"]);
+const MD_EXT_DOC = new Set(["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md",
+  "markdown", "rst", "json", "jsonl", "csv", "tsv", "xml", "yaml", "yml", "toml", "ini", "log",
+  "zip", "rar", "7z", "gz", "tar", "epub"]);   // TEXT_EXT + pdf, per design
+// data: URIs carry their type in the MIME half, NOT in an extension (and remote URLs carry it in a
+// ?query that the extension probe must strip first, e.g. x.png?x-bce-process=...).
+function mdKindOf(url) {
+  const d = /^data:([a-z0-9.+-]+)\/([a-z0-9.+-]+)/i.exec(url);
+  if (d) return d[1] === "image" ? "img" : (d[1] === "video" ? "video" : (d[1] === "audio" ? "audio" : "doc"));
+  const m = url.split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i);
+  const ext = m ? m[1].toLowerCase() : "";
+  if (MD_EXT_IMG.has(ext)) return "img";
+  if (MD_EXT_VIDEO.has(ext)) return "video";
+  if (MD_EXT_AUDIO.has(ext)) return "audio";
+  if (MD_EXT_DOC.has(ext)) return "doc";
+  return "link";
+}
+// animated GIF/WebP/APNG ride the native <img> animation for free - no extra code path.
+// No inline onerror here: the project ships with ZERO inline handlers (and no CSP), so the
+// broken-image fallback stays pure CSS (.md-broken) to keep that invariant.
+function mdImageTag(alt, url) {
+  return `<img class="md-img" src="${url}" alt="${alt}" loading="lazy">`;
+}

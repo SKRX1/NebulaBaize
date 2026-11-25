@@ -27,6 +27,7 @@ const EXPORTS = [
   "snapSent", "toolSeq", "noteStreamPhase",
   "assembleStreamBubbles", "computeWaterfall",
   "nebTaskFromTool", "inflightToolName",
+  "mdKindOf", "mdImageTag",
 ];
 
 let fails = 0;
