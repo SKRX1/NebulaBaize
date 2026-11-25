@@ -468,6 +468,32 @@ main 0 0 同步，ls-remote 命中 tag -n；bundle `strata-bundle-20261125-15304
 git tag -a v-baseline-2026-11-25-n 29e1f10b60d7ec9e44ca1d11d03eb5ef945a3882 -m "baseline: lock rollback point at 29e1f10 (4th back-end extraction serve/engine_diag.py + backend-modularization doc + cut release 0.1.1 de-RC from 0.1.1-rc.1); full regression ALL GREEN"
 ```
 
+## 2026-11-25 系列（续）：当前最新回滚点升级为 o（后端模块化第五步 serve/exceptions.py 异常层级，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-o`，指向 commit `a6afc2a`（`feat(serve): extract exception hierarchy
+into serve/exceptions.py`）：把 serve/server.py 里彼此零耦合的「引擎/会话异常层级」一族（`EngineDied` /
+`EngineStarting` / `ClientGone` / `ModelBusy` / `EngineSilent`（继承 EngineDied）/ `EngineNonFinite` /
+`SessionRefused`（带 kind→HTTP status 属性）/ `EngineStuck` / `GpuBusy`（带 retry_after）共 9 类）整搬进新模块
+`serve/exceptions.py`。它们仅继承内置 RuntimeError/Exception/ValueError 或同族成员、零 import、零 server 全局；
+9 类引用全在 server.py 内、无跨文件/无测试文本抓取源牵连，调用点经 try/except 双路径 import 兜回。AST out-deps=0
+扫描坐实为当前最纯最内聚的零依赖族（真实差异 server.py 4 增/63 删）。test_pure_modules.py 加第 16 个纯模块
+（一测试：fatal 继承链 + ValueError vs RuntimeError 三基类互不相同差分 + kind→status 映射 + retry_after 载荷），
+docs/backend-modularization(.en).md 进度表加第 16 行，三处 16 模块对账一致。本轮实测全套回归 ALL GREEN。这是
+抽离链后端 server.py 的第五个命名回滚点（继 -k/-l/-m/-n 之后）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-o | `a6afc2a6ee1e8ea07b5740d77814a4044d9411b6` | feat(serve): exceptions 异常层级抽离（后端模块化第五步；全套回归 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-o，main 0 0 同步，
+ls-remote 命中 tag -o；bundle `strata-bundle-20261125-160340` 已含 -o，E/F 双盘 clone 演练复现）。
+
+### 重建命令（如需精确恢复命名回滚点 o）
+
+```bat
+git tag -a v-baseline-2026-11-25-o a6afc2a6ee1e8ea07b5740d77814a4044d9411b6 -m "baseline: lock rollback point at a6afc2a (5th back-end extraction: serve/exceptions.py engine/session exception hierarchy; full regression ALL GREEN)"
+```
+
 ### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 27）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。

@@ -249,3 +249,34 @@ contains -n, E/F dual-drive clone-rehearsal reproduced).
 git tag -a v-baseline-2026-11-25-n 29e1f10b60d7ec9e44ca1d11d03eb5ef945a3882 -m "baseline: lock rollback point at 29e1f10 (4th back-end extraction serve/engine_diag.py + backend-modularization doc + cut release 0.1.1 de-RC from 0.1.1-rc.1); full regression ALL GREEN"
 ```
 
+
+## 2026-11-25 series (cont.): current rollback point upgraded to o (5th back-end extraction serve/exceptions.py exception hierarchy, all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-o`, pointing at commit `a6afc2a` (`feat(serve): extract
+exception hierarchy into serve/exceptions.py`): the mutually decoupled *engine / session exception hierarchy* family
+(`EngineDied` / `EngineStarting` / `ClientGone` / `ModelBusy` / `EngineSilent` (subclassing EngineDied) /
+`EngineNonFinite` / `SessionRefused` (with its kind->HTTP status property) / `EngineStuck` / `GpuBusy` (with
+retry_after) — nine classes) was lifted whole into a new module `serve/exceptions.py`. They inherit only builtins
+(RuntimeError / Exception / ValueError) or one another — zero imports, zero server globals; all nine classes'
+references live inside server.py with no cross-file or textual-capture-source fallout, and call sites go through a
+try/except double-path import. The AST out-deps=0 scan confirms this is the purest, most cohesive zero-dependency
+family right now (real diff: server.py 4 added / 63 removed). test_pure_modules.py gained its 16th module (one test:
+the fatal inheritance chain + a ValueError-vs-RuntimeError three-bases-are-distinct differential + the kind->status
+mapping + the retry_after load), and docs/backend-modularization(.en).md gained a 16th row, keeping the three places
+in lockstep at 16 modules. Full regression measured ALL GREEN. This is the fifth back-end extraction rollback point
+in the chain (after -k / -l / -m / -n).
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-o | `a6afc2a6ee1e8ea07b5740d77814a4044d9411b6` | feat(serve): exceptions hierarchy extraction (5th back-end step; full regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + push origin v-baseline-2026-11-25-o, main
+0 0 synced, ls-remote hits tag -o; bundle `strata-bundle-20261125-160340` already contains -o, E/F dual-drive
+clone-rehearsal reproduced).
+
+### Rebuild command (to restore named rollback point o)
+
+```bat
+git tag -a v-baseline-2026-11-25-o a6afc2a6ee1e8ea07b5740d77814a4044d9411b6 -m "baseline: lock rollback point at a6afc2a (5th back-end extraction: serve/exceptions.py engine/session exception hierarchy; full regression ALL GREEN)"
+```
+
