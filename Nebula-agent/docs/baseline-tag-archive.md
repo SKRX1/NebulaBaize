@@ -9,11 +9,10 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-d`（commit `505406e6741ce425202c43db7d32dcf4bbddac90`，后端续抽链第 6 步：`sampling_defaults_from_config`+`SAMPLING_ALIASES` 搬入
-> `serve/req_args`（byte-for-byte identical + load-bearing 差分测试）+ 修 schedule 契约测试 flaky（有界轮询）+ app_utils 42 符号/14 族自述索引文档，
-> 全套回归 --full ALL GREEN）。
+> 当前最新回滚点 = `v-baseline-2026-11-26-e`（commit `b67480a6f693fd9781ea1117262ae4ffe743c358`，中英双账本对齐点：en 账本补齐到 11-26 系列 + 补登 app_utils 42 符号清单节，
+> 使中英完全对齐；顺带落账 RULES.md 一条别线沉淀条目。纯文档改动，无代码/回归范围变化。
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、
-> 11-25-n、11-25-o、11-25-p、11-25-q、11-26-a、11-26-b、11-26-c、11-26-d… 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-d）为准。
+> 11-25-n、11-25-o、11-25-p、11-25-q、11-26-a、11-26-b、11-26-c、11-26-d、11-26-e… 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-e）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -614,4 +613,20 @@ git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "
 
 ```bash
 git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed (bounded poll), app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN (incl post-green hooks)."
+```
+
+## 2026-11-26 系列（续）：当前最新回滚点升级为 e（中英双账本对齐 + RULES 别线落账，纯文档）
+
+主人拍板：push 本轮收尾 commit 上 origin（behind=0 快进直推坐实 0 0），再给最终 HEAD 打命名回滚点 `-e`（annotated）。因主人要求「en 账本与本轮收尾**一并**固化」，`-e` 打在项2+项3 完成后的最终 HEAD `b67480a6f693fd9781ea1117262ae4ffe743c358`（含双账本中英对齐 892619f + RULES 落账 b67480a），而非更早的 010a2ba。本轮两个独立 chore commit：
+
+| tag | commit | 内容 |
+|---|---|---|
+| v-baseline-2026-11-26-e | `b67480a6f693fd9781ea1117262ae4ffe743c358` | docs(archive.en): en 账本补齐到 11-26 系列 + 补登 app_utils 42 符号清单节（中英完全对齐）+ chore(rules): 落账别线沉淀条目（纯文档，无代码改动） |
+
+**是否已在远端**：已在远端（本轮 push origin main 后单独 `git push origin v-baseline-2026-11-26-e` 推到远端，main 0 0 同步，ls-remote 命中 tag -e 解引用 == b67480a6f693fd9781ea1117262ae4ffe743c358）。
+
+### 重建命令（如需精确恢复命名回滚点 e）
+
+```bash
+git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only; tag points at the double-ledger alignment + RULES landing commit b67480a."
 ```

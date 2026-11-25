@@ -12,14 +12,13 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-d` (commit `505406e6741ce425202c43db7d32dcf4bbddac90`, back-end extraction chain step 6: the
-> `sampling_defaults_from_config` + `SAMPLING_ALIASES` block moved into `serve/req_args` (byte-for-byte identical +
-> load-bearing diff test) + a schedule-contract flaky test fix (bounded polling) + the app_utils 42-symbol / 14-family
-> self-describing index doc, full regression --full ALL GREEN).
+> The current latest rollback point is `v-baseline-2026-11-26-e` (commit `b67480a6f693fd9781ea1117262ae4ffe743c358`, the zh/en double-ledger alignment point: the en ledger
+> backfilled to the 11-26 series + the app_utils 42-symbol inventory section added so en and zh are fully aligned; this round
+> also landed one other-line RULES entry. Doc-only; no code / regression-scope change.
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time
 > snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n, 11-25-o, 11-25-p, 11-25-q, 11-26-a,
-> 11-26-b, 11-26-c, 11-26-d … each was the newest baseline at its time); wherever it disagrees with this overview, this
-> (newest = 11-26-d) section wins.
+> 11-26-b, 11-26-c, 11-26-d, 11-26-e … each was the newest baseline at its time); wherever it disagrees with this overview, this
+> (newest = 11-26-e) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -418,3 +417,19 @@ Load-order rule: index.html must load `<script src="web/app_utils.js">` before `
 | 40 | `toolResultText` | string/identifier normalisation (this round: app.js -> app_utils.js) |
 | 41 | `_memEstTokens` | memory-text metrics (this round: app.js -> app_utils.js) |
 | 42 | `_memEntryCount` | memory-text metrics (this round: app.js -> app_utils.js) |
+
+## 2026-11-26 series (cont.): current latest rollback point upgraded to e (zh/en double-ledger alignment + RULES other-line landing, doc-only)
+
+Owner sign-off: push this round's close-out commits to origin (behind=0 fast-forward, confirmed 0 0), then cut named rollback point `-e` (annotated) at the final HEAD. Because the owner asked to freeze the en ledger and this round's close-out **together**, `-e` points at the final HEAD `b67480a6f693fd9781ea1117262ae4ffe743c358` after items 2+3 (en/zh alignment 892619f + RULES landing b67480a), not the earlier 010a2ba. Two independent chore commits this round:
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-e | `b67480a6f693fd9781ea1117262ae4ffe743c358` | docs(archive.en): en ledger backfilled to the 11-26 series + app_utils 42-symbol inventory section (zh/en fully aligned) + chore(rules): other-line entry landed (doc-only, no code change) |
+
+**On the remote**: already on the remote (this round pushed origin main, then pushed `v-baseline-2026-11-26-e` alone; main 0 0 synced, ls-remote hits tag -e deref == b67480a6f693fd9781ea1117262ae4ffe743c358).
+
+### Rebuild command (to restore named rollback point e)
+
+```bat
+git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only; tag points at the double-ledger alignment + RULES landing commit b67480a."
+```
