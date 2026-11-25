@@ -75,13 +75,16 @@ appCode += `
   getSettings: () => settings, setSessions: (s) => { sessions = s; }, setActiveId: (id) => { activeId = id; },
   setMcpTools: (n) => { mcpInfo.tools = n; },
   maybeProposeMemory, mergeMemoryInto, compactMemoryStore, restoreCompaction,
+  setMemCompactIdleMs,
   setLlmCompactFn, SOFT_BUDGET, getPendingCompactionUndo: () => pendingCompactionUndo,
+  setMemCompactMaxWaitMs, setBusy: (v) => { busy = !!v; },
   getWorkspaceKnowledge: () => workspaceKnowledge, getWorkspaceRules: () => workspaceRules,
 };`;
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 
 const api = win.__api;
+api.setMemCompactIdleMs(0);   // shrink the idle window so compaction tests run instantly
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PROPOSE = (fence, lines) =>
   ({ role: "assistant", text: "done\n\n```" + fence + "\n" + lines.map((l) => "- " + l).join("\n") + "\n```\n" });
@@ -176,6 +179,31 @@ console.log("\n=== 6. SOFT_BUDGET sits strictly below the hard wall ===");
   check("rules soft < hard", api.SOFT_BUDGET.rules < wall.rules.maxLines, `${api.SOFT_BUDGET.rules} < ${wall.rules.maxLines}`);
   check("knowledge soft < hard", api.SOFT_BUDGET.knowledge < wall.knowledge.maxLines, `${api.SOFT_BUDGET.knowledge} < ${wall.knowledge.maxLines}`);
   check("experience soft < hard", api.SOFT_BUDGET.experience < wall.experience.maxLines, `${api.SOFT_BUDGET.experience} < ${wall.experience.maxLines}`);
+}
+
+// ================================================================ 7. IDLE-GATE: busy defers the LLM merge (load-bearing)
+console.log("\n=== 7. idle-gate: a busy session skips the LLM merge but still dedups losslessly ===");
+{
+  // seed > SOFT_BUDGET.knowledge(150) unique + 30 dup -> crosses the budget so the LLM branch is reached.
+  const seed = Array.from({ length: 200 }, (_, i) => "u" + i).concat(Array.from({ length: 30 }, () => "dup")).join("\n");
+
+  // busy path: hold the session busy and cap the wait short, so waitIdleForLlmCompact() times out -> idle=false.
+  setup({ [fileOf("knowledge")]: seed });
+  let llmCalls = 0;
+  api.setMemCompactMaxWaitMs(1000); api.setBusy(true);
+  const rb = await api.compactMemoryStore("knowledge", "workspace", WS, "", { llm: () => { llmCalls++; return "merged"; } });
+  api.setBusy(false); api.setMemCompactMaxWaitMs(60000);
+  const fb = disk(fileOf("knowledge")).split("\n").filter(Boolean);
+  check("busy => LLM merge NOT invoked", llmCalls === 0, "calls=" + llmCalls);
+  check("busy => still lossless-deduped (201 unique: 200 + dup)", fb.length === 201, "lines=" + fb.length);
+  check("busy => not flagged as LLM", rb.usedLLM === false);
+
+  // idle path (control): same seed, session idle -> the LLM merge DOES fire and collapses to the stub result.
+  setup({ [fileOf("knowledge")]: seed });
+  let llmCalls2 = 0;
+  const rc = await api.compactMemoryStore("knowledge", "workspace", WS, "", { llm: () => { llmCalls2++; return "m1\nm2"; } });
+  check("idle => LLM merge invoked (control)", llmCalls2 === 1, "calls=" + llmCalls2);
+  check("idle => flagged as LLM (control)", rc.usedLLM === true);
 }
 
 // ------------------------------------------------------------------ result

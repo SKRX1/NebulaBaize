@@ -5152,6 +5152,30 @@ setLlmCompactFn(realLlmCompact);
 // the model to merge semantically (fewer, denser lines). RULES is NEVER semantically rewritten — it is a
 // "must-follow" contract, so only lossless dedup ever touches it. Returns {changed, prev, next, usedLLM}.
 let pendingCompactionUndo = null;
+// Idle-gate for the model-driven semantic merge: hold the LLM call until the
+// conversation has been quiet (no streaming turn, no pending auto-resume send)
+// for IDLE_MS straight, so a background memory tidy-up never competes with a live
+// turn for the model. If the session stays busy past MAX_WAIT we give up on THIS
+// pass's LLM merge (the lossless exact-dedup still lands), and the next turn's
+// finalize re-triggers compaction -- nothing is lost, it is merely deferred.
+let MEMCOMPACT_IDLE_MS = 8000;     // required quiet stretch before the merge fires
+// Test seam: shrink the idle window in jsdom so compaction tests don't burn real seconds.
+function setMemCompactIdleMs(ms) { MEMCOMPACT_IDLE_MS = (typeof ms === "number" && ms >= 0) ? ms : 8000; }
+let MEMCOMPACT_MAX_WAIT_MS = 60000; // never hold longer than this; then defer to next turn
+// Test seam: shrink the max-wait cap in jsdom so the busy-defer path can be exercised fast.
+function setMemCompactMaxWaitMs(ms) { MEMCOMPACT_MAX_WAIT_MS = (typeof ms === "number" && ms >= 0) ? ms : 60000; }
+async function waitIdleForLlmCompact() {
+  let quiet = 0, waited = 0;
+  const step = 1000;
+  while (true) {
+    const active = !!busy || !!pendingResume;   // a live stream or a queued auto-resume
+    if (!active) { quiet += step; if (quiet >= MEMCOMPACT_IDLE_MS) return true; }
+    else { quiet = 0; }
+    await new Promise((res) => setTimeout(res, step));
+    waited += step;
+    if (waited >= MEMCOMPACT_MAX_WAIT_MS) return false;   // busy too long: defer this pass
+  }
+}
 async function compactMemoryStore(store, scope, base, group, opts = {}) {
   const cfg = MEMORY_STORES[store];
   if (!cfg) return { changed: false };
@@ -5164,7 +5188,11 @@ async function compactMemoryStore(store, scope, base, group, opts = {}) {
   for (const l of prevLines) { if (!seen.has(l)) { seen.add(l); dedup.push(l); } }
   let next = dedup, usedLLM = false;
   if (store !== "rules" && opts.llm && typeof opts.llm === "function" && dedup.length > SOFT_BUDGET[store]) {
-    try {
+    // Idle-gate: only spend a model call once the session has gone quiet. If it stays
+    // busy past the cap, skip the LLM merge for this pass (lossless dedup already done);
+    // the next finalize re-triggers compaction, so the merge is deferred, never dropped.
+    const idle = await waitIdleForLlmCompact();
+    if (idle) try {
       const merged = await opts.llm(dedup.join("\n"), store);
       if (merged && typeof merged === "string") {
         const mlines = merged.split("\n").map((l) => l.trim()).filter(Boolean);
