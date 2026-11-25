@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-a`
-> (commit `b673877e09ea7f846e658e45f4a8807ec51e700b`, the landing commit of the README gate-anchor column -g to -u advance: on top of the -u(4c5ade2) anchor-column advance + the zh/en ledger -u section backfill, this round cuts named rollback point `v-baseline-2026-11-26-a` to lock that doc-advance state; doc-only; no code / regression-scope change; commit `b673877` pushed to origin (main 0 0 in sync), single tag pushed this round. Note: the tag was cut under the true date 2026-11-26 01:54, continuing after the previously cleaned-up 11-26 superseded numbers, so no superseded-numbering conflict).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-a) section wins.
+> The current latest rollback point is `v-baseline-2026-11-26-b`
+> (commit `395b4798d0875851b9eb2e646ee0fdaf5d285416`, the CHANGELOG doc commit rollback point: after the README anchor column -g to -u advance + the ledger -u section backfill + cutting -a(b673877), this round cuts named rollback point `v-baseline-2026-11-26-b` at commit `395b479` (the CHANGELOG Unreleased section backfilling the -a milestone + the image_e2e_sentinel cap 60s to 75s flaky root-cause fix) to lock that doc state; doc-only; no code / regression-scope change; main in 0 0 sync, single-push of this tag. Note: the tag was cut under the true date 2026-11-26, the 2nd surviving 11-26 number (continuing after a), no superseded-numbering conflict).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-b) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -537,4 +537,20 @@ This tag was created under the true date 2026-11-26 01:54, continuing after the 
 
 ```bat
 git tag -a v-baseline-2026-11-26-a b673877e09ea7f846e658e45f4a8807ec51e700b -m "baseline: lock doc-advance rollback point at b673877 (v-baseline-2026-11-25-u gate-anchor column -g to -u landed + ledger -u section backfilled; doc-only)"
+```
+## 2026-11-26 series: current latest rollback point upgraded to b (CHANGELOG doc commit 395b479, doc-only)
+
+This round cut named rollback point `v-baseline-2026-11-26-b` at commit `395b4798d0875851b9eb2e646ee0fdaf5d285416`, locking the state landed by commit 395b479 (the CHANGELOG Unreleased-section backfill of the v-baseline-2026-11-26-a milestone + the image_e2e_sentinel cap 60s to 75s flaky root-cause fix).
+This tag was created under the true date 2026-11-26, the 2nd surviving 11-26 number (continuing after a), no superseded-numbering conflict; main already in 0 0 sync, single-push of this tag. Doc-only; no code / regression-scope change.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-b | `395b4798d0875851b9eb2e646ee0fdaf5d285416` | CHANGELOG doc commit rollback point: 395b479 (Unreleased section backfills the -a milestone + sentinel cap 60 to 75s); doc-only; single-push of this tag ls-remote confirms on remote |
+
+**On the remote**: this round pushed origin v-baseline-2026-11-26-b (new tag), ls-remote hits deref == `395b479`.
+
+### Rebuild command (to restore named rollback point b)
+
+```bat
+git tag -a v-baseline-2026-11-26-b 395b4798d0875851b9eb2e646ee0fdaf5d285416 -m "baseline: lock CHANGELOG-doc commit 395b479 (changelog logs v-baseline-2026-11-26-a + image_e2e_sentinel cap 60s to 75s; doc-only)"
 ```

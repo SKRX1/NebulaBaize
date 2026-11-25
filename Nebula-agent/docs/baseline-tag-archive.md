@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-a`
-> （commit `b673877e09ea7f846e658e45f4a8807ec51e700b`，README 门禁锚点列 -g→-u 推进的落地账本 commit：在 -u(4c5ade2) 锚点列已推进 + 中英账本 -u 节已补登这一文档态上，按今日日期打命名回滚点 `v-baseline-2026-11-26-a` 锁定该文档推进回滚点；纯文档；无代码 / 回归范围变更；commit `b673877` 已推 origin（main 0 0）、本轮 push 单 tag。说明：本轮在 2026-11-26 01:54 真实日期下打 tag，续位在先前已清理 11-26 超前标号之后，无超前标号冲突）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-a）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-26-b`
+> （commit `395b4798d0875851b9eb2e646ee0fdaf5d285416`，CHANGELOG 文档提交回滚点：在 README 锚点列 -g→-u 推进 + 账本 -u 节补登 + 打 -a(b673877) 之后，对 commit `395b479`（CHANGELOG Unreleased 段补登 -a 里程碑 + image_e2e_sentinel cap 60s→75s 根治 flaky）打命名回滚点 `v-baseline-2026-11-26-b` 锁定该文档态；纯文档；无代码 / 回归范围变更；main 已 0 0 同步、本轮 push 单 tag。说明：本轮 tag 在 2026-11-26 真实日期下打，是 11-26 系列第 2 个现存标号（续 a 之后），无超前标号冲突）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-b）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -737,4 +737,20 @@ git tag -a v-baseline-2026-11-25-u 4c5ade2b98c3820d1c763680b5d27de908c7068d -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-a b673877e09ea7f846e658e45f4a8807ec51e700b -m "baseline: lock doc-advance rollback point at b673877 (v-baseline-2026-11-25-u gate-anchor column -g to -u landed + ledger -u section backfilled; doc-only)"
+```
+## 2026-11-26 系列：当前最新回滚点升级到 b（CHANGELOG 文档提交 395b479，纯文档）
+
+本轮在 commit `395b4798d0875851b9eb2e646ee0fdaf5d285416` 打命名回滚点 `v-baseline-2026-11-26-b`，锁定「CHANGELOG Unreleased 段补登 v-baseline-2026-11-26-a + image_e2e_sentinel cap 60s→75s 根治 flaky」这一文档态（即 commit 395b479 所固化）。
+本轮 tag 在 2026-11-26 真实日期下创建，是 11-26 系列第 2 个现存标号（续 a 之后），无超前标号冲突；main 已 0 0 同步、单 push 本 tag。纯文档；无代码 / 回归范围变更。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-b | `395b4798d0875851b9eb2e646ee0fdaf5d285416` | CHANGELOG 文档提交回滚点：395b479（Unreleased 段补登 -a 里程碑 + sentinel cap 60→75s 落账）；纯文档；ls-remote 单推本 tag 坐实已在远端 |
+
+**远端**：本轮 push origin v-baseline-2026-11-26-b（new tag），ls-remote 命中 deref == `395b479`。
+
+### 重建命令（如需恢复命名回滚点 b）
+
+```bat
+git tag -a v-baseline-2026-11-26-b 395b4798d0875851b9eb2e646ee0fdaf5d285416 -m "baseline: lock CHANGELOG-doc commit 395b479 (changelog logs v-baseline-2026-11-26-a + image_e2e_sentinel cap 60s to 75s; doc-only)"
 ```
