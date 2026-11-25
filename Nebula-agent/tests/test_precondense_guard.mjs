@@ -22,7 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), "..", "serve", "web");
-const src = readFileSync(join(WEB, "app.js"), "utf8");
+const src = readFileSync(join(WEB, "app_utils.js"), "utf8") + "\n" + readFileSync(join(WEB, "app.js"), "utf8");
 
 function grab(name) {
   let start = src.indexOf(`function ${name}(`);

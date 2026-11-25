@@ -30,7 +30,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), "..", "serve", "web");
-const src = readFileSync(join(WEB, "app.js"), "utf8");
+const src = readFileSync(join(WEB, "app_utils.js"), "utf8") + "\n" + readFileSync(join(WEB, "app.js"), "utf8");
 const i18n = readFileSync(join(WEB, "i18n.js"), "utf8");
 const html = readFileSync(join(WEB, "index.html"), "utf8");
 

@@ -348,3 +348,29 @@ function mdKindOf(url) {
 function mdImageTag(alt, url) {
   return `<img class="md-img" src="${url}" alt="${alt}" loading="lazy">`;
 }
+
+
+// ---- compaction pure transforms (extracted from app.js): buildCtxArr = per-turn context occupancy percent series from message stats (the single source shared by the sparkline + freeze so chart and freeze can never drift); renderMsgForCompact = render one message into a compact-summary string (role tag + text + tool_calls + image/file counts, cap-truncated). Both pure: Array/String/JSON/Math only over their arguments, no DOM, no app.js module globals, no mutation. ----
+// The per-turn occupancy series, derived from message stats. Shared by renderInspector and the
+// compaction freeze below so "what the chart shows" and "what gets frozen" can never drift apart.
+function buildCtxArr(msgs) {
+  const out = [];
+  for (const mm of msgs) if (mm.role === "assistant" && mm.stats && mm.stats.ctxMax)
+    out.push(Math.round(100 * (mm.stats.ctxUsed || 0) / mm.stats.ctxMax));
+  return out;
+}
+
+function renderMsgForCompact(m, cap) {
+  const tag = m.role === "user" ? "[用户]" : m.role === "assistant" ? "[助手]" : "[" + (m.role || "system") + "]";
+  let s = m.text || (typeof m.content === "string" ? m.content : "");
+  const tcs = m.tool_calls || m.tools || [];
+  if (tcs.length) s += "\n" + tcs.map((tc) => {
+    const fn = (tc.function || tc) || {};
+    return "[工具调用] " + (fn.name || "") + " " + (typeof fn.arguments === "string" ? fn.arguments : JSON.stringify(fn.arguments || ""));
+  }).join("\n");
+  if (m.images && m.images.length) s += ` [图片×${m.images.length}]`;
+  if (m.files && m.files.length) s += ` [文件×${m.files.length}]`;
+  s = (tag + " " + s).trim();
+  if (s.length > cap) s = s.slice(0, cap) + "…[过长已截断]";
+  return s;
+}

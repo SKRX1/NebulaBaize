@@ -28,6 +28,7 @@ const EXPORTS = [
   "assembleStreamBubbles", "computeWaterfall",
   "nebTaskFromTool", "inflightToolName",
   "mdKindOf", "mdImageTag",
+  "buildCtxArr", "renderMsgForCompact",
 ];
 
 let fails = 0;

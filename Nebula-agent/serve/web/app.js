@@ -3443,14 +3443,6 @@ function extractPlan(text) {
   return {text: out.trim(), items};
 }
 // D11: a tiny inline sparkline of per-turn context usage (%) drawn into an SVG.
-// The per-turn occupancy series, derived from message stats. Shared by renderInspector and the
-// compaction freeze below so "what the chart shows" and "what gets frozen" can never drift apart.
-function buildCtxArr(msgs) {
-  const out = [];
-  for (const mm of msgs) if (mm.role === "assistant" && mm.stats && mm.stats.ctxMax)
-    out.push(Math.round(100 * (mm.stats.ctxUsed || 0) / mm.stats.ctxMax));
-  return out;
-}
 // Plan A default (approved 2026-11-13): bars kept from before each compaction cut.
 const SPARK_FREEZE_N = 10;   // fallback default; settings.sparkFreezeN (drawer slider) overrides
 const SPARK_MAX_BARS = 24; // overall window cap (frozen + current); left bars roll off past this. Read by ctxSpark.
@@ -3764,20 +3756,6 @@ function computeTailBudgetChars() {
   return (maxCtx && maxCtx > 0) ? maxCtx * 3 * (pct / 100) : 1e9;
 }
 
-function renderMsgForCompact(m, cap) {
-  const tag = m.role === "user" ? "[用户]" : m.role === "assistant" ? "[助手]" : "[" + (m.role || "system") + "]";
-  let s = m.text || (typeof m.content === "string" ? m.content : "");
-  const tcs = m.tool_calls || m.tools || [];
-  if (tcs.length) s += "\n" + tcs.map((tc) => {
-    const fn = (tc.function || tc) || {};
-    return "[工具调用] " + (fn.name || "") + " " + (typeof fn.arguments === "string" ? fn.arguments : JSON.stringify(fn.arguments || ""));
-  }).join("\n");
-  if (m.images && m.images.length) s += ` [图片×${m.images.length}]`;
-  if (m.files && m.files.length) s += ` [文件×${m.files.length}]`;
-  s = (tag + " " + s).trim();
-  if (s.length > cap) s = s.slice(0, cap) + "…[过长已截断]";
-  return s;
-}
 function splitForCompact(msgs, budget) {
   const cap = Math.max(2000, Math.floor(budget * 0.5));   // no single message eats more than half a chunk
   const rendered = msgs.map((m) => renderMsgForCompact(m, cap));

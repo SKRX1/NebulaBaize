@@ -54,7 +54,7 @@ win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 // Expose the REAL functions + the live `settings` object out of app.js's strict scope by appending
 // an assignment to the SAME eval (module-scope const/function stay reachable inside that realm).
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += "\n;window.__api = { buildCtxArr, sparkFreezeSlice, ctxSpark };\n";
 appCode += "window.__setSettings = (o) => { for (const k in o) settings[k] = o[k]; };\n";
 appCode += "window.__getSettings = () => settings;\n";
