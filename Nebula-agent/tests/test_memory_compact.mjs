@@ -83,6 +83,10 @@ appCode += `
   resetUserActivity: () => { lastUserActivityMs = 0; },
   getWorkspaceKnowledge: () => workspaceKnowledge, getWorkspaceRules: () => workspaceRules,
 };`;
+// app.js references pure globals that live in app_utils.js (taskOrder, etc.) -- mirror the
+// real index.html load order (i18n.js -> app_utils.js -> app.js) so s-apply.onclick's
+// renderSessions()/workspaceGroups() can resolve taskOrder instead of throwing.
+win.eval(fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8").replace(/"use strict";?/, ""));  // drop strict so its top-level fns land on window
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 
@@ -319,6 +323,21 @@ console.log("\n=== 9. the two number fields reject out-of-range on blur, snap to
   B.value = "9"; blur(B);
   check("s-memidle2 9 (in range) is kept", B.value === "9", "got " + B.value);
   check("s-memidle2 9 clears the range hint", BW.hidden === true, "hidden=" + BW.hidden);
+
+  // ---- end-to-end: the field really drives the value that lands in localStorage. ----
+  // Type an out-of-range 999, blur (bindNumGuard snaps to the factory default 6), then click
+  // the Apply button. collectSettings() reads the snapped field through MEM_FIELD_SPECS and
+  // store.set("sampling", settings) persists it -- so what ends up in localStorage MUST be 6,
+  // not 999 and not the pre-convergence stale default 3. This is the on-disk proof the owner
+  // asked for: reverting the SPECS wiring to a hardcoded 3 (or letting 999 through) turns RED.
+  B.value = "999"; blur(B);
+  check("E2E: #s-memidle2 999 snaps to 6 before save", B.value === "6", "got " + B.value);
+  try { win.document.getElementById("s-apply").click(); } catch (e) { /* best-effort */ }
+  let saved = null;
+  try { saved = JSON.parse(win.localStorage.getItem("strata.sampling") || "null"); } catch (e) {}
+  check("E2E: Apply persists memActivityGraceSec == 6 to localStorage",
+        !!saved && saved.memActivityGraceSec === 6,
+        "got " + (saved ? JSON.stringify(saved.memActivityGraceSec) : "no strata.sampling key"));
 }
 
 // ================================================================ 10. real-time feel: motion holds it busy, stillness past the window releases it
