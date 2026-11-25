@@ -12,13 +12,14 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-c` (commit `9d4699eed6a4fac7ffc16a016e801e4af4b6146b`, front-end
-> extraction chain round 4: the memory-text-metrics family (`_memEstTokens`/`_memEntryCount`) moved into `app_utils.js`,
-> a **42-symbol / 14-family** milestone, full regression --full ALL GREEN).
+> The current latest rollback point is `v-baseline-2026-11-26-d` (commit `505406e6741ce425202c43db7d32dcf4bbddac90`, back-end extraction chain step 6: the
+> `sampling_defaults_from_config` + `SAMPLING_ALIASES` block moved into `serve/req_args` (byte-for-byte identical +
+> load-bearing diff test) + a schedule-contract flaky test fix (bounded polling) + the app_utils 42-symbol / 14-family
+> self-describing index doc, full regression --full ALL GREEN).
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time
 > snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n, 11-25-o, 11-25-p, 11-25-q, 11-26-a,
-> 11-26-b, 11-26-c … each was the newest baseline at its time); wherever it disagrees with this overview, this
-> (newest = 11-26-c) section wins.
+> 11-26-b, 11-26-c, 11-26-d … each was the newest baseline at its time); wherever it disagrees with this overview, this
+> (newest = 11-26-d) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -349,3 +350,21 @@ reproduced, keep-14 pruned).
 git tag -a v-baseline-2026-11-25-q 5e5cb71fe9a73d95f38d9b9926063b9de3c78308 -m "baseline: lock rollback point at 5e5cb71 (front-end chain round 2: proposalMarkdown extracted into app_utils.js markdown-render family; full regression ALL GREEN)"
 ```
 
+## 2026-11-26 series (cont.): current latest rollback point upgraded to d (back-end extraction chain step 6 + flaky fix + app_utils self-describing index, all green)
+
+Owner sign-off: push this round's single commit to origin (behind=0 fast-forward, confirmed 0 0), then cut named rollback point `-d`
+(annotated) at HEAD. `-d` is an annotated tag whose message records only facts actually verified by a real run (full regression
+--full ALL GREEN incl. post-green hooks). This round's commit `505406e`:
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-d | `505406e6741ce425202c43db7d32dcf4bbddac90` | refactor(serve): sampling block extracted into req_args (byte-identical + diff test) + fixed schedule-contract flaky + app_utils self-describing index (full regression ALL GREEN) |
+
+**On the remote**: already on the remote (this round pushed origin main, then pushed `v-baseline-2026-11-26-d` alone; main 0 0 synced,
+ls-remote hits tag -d deref == 505406e6741ce425202c43db7d32dcf4bbddac90).
+
+### Rebuild command (to restore named rollback point d)
+
+```bat
+git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed (bounded poll), app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN (incl post-green hooks)."
+```
