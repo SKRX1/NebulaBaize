@@ -3026,23 +3026,6 @@ async function saveProposalToFile(mm, p) {
   }
 }
 
-function proposalMarkdown(p) {
-  const lines = [`# 建议决策卡：${p.title}`, "", `**验证状态**：${p.verified ? "已验证" : "待验证"}`, ""];
-  if (p.summary) lines.push(`**结论**：${p.summary}`, "");
-  if (p.options && p.options.length) {
-    lines.push("## 选项对照", "", "| 选项 | 结论 | 好处 | 坏处 |", "| --- | --- | --- | --- |");
-    for (const o of p.options) {
-      const pros = (o.pros || []).join("；") || "-";
-      const cons = (o.cons || []).join("；") || "-";
-      lines.push(`| ${o.label || ""} | ${o.verdict || ""} | ${pros} | ${cons} |`);
-    }
-    lines.push("");
-  }
-  if (p.evidence) lines.push("## 验证方式", "", p.evidence, "");
-  if (p.next) lines.push("## 下一步", "", p.next, "");
-  return lines.join("\n");
-}
-
 function continueTask(btn) {
   if (busy) return;
   const host = btn && btn.closest(".st-msg");

@@ -31,6 +31,7 @@ const EXPORTS = [
   "buildCtxArr", "renderMsgForCompact",
   "sparkIsExecuted", "sparkTimeCompare",
   "splitPath",
+  "proposalMarkdown",
 ];
 
 let fails = 0;

@@ -370,6 +370,28 @@ function mdImageTag(alt, url) {
 }
 
 
+// ---- markdown decision-card render (extracted from app.js): proposalMarkdown turns a
+// proposal object into a human-readable markdown document (title + verified-state + options
+// comparison table + evidence + next). Pure: Array/String/template builtins only over its
+// argument; reads no DOM and no app.js module globals, and does not mutate the argument. ----
+function proposalMarkdown(p) {
+  const lines = [`# 建议决策卡：${p.title}`, "", `**验证状态**：${p.verified ? "已验证" : "待验证"}`, ""];
+  if (p.summary) lines.push(`**结论**：${p.summary}`, "");
+  if (p.options && p.options.length) {
+    lines.push("## 选项对照", "", "| 选项 | 结论 | 好处 | 坏处 |", "| --- | --- | --- | --- |");
+    for (const o of p.options) {
+      const pros = (o.pros || []).join("；") || "-";
+      const cons = (o.cons || []).join("；") || "-";
+      lines.push(`| ${o.label || ""} | ${o.verdict || ""} | ${pros} | ${cons} |`);
+    }
+    lines.push("");
+  }
+  if (p.evidence) lines.push("## 验证方式", "", p.evidence, "");
+  if (p.next) lines.push("## 下一步", "", p.next, "");
+  return lines.join("\n");
+}
+
+
 // ---- compaction pure transforms (extracted from app.js): buildCtxArr = per-turn context occupancy percent series from message stats (the single source shared by the sparkline + freeze so chart and freeze can never drift); renderMsgForCompact = render one message into a compact-summary string (role tag + text + tool_calls + image/file counts, cap-truncated). Both pure: Array/String/JSON/Math only over their arguments, no DOM, no app.js module globals, no mutation. ----
 // The per-turn occupancy series, derived from message stats. Shared by renderInspector and the
 // compaction freeze below so "what the chart shows" and "what gets frozen" can never drift apart.

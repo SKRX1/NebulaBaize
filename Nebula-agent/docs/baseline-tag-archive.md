@@ -524,7 +524,7 @@ ls-remote 命中 tag -p；bundle `strata-bundle-20261125-164121` 已含 -p，E/F
 git tag -a v-baseline-2026-11-25-p 58d0955c379e8fc944b1b0372c91cb2294d21d09 -m "baseline: lock rollback point at 58d0955 (front-end chain new round: splitPath extracted into app_utils.js; back-end modularization wrap-up doc; full regression ALL GREEN)"
 ```
 
-### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 34）
+### app_utils.js 抽离链全量符号清单（真相源 = tests/test_app_utils_contract.mjs 的 EXPORTS，共 35）
 
 以下符号已由 app.js 整搬进 `serve/web/app_utils.js`，app.js 不再重复定义（contract 双向锁：app_utils 必定义 + app.js 必不重复定义）。
 加载序铁律：index.html 必须先 `<script src="web/app_utils.js">` 再 `web/app.js`，靠 app_utils 先加载把下列符号暴露为全局供 app.js 调用点使用。
@@ -565,5 +565,6 @@ git tag -a v-baseline-2026-11-25-p 58d0955c379e8fc944b1b0372c91cb2294d21d09 -m "
 | 32 | `sparkIsExecuted` | spark 执行判定（纯布尔） |
 | 33 | `sparkTimeCompare` | spark 排序（纯比较器） |
 | 34 | `splitPath` | 路径/作用域（本轮：app.js → app_utils.js） |
+| 35 | `proposalMarkdown` | markdown 渲染（本轮：app.js → app_utils.js） |
 
 

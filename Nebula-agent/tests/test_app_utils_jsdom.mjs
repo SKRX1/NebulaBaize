@@ -38,7 +38,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath"];
+const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath", "proposalMarkdown"];
 // publish the three function declarations onto window (model classic-script globals)
 const EXPOSE = `
 ;window.timeStr = typeof timeStr === "function" ? timeStr : undefined;
@@ -49,6 +49,7 @@ const EXPOSE = `
 ;window.detectLang = typeof detectLang === "function" ? detectLang : undefined;
 ;window.classifyTool = typeof classifyTool === "function" ? classifyTool : undefined;
 ;window.splitPath = typeof splitPath === "function" ? splitPath : undefined;
+;window.proposalMarkdown = typeof proposalMarkdown === "function" ? proposalMarkdown : undefined;
 `;
 
 const utilSrc = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");
@@ -138,6 +139,26 @@ check("detectLang('') === 'en' (empty defaults en)", win.detectLang("") === "en"
         Array.isArray(win.splitPath("")) && win.splitPath("").length === 0);
   check("splitPath(null) -> [] (no throw)",
         Array.isArray(win.splitPath(null)) && win.splitPath(null).length === 0);
+}
+
+// proposalMarkdown: proposal object -> markdown document (now lives in app_utils.js). Pure leaf.
+{
+  const o = { id: "p2", title: "T", verified: false,
+    options: [{ label: "A", verdict: "rec", pros: ["p1"], cons: ["c1"] }], evidence: "e", next: "n" };
+  const md = win.proposalMarkdown(o);
+  check("proposalMarkdown(title+options) renders title/table/pros/cons  " + JSON.stringify(md),
+        typeof md === "string" && md.includes("T") && md.includes("p1") && md.includes("c1") && md.includes("| ---"));
+  check("proposalMarkdown includes evidence + next  " + JSON.stringify(md),
+        md.includes("e") && md.includes("n"));
+  // load-bearing branch: an options-less proposal omits the comparison table entirely
+  const solo = win.proposalMarkdown({ title: "Solo" });
+  check("proposalMarkdown(title only) -> no options table  " + JSON.stringify(solo),
+        !solo.includes("| ---") && solo.includes("Solo"));
+  // load-bearing branch: verified true vs false toggles the state word
+  check("proposalMarkdown(verified:true) -> verified-state wording",
+        win.proposalMarkdown({ title: "x", verified: true }).includes("已验证"));
+  check("proposalMarkdown(verified:false) -> pending-state wording",
+        win.proposalMarkdown({ title: "x", verified: false }).includes("待验证"));
 }
 
 // extractNextSteps: pulls the ```next-steps``` fence, parses * / ! / ? markers + label:detail, strips fence from text

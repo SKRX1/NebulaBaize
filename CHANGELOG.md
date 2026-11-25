@@ -11,6 +11,33 @@ All notable changes to this project are documented in this file.
 
 ### Changed / 变更
 
+- **`proposalMarkdown` 抽离到 `app_utils.js`（前端续抽链第二轮 · markdown 渲染族）** — 沿续 splitPath 那轮，同纪律
+  （零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出零依赖内聚纯叶子 `proposalMarkdown`：
+  把建议决策卡对象序列化为人类可读 markdown（标题 + 验证状态 + 选项对照表 + 验证方式 + 下一步）。
+  它与 app_utils.js 里既有的 `mdKindOf`/`mdImageTag` 同属「markdown 渲染」族，整搬后天然内聚。它只引用参数字段 +
+  Array/String/模板内建，零 app.js 全局、零 DOM、不改变字入参；全仓仅 app.js 两处引用（`saveProposalToFile` 里的
+  1 调用点 + 1 定义）、无测试正则抓源；调用点保持原名（classic script 全局声明、app_utils.js 先于 app.js 加载）。
+  字节逐字一致整搬。
+  - **连带面**：`test_app_utils_contract.mjs` EXPORTS 集合加 `proposalMarkdown`（L2a 定义 / L2b 不重定义锁全绿）；
+  `test_app_utils_jsdom.mjs` 的 HELPERS/EXPOSE 加 `proposalMarkdown` 并补 5 项行为门禁（title+options→表格、仅
+  title→无表格、verified true/false→已验证/待验证状态词、evidence/next 字段渲染）；`test_proposal_card.mjs` 的
+  `Object.assign(window,{...})` boot 清单补 `proposalMarkdown`（outside-only 下 function 不跨 win.eval 作用域，需在
+  app_utils eval 时重新发布到 window，后续 injected eval 的裸引用才能经 global lookup 命中）。
+  - *`proposalMarkdown` extracted into `app_utils.js` (front-end chain, round 2 — markdown-render family):* continuing
+  the splitPath round, the same discipline (zero external dependency AST out-deps=0, zero app.js globals, zero DOM, no
+  mutation) surfaced the cohesive leaf `proposalMarkdown` — it serialises a proposal decision-card object into a
+  human-readable markdown document (title + verified-state + options comparison table + evidence + next). It belongs to
+  the same *markdown-render* family as the existing `mdKindOf`/`mdImageTag` already in app_utils.js, so the move is
+  naturally cohesive. It references only its argument’s fields plus Array/String/template builtins — zero app.js globals,
+  zero DOM, does not mutate its input; across the whole tree it is referenced in exactly two places in app.js (one call
+  site inside `saveProposalToFile` + one definition), with no regex-source capture, and the call site keeps its original
+  name (classic-script global declaration, app_utils.js loads before app.js). Byte-for-byte identical move.
+  - *Blast radius:* `test_app_utils_contract.mjs` EXPORTS gains `proposalMarkdown` (L2a defines / L2b no-redefine locks
+  stay green); `test_app_utils_jsdom.mjs` gains `proposalMarkdown` in HELPERS/EXPOSE plus a 5-assertion behaviour gate
+  (title+options→table, title-only→no table, verified true/false→state wording, evidence/next fields); and
+  `test_proposal_card.mjs`’s `Object.assign(window,{...})` boot list gains `proposalMarkdown` (under jsdom
+  outside-only, a top-level `function` does not cross `win.eval` scopes, so it must be re-published onto window during
+  the app_utils eval for the later injected eval’s bare reference to resolve).
 - **`splitPath` 抽离到 `app_utils.js`（前端续抽链新一轮）** — 后端续抽链自然收尾后转回前端
   `app.js`（11,935 行单体）。按同一纪律扫出零依赖内聚纯叶子 `splitPath`：把绝对路径拆成可点击
   面包屑段，每段携自己的绝对前缀（Windows 风味：`C:`→`C:\` 盘符根、前导 `/` → 根相对）。它与 app_utils.js 里
