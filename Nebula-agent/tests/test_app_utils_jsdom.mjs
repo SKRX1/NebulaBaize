@@ -38,12 +38,15 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems"];
+const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang"];
 // publish the three function declarations onto window (model classic-script globals)
 const EXPOSE = `
 ;window.timeStr = typeof timeStr === "function" ? timeStr : undefined;
 ;window.fmtBytesSel = typeof fmtBytesSel === "function" ? fmtBytesSel : undefined;
 ;window.parsePlanItems = typeof parsePlanItems === "function" ? parsePlanItems : undefined;
+;window.extractNextSteps = typeof extractNextSteps === "function" ? extractNextSteps : undefined;
+;window.extractProposalsFromText = typeof extractProposalsFromText === "function" ? extractProposalsFromText : undefined;
+;window.detectLang = typeof detectLang === "function" ? detectLang : undefined;
 `;
 
 const utilSrc = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");
@@ -90,6 +93,50 @@ check("parsePlanItems('') -> []  " + JSON.stringify(win.parsePlanItems("")),
 check("parsePlanItems(null) -> [] (no throw)",
       Array.isArray(win.parsePlanItems(null)) && win.parsePlanItems(null).length === 0);
 
+// detectLang: ascii -> en, cjk-dominant -> zh, empty -> en
+check("detectLang('hello world') === 'en'  " + JSON.stringify(win.detectLang("hello world")),
+      win.detectLang("hello world") === "en");
+check("detectLang(纯中文) === 'zh'  " + JSON.stringify(win.detectLang("这是一段中文文本")),
+      win.detectLang("这是一段中文文本") === "zh");
+check("detectLang('') === 'en' (empty defaults en)", win.detectLang("") === "en");
+
+// extractNextSteps: pulls the ```next-steps``` fence, parses * / ! / ? markers + label:detail, strips fence from text
+{
+  const r = win.extractNextSteps("前言\n```next-steps\n* 做X：详情A\n! 风险Y：详情B\n? 等确认Z：详情C\n```");
+  check("extractNextSteps strips the fence from the prose  " + JSON.stringify(r.text),
+        r.text === "前言" || !/next-steps/.test(r.text));
+  const got = JSON.stringify(r.steps);
+  const want = JSON.stringify([
+    { label: "做X", detail: "详情A", recommended: true, avoid: false, hold: false },
+    { label: "风险Y", detail: "详情B", recommended: false, avoid: true, hold: false },
+    { label: "等确认Z", detail: "详情C", recommended: false, avoid: false, hold: true },
+  ]);
+  check("extractNextSteps parses */!/? markers + label:detail  " + got, got === want);
+  const none = win.extractNextSteps("no fence here");
+  check("extractNextSteps without a fence -> {text kept, steps:[]}",
+        none.text === "no fence here" && none.steps.length === 0);
+}
+
+// extractProposalsFromText: lifts complete ```proposal``` JSON fences into m.proposals, strips them from m.text
+{
+  const m = { text: '前文\n```proposal\n{"title":"T1","verdict":"推荐"}\n```\n后文' };
+  win.extractProposalsFromText(m);
+  check("extractProposalsFromText lifted the proposal  " + JSON.stringify(m.proposals && m.proposals.map((p) => p.title)),
+        !!(m.proposals && m.proposals.length === 1 && m.proposals[0].title === "T1" && m.proposals[0].verdict === "推荐"));
+  check("extractProposalsFromText set id + verified + dismissed defaults",
+        !!m.proposals[0].id && m.proposals[0].verified === false && m.proposals[0].dismissed === false);
+  check("extractProposalsFromText removed the fence from m.text  " + JSON.stringify(m.text),
+        !/```proposal/.test(m.text) && m.text.includes("前文") && m.text.includes("后文"));
+  // an open (still-streaming) fence is left untouched until closed
+  const m2 = { text: '```proposal\n{"title":"half"' };
+  win.extractProposalsFromText(m2);
+  check("extractProposalsFromText leaves an OPEN fence in text (no half-parsed object)",
+        !m2.proposals && /```proposal/.test(m2.text));
+  win.extractProposalsFromText(null);   // must not throw
+  win.extractProposalsFromText({});      // must not throw
+  check("extractProposalsFromText tolerates null / empty arg", true);
+}
+
 console.log("\n=== structure: moved (not duplicated), wired, call sites intact ===");
 for (const fn of HELPERS) {
   check("app_utils.js defines " + fn, new RegExp("^function\\s+" + fn + "\\s*\\(", "m").test(utilSrc));
@@ -124,6 +171,9 @@ console.log("\n=== boot chain: i18n.js + app_utils.js + app.js, helpers callable
   check("app.js boots with app_utils loaded (no ReferenceError on the moved helpers)", booted);
   check("after full boot fmtBytesSel still callable + correct  " + JSON.stringify(w.fmtBytesSel && w.fmtBytesSel(2048)),
         typeof w.timeStr === "function" && w.fmtBytesSel(2048) === "2.0 KB");
+  check("after full boot the fence extractors + detectLang are still callable",
+        typeof w.extractNextSteps === "function" && typeof w.extractProposalsFromText === "function"
+        && w.detectLang("中文文本") === "zh");
 }
 
 console.log("\n=== decoy diff: removing a helper from app_utils flips it red ===");
@@ -131,6 +181,10 @@ console.log("\n=== decoy diff: removing a helper from app_utils flips it red ===
   const broken = utilSrc.replace(/function\s+fmtBytesSel\s*\([\s\S]*?\n\}/, "");
   const w2 = bootUtil(broken);
   check("decoy: with fmtBytesSel removed, runtime check WOULD fail", typeof w2.fmtBytesSel !== "function");
+
+  const broken2 = utilSrc.replace(/function\s+detectLang\s*\([\s\S]*?\n\}/, "");
+  const w3 = bootUtil(broken2);
+  check("decoy: with detectLang removed, runtime check WOULD fail", typeof w3.detectLang !== "function");
 }
 
 console.log("");

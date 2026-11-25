@@ -2872,27 +2872,6 @@ function onTool(m, x) {
 // Parses a fenced ```next-steps block into clickable suggestion chips. A leading "*" (or "•") on a
 // line marks the AI's *recommended* item: it is surfaced first (with an emerald dot) and is what the
 // autonomous auto-drive picks by default. Other leading bullets (+ - –) are stripped harmlessly.
-function extractNextSteps(text) {
-  const m = (text || "").match(/```next-steps\s*\n([\s\S]*?)```/i);
-  if (!m) return {text: text || "", steps: []};
-  const steps = [];
-  for (const raw of m[1].split("\n")) {
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    let recommended = false, avoid = false, hold = false;
-    let body = trimmed.replace(/^\?\s*/, () => { hold = true; return ""; }).trim();   // "?" = 列给您看但 AI 等您答，不自动跑
-    body = body.replace(/^[\*\u2022]+\s*/, () => { recommended = true; return ""; }).trim();
-    body = body.replace(/^[!✗×x]+\s*/i, () => { avoid = true; return ""; }).trim();   // "!" = AI does NOT advise (risky / net-negative)
-    body = body.replace(/^[\+\-–]+/, "").trim();     // remaining bullet chars (not the recommend marker)
-    if (!body) continue;
-    const i = body.indexOf("："), j = body.indexOf(":");
-    const sep = i > 0 && (j < 0 || i < j) ? i : (j > 0 ? j : -1);
-    steps.push(sep > 0
-      ? {label: body.slice(0, sep).trim(), detail: body.slice(sep + 1).trim(), recommended, avoid, hold}
-      : {label: body, detail: "", recommended, avoid, hold});
-  }
-  return {text: (text.slice(0, m.index) + text.slice(m.index + m[0].length)).trim(), steps};
-}
 // Pure: compose the picked suggestions (and any text the user typed) into one user message.
 // A single pick with no custom text keeps the exact old wording (label：detail); several picks become a
 // numbered batch; typed instructions ride along as a closing "另外：…" paragraph either way.
@@ -3089,33 +3068,6 @@ function abortStream() {
  * as DOM + m.proposals data only. "存为文件" (data-prop-act=save) writes the full analysis to
  * .Nebula-memory/proposal-<id>.md (reusing the side-log philosophy) so even the UI text can be offloaded.
  */
-function extractProposalsFromText(m) {
-  if (!m || !m.text) return;
-  // Only complete fences (with a closing ```) match; a fence still streaming in is left in m.text until done.
-  const RE = /```proposal\s*\n([\s\S]*?)\n```/g;
-  let mt, hits = [];
-  while ((mt = RE.exec(m.text)) !== null) hits.push(mt[1]);
-  if (!hits.length) return;
-  if (!m.proposals) m.proposals = [];
-  let changed = false;
-  for (const body of hits) {
-    let obj = null;
-    try { obj = JSON.parse(body); } catch (e) { obj = null; }
-    if (!obj || !obj.title) continue;              // malformed: keep the raw fence as text (safe fallback)
-    const id = obj.id || ("prop_" + String(body).length.toString(36) + "_" + (m.proposals.length));
-    if (m.proposals.some((p) => p.id === id)) continue;
-    obj.id = id;
-    if (obj.verified == null) obj.verified = false;
-    obj.dismissed = false;
-    m.proposals.push(obj);
-    changed = true;
-  }
-  if (changed) {
-    // Remove every proposal fence (plus one trailing newline) and collapse runs of blank lines.
-    m.text = m.text.replace(/```proposal\s*\n[\s\S]*?\n```\s*\n?/g, "").replace(/\n{3,}/g, "\n\n").trim();
-  }
-}
-
 function proposalCardHtml(p, gi) {
   const badge = p.verified
     ? `<span class="proposal__badge proposal__badge--ok">${esc(t("proposal.verified"))}</span>`
@@ -5607,12 +5559,6 @@ function extractDesign(text) {
   return {title, body};
 }
 // Heuristic: if a meaningful share of characters are CJK, treat the text as Chinese.
-function detectLang(text) {
-  const s = text || "";
-  if (!s.trim()) return "en";
-  const cjk = (s.match(/[\u4e00-\u9fff]/g) || []).length;
-  return cjk > s.replace(/\s/g, "").length * 0.15 ? "zh" : "en";
-}
 // Resolve the effective document language: explicit zh/en wins; auto follows the conversation.
 function designLangOf() {
   const dl = settings.designLang || "auto";
