@@ -12,13 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-e` (commit `b67480a6f693fd9781ea1117262ae4ffe743c358`, the zh/en double-ledger alignment point: the en ledger
-> backfilled to the 11-26 series + the app_utils 42-symbol inventory section added so en and zh are fully aligned; this round
-> also landed one other-line RULES entry. Doc-only; no code / regression-scope change.
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time
-> snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n, 11-25-o, 11-25-p, 11-25-q, 11-26-a,
-> 11-26-b, 11-26-c, 11-26-d, 11-26-e … each was the newest baseline at its time); wherever it disagrees with this overview, this
-> (newest = 11-26-e) section wins.
+> The current latest rollback point is `v-baseline-2026-11-25-r`
+> (commit `835dad49e1b1f52af17bb96cf8c840c32a4d948d`, the WorkBuddy-trace purge: 137 test createRequire anchors + display strings + node/python fallback unified onto the system nodejs; quick regression ALL GREEN, commit `835dad4` pushed to origin, ls-remote confirms `-r` is on the remote).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r, 11-26-d/e … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-25-r) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -432,4 +428,48 @@ Owner sign-off: push this round's close-out commits to origin (behind=0 fast-for
 
 ```bat
 git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only; tag points at the double-ledger alignment + RULES landing commit b67480a."
+```
+
+## 2026-11-25 series (cont.): current latest rollback point upgraded to r (WorkBuddy-trace purge: 137 test anchors + display strings + fallback, quick regression all green)
+
+This round cut named rollback point `v-baseline-2026-11-25-r`, pointing at commit `835dad4` (`chore(workbuddy): purge stale WorkBuddy path traces from test harness + display + node fallback`): it removed the WorkBuddy-era paths left over after the project migrated to `E:\Nebula\NebulaBaize`. The runtime was already clean (the active mcp_servers.json launches the local .venv); the residue sat in the test-harness path anchors and a few display strings:
+
+- **Scheme A** (load-bearing test anchors + display strings): the `createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/")` in 137 test files -> `E:/Nebula/NebulaBaize/` (the workspace-root node_modules holds the real jsdom/playwright; the old base dir no longer exists and was previously reached only through a NODE_PATH ancestor fallback); the `mem.kb.path.ph` placeholder in i18n (both langs), the `test_runtime_config_frontend.mjs` stub path, the stale python candidate line in `setup.bat`, and the doc examples in `test_registry_server`/`test_skillhub` -> all WorkBuddy-free.
+- **Scheme B** (node/python fallback -> the system install): the node fallback in `run_tests.py`/`test_closeout_pixel.py` -> `E:\Program Files\nodejs\node.exe`; the workbuddy node glob in `browser_server._find_node()` -> `%ProgramFiles%\nodejs\*\node.exe`.
+- **Kept per the rename iron rule**: the `audit.jsonl`/`logs`/`tool-log`/`config/.backups`/`*.bak-*`/"the old ROOT=E:\WorkBuddy bug" historical-narration comments (genuine fossils of "a little past code used WorkBuddy"; rewriting them would only distort history).
+
+Measured this round: `tools/run_tests.py --quick` full suite **ALL GREEN** (incl. i18n 1392 keys x2 and the whole jsdom net); `--full` failed only on `test_shell_timeout`/`test_self_suicide_guard`, neither of which references a changed anchor and both ALL GREEN when run alone (per the existing flaky experience). numstat == --ignore-cr-at-eol, zero line-ending pollution; commit `835dad4` pushed to origin (fast-forward `b5dd74e..835dad4`, main 0 0 synced).
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-r | `835dad49e1b1f52af17bb96cf8c840c32a4d948d` | chore(workbuddy): purge 137 test createRequire anchors + display strings + node/python fallback (WorkBuddy-trace purge; quick regression ALL GREEN; confirmed on remote via ls-remote) |
+
+**On the remote**: already on the remote (this round pushed origin main + push origin v-baseline-2026-11-25-r, main 0 0 synced, ls-remote hits tag -r deref == commit `835dad4`).
+
+### Rebuild command (to restore named rollback point r)
+
+```bat
+git tag -a v-baseline-2026-11-25-r 835dad49e1b1f52af17bb96cf8c840c32a4d948d -m "WorkBuddy trace purge: 137 test createRequire anchors + display strings + node fallback; quick regression ALL GREEN"
+```
+
+## 2026-11-26 superseded-numbering cleanup (cut on 11-25 but labelled 11-26, out of date order · 5 removed)
+
+The owner signed off on removing 5 superseded-numbering tags: they were actually created on **2026-11-25** (see `git for-each-ref --sort=-creatordate`: -a 17:27 / -b 17:53 / -c 18:22 / -d 20:06 / -e 20:28, all on 11-25) yet carry an 11-26 label, which conflicts with this repo's "tag name follows the real git date" convention and is reversed against date order. The criterion: every commit a deleted tag pointed to is an ancestor of HEAD (master) (confirmed anc=0 tag by tag with `git merge-base --is-ancestor`); deleting the tags **loses no commit** — the master chain already contains them; a tag is only a named pointer, rebuildable with the commands below. Both steps were done: local delete + `git push origin --delete`.
+
+| deleted tag | pointed commit (40) | original semantics (existing ledger summary) |
+|---|---|---|
+| v-baseline-2026-11-26-a | `fcb8f9b6df5da01c0d18efc78f3068f441391748` | 11-26-series early baseline (superseded numbering, created on 11-25) |
+| v-baseline-2026-11-26-b | `ca99cc274415a9bb7903acd20af8d203441df347` | 11-26-series early baseline (superseded numbering, created on 11-25) |
+| v-baseline-2026-11-26-c | `9d4699eed6a4fac7ffc16a016e801e4af4b6146b` | 11-26-series early baseline (superseded numbering, created on 11-25) |
+| v-baseline-2026-11-26-d | `505406e6741ce425202c43db7d32dcf4bbddac90` | back-end extraction chain step 6: sampling into req_args + flaky fix + app_utils self-describing index (--full all green) |
+| v-baseline-2026-11-26-e | `b67480a6f693fd9781ea1117262ae4ffe743c358` | zh/en double-ledger alignment + app_utils 42-symbol inventory backfill + RULES other-line landing (doc-only) |
+
+### Rebuild commands (to restore a removed superseded-numbering tag)
+
+```bat
+git tag -a v-baseline-2026-11-26-a fcb8f9b6df5da01c0d18efc78f3068f441391748 -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
+git tag -a v-baseline-2026-11-26-b ca99cc274415a9bb7903acd20af8d203441df347 -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
+git tag -a v-baseline-2026-11-26-c 9d4699eed6a4fac7ffc16a016e801e4af4b6146b -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
+git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed, app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN"
+git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only"
 ```
