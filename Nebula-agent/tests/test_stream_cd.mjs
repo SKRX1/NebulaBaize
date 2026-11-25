@@ -71,7 +71,7 @@ win.fetch = async (url) => {
 
 // Expose the functions we want to unit-test (app.js is strict-mode, so its top-level declarations
 // are not on `window`; appending an assignment to the SAME eval shares the lexical scope).
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += "\n;window.__api = { fetchWithRetry, safeCut, paintBubble, renderInspector, ctxSpark, poll };";
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
