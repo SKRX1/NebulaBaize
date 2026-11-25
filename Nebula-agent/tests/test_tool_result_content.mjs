@@ -46,7 +46,7 @@ win.fetch = async () => ({ok: true, status: 200, json: async () => ({model: "m",
                           text: async () => ""});
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-let code = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let code = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 code += `
 ;window.__api = {
   assistantMessages: (m) => assistantMessages(m),

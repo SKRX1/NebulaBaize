@@ -11,6 +11,31 @@ All notable changes to this project are documented in this file.
 
 ### Changed / 变更
 
+- **字符串/标识符规范化族抽离到 `app_utils.js`（前端续抽链第三轮 · 40 符号刻度）** — 继 proposalMarkdown 那轮，同纪律
+  （零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出同族内聚的「字符串/标识符规范化」纯叶子五个：
+  `designFileName`（标题→安全 .md 文件名）、`safeGroup`（组名→去非法字符）、`endpointKey`（URL→匹配键）、
+  `normalizeTags`（标签→去重数组）、`toolResultText`（任意值→字符串）。五者职责同质：纯文本输入 → 规范输出，
+  均只引用参数 + Array/String/JSON 内建，零 DOM、零 app.js 全局、不改变字入参；调用点保持原名。字节逐字一致整搬。
+  同时在 `app_utils.js` 顶部新增一段「族分组索引」注释：按 13 个职责族逐列 40 个导出符号（含本轮新增五个），
+  便于定位与防漏抽。
+  - **连带面**：`test_app_utils_contract.mjs` EXPORTS 35→40；`test_app_utils_jsdom.mjs` HELPERS/EXPOSE 补齐五个；
+  三个以「只 eval app.js / 拼 app_utils」方式 boot 的测试因调用这些符号需补 `app_utils.js` boot：
+  `test_tool_result_content.mjs`（直接引 toolResultText）、`test_spark_edit_nodrag.mjs`（spark 添加流程调 normalizeTags）
+  补拼 app_utils boot；`test_stream_intel.mjs`（designFileName）、`test_auto_memory.mjs`（safeGroup）已拼 app_utils 无需改。
+  - *String/identifier-normalization family extracted into `app_utils.js` (front-end chain, round 3 — 40-symbol milestone):*
+  following the proposalMarkdown round, the same discipline (zero external dependency AST out-deps=0, zero app.js globals,
+  zero DOM, no mutation) surfaced five cohesive leaves of the string/identifier-normalization family: `designFileName`
+  (title → safe .md filename), `safeGroup` (group name → strip illegal chars), `endpointKey` (URL → match-key),
+  `normalizeTags` (tags → deduped array), `toolResultText` (any value → string). All five share one responsibility —
+  plain-text input → normalized output — and reference only their argument plus Array/String/JSON builtins, with zero DOM,
+  zero app.js globals and no input mutation; call sites keep their original names. Byte-for-byte identical move. A new
+  family-index header comment at the top of `app_utils.js` lists all 40 exported symbols grouped into 13 responsibility
+  families (including the five added this round) for orientation and anti-miss extraction.
+  - *Blast radius:* `test_app_utils_contract.mjs` EXPORTS 35→40; `test_app_utils_jsdom.mjs` HELPERS/EXPOSE gains the five;
+  three jsdom tests that boot by evaluating app.js (with app_utils pre-concatenated or not) and call these symbols needed
+  the app_utils boot added: `test_tool_result_content.mjs` (references toolResultText directly) and `test_spark_edit_nodrag.mjs`
+  (spark-add flow calls normalizeTags) got app_utils prepended to their boot; `test_stream_intel.mjs` (designFileName) and
+  `test_auto_memory.mjs` (safeGroup) already concatenate app_utils and needed no change.
 - **`proposalMarkdown` 抽离到 `app_utils.js`（前端续抽链第二轮 · markdown 渲染族）** — 沿续 splitPath 那轮，同纪律
   （零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出零依赖内聚纯叶子 `proposalMarkdown`：
   把建议决策卡对象序列化为人类可读 markdown（标题 + 验证状态 + 选项对照表 + 验证方式 + 下一步）。

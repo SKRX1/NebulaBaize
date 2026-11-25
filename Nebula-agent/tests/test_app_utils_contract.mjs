@@ -32,6 +32,8 @@ const EXPORTS = [
   "sparkIsExecuted", "sparkTimeCompare",
   "splitPath",
   "proposalMarkdown",
+  "designFileName", "safeGroup", "endpointKey",
+  "normalizeTags", "toolResultText",
 ];
 
 let fails = 0;

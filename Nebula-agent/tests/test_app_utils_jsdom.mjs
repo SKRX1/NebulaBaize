@@ -38,7 +38,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath", "proposalMarkdown"];
+const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath", "proposalMarkdown", "designFileName", "safeGroup", "endpointKey", "normalizeTags", "toolResultText"];
 // publish the three function declarations onto window (model classic-script globals)
 const EXPOSE = `
 ;window.timeStr = typeof timeStr === "function" ? timeStr : undefined;
@@ -50,6 +50,11 @@ const EXPOSE = `
 ;window.classifyTool = typeof classifyTool === "function" ? classifyTool : undefined;
 ;window.splitPath = typeof splitPath === "function" ? splitPath : undefined;
 ;window.proposalMarkdown = typeof proposalMarkdown === "function" ? proposalMarkdown : undefined;
+;window.designFileName = typeof designFileName === "function" ? designFileName : undefined;
+;window.safeGroup = typeof safeGroup === "function" ? safeGroup : undefined;
+;window.endpointKey = typeof endpointKey === "function" ? endpointKey : undefined;
+;window.normalizeTags = typeof normalizeTags === "function" ? normalizeTags : undefined;
+;window.toolResultText = typeof toolResultText === "function" ? toolResultText : undefined;
 `;
 
 const utilSrc = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");

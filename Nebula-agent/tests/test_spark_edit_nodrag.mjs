@@ -62,8 +62,9 @@ win.fetch = async (url) => {
 win.confirm = () => true;
 
 const i18nCode = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
+const utilsCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");
 const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
-win.eval(i18nCode + "\n;\n" + appCode);
+win.eval(i18nCode + "\n;\n" + utilsCode + "\n;\n" + appCode);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const $ = (s) => doc.querySelector(s);

@@ -1,4 +1,28 @@
 // serve/web/app_utils.js - shared pure formatting helpers for app.js.
+
+// ====================================================================
+// FAMILY INDEX  app_utils.js groups (40 exported symbols in 13 families).
+// Classic script; app_utils.js loads BEFORE app.js, so every name below is a
+// bare global that app.js call sites reference by original name. Truth source
+// for the export set: tests/test_app_utils_contract.mjs EXPORTS.
+//  F1  timeStr, fmtBytesSel
+//  F2  parsePlanItems
+//  F3  extractNextSteps, extractProposalsFromText, detectLang
+//  F4  firstPath, splitPath, nextScopeUp, nextScopeDown, clone
+//  F5  classifyTool
+//  F6  bugBoxSigKey, bugBoxStats, bugBoxGroups
+//  F7  thinkPeek, dedupeThink
+//  F8  configValue, safeCut, taskOrder, pickSeed
+//  F9  snapSent, toolSeq, noteStreamPhase
+//  F10 assembleStreamBubbles, computeWaterfall
+//  F11 nebTaskFromTool, inflightToolName
+//  F12 mdKindOf, mdImageTag, proposalMarkdown  (markdown render; MD_EXT_* Sets)
+//  F13 designFileName, safeGroup, endpointKey, normalizeTags, toolResultText
+//      (string/identifier normalization)
+//  then buildCtxArr, renderMsgForCompact (compaction) and sparkIsExecuted,
+//  sparkTimeCompare (spark) close the file; they are exported but not fenced
+//  by their own index family banner above.
+// ====================================================================
 // Loaded BEFORE app.js (see index.html). Classic script: top-level function
 // declarations land on the global scope, so app.js's call sites stay unchanged.
 // Each function here touches only standard globals (Date/Number/String/RegExp)
@@ -391,6 +415,34 @@ function proposalMarkdown(p) {
   return lines.join("\n");
 }
 
+
+// ---- string/identifier normalization (extracted from app.js): pure helpers that sanitize
+// or canonicalize string inputs into safe identifiers, filenames, URL match-keys, tag arrays,
+// or coerced text. All zero-dependency: argument fields + Array/String/JSON builtins only,
+// no DOM, no app.js module globals, no mutation. ----
+function toolResultText(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (e) { return String(v); }
+}
+
+function normalizeTags(v) {
+  if (Array.isArray(v)) return [...new Set(v.map((t) => String(t).trim()).filter(Boolean))];
+  if (typeof v !== "string") return [];
+  return [...new Set(v.split(",").map((t) => t.trim()).filter(Boolean))];
+}
+
+function designFileName(title) {
+  const safe = (title || "未命名设计").replace(/[\/\\:*?"<>|\n\r]+/g, " ").trim().slice(0, 60);
+  return `${safe}.md`;
+}
+
+function safeGroup(name) { return String(name || "").replace(/[<>:"/\\|?*]/g, "").trim(); }
+
+function endpointKey(u) {
+  return String(u || "").trim().toLowerCase()
+    .replace(/^https?:\/\//, "").replace(/\/+$/, "").replace(/\/v1$/, "");
+}
 
 // ---- compaction pure transforms (extracted from app.js): buildCtxArr = per-turn context occupancy percent series from message stats (the single source shared by the sparkline + freeze so chart and freeze can never drift); renderMsgForCompact = render one message into a compact-summary string (role tag + text + tool_calls + image/file counts, cap-truncated). Both pure: Array/String/JSON/Math only over their arguments, no DOM, no app.js module globals, no mutation. ----
 // The per-turn occupancy series, derived from message stats. Shared by renderInspector and the

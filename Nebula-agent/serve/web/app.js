@@ -4648,7 +4648,6 @@ const MEMORY_STORES = {
 };
 const MEMORY_ORDER = ["rules", "knowledge", "experience"];
 // Group label -> a filesystem-safe directory name (strip path-illegal chars).
-function safeGroup(name) { return String(name || "").replace(/[<>:"/\\|?*]/g, "").trim(); }
 function groupDir(group) { return `${GLOBAL_ROOT}/groups/${safeGroup(group)}`; }
 // Scope-aware paths. `base` is the active workspace (used only for the workspace scope); `group`
 // is the active workspace's group label (used only for the group scope).
@@ -5349,10 +5348,6 @@ function designLangOf() {
   return detectLang(joined);
 }
 // Build a filesystem-safe filename from a document title (sanitise, never rename an existing file).
-function designFileName(title) {
-  const safe = (title || "未命名设计").replace(/[\/\\:*?"<>|\n\r]+/g, " ").trim().slice(0, 60);
-  return `${safe}.md`;
-}
 
 // Pending design doc proposed by the model (staged for the human to save into <ws>/.design/).
 let pendingDesign = null;   // {title, body, file, ws}
@@ -6128,11 +6123,6 @@ if (!window.__memGroupEditWired){
 // history back unchanged every time, so the user saw 分段压缩失败 + lost context and could never
 // compact past the bad row. Coerce to a string the same lossless way the UI does (JSON for objects,
 // empty for null), never for the valid user multimodal arrays (those go through a different path).
-function toolResultText(v) {
-  if (v == null) return "";
-  if (typeof v === "string") return v;
-  try { return JSON.stringify(v); } catch (e) { return String(v); }
-}
 
 function assistantMessages(m) {
   const ran = (m.tools || []).filter((t) => t.round != null && t.result != null && t.state !== "skipped");
@@ -6186,11 +6176,6 @@ function setSparks(arr) { store.set("spark", arr); updateSparkBadge(); }
 function getSparkMemory() { return store.get("spark_memory", []); }
 function setSparkMemory(arr) { store.set("spark_memory", arr); }
 
-function normalizeTags(v) {
-  if (Array.isArray(v)) return [...new Set(v.map((t) => String(t).trim()).filter(Boolean))];
-  if (typeof v !== "string") return [];
-  return [...new Set(v.split(",").map((t) => t.trim()).filter(Boolean))];
-}
 
 // --- Rich-text safety (M3 rich editor) ----------------------------------------
 // Allow-list sanitizer for user-authored spark notes. Strips every element not in
@@ -7204,10 +7189,6 @@ function modelOnline(m) {
 }
 // Two endpoints "are the same" once scheme, trailing slash and the /v1 suffix are ignored:
 // config/models.json says "http://127.0.0.1:8080" while the gateway's upstream is ".../v1".
-function endpointKey(u) {
-  return String(u || "").trim().toLowerCase()
-    .replace(/^https?:\/\//, "").replace(/\/+$/, "").replace(/\/v1$/, "");
-}
 // The dot answers exactly one question: would a message sent right now actually reach this model?
 //   on        endpoint answers AND the engine names this very model   -> green
 //   mismatch  endpoint answers but the engine holds its sibling       -> amber
