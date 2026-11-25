@@ -142,6 +142,21 @@ for (const name of ["openSchedModal", "renderSchedule", "schedResetForm", "sched
   check(`boots as a real function: ${name}`, typeof api[name] === "function");
 }
 
+// bounded positive-poll settle: flaky-killer for the two deep-link boots below.
+// A fixed short setTimeout was too short under full-suite CPU contention -- the
+// modal-open path is async (boot -> loadMcp/loadSchedule), so the FIRST boot was
+// occasionally asserted before it had opened. Poll every ~8ms up to `limitMs`
+// until the predicate holds, then return; the caller's check still asserts the
+// real outcome (a genuine miss still FAILs, the differential still bites).
+const until = (pred, limitMs = 2000) => new Promise((res) => {
+  const t0 = Date.now();
+  (function tick() {
+    let ok = false;
+    try { ok = !!pred(); } catch (e) { ok = false; }
+    if (ok || Date.now() - t0 >= limitMs) return res();
+    setTimeout(tick, 8);
+  })();
+});
 (async () => {
   const STUB = JSON.stringify({name: "probe-job", trigger: "daily_at 09:00", next: "today/tmr 09:00",
     task: "do the thing", last_run: {ts: 1, ok: true}, consumed: false});
@@ -218,10 +233,15 @@ for (const name of ["openSchedModal", "renderSchedule", "schedResetForm", "sched
     return w;
   }
   const wHook = bootWithQuery("?modal=sched");
-  await new Promise((r) => setTimeout(r, 30));
+  // poll until the async boot opens it (2s timeout still lets a real miss FAIL)
+  await until(() => wHook.__boot.modal().hidden === false);
   check("?modal=sched opens the create modal on load", wHook.__boot.modal().hidden === false);
   const wPlain = bootWithQuery("");
-  await new Promise((r) => setTimeout(r, 30));
+  // give a spurious async open a generous window (poll 600ms); if it never
+  // opens the poll runs to the limit and the closed-state check passes -- this
+  // is stricter than the old 30ms (it observes ~20x longer, so a slow false-open
+  // cannot slip past).
+  await until(() => wPlain.__boot.modal().hidden === false, 600);
   check("no query keeps the modal closed (the hook is the only opener)", wPlain.__boot.modal().hidden === true);
 
   // --- 8b) behaviour lock: an entry WITH overrides renders badge chips, and the edit

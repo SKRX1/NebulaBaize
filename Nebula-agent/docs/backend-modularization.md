@@ -52,3 +52,22 @@ server.py 仍随新代码增长。续抽下一族前先跑 AST out-deps=0 扫描
 注意 engine 族里 `cpu_isa_words` / `start_exit_note` / `START_RETRIES` / `transient_start_failure` 属启动
 重试与 CPU 指令集探测的**异质职责**，故意留在 server.py（`transient_start_failure` 读 `TRANSIENT_START_MARKS`
 经 import 兜回）。
+
+## 续抽链第 6 步（2026-11-26）：req_args 续入 sampling 块
+
+复扫 server.py 顶层纯函数（AST out-deps=0），得 21 个候选，逐一读源码研判内聚性后：
+仅 `sampling_defaults_from_config`（64L）+ 其唯一引用的 `SAMPLING_ALIASES` 常量是真·低风险净
+叶子——主题「运行配置的可选 `sampling` 块净化」正属已抽模块 `serve/req_args`（采样参数校验层）
+的职责，故连常量同搬入 req_args，server.py 用 try/except 双路径兜回，调用点原名不改。
+
+- **byte-for-byte 等价**：67 行与原文逐字比对 identical。
+- **load-bearing 差分测试**：`test_pure_modules.py::test_req_sampling_defaults_from_config` 锁
+  #1819 别名映射的两半——只发别名则重映射不报错、别名+规范名同发则 SystemExit；外加 6 个坏配置
+  各触发 SystemExit、null/unknown 跳过。
+- **双路径 import 实测**：包路径与 `python serve/server.py`（serve/ 上 path[0]）的 except 分支各 rc=0。
+
+其余 20 候选研判后**故意保留**：`cpu_isa_words`/`profile_shape`/`desktop_vram_note`/`parallel_args`/
+`gpu_vram_mib` 等属引擎启动诊断/CPU 探测/GPU 采样的**异质职责**（部分 lazy-import `serve.telemetry`）；
+`_recycle_send_to_bin`/`_recycle_restore_file` 是 server.py 与 runtime/http_server.py 的**两份共享
+helper**（抽取须协调双份，非低风险）；`write_temporary`/`popen`/`experts_loading_words` 等是零碎单函数
+不成族。至此 server.py 续抽候选池进一步枯竭。

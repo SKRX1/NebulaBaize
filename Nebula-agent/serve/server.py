@@ -6442,73 +6442,10 @@ SHARED_KEYS = ("reasoning_effort", "reasoning_budget_tokens", "temperature", "to
                "experimental_speed_projection")
 
 
-SAMPLING_ALIASES = {"repeat_penalty": "repetition_penalty", "repeat_last_n": "penalty_last_n"}
-
-
-def sampling_defaults_from_config(cfg: dict) -> dict:
-    """The run config's optional `sampling` block: defaults for the sampling fields a request leaves out, so
-    a plain client gets configured sampling instead of greedy.  Supported: temperature, top_p, top_k, min_p,
-    presence_penalty, repetition_penalty (also written repeat_penalty), frequency_penalty, penalty_last_n (also
-    repeat_last_n), seed.  The request's own fields
-    always win - an explicit temperature=0 still means greedy, a field set to null falls back to the default.
-    A bad value refuses to start the server (a typo'd config should not quietly change sampling); unknown keys
-    are named at startup and ignored."""
-    out = {}
-    block = dict(cfg.get("sampling") or {})
-    for alias, canon in SAMPLING_ALIASES.items():      # #1819: llama.cpp's names for the same two fields
-        if block.get(alias) is not None:
-            if block.get(canon) is not None:
-                raise SystemExit(f"[strata] config sampling: both {alias!r} and {canon!r} are set; they are the same "
-                                 f"setting, keep one")
-            block[canon] = block.pop(alias)
-    for key, value in block.items():
-        if value is None:
-            continue
-        number = isinstance(value, (int, float)) and not isinstance(value, bool)
-        if key == "temperature":
-            if not number or value < 0:
-                raise SystemExit(f"[strata] config sampling.temperature={value!r}: expected a number >= 0 (0 = greedy)")
-            out[key] = float(value)
-        elif key == "top_p":
-            if not number or not 0 < value <= 1:
-                raise SystemExit(f"[strata] config sampling.top_p={value!r}: expected 0 < top_p <= 1")
-            out[key] = float(value)
-        elif key == "min_p":
-            if not number or not 0 <= value <= 1:
-                raise SystemExit(f"[strata] config sampling.min_p={value!r}: expected 0 <= min_p <= 1")
-            out[key] = float(value)
-        elif key == "top_k":
-            if not number or value != int(value) or not 1 <= value <= 64:
-                raise SystemExit(f"[strata] config sampling.top_k={value!r}: the sampled path takes an integer 1..64")
-            out[key] = int(value)
-        elif key == "presence_penalty":
-            if not number or value < 0:
-                raise SystemExit(f"[strata] config sampling.presence_penalty={value!r}: expected a number >= 0")
-            out[key] = float(value)
-        elif key == "frequency_penalty":
-            if not number or value < 0:
-                raise SystemExit(f"[strata] config sampling.frequency_penalty={value!r}: expected a number >= 0")
-            out[key] = float(value)
-        elif key == "repetition_penalty":
-            if not number or value <= 0:
-                raise SystemExit(f"[strata] config sampling.repetition_penalty={value!r}: expected a number > 0 (1 = off)")
-            out[key] = float(value)
-        elif key == "penalty_last_n":
-            if not number or value != int(value) or value < 0:
-                raise SystemExit(f"[strata] config sampling.penalty_last_n={value!r}: expected a non-negative integer")
-            out[key] = int(value)
-        elif key == "seed":
-            if not number or value != int(value) or value <= 0:
-                raise SystemExit(f"[strata] config sampling.seed={value!r}: expected a positive integer")
-            out[key] = int(value)
-        elif key == "experimental_speed_projection":
-            if not isinstance(value, bool):
-                raise SystemExit(f"[strata] config sampling.experimental_speed_projection={value!r}: expected true or "
-                                 "false (the default for requests that leave it out, when the engine has the vector)")
-            out[key] = value
-        else:
-            print(f"[strata] config sampling.{key}={value!r}: unknown key, ignored", flush=True)
-    return out
+try:
+    from serve.req_args import SAMPLING_ALIASES, sampling_defaults_from_config
+except ImportError:  # `python serve/server.py`: serve/ is sys.path[0], not a package
+    from req_args import SAMPLING_ALIASES, sampling_defaults_from_config
 
 
 def start_replicas(cfg: dict, groups: list[list[int]], exe: str, effort_end: list[str], lazy: bool):

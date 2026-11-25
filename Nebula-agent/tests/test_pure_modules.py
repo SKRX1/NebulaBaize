@@ -281,6 +281,42 @@ def test_req_lift_reasoning_effort():
     assert cfg2["reasoning_effort"] == "low" and cfg2["args"] == [], cfg2
     print("REQ lift_reasoning_effort_arg: flag->cfg key, removed from args, others preserved")
 
+def test_req_sampling_defaults_from_config():
+    # The run config's optional `sampling` block: defaults for fields a request leaves out.
+    # LOAD-BEARING differential on the #1819 alias map: one llama.cpp alias ALONE is REMAPPED
+    # (no raise), but sending BOTH the alias and the canonical name is a config error (raises)
+    # -- exactly the branch SAMPLING_ALIASES exists to police after the extraction.
+    assert RA.SAMPLING_ALIASES == {"repeat_penalty": "repetition_penalty", "repeat_last_n": "penalty_last_n"}, RA.SAMPLING_ALIASES
+    # valid: numeric ranges honoured; temperature float-cast, top_k/seed int-cast
+    out = RA.sampling_defaults_from_config({"sampling": {"temperature": 0.5, "top_k": 7, "seed": 42}})
+    assert out == {"temperature": 0.5, "top_k": 7, "seed": 42}, out
+    assert isinstance(out["temperature"], float) and isinstance(out["top_k"], int), out
+    # temperature 0 is legal (0 = greedy), NOT an error
+    assert RA.sampling_defaults_from_config({"sampling": {"temperature": 0}}) == {"temperature": 0.0}
+    # #1819 alias remap: only the alias present -> becomes canonical, no raise
+    a = RA.sampling_defaults_from_config({"sampling": {"repeat_penalty": 1.1, "repeat_last_n": 64}})
+    assert a == {"repetition_penalty": 1.1, "penalty_last_n": 64}, a
+    assert "repeat_penalty" not in a and "repeat_last_n" not in a, a
+    # the OTHER half of the differential: BOTH alias and canonical set -> SystemExit (config typo guard)
+    raised = 0
+    for bad in (
+        {"sampling": {"repeat_penalty": 1.1, "repetition_penalty": 1.2}},   # both aliases of one field
+        {"sampling": {"temperature": -1}},                                   # < 0
+        {"sampling": {"temperature": "hot"}},                                # non-number
+        {"sampling": {"top_p": 5}},                                          # out of (0,1]
+        {"sampling": {"top_k": 65}},                                         # out of 1..64
+        {"sampling": {"seed": 0}},                                           # must be positive
+    ):
+        try:
+            RA.sampling_defaults_from_config(bad)
+        except SystemExit:
+            raised += 1
+    assert raised == 6, raised
+    # null field is skipped; unknown key is ignored (does not raise) -- the block survives
+    assert RA.sampling_defaults_from_config({"sampling": {"temperature": None, "bogus_key": 1}}) == {}
+    assert RA.sampling_defaults_from_config({}) == {}                        # no sampling block
+    print("REQ sampling_defaults_from_config: ranges ok, temperature 0 ok, 6 bad configs (incl alias-collision) raise, alias remap ok, null/unknown skipped")
+
 
 # ------------------------------------------------------------------ req_stats ----
 def test_stats_request_timings_and_seen():
@@ -954,6 +990,7 @@ def main():
     test_req_clean_shared_defaults()
     test_req_check_request_sampling()
     test_req_lift_reasoning_effort()
+    test_req_sampling_defaults_from_config()
     test_stats_request_timings_and_seen()
     test_stats_carry_and_agg()
     test_ram_warn_tight_ram()
