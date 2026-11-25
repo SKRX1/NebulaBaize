@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-b`
-> （commit `395b4798d0875851b9eb2e646ee0fdaf5d285416`，CHANGELOG 文档提交回滚点：在 README 锚点列 -g→-u 推进 + 账本 -u 节补登 + 打 -a(b673877) 之后，对 commit `395b479`（CHANGELOG Unreleased 段补登 -a 里程碑 + image_e2e_sentinel cap 60s→75s 根治 flaky）打命名回滚点 `v-baseline-2026-11-26-b` 锁定该文档态；纯文档；无代码 / 回归范围变更；main 已 0 0 同步、本轮 push 单 tag。说明：本轮 tag 在 2026-11-26 真实日期下打，是 11-26 系列第 2 个现存标号（续 a 之后），无超前标号冲突）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-b）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-26-c`
+> （commit `22c6ef4e5c963de7af65af40465cbdedf5239ae0`，全绿干净点：账本补登 -b 文档提交（fb81124）+ 别线 fs_allowed_roots 白名单条目重排 chore 落账（22c6ef4）打命名回滚点 `v-baseline-2026-11-26-c` 锁定该全绿态；tools/run_tests.py --full 268 套件 ALL GREEN（含 live 套件）、post-green -b 回滚复验绿、工作区干净、main 已 0 0 同步；本轮 push 单 tag。说明：本轮 tag 在 2026-11-26 真实日期下打，是 11-26 系列第 3 个现存标号（续 a/b 之后），无超前标号冲突）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-c）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -753,4 +753,22 @@ git tag -a v-baseline-2026-11-26-a b673877e09ea7f846e658e45f4a8807ec51e700b -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-b 395b4798d0875851b9eb2e646ee0fdaf5d285416 -m "baseline: lock CHANGELOG-doc commit 395b479 (changelog logs v-baseline-2026-11-26-a + image_e2e_sentinel cap 60s to 75s; doc-only)"
+```
+## 2026-11-26 系列：当前最新回滚点升级到 c（chore roots 重排落账 22c6ef4，全绿干净点）
+
+本轮在 commit `22c6ef4e5c963de7af65af40465cbdedf5239ae0` 打命名回滚点 `v-baseline-2026-11-26-c`，锁定「账本补登 -b 文档提交（fb81124）+ 别线 fs_allowed_roots 白名单条目重排 chore 落账（22c6ef4）」这一全绿干净态（即 commit 22c6ef4 所固化）。
+本轮 tag 在 2026-11-26 真实日期下创建，是 11-26 系列第 3 个现存标号（续 a/b 之后），无超前标号冲突；main 已 0 0 同步、本轮 push 单 tag。
+
+**回归坐实**：tools/run_tests.py --full **268 套件 ALL GREEN**（含全部 live 套件）；post-green 回滚复验 checkout tag -b(395b479) 亦 ALL GREEN 后归位 main；工作区干净、main 已 0 0 同步。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-c | `22c6ef4e5c963de7af65af40465cbdedf5239ae0` | 全绿干净点：22c6ef4（账本补登 -b fb81124 + chore roots 白名单重排落账）；tools/run_tests.py --full 268 套件全绿（含 live）、post-green -b 复验绿；main 0 0；ls-remote 单推本 tag 坐实已在远端 |
+
+**远端**：本轮 push origin v-baseline-2026-11-26-c（new tag），ls-remote peel == `22c6ef4`。
+
+### 重建命令（如需恢复命名回滚点 c）
+
+```bat
+git tag -a v-baseline-2026-11-26-c 22c6ef4e5c963de7af65af40465cbdedf5239ae0 -m "baseline: lock clean all-green point at 22c6ef4 (chore roots reorder landed on top of fb81124 ledger backfill; tools/run_tests.py --full 268 suites ALL GREEN incl live; post-green -b rollback verify green; tree clean; main in 0 0 sync)"
 ```

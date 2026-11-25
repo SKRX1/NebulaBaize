@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-b`
-> (commit `395b4798d0875851b9eb2e646ee0fdaf5d285416`, the CHANGELOG doc commit rollback point: after the README anchor column -g to -u advance + the ledger -u section backfill + cutting -a(b673877), this round cuts named rollback point `v-baseline-2026-11-26-b` at commit `395b479` (the CHANGELOG Unreleased section backfilling the -a milestone + the image_e2e_sentinel cap 60s to 75s flaky root-cause fix) to lock that doc state; doc-only; no code / regression-scope change; main in 0 0 sync, single-push of this tag. Note: the tag was cut under the true date 2026-11-26, the 2nd surviving 11-26 number (continuing after a), no superseded-numbering conflict).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-b) section wins.
+> The current latest rollback point is `v-baseline-2026-11-26-c`
+> (commit `22c6ef4e5c963de7af65af40465cbdedf5239ae0`, the clean all-green point: the -b ledger-backfill doc commit (fb81124) + the other-line chore that reordered the fs_allowed_roots whitelist entry (landed as 22c6ef4) is locked by named rollback point `v-baseline-2026-11-26-c`; tools/run_tests.py --full 268 suites ALL GREEN (incl. all live suites), post-green -b rollback verify green, tree clean, main in 0 0 sync; single-push of this tag this round. Note: the tag was cut under the true date 2026-11-26, the 3rd surviving 11-26 number (continuing after a/b), no superseded-numbering conflict).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-c) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -553,4 +553,22 @@ This tag was created under the true date 2026-11-26, the 2nd surviving 11-26 num
 
 ```bat
 git tag -a v-baseline-2026-11-26-b 395b4798d0875851b9eb2e646ee0fdaf5d285416 -m "baseline: lock CHANGELOG-doc commit 395b479 (changelog logs v-baseline-2026-11-26-a + image_e2e_sentinel cap 60s to 75s; doc-only)"
+```
+## 2026-11-26 series: current latest rollback point upgraded to c (chore roots-reorder landing at 22c6ef4, clean all-green point)
+
+This round cut named rollback point `v-baseline-2026-11-26-c` at commit `22c6ef4e5c963de7af65af40465cbdedf5239ae0`, locking the clean all-green state of the -b ledger-backfill doc commit (fb81124) plus the other-line chore that reordered the fs_allowed_roots whitelist entry (landed as 22c6ef4).
+This tag was created under the true date 2026-11-26, the 3rd surviving 11-26 number (continuing after a/b), no superseded-numbering conflict; main already in 0 0 sync, single-push of this tag.
+
+**Regression proof**: tools/run_tests.py --full **268 suites ALL GREEN** (incl. all live suites); the post-green rollback verify checked out tag -b(395b479) also ALL GREEN then restored to main; tree clean, main in 0 0 sync.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-c | `22c6ef4e5c963de7af65af40465cbdedf5239ae0` | clean all-green point: 22c6ef4 (the -b ledger-backfill doc commit fb81124 + the chore roots whitelist reorder landing); tools/run_tests.py --full 268 suites ALL GREEN (incl. live), post-green -b verify green; main 0 0; single-push of this tag ls-remote peel confirms on remote |
+
+**On the remote**: this round pushed origin v-baseline-2026-11-26-c (new tag), ls-remote peel == `22c6ef4`.
+
+### Rebuild command (to restore named rollback point c)
+
+```bat
+git tag -a v-baseline-2026-11-26-c 22c6ef4e5c963de7af65af40465cbdedf5239ae0 -m "baseline: lock clean all-green point at 22c6ef4 (chore roots reorder landed on top of fb81124 ledger backfill; tools/run_tests.py --full 268 suites ALL GREEN incl live; post-green -b rollback verify green; tree clean; main in 0 0 sync)"
 ```
