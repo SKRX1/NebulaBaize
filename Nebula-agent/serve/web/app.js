@@ -1210,7 +1210,7 @@ function patchSteps(node, group, m, streaming, liveSlot) {
 const DEFAULTS = {thinking: "low", temperature: 1.0, top_p: 0.95, top_k: 20, max: "", seed: "", show: true, esp: true, mcp: true,
                   recall: true, autolearn: true, autocompact: true, compactPct: 0, compactTarget: 25, precondenseMax: 2, sparkFreezeN: 10, sparkMaxBars: 24, personaTokenWarn: 600, speedDropPct: 50, archiveOn: true, memCompactLLM: true, memCompactChunkTokens: 0, memCompactReservePct: 25, cnThink: false, designLang: "auto", designAuto: true, persona: "你叫星云白泽简称星云，是我创造了你，我是你的主人时空象容，简称时空，我喜欢你叫我主人，你是一个资深的前端和后端开发工程师，回答要简洁，优先给可运行代码。",
                   maxCeiling: "", thinkBudget: "", answerFloor: "16384",
-                  autoMemory: false, autoRulesMemory: true, memCompactIdleSec: 12, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
+                  autoMemory: false, autoRulesMemory: true, memCompactIdleSec: 12, memActivityGraceSec: 3, autosteps: false, autostepsRec: true, autoresume: true, compactResume: true, stepsFold: true, debugFold: true, memFold: false,
                   autoresumeMax: 24, emptyRoundMax: 2, earlyDoneCap: 2, hideavoid: true, autoVerifyFix: true, defaultsVersion: 1,
                    sidebarTabs: ["chat", "spark", "debug", "memory", "schedule", "monitor", "about", "donate"]};
 // F1: always-on base system prompt. Fixes the gap where, with no workspace selected, the model got
@@ -5169,6 +5169,20 @@ function memCompactIdleMs() {
   const sec = settings && settings.memCompactIdleSec;
   return (Number.isFinite(sec) && sec >= 0 ? sec : MEMCOMPACT_IDLE_DEFAULT_SEC) * 1000;
 }
+// How long a mouse/keyboard/scroll motion keeps counting as "busy" AFTER it stops (the
+// engagement debounce). Independent of the tidy wait above and separately tunable from the
+// 自主维护记忆 drawer (settings.memActivityGraceSec), so an owner who wants the tidy to follow
+// them more eagerly can shrink ONLY this knob. Runtime floors it at 1s so it stays strictly
+// above waitIdle's 1s poll step -- otherwise a motion could land between two polls and be missed.
+const MEMACTIVITY_GRACE_DEFAULT_SEC = 3;
+let _memActivityGraceMsOverride = null;     // test seam: a number wins outright (incl. 0)
+function setMemActivityGraceMs(ms) { _memActivityGraceMsOverride = (typeof ms === "number" && ms >= 0) ? ms : null; }
+function memActivityGraceMs() {
+  if (_memActivityGraceMsOverride != null) return _memActivityGraceMsOverride;
+  const sec = (settings && settings.memActivityGraceSec);
+  const s = (Number.isFinite(sec) && sec >= 0 ? sec : MEMACTIVITY_GRACE_DEFAULT_SEC);
+  return Math.max(s * 1000, 1000);          // never below the 1s poll step
+}
 let MEMCOMPACT_MAX_WAIT_MS = 60000; // never hold longer than this; then defer to next turn
 // Test seam: shrink the max-wait cap in jsdom so the busy-defer path can be exercised fast.
 function setMemCompactMaxWaitMs(ms) { MEMCOMPACT_MAX_WAIT_MS = (typeof ms === "number" && ms >= 0) ? ms : 60000; }
@@ -5182,9 +5196,10 @@ function setMemCompactMaxWaitMs(ms) { MEMCOMPACT_MAX_WAIT_MS = (typeof ms === "n
 let lastUserActivityMs = 0;
 function markUserActivity() { lastUserActivityMs = Date.now(); }
 function userIsEngaged() {
-  // 3s global-input debounce: comfortably larger than waitIdle's 1s poll step, so any mouse move /
-  // click / wheel / scroll / keypress within the last 3s forces quiet back to zero and re-arms the wait.
-  if (Date.now() - lastUserActivityMs < 3000) return true;          // mouse/click/scroll/key just now
+  // Engagement debounce: stays busy for this long after the last mouse move / click / wheel /
+  // scroll / keypress. Tunable via settings.memActivityGraceSec (floor 1s) so it is always larger
+  // than waitIdle's 1s poll step -- any motion within it forces quiet back to zero and re-arms the wait.
+  if (Date.now() - lastUserActivityMs < memActivityGraceMs()) return true;   // mouse/click/scroll/key recently
   const el = document.activeElement;
   const input = document.getElementById("input");
   if (input && el === input) {                                       // focused composer with a draft
@@ -9537,6 +9552,7 @@ function loadDrawer(s = settings) {
   $("s-autolearn").setAttribute("aria-checked", String(!!s.autolearn));
   $("s-automemory").setAttribute("aria-checked", String(!!s.autoMemory));
   $("s-memidle").value = (Number.isFinite(+s.memCompactIdleSec) && +s.memCompactIdleSec >= 0) ? +s.memCompactIdleSec : 12;
+  $("s-memidle2").value = (Number.isFinite(+s.memActivityGraceSec) && +s.memActivityGraceSec >= 1) ? +s.memActivityGraceSec : 3;
   $("s-autorules").setAttribute("aria-checked", String(s.autoRulesMemory !== false));
   $("s-memcompact").setAttribute("aria-checked", String(!!s.memCompactLLM));
   $("s-autocompact").setAttribute("aria-checked", String(s.autocompact !== false));
@@ -9806,6 +9822,7 @@ $("s-apply").onclick = async () => {
               autolearn: $("s-autolearn").getAttribute("aria-checked") === "true",
               autoMemory: $("s-automemory").getAttribute("aria-checked") === "true",
               memCompactIdleSec: (function () { const v = +$("s-memidle").value; return (Number.isFinite(v) && v >= 0 && v <= 600) ? v : 12; })(),
+              memActivityGraceSec: (function () { const v = +$("s-memidle2").value; return (Number.isFinite(v) && v >= 1 && v <= 600) ? v : 3; })(),
               autoRulesMemory: $("s-autorules").getAttribute("aria-checked") === "true",
               memCompactLLM: $("s-memcompact").getAttribute("aria-checked") === "true",
               autocompact: $("s-autocompact").getAttribute("aria-checked") === "true",

@@ -79,6 +79,7 @@ appCode += `
   setLlmCompactFn, SOFT_BUDGET, getPendingCompactionUndo: () => pendingCompactionUndo,
   setMemCompactMaxWaitMs, setBusy: (v) => { busy = !!v; },
   userIsEngaged, markUserActivity, memCompactIdleMs,
+  memActivityGraceMs, setMemActivityGraceMs,
   resetUserActivity: () => { lastUserActivityMs = 0; },
   getWorkspaceKnowledge: () => workspaceKnowledge, getWorkspaceRules: () => workspaceRules,
 };`;
@@ -255,6 +256,27 @@ console.log("\n=== 8.5 moving the mouse / clicking / scrolling / typing ANYWHERE
     check("global '" + name + "' event => engaged (wiring is live)", api.userIsEngaged() === true);
   }
   api.resetUserActivity();   // leave a clean slate for anything below
+}
+
+// ================================================================ 8.6 ACTIVITY DEBOUNCE WINDOW is independently tunable
+console.log("\n=== 8.6 the mouse/keyboard debounce window is its own knob, separate from the tidy wait ===");
+{
+  // With no test override the window tracks settings.memActivityGraceSec (independent of memCompactIdleSec).
+  api.setMemActivityGraceMs(-1);           // clear the override (setter nulls it for <0)
+  api.setSettings({ memActivityGraceSec: 30 });
+  check("settings.memActivityGraceSec=30 => 30000ms window", api.memActivityGraceMs() === 30000, "got " + api.memActivityGraceMs());
+
+  // Floor: 0 must clamp to 1000ms so the debounce stays STRICTLY above waitIdle's 1s poll step
+  // (a motion that landed between two polls would otherwise be missed). Removing Math.max -> 0 -> RED.
+  api.setSettings({ memActivityGraceSec: 0 });
+  check("settings.memActivityGraceSec=0 floors to 1000ms (>1s poll step)", api.memActivityGraceMs() === 1000, "got " + api.memActivityGraceMs());
+
+  // Override wins outright and is independent of settings, so jsdom can pin the window without touching the knob.
+  api.setSettings({ memActivityGraceSec: 30 });
+  api.setMemActivityGraceMs(100);
+  check("override 100ms wins over settings 30s", api.memActivityGraceMs() === 100, "got " + api.memActivityGraceMs());
+  api.setMemActivityGraceMs(-1);           // clear override -> back to the settings-driven value
+  check("override cleared => settings 30s applies again", api.memActivityGraceMs() === 30000, "got " + api.memActivityGraceMs());
 }
 
 // ------------------------------------------------------------------ result
