@@ -490,15 +490,6 @@ function setNebTask(kind) {                       // 由 mcpCall 调用，4.5s �
   nebTaskKind = kind; nebTaskUntil = Date.now() + 4500;
 }
 function bumpNebDone() { nebDoneUntil = Date.now() + 1300; }   // 回合正常收尾的瞬时庆祝
-function nebTaskFromTool(tool) {
-  const n = String(tool || "").toLowerCase();
-  if (/search|web|fetch|http|browser|nav|wiki|google|duck|bing|url/.test(n)) return "search";
-  if (/code|edit|write|patch|sed|diff|format|create|fs_write|fs_edit|file_write|refactor/.test(n)) return "code";
-  if (/shell|exec|run|terminal|bash|cmd|powershell|python|node|command/.test(n)) return "shell";
-  if (/image|img|draw|paint|generate|diffus|sdxl|dalle|art|photo/.test(n)) return "image";
-  if (/read|open|cat|get|load|view|fetch_file/.test(n)) return "read";
-  return null;
-}
 
 function render(m) {
   const live = m.live || {}, hw = m.hardware || {}, st = m.hardware_static || {}, eng = m.engine || {}, h = m.history || {};
@@ -4153,17 +4144,6 @@ function syncBanners(bubble, m) {
 // The tool that was still in flight when the stream died — the one the user sees frozen at
 // "未运行". Naming it turns "连接中断" into "it broke at this step", which is what makes the
 // next attempt actionable.
-function inflightToolName(m) {
-  const ts = (m && m.tools) || [];
-  for (let i = ts.length - 1; i >= 0; i--) {
-    const t0 = ts[i];
-    if (t0.state === "running" || t0.state === "writing") return t0.name || t0.tool;
-    if ((t0.state === "skipped" || t0.state == null) && t0.ok === undefined && !t0.result) {
-      return t0.name || t0.tool;
-    }
-  }
-  return "";
-}
 // A cut stream has two very different causes, and the fix is different for each: the turn died
 // inside a live gateway (press Continue), or the gateway process is gone (restart it). One cheap
 // probe tells them apart instead of leaving the user with a vague "连接中断".

@@ -42,7 +42,7 @@ if (typeof win.requestAnimationFrame !== "function") win.requestAnimationFrame =
 if (typeof win.cancelAnimationFrame !== "function") win.cancelAnimationFrame = (id) => clearTimeout(id);
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 appCode += `\n;window.__api = { setPill, setNebSpin, setNebTask, bumpNebDone, nebTaskFromTool };`;
 win.eval(appCode);
 const api = win.__api;

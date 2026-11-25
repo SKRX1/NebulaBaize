@@ -45,7 +45,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const src = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
 
@@ -122,7 +122,7 @@ win.fetch = async (url, opts = {}) => {
 };
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-let code = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let code = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 code += `
 ;window.__api = {
   renderGroupCard: () => renderGroupCard(),

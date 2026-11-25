@@ -26,6 +26,7 @@ const EXPORTS = [
   "configValue", "safeCut", "taskOrder", "pickSeed",
   "snapSent", "toolSeq", "noteStreamPhase",
   "assembleStreamBubbles", "computeWaterfall",
+  "nebTaskFromTool", "inflightToolName",
 ];
 
 let fails = 0;

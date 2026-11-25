@@ -41,7 +41,7 @@ const check = (label, cond) => {
   if (!cond) FAILURES.push(label);
 };
 
-const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const src = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 
 // --- 1) top-tab wiring ------------------------------------------------------------
@@ -116,7 +116,7 @@ if (typeof win.requestAnimationFrame !== "function") win.requestAnimationFrame =
 if (!doc.getElementById("toasts")) { const d = doc.createElement("div"); d.id = "toasts"; doc.body.appendChild(d); }
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 // All realm-internal state is captured by CLOSURE in this single eval (not via a later eval).
 appCode += `
 ;window.__api = {

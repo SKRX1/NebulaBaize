@@ -297,3 +297,26 @@ function assembleStreamBubbles(entries) {
   }
   return out;
 }
+
+
+// ---- tool/task-name pure resolvers (extracted from app.js): nebTaskFromTool = map a tool name to a coarse task bucket (search/code/shell/image/read) by keyword regex or null; inflightToolName = scan a message's tools newest-first and return the name of the one still running/writing or never settled, else empty string. Both pure: only read their argument (String/regex/array scan), no DOM, no app.js module globals, no mutation. ----
+function nebTaskFromTool(tool) {
+  const n = String(tool || "").toLowerCase();
+  if (/search|web|fetch|http|browser|nav|wiki|google|duck|bing|url/.test(n)) return "search";
+  if (/code|edit|write|patch|sed|diff|format|create|fs_write|fs_edit|file_write|refactor/.test(n)) return "code";
+  if (/shell|exec|run|terminal|bash|cmd|powershell|python|node|command/.test(n)) return "shell";
+  if (/image|img|draw|paint|generate|diffus|sdxl|dalle|art|photo/.test(n)) return "image";
+  if (/read|open|cat|get|load|view|fetch_file/.test(n)) return "read";
+  return null;
+}
+function inflightToolName(m) {
+  const ts = (m && m.tools) || [];
+  for (let i = ts.length - 1; i >= 0; i--) {
+    const t0 = ts[i];
+    if (t0.state === "running" || t0.state === "writing") return t0.name || t0.tool;
+    if ((t0.state === "skipped" || t0.state == null) && t0.ok === undefined && !t0.result) {
+      return t0.name || t0.tool;
+    }
+  }
+  return "";
+}
