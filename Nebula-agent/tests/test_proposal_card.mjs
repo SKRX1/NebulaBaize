@@ -80,6 +80,7 @@ const injected = appCode + `
   setWorkspace: (w) => { if (activeSession()) activeSession().workspace = w; else { sessions = [{id:"x",workspace:w}]; activeId="x"; } },
   getActiveSession: () => activeSession(),
 };`;
+win.eval(fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + ";Object.assign(window,{timeStr,fmtBytesSel,parsePlanItems,extractNextSteps,extractProposalsFromText,detectLang,firstPath,nextScopeUp,nextScopeDown,clone});");
 win.eval(injected);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 

@@ -78,3 +78,28 @@ function detectLang(text) {
   const cjk = (s.match(/[\u4e00-\u9fff]/g) || []).length;
   return cjk > s.replace(/\s/g, "").length * 0.15 ? "zh" : "en";
 }
+
+
+// ---- path / scope / deep-clone pure helpers (extracted from app.js) ----
+
+function firstPath(args) {
+  if (!args || typeof args !== "object") return "";
+  for (const k of ["path", "file_path", "target", "destination", "file", "source"])
+    if (typeof args[k] === "string" && args[k]) return args[k];
+  for (const v of Object.values(args)) if (typeof v === "string" && /[\\/]/.test(v)) return v;
+  return "";
+}
+
+// The 3-tier promotion chain: workspace -> group (if a group is set) -> global. Demotion reverses it.
+function nextScopeUp(scope, group) {
+  if (scope === "workspace") return group ? "group" : "global";
+  if (scope === "group") return "global";
+  return "global";
+}
+function nextScopeDown(scope, group) {
+  if (scope === "global") return group ? "group" : "workspace";
+  if (scope === "group") return "workspace";
+  return "workspace";
+}
+
+function clone(o) { try { return JSON.parse(JSON.stringify(o)); } catch (e) { return Array.isArray(o) ? o.slice() : o; } }

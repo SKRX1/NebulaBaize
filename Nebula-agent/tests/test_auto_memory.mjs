@@ -99,6 +99,7 @@ appCode += `
   getWorkspaceKnowledge: () => workspaceKnowledge, getGlobalKnowledge: () => globalKnowledge, getGroupKnowledge: () => groupKnowledge,
   renderRulesBanner, getRulesSel: () => rulesSel,
 };`;
+win.eval(fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + ";Object.assign(window,{timeStr,fmtBytesSel,parsePlanItems,extractNextSteps,extractProposalsFromText,detectLang,firstPath,nextScopeUp,nextScopeDown,clone});");
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 

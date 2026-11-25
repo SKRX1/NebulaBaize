@@ -3493,13 +3493,6 @@ let rulesSel = new Set();
 const TEST_RE = /\b(pytest|unittest|nose|jest|mocha|tox|go test|npm test|node --test|cargo test|mvn test|gradle test|test_[a-z0-9_]+\.|\.test\.|__tests?__)\b/i;
 const FILE_TOOL_BASE = new Set(["write", "write_file", "create", "create_file", "write_text_file", "move",
   "rename", "edit", "edit_file", "append", "append_file", "save", "put_file", "create_directory", "mkdir"]);
-function firstPath(args) {
-  if (!args || typeof args !== "object") return "";
-  for (const k of ["path", "file_path", "target", "destination", "file", "source"])
-    if (typeof args[k] === "string" && args[k]) return args[k];
-  for (const v of Object.values(args)) if (typeof v === "string" && /[\\/]/.test(v)) return v;
-  return "";
-}
 function classifyTool(t) {
   if (!t) return null;
   const srv = String(t.server || "").toLowerCase(), tool = String(t.tool || t.name || "").toLowerCase();
@@ -5426,17 +5419,6 @@ async function archiveAutoEntry(store, scope, text, base, group) {
   await fsWrite(storePath(store, scope, base, group), keepLive.length ? keepLive.join("\n") + "\n" : "");
   if (store === "rules") setRulesVar(scope, keepLive.join("\n"));
   toast("ok", t("mem.auto.archive"), t("mem.auto.archive.n", {n: 1}));
-}
-// The 3-tier promotion chain: workspace -> group (if a group is set) -> global. Demotion reverses it.
-function nextScopeUp(scope, group) {
-  if (scope === "workspace") return group ? "group" : "global";
-  if (scope === "group") return "global";
-  return "global";
-}
-function nextScopeDown(scope, group) {
-  if (scope === "global") return group ? "group" : "workspace";
-  if (scope === "group") return "workspace";
-  return "workspace";
 }
 // Move a single entry between scopes. The human curates "what is universal / shared" here; the AI
 // never writes the group or global scope directly. Moves both the live line and the audit trace so
@@ -8799,7 +8781,6 @@ function doRegenerate(i) {
 // applied and a fresh answer streams. Soft delete keeps the removed turns on an undo stack (toast to
 // recover); hard delete discards them; branch preserves the old history as a switchable branch.
 // Any in-flight stream is aborted first (streaming protection).
-function clone(o) { try { return JSON.parse(JSON.stringify(o)); } catch (e) { return Array.isArray(o) ? o.slice() : o; } }
 
 function ensureEditUI() {
   if ($("edit-modal")) return;

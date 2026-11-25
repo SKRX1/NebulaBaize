@@ -59,6 +59,7 @@ if (!win.crypto || typeof win.crypto.getRandomValues !== "function") {
 }
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
+win.eval(fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + ";Object.assign(window,{timeStr,fmtBytesSel,parsePlanItems,extractNextSteps,extractProposalsFromText,detectLang,firstPath,nextScopeUp,nextScopeDown,clone});");
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
 ;window.__api = { renderNextSteps, extractNextSteps, msgEl, dict: () => i18n._dict };
