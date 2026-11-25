@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-25-u`
-> （commit `4c5ade2b98c3820d1c763680b5d27de908c7068d`，README 门禁锚点列整体推进点：把锚点表 13 行的「上次实跑绿」列由 `-g`(2026-11-13) 统一推进到 `-u`(本点)，旧 `-g` 系列语义注释保留为 anchor-history；纯文档，full 全套回归在 292 套件上实跑（仅 image_e2e_sentinel 因 292 套墙钟争用 flaky、单跑 RC=0 坐实，其余全绿）、commit `4c5ade2` 已推 origin、ls-remote 坐实 `-u` deref == `4c5ade2` 已在远端）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-d/e … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-25-u）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-26-a`
+> （commit `b673877e09ea7f846e658e45f4a8807ec51e700b`，README 门禁锚点列 -g→-u 推进的落地账本 commit：在 -u(4c5ade2) 锚点列已推进 + 中英账本 -u 节已补登这一文档态上，按今日日期打命名回滚点 `v-baseline-2026-11-26-a` 锁定该文档推进回滚点；纯文档；无代码 / 回归范围变更；commit `b673877` 已推 origin（main 0 0）、本轮 push 单 tag。说明：本轮在 2026-11-26 01:54 真实日期下打 tag，续位在先前已清理 11-26 超前标号之后，无超前标号冲突）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-a）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -721,4 +721,20 @@ full 全套回归在 commit `4c5ade2`（即 `-u` deref）上实跑：292 套件�
 
 ```bat
 git tag -a v-baseline-2026-11-25-u 4c5ade2b98c3820d1c763680b5d27de908c7068d -m "baseline: lock rollback point at 4c5ade2 (README gate-anchor column advanced -g to -u; suites 172 to 292; doc-only; full suite 292 green except image_e2e_sentinel high-load flaky single-run RC=0)"
+```
+## 2026-11-26 系列：当前最新回滚点升级到 a（文档推进回滚点 b673877，纯文档）
+
+本轮在 commit `b673877e09ea7f846e658e45f4a8807ec51e700b` 打命名回滚点 `v-baseline-2026-11-26-a`，锁定「README 门禁锚点列 -g→-u 文档推进 + 中英账本 -u 节补登」的落地态（即上一轮 commit b673877 所固化的文档态）。
+本轮 tag 在 2026-11-26 01:54 真实日期下创建，续位在先前已清理的 11-26 超前标号（旧 d/e）之后，是 11-26 系列现存第一个标号，无超前标号冲突。纯文档；无代码 / 回归范围变更；commit `b673877` 已推 origin（main 与 origin 0 0 同步）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-a | `b673877e09ea7f846e658e45f4a8807ec51e700b` | 文档推进回滚点：b673877（锚点列 -g→-u + 账本 -u 节补登已落地）；纯文档；ls-remote 单推本 tag 坐实已在远端 |
+
+**远端**：本轮 push origin v-baseline-2026-11-26-a（new tag），ls-remote 命中 deref == `b673877`。
+
+### 重建命令（如需恢复命名回滚点 a）
+
+```bat
+git tag -a v-baseline-2026-11-26-a b673877e09ea7f846e658e45f4a8807ec51e700b -m "baseline: lock doc-advance rollback point at b673877 (v-baseline-2026-11-25-u gate-anchor column -g to -u landed + ledger -u section backfilled; doc-only)"
 ```
