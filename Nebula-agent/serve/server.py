@@ -53,6 +53,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Iterator, Protocol
 from urllib.parse import parse_qs, unquote, urlsplit
+from email.utils import formatdate, parsedate_to_datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -4860,9 +4861,53 @@ def make_handler(svc: Service):
                     self._json(404, {"error": {"message": "not found"}})
                     return
                 body = f.read_bytes()
+                # Cache validators (2026-11-26): Last-Modified + ETag so a changed app.js/app.css
+                # is picked up on a plain reload; mirrors the gateway _serve_static (commit
+                # 3699074) so both instances behave identically. no-cache keeps the browser
+                # revalidating every load; the validators make an unchanged file answer 304
+                # (a few bytes) instead of re-downloading the whole body.
+                try:
+                    st = f.stat()
+                except OSError as e:
+                    self._json(500, {"error": {"message": str(e)}})
+                    return
+                etag = '"%x-%x"' % (st.st_size, st.st_mtime_ns)
+                last_modified = formatdate(int(st.st_mtime), usegmt=True)
+                inm = (self.headers.get("If-None-Match") or "").strip()
+                ims = (self.headers.get("If-Modified-Since") or "").strip()
+                not_modified = False
+                if inm:
+                    if inm == "*":
+                        not_modified = True
+                    else:
+                        for token in inm.split(","):
+                            token = token.strip()
+                            if token.startswith("W/"):
+                                token = token[2:]
+                            if token == etag or ("W/" + token) == etag:
+                                not_modified = True
+                                break
+                elif ims:
+                    try:
+                        since = parsedate_to_datetime(ims)
+                    except (TypeError, ValueError):
+                        since = None                     # a junk date header: answer the full body
+                    if since is not None:
+                        import datetime as _dt
+                        mtime = _dt.datetime.fromtimestamp(int(st.st_mtime), _dt.timezone.utc)
+                        not_modified = mtime <= since
+                if not_modified:
+                    self.send_response(304)
+                    self.send_header("ETag", etag)
+                    self.send_header("Last-Modified", last_modified)
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+                    return
                 self.send_response(200)
                 self.send_header("Content-Type", types[ext])
                 self.send_header("Cache-Control", "no-cache")
+                self.send_header("ETag", etag)
+                self.send_header("Last-Modified", last_modified)
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)

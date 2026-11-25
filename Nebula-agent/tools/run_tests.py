@@ -327,6 +327,11 @@ SUITES = [
 
     "tests/test_gateway_http.py",
 
+    # 2026-11-26: static lock -- the 8080 engine /web/ branch must answer 200 with ETag + Last-Modified
+    # and honour If-None-Match / If-Modified-Since with 304, mirroring the 8099 gateway _serve_static
+    # (commit 3699074) so a frontend edit needs no hard-refresh on either instance.
+    "tests/test_web_branch_cache.py",
+
     # 2026-11-18: the live repro of "local instance + typed address + tools checked -> tools
     # vanished". Starts a real gateway; the sibling local entry must run OUR tools via the loop.
     "tests/test_local_sibling_e2e.py",
