@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-c`
-> （commit `22c6ef4e5c963de7af65af40465cbdedf5239ae0`，全绿干净点：账本补登 -b 文档提交（fb81124）+ 别线 fs_allowed_roots 白名单条目重排 chore 落账（22c6ef4）打命名回滚点 `v-baseline-2026-11-26-c` 锁定该全绿态；tools/run_tests.py --full 268 套件 ALL GREEN（含 live 套件）、post-green -b 回滚复验绿、工作区干净、main 已 0 0 同步；本轮 push 单 tag。说明：本轮 tag 在 2026-11-26 真实日期下打，是 11-26 系列第 3 个现存标号（续 a/b 之后），无超前标号冲突）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-c）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-26-d`
+> （commit `62db181122091cc541a5f6e074187b1b0d54e517`，账本速览-c 一致点：账本补登 -c 三要素同步（header/body/list 全升级 -c）且各 -a/-b/-c 节表行 commit == git deref 真值的文档提交（62db181）打命名回滚点 `v-baseline-2026-11-26-d` 锁定该文档一致态；纯文档；main 当时 0 0 同步、本轮 push 单 tag。说明：本轮 tag 在 2026-11-26 真实日期下打，是 11-26 系列第 4 个现存标号（续 a/b/c 之后），此前被清理的旧 d/e 超前标号与本 tag 不同 commit、已不存在）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-d）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -771,4 +771,22 @@ git tag -a v-baseline-2026-11-26-b 395b4798d0875851b9eb2e646ee0fdaf5d285416 -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-c 22c6ef4e5c963de7af65af40465cbdedf5239ae0 -m "baseline: lock clean all-green point at 22c6ef4 (chore roots reorder landed on top of fb81124 ledger backfill; tools/run_tests.py --full 268 suites ALL GREEN incl live; post-green -b rollback verify green; tree clean; main in 0 0 sync)"
+```
+## 2026-11-26 系列：当前最新回滚点升级到 d（账本补登 -c 文档提交 62db181，速览-c 一致点，纯文档）
+
+本轮在 commit `62db181122091cc541a5f6e074187b1b0d54e517`（账本补登 -c 三要素一致的文档提交）打命名回滚点 `v-baseline-2026-11-26-d`，锁定「账本速览 header/body/list 三要素同步升级到 -c、各 -a/-b/-c 节表行 commit == git deref 真值」这一文档一致态（即 commit 62db181 所固化；纯文档）。
+本轮 tag 在 2026-11-26 真实日期下创建，是 11-26 系列第 4 个现存标号（续 a/b/c 之后；此前被清理的旧 d/e 超前标号与本 tag 不同 commit，已不存在）；main 当时 0 0 同步、本轮 push 单 tag。
+
+**说明**：`-d` 锚的是账本补登文档提交 62db181（非 HEAD、非全绿回归点 22c6ef4）；体现「账本每升一速览常配套打 tag 锚定一致点」的惯例。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-d | `62db181122091cc541a5f6e074187b1b0d54e517` | 账本速览-c 一致点：62db181（账本补登 -c 三要素同步、各节表行==deref 真值的文档提交）；纯文档；main 当时 0 0；ls-remote 单推本 tag peel==`62db181` 坐实已在远端 |
+
+**远端**：本轮 push origin v-baseline-2026-11-26-d（new tag），ls-remote peel == `62db181`。
+
+### 重建命令（如需恢复命名回滚点 d）
+
+```bat
+git tag -a v-baseline-2026-11-26-d 62db181122091cc541a5f6e074187b1b0d54e517 -m "baseline: lock ledger-speed-view -c parity at 62db181 (archive zh+en speed-view header/body/list all upgraded to -c; each -a/-b/-c section table-row commit == git deref truth; data-driven parity recheck PARITY OK; doc-only)"
 ```

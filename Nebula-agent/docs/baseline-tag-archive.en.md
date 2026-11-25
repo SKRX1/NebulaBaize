@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-c`
-> (commit `22c6ef4e5c963de7af65af40465cbdedf5239ae0`, the clean all-green point: the -b ledger-backfill doc commit (fb81124) + the other-line chore that reordered the fs_allowed_roots whitelist entry (landed as 22c6ef4) is locked by named rollback point `v-baseline-2026-11-26-c`; tools/run_tests.py --full 268 suites ALL GREEN (incl. all live suites), post-green -b rollback verify green, tree clean, main in 0 0 sync; single-push of this tag this round. Note: the tag was cut under the true date 2026-11-26, the 3rd surviving 11-26 number (continuing after a/b), no superseded-numbering conflict).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-c) section wins.
+> The current latest rollback point is `v-baseline-2026-11-26-d`
+> (commit `62db181122091cc541a5f6e074187b1b0d54e517`, the ledger speed-view -c parity point: named rollback point `v-baseline-2026-11-26-d` locks the doc-consistency state where the archive speed-view header/body/list were all upgraded to -c and every -a/-b/-c section table-row commit equals the git deref truth (doc commit 62db181); doc-only; main in 0 0 sync at the time, single-push of this tag. Note: the tag was cut under the true date 2026-11-26, the 4th surviving 11-26 number (continuing after a/b/c); the previously cleaned-up old d/e superseded numbers point to different commits and no longer exist).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-d) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -571,4 +571,22 @@ This tag was created under the true date 2026-11-26, the 3rd surviving 11-26 num
 
 ```bat
 git tag -a v-baseline-2026-11-26-c 22c6ef4e5c963de7af65af40465cbdedf5239ae0 -m "baseline: lock clean all-green point at 22c6ef4 (chore roots reorder landed on top of fb81124 ledger backfill; tools/run_tests.py --full 268 suites ALL GREEN incl live; post-green -b rollback verify green; tree clean; main in 0 0 sync)"
+```
+## 2026-11-26 series: current latest rollback point upgraded to d (ledger-backfill -c doc commit 62db181, speed-view -c parity point, doc-only)
+
+This round cut named rollback point `v-baseline-2026-11-26-d` at commit `62db181122091cc541a5f6e074187b1b0d54e517` (the doc commit where the ledger speed-view header/body/list were all upgraded to -c), locking the doc-consistency state where the archive speed-view three elements are all -c and every -a/-b/-c section table-row commit equals the git deref truth, i.e. the state locked by commit 62db181 (doc-only).
+This tag was created under the true date 2026-11-26, the 4th surviving 11-26 number (continuing after a/b/c; the previously cleaned-up old d/e superseded numbers point to different commits and no longer exist); main was in 0 0 sync at the time, single-push of this tag.
+
+**Note**: `-d` anchors the ledger-backfill doc commit 62db181 (not HEAD, not the all-green regression point 22c6ef4); it embodies the convention of cutting a tag to anchor the parity point each time the ledger speed-view is bumped.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-d | `62db181122091cc541a5f6e074187b1b0d54e517` | ledger speed-view -c parity point: 62db181 (the doc commit where the -c speed-view three elements are synced and each section table-row equals the deref truth); doc-only; main 0 0 at the time; single-push of this tag ls-remote peel==`62db181` confirms on remote |
+
+**On the remote**: this round pushed origin v-baseline-2026-11-26-d (new tag), ls-remote peel == `62db181`.
+
+### Rebuild command (to restore named rollback point d)
+
+```bat
+git tag -a v-baseline-2026-11-26-d 62db181122091cc541a5f6e074187b1b0d54e517 -m "baseline: lock ledger-speed-view -c parity at 62db181 (archive zh+en speed-view header/body/list all upgraded to -c; each -a/-b/-c section table-row commit == git deref truth; data-driven parity recheck PARITY OK; doc-only)"
 ```
