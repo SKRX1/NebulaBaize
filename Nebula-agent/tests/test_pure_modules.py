@@ -1,4 +1,4 @@
-"""Unit tests for the thirteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the fourteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -13,6 +13,7 @@
   serve/engine_stall  - the frozen-engine watchdog predicate + its two thresholds
   serve/tokenizer     - byte tokenizer stand-in / Detokenizer / stop_strings / StopMatcher
   serve/approval      - tool-approval policy: registry-mutation set + destructive-shell deny + desc
+  serve/conv_cache    - engine conversation-cache log reader + the Monitor cache-card view
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -39,6 +40,7 @@ from serve import env_probe as EP           # noqa: E402
 from serve import engine_stall as ES         # noqa: E402
 from serve import tokenizer as TK            # noqa: E402
 from serve import approval as AP             # noqa: E402
+from serve import conv_cache as CV           # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -803,6 +805,56 @@ def test_approval_desc_truncates():
     print("APPROVAL _approval_desc: prefix + 320-cap ellipsis ok")
 
 
+# ---------------------------------------------------------------- conv_cache ----
+def test_conv_cache_view_card():
+    # conversation_cache_view builds the Monitor card from arguments only. LOAD-BEARING:
+    # enabled is True ONLY when conversation_cache_mib is an int > 0 (a string budget or 0/None
+    # leaves the card disabled, matching the engine's opt-in gate), and reused_tokens comes from
+    # the running totals (not recomputed), with a per-request reused>0 count over hist.
+    info = {"conversation_cache_mib": 8, "conversation_cache_slots": 4}
+    hist = [{"reused": 5, "prompt_tokens": 100}, {"reused": 0, "prompt_tokens": 50}]
+    totals = {"reused": 5, "prompt_tokens": 150}
+    parked = {"parked": 3, "bytes": 9}
+    card = CV.conversation_cache_view(info, hist, totals, parked)
+    assert card["enabled"] is True and card["budget_mib"] == 8 and card["slots"] == 4
+    assert card["requests"] == 2 and card["requests_reused"] == 1
+    assert card["reused_tokens"] == 5 and card["prompt_tokens"] == 150
+    assert card["parked"] == 3 and card["bytes"] == 9          # the parked dict is splatted in
+    assert card["last_reused"] == 0 and card["last_prompt"] == 50  # last hist row
+    # disabled boundaries: string budget, zero, and missing all -> enabled False
+    for bad in ({"conversation_cache_mib": "8"}, {"conversation_cache_mib": 0}, {}):
+        assert CV.conversation_cache_view(bad, [], {}, {})["enabled"] is False
+    assert CV.conversation_cache_view({}, [], {}, {})["last_reused"] is None
+    print("CONV-CACHE view: int>0 gate, totals + parked splat, disabled boundaries ok")
+
+
+def test_conv_log_parse_events():
+    # ConvCacheLog.poll parses the engine's conversation-cache stderr lines into running state.
+    # LOAD-BEARING: a parked event bumps parks but a skipped one does NOT (and leaves parked/bytes
+    # refreshed anyway), a restored bumps restores, and a dropped-superseded line only sets parked.
+    import tempfile
+    log = os.path.join(tempfile.mkdtemp(), "engine.log")
+    cl = CV.ConvCacheLog()
+    lines = (
+        b"strata serve: conversation cache: parked 12 tokens, 3 slots, parked=100 bytes=2048 evictions=1\n"
+        b"unrelated noise line\n"
+        b"strata serve: conversation cache: skipped 7 tokens, parked=110 bytes=2100\n"
+        b"strata serve: conversation cache: restored 9 tokens, parked=40 bytes=900\n"
+        b"strata serve: conversation cache: dropped 2 superseded entries, parked=30\n"
+    )
+    open(log, "wb").write(lines)
+    st = cl.poll(log, 0)
+    assert st["parked"] == 30            # the last DROPPED line wins
+    assert st["bytes"] == 900            # last refreshed bytes (dropped has no bytes field)
+    assert st["evictions"] == 1
+    assert st["parks"] == 1              # only the parked line; skipped did NOT count
+    assert st["restores"] == 1
+    assert st["last_event"] == "restored" and st["last_tokens"] == 9
+    # empty inputs short-circuit to current state without touching the file:
+    assert cl.poll(None, 0) == st
+    print("CONV-CACHE log: park/skip/restore counting + dropped + evictions ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -840,6 +892,8 @@ def main():
     test_approval_needs_registry_only()
     test_approval_auto_deny_destructive()
     test_approval_desc_truncates()
+    test_conv_cache_view_card()
+    test_conv_log_parse_events()
     print("PURE-MODULES TEST PASSED")
     return 0
 

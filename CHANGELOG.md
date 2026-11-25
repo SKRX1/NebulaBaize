@@ -9,6 +9,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.1-rc.1] - 2026-11-25
+
 ### Changed / 变更
 
 - **app_utils 纯函数抽离链（阶段性）** — 按「零 DOM、零 app.js 模块全局、无 mutation」纪律，从单体 `app.js` 持续摘取内聚纯叶子移入 `app_utils.js`。本轮 spark 族：`sparkIsExecuted`（判定便签是否已执行：`executedAt` 已设或 `status==done`）+ `sparkTimeCompare`（时间模式排序比较器：未执行置顶、新建在上，已执行置底、最近执行在上）整搬（commit `8d8a27d`），二者同族彼此依赖、对外零依赖；前序已固化 `buildCtxArr`+`renderMsgForCompact`、`mdKindOf`+`mdImageTag`+`MD_EXT_*` 等纯叶子。
