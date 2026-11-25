@@ -1,6 +1,6 @@
 """registry MCP server tests — Registry behind MCP tools, with test isolation.
 
-Run:  C:/Users/sk/.workbuddy/binaries/python/versions/3.13.12/python.exe tests/test_registry_server.py
+Run:  python tests/test_registry_server.py
 
 Two layers, on purpose:
   * direct call_tool() tests against a TEMP config/skills/backups/audit (the

@@ -60,7 +60,7 @@ import { createRequire } from "module";
 
 
 
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require = createRequire("E:/Nebula/NebulaBaize/");
 
 const { JSDOM } = require("jsdom");
 

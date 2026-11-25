@@ -49,7 +49,7 @@ try {
   ({ chromium } = createRequire(import.meta.url)("playwright"));
 } catch (e) {
   try {
-    ({ chromium } = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/")("playwright"));
+    ({ chromium } = createRequire("E:/Nebula/NebulaBaize/")("playwright"));
   } catch (e2) {
     console.error(
       "playwright is not installed here. From the repo root run:\n" +

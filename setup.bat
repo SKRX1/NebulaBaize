@@ -24,7 +24,6 @@ if not defined PY_BASE (
     "C:\Program Files\Python"
     "D:\Program Files\Python"
     "E:\Program Files\Python"
-    "C:\Users\sk\.workbuddy\binaries\python\versions"
   ) do (
     if exist "%%~D" (
       for /f "delims=" %%i in ('dir /b /s /a-d "%%~D\python.exe" 2^>nul') do if not defined PY_BASE set "PY_BASE=%%i"

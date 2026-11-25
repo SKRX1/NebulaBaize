@@ -60,7 +60,7 @@ NODE_PATH_DIR = os.path.join(WSROOT, "node_modules")
 
 # is what makes them resolve against the tracked workspace-root node_modules.
 
-NODE = shutil.which("node") or r"C:\Users\sk\.workbuddy\binaries\node\versions\22.22.2-6\node.exe"
+NODE = shutil.which("node") or r"E:\Program Files\nodejs\node.exe"
 # PowerShell for the .ps1 suites (the smoke_gateway artifact filter). PATH first, then
 # the absolute System32 host as fallback (pwsh is not installed on this box).
 POWERSHELL = shutil.which("powershell") or r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.EXE"

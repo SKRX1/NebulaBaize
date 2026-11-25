@@ -321,7 +321,7 @@ def _find_node() -> str | None:
              os.path.expandvars(r"%APPDATA%\nvm\current\node.exe")]
     try:
         cands += sorted(glob.glob(os.path.expanduser(
-            "~/.workbuddy/binaries/node/versions/*/node.exe")), reverse=True)
+            os.path.expandvars(r"%ProgramFiles%\nodejs\*\node.exe"))), reverse=True)
     except Exception:
         pass
     for c in cands:

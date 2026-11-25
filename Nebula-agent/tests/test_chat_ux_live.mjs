@@ -17,7 +17,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require = createRequire("E:/Nebula/NebulaBaize/");
 const { chromium } = require("playwright");
 
 const BASE = "http://127.0.0.1:8080";

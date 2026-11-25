@@ -50,7 +50,7 @@ import browser_server as bs   # noqa: E402  (reuse _find_browser / _run_capture)
 # (that is what _sandbox_write_guard.py now locks).
 FIXTURE = os.path.join(HERE, "tools", "_pixel_backstop_fixture.mjs")
 BASELINE = os.path.join(HERE, "tools", "baseline")
-NODE = shutil.which("node") or r"C:\Users\sk\.workbuddy\binaries\node\versions\22.22.2-6\node.exe"
+NODE = shutil.which("node") or r"E:\Program Files\nodejs\node.exe"
 
 # Differential contract: scene -> (expected box state, expected reminder state)
 SCENES = {

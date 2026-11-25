@@ -10,7 +10,7 @@
  * Run standalone: node tests/test_chip_text_rescue.mjs
  */
 import fs from "fs"; import path from "path"; import { fileURLToPath } from "url"; import { createRequire } from "module";
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.resolve(HERE, "..", "serve", "web");

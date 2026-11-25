@@ -24,7 +24,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import module from "module";
-const require = module.createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require = module.createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

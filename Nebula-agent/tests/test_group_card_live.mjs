@@ -22,7 +22,7 @@ import fs from "fs";
 let chromium;
 try { ({ chromium } = createRequire(import.meta.url)("playwright")); }
 catch (e) {
-  try { ({ chromium } = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/")("playwright")); }
+  try { ({ chromium } = createRequire("E:/Nebula/NebulaBaize/")("playwright")); }
   catch (e2) { console.error("playwright missing: from repo root run  npm i playwright"); process.exit(2); }
 }
 

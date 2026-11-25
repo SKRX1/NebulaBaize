@@ -9,7 +9,7 @@ const path = require("path");
 const { createRequire } = require("module");
 // Mirror the .mjs suites: resolve jsdom from the managed workspace, not a local
 // node_modules (which is absent on this machine). Keeps the regression runner green.
-const require2 = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require2 = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require2("jsdom");
 
 const WEB = path.resolve(__dirname, "..", "serve", "web");

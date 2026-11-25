@@ -12,7 +12,7 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 
 // jsdom lives in the managed workspace, not next to this test.
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require = createRequire("E:/Nebula/NebulaBaize/");
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), "..", "serve", "web");
 const read = (f) => readFileSync(join(WEB, f), "utf8");

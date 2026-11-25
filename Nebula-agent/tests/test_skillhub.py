@@ -1,6 +1,6 @@
 """skillhub MCP server tests — round 1 (search/stage/probe/incoming/discard).
 
-Run:  C:/Users/sk/.workbuddy/binaries/python/versions/3.13.12/python.exe tests/test_skillhub.py
+Run:  python tests/test_skillhub.py
 
 Two layers, on purpose:
   * direct call_tool() tests for logic, guards and the git/local/template paths

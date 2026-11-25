@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
-const require = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,7 @@ function check(name, cond, extra) {
 }
 
 const PAYLOAD = {
-  file: "E:/WorkBuddy/星云智能体/strata-agent/config/mcp_servers.json",
+  file: "E:/Nebula/NebulaBaize/Nebula-agent/config/mcp_servers.json",
   mode: "direct",
   keys: [
     {key: "max_rounds", kind: "number", value: 1000, default: 1000, help: "cap rounds", scope: "loop", live: true},

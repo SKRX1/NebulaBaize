@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createRequire } = require("module");
-const require2 = createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/");
+const require2 = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require2("jsdom");
 
 const WEB = path.resolve(__dirname, "..", "serve", "web");
