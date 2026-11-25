@@ -261,3 +261,5 @@ baseline-tag-archive.md 补登计数断言勿写死 ==3：若新节语义列或 
 抽离 serve/ 下新纯模块时，调用点 import 必须镜像 server.py 的 try/except 双路径（`from serve.X import ...` / `except ImportError: from X import ...`），因 server.py 可被 `python serve/server.py` 直接运行（serve/ 是 sys.path[0]）——这是后端抽离专属约定，前端 app_utils 全局共享模式无此条。
 抽离新纯模块的行为测试往既有 tests/test_pure_modules.py 内加（它已登记在 run_tests SUITES 且是逐模块汇总文件），不必新登记 run_tests.py；新模块加进其 docstring 模块清单 + main() 调用列表即可。
 删除被跟踪文件前先 git grep 坐实全仓无引用、并单独重跑相关门禁（如 baseline gate）验证零破坏，再 commit+push+重跑 --full 全绿收尾。
+账本速览节替换用「定位 `## 当前回滚点（速览` 标题 → find 下一个 `\r\n## ` 边界 → 整段替换」的 section 级编辑，比逐行锚点稳；新建节直接 append 到末尾（新 tag 时序在最后节之后时）
+批量 git tag 删除时 cmd 的 `for ... do @(A & B)` 会把整个复合体按迭代次数重复执行导致 A/B 各跑 N 次，应拆成单条 git tag -d 列表 + 单条 git push --delete 列表，避免重复副作用
