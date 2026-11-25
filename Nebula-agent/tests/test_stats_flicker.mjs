@@ -44,7 +44,7 @@ if (!doc.getElementById("toasts")) { const d = doc.createElement("div"); d.id = 
 win.localStorage.setItem("strata.lang", "en");
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 appCode += `\n;window.__api = { renderStats, msgEl };`;
 win.eval(appCode);
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));

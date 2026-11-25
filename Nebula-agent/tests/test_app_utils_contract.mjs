@@ -22,6 +22,7 @@ const EXPORTS = [
   "firstPath", "nextScopeUp", "nextScopeDown", "clone",
   "classifyTool",
   "bugBoxSigKey", "bugBoxStats", "bugBoxGroups",
+  "thinkPeek", "dedupeThink",
 ];
 
 let fails = 0;

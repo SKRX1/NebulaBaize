@@ -158,3 +158,36 @@ function bugBoxGroups(entriesDesc) { // fold same-signature rows into one repres
   }
   return order;
 }
+
+
+// ---- think-text pure transforms (extracted from app.js): thinkPeek = collapsed one-liner summary (skips fenced code); dedupeThink = fold >=3 identical consecutive lines to one. Pure string -> string, no DOM / no app.js state. ----
+function thinkPeek(src) {                                // collapsed one-liner: the first sentence, at most ~90 chars
+  // Skip fenced code when picking the one-liner: a thought that opens with a ```js dump would otherwise
+  // summarise itself as "const opt = (oi != null …", which tells the reader nothing.
+  let inFence = false, first = "";
+  for (const line of String(src || "").split("\n")) {
+    if (/^\s*```/.test(line)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    if (line.trim()) { first = line; break; }
+  }
+  const s = (first || String(src || "")).replace(/\s+/g, " ").trim();
+  const head = s.slice(0, 90);
+  const m = head.match(/^[\s\S]*?[。！？!?；;\n]/);
+  return ((m ? m[0] : head).trim() || head).trim();
+}
+function dedupeThink(src) {
+  const MIN_RUN = 3;
+  const lines = String(src || "").split("\n");
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const t = lines[i];
+    if (t.trim() === "") { out.push(t); i++; continue; }          // blank lines pass through untouched
+    let j = i;
+    while (j < lines.length && lines[j] === t) j++;                // exact-identical run only
+    if (j - i >= MIN_RUN) out.push(t);                             // fold the whole run to one line
+    else { for (let k = i; k < j; k++) out.push(lines[k]); }        // <3 identical: keep verbatim
+    i = j;
+  }
+  return out.join("\n");
+}

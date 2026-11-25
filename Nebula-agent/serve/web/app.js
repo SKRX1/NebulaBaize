@@ -2684,20 +2684,6 @@ function toolSeq(tools, k) {
 // shows the thought itself.  The live segment opens while it streams and closes once the turn moves on —
 // which is what keeps "the wall of thinking" from taking over the screen.
 const THINK_LONG = 900;                                  // above this a thought is titled "深度思考"
-function thinkPeek(src) {                                // collapsed one-liner: the first sentence, at most ~90 chars
-  // Skip fenced code when picking the one-liner: a thought that opens with a ```js dump would otherwise
-  // summarise itself as "const opt = (oi != null …", which tells the reader nothing.
-  let inFence = false, first = "";
-  for (const line of String(src || "").split("\n")) {
-    if (/^\s*```/.test(line)) { inFence = !inFence; continue; }
-    if (inFence) continue;
-    if (line.trim()) { first = line; break; }
-  }
-  const s = (first || String(src || "")).replace(/\s+/g, " ").trim();
-  const head = s.slice(0, 90);
-  const m = head.match(/^[\s\S]*?[。！？!?；;\n]/);
-  return ((m ? m[0] : head).trim() || head).trim();
-}
 function thinkOpen(m, slot, live, isLatest) {
   if (m.thinkOpen && m.thinkOpen[slot] !== undefined) return !!m.thinkOpen[slot];  // a manual toggle wins
   if ((live || isLatest) && settings.show !== false) return true;  // the live thought and the latest message follow the show switch
@@ -2708,22 +2694,6 @@ function thinkOpen(m, slot, live, isLatest) {
 // lines to a single line, right before the paint, so a reader sees it once. A run of <3 is left
 // untouched, so a model that legitimately repeats a 1-2 line action stays verbatim. Pure string work
 // (no fence parsing here -- thinkRich handles fences after this); deterministic, input-determined output.
-function dedupeThink(src) {
-  const MIN_RUN = 3;
-  const lines = String(src || "").split("\n");
-  const out = [];
-  let i = 0;
-  while (i < lines.length) {
-    const t = lines[i];
-    if (t.trim() === "") { out.push(t); i++; continue; }          // blank lines pass through untouched
-    let j = i;
-    while (j < lines.length && lines[j] === t) j++;                // exact-identical run only
-    if (j - i >= MIN_RUN) out.push(t);                             // fold the whole run to one line
-    else { for (let k = i; k < j; k++) out.push(lines[k]); }        // <3 identical: keep verbatim
-    i = j;
-  }
-  return out.join("\n");
-}
 // Thinking is mostly prose, but a model that is debugging pastes code into it — and a raw ```js dump in a
 // pre-wrap box is unreadable. Split the thought on fences and give each block the same .st-code card the
 // answer body uses (dark surface + language label + copy + highlighting); prose keeps its plain pre-wrap.

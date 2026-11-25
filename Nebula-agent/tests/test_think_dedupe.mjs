@@ -13,14 +13,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "serve", "web");
-const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 
 const results = [];
 const check = (label, cond, extra = "") => { results.push([label, cond]); console.log("  " + (cond ? "OK   " : "FAIL ") + label + (extra ? "  " + extra : "")); };
 
 // Extract dedupeThink from app.js and run it in this process (deterministic, no DOM needed for the string rule).
 const m = appCode.match(/function dedupeThink\(src\) \{[\s\S]*?\n\}/);
-check("[static] dedupeThink is DEFINED in app.js", !!m);
+check("[static] dedupeThink is DEFINED in app_utils.js", !!m);
 const dedupe = m ? eval("(" + m[0].replace("function dedupeThink(src)", "function (src)") + ")") : () => { throw new Error("no dedupeThink"); };
 
 // --- NEGATIVE: a 2-identical-line run + single lines stay verbatim (threshold NOT crossed) ---
