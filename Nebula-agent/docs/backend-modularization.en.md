@@ -45,10 +45,11 @@ zero-coupling move* discipline. This file tracks that extraction chain and the m
 | `serve/approval` | tool-approval policy: registry-mutation set + destructive-shell deny + desc | chain step 2 | done |
 | `serve/conv_cache` | engine conversation-cache log reader + the Monitor cache-card view | chain step 3 | done |
 | `serve/engine_diag` | engine exit-status words / crash predicate / draft-head hint / GPU-runtime marks | chain step 4 | done |
+| `serve/exceptions` | the engine/session exception hierarchy (9 classes: inheritance + status / retry_after loads) | chain step 5 | done |
 
 "plan-B batch" = the first bulk extraction (refactor plan-B, 2026-11-17, eleven pure modules lifted at once);
 "chain" = the incremental chain that keeps lifting one zero-coupling cohesive family at a time (tokenizer → approval
-→ conv_cache → engine_diag). Every step cuts a named rollback tag + a bundle snapshot — see `baseline-tag-archive.md`.
+→ conv_cache → engine_diag → exceptions). Every step cuts a named rollback tag + a bundle snapshot — see `baseline-tag-archive.md`.
 
 ## Candidate-pool status
 

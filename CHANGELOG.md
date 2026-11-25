@@ -9,6 +9,36 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed / 变更
+
+- **`serve/exceptions.py` 抽离（后端模块化第五步）** — 续抽链第五族：把 serve/server.py 里彼此零耦合的「引擎/会话
+  异常层级」一族整搬进新模块 `serve/exceptions.py`：`EngineDied` / `EngineStarting` / `ClientGone` / `ModelBusy` /
+  `EngineSilent`（继承 `EngineDied`）/ `EngineNonFinite` / `SessionRefused`（带 kind→HTTP `status` 属性）/
+  `EngineStuck` / `GpuBusy`（带 `retry_after`）九类异常。它们仅继承内置 `RuntimeError`/`Exception`/`ValueError` 或
+  同族成员，零 import、零 server 全局；所有 raise / except 调用点保持原名经 try/except 双路径 import 兜回（9 类
+  引用全在 server.py 内、无跨文件/无测试文本抓取源牵连）。AST out-deps=0 扫描坐实为当前最纯最内聚的零依赖族。
+  - **连带面**：无文本正则抓取源牵连；`test_pure_modules.py` 加第 16 个纯模块 `serve/exceptions`（一测试：
+  EngineSilent<EngineDied 的 fatal 继承 + ValueError vs RuntimeError 三基类互不相同差分防误接线 +
+  SessionRefused kind→status 映射（storage 507/invalid 400/memory 503/未知回退 io 500）+ published 标志 +
+  GpuBusy retry_after 载荷与默认 None），带 load-bearing 差分。`docs/backend-modularization(.en).md` 进度表加
+  第 16 行续抽链第 5 步；backend-modularization / test_pure_modules docstring / run_tests 三处 16 模块对账一致。
+
+  *`serve/exceptions.py` extraction (fifth back-end modularization step):* the fifth chain family — the mutually
+  decoupled *engine / session exception hierarchy* — is lifted whole out of `serve/server.py` into a new module
+  `serve/exceptions.py`: `EngineDied` / `EngineStarting` / `ClientGone` / `ModelBusy` / `EngineSilent` (subclassing
+  `EngineDied`) / `EngineNonFinite` / `SessionRefused` (with its kind->HTTP `status` property) / `EngineStuck` /
+  `GpuBusy` (with `retry_after`), nine exception classes. They inherit only builtins (RuntimeError / Exception /
+  ValueError) or one another — zero imports, zero server globals; every raise / except site keeps its original name
+  through a try/except double-path import (all 9 classes' references live inside server.py, no cross-file or textual-
+  capture-source fallout). The AST out-deps=0 scan confirms this is the purest, most cohesive zero-dependency family
+  right now.
+  - *Blast radius:* no textual-regex capture source was involved; `test_pure_modules.py` gains its 16th module
+  `serve/exceptions` with one test (EngineSilent<EngineDied fatal inheritance + a three-bases-are-distinct
+  ValueError-vs-RuntimeError differential guarding against a mis-wired base move + SessionRefused kind->status mapping
+  (storage 507 / invalid 400 / memory 503 / unknown -> io 500) + the published flag + GpuBusy's retry_after load and
+  None default), with a load-bearing differential. `docs/backend-modularization(.en).md` gains a 16th row (chain step
+  5); backend-modularization / the test_pure_modules docstring / run_tests stay in lockstep at 16 modules.
+
 ## [0.1.1] - 2026-11-25
 
 ### Changed / 变更

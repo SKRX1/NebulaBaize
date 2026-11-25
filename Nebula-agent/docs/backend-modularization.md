@@ -40,9 +40,10 @@
 | `serve/approval` | 工具审批策略：registry 写操作集 + 破坏性 shell deny + desc | 续抽链第 2 步 | 完成 |
 | `serve/conv_cache` | 引擎会话缓存日志读取 + Monitor 缓存卡片 | 续抽链第 3 步 | 完成 |
 | `serve/engine_diag` | 引擎退出状态词 / 崩溃判定 / draft-head 提示 / GPU-runtime marks | 续抽链第 4 步 | 完成 |
+| `serve/exceptions` | 引擎/会话异常层级（9 类：继承关系 + status / retry_after 载荷） | 续抽链第 5 步 | 完成 |
 
 「plan-B 批」= 首轮成批抽离（refactor plan-B，2026-11-17，一次性摘出 11 个纯模块）；「续抽链」= 在其之后
-每次挑一个零耦合内聚纯族续抽的增量链（tokenizer → approval → conv_cache → engine_diag）。每步都打命名回滚
+每次挑一个零耦合内聚纯族续抽的增量链（tokenizer → approval → conv_cache → engine_diag → exceptions）。每步都打命名回滚
 点 tag + bundle 固化，详见 `baseline-tag-archive.md`。
 
 ## 候选池现状

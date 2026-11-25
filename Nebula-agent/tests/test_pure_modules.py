@@ -1,4 +1,4 @@
-"""Unit tests for the fifteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the sixteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -15,6 +15,7 @@
   serve/approval      - tool-approval policy: registry-mutation set + destructive-shell deny + desc
   serve/conv_cache    - engine conversation-cache log reader + the Monitor cache-card view
   serve/engine_diag   - engine exit-status words / crash predicate / draft-head hint / GPU-runtime marks
+  serve/exceptions    - the engine / session exception hierarchy (inheritance + status/retry_after)
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -43,6 +44,7 @@ from serve import tokenizer as TK            # noqa: E402
 from serve import approval as AP             # noqa: E402
 from serve import conv_cache as CV           # noqa: E402
 from serve import engine_diag as ED          # noqa: E402
+from serve import exceptions as EX           # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -908,6 +910,38 @@ def test_engine_diag_log_reads():
     print("ENGINE-DIAG log reads: marks-filter + draft-head hint build ok")
 
 
+# ---------------------------------------------------------------- exceptions ----
+def test_exceptions_hierarchy_and_payload():
+    # The extracted exception classes must keep their inheritance + carry-loads. LOAD-BEARING:
+    # EngineSilent subclasses EngineDied (so a silence is still a fatal engine loss -> the caller's
+    # EngineDied handler catches it), EngineDied subclasses RuntimeError but NOT ValueError, and
+    # EngineNonFinite subclasses ValueError (a started stream reports it as an error event). The two
+    # carrying classes keep their attributes: SessionRefused maps kind->HTTP status (unknown kind ->
+    # 'io'/500) and GpuBusy keeps retry_after. Without the extraction these relationships could silently
+    # break if a base name were mis-wired during the move.
+    assert issubclass(EX.EngineSilent, EX.EngineDied)
+    assert issubclass(EX.EngineDied, RuntimeError) and not issubclass(EX.EngineDied, ValueError)
+    assert issubclass(EX.EngineNonFinite, ValueError)
+    assert issubclass(EX.SessionRefused, ValueError)
+    assert issubclass(EX.ModelBusy, RuntimeError) and issubclass(EX.EngineStuck, RuntimeError)
+    assert issubclass(EX.GpuBusy, RuntimeError) and issubclass(EX.ClientGone, Exception)
+    # the three distinct bases really differ (not all collapsed onto one base by a mis-wired move):
+    assert EX.EngineDied is not EX.EngineNonFinite is not EX.ClientGone
+    r_bad = EX.SessionRefused("storage", "disk full")
+    assert r_bad.kind == "storage" and r_bad.status == 507 and r_bad.published is False
+    assert EX.SessionRefused("invalid", "x").status == 400
+    assert EX.SessionRefused("memory", "x").status == 503
+    # an unknown kind falls back to io / 500 (LOAD-BEARING: it must not KeyError):
+    r_unk = EX.SessionRefused("zzz", "x")
+    assert r_unk.kind == "io" and r_unk.status == 500
+    # published flag round-trips:
+    assert EX.SessionRefused("io", "x", published=True).published is True
+    g = EX.GpuBusy("low vram", retry_after=5)
+    assert g.retry_after == 5 and "low vram" in str(g)
+    assert EX.GpuBusy().retry_after is None            # default (no Retry-After)
+    print("EXCEPTIONS hierarchy: EngineSilent<EngineDied, ValueError vs RuntimeError bases, status/retry loads ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -949,6 +983,7 @@ def main():
     test_conv_log_parse_events()
     test_engine_diag_exit_words_and_crash()
     test_engine_diag_log_reads()
+    test_exceptions_hierarchy_and_payload()
     print("PURE-MODULES TEST PASSED")
     return 0
 
