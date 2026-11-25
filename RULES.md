@@ -265,3 +265,7 @@ baseline-tag-archive.md 补登计数断言勿写死 ==3：若新节语义列或 
 批量 git tag 删除时 cmd 的 `for ... do @(A & B)` 会把整个复合体按迭代次数重复执行导致 A/B 各跑 N 次，应拆成单条 git tag -d 列表 + 单条 git push --delete 列表，避免重复副作用
 补登账本速览时 body 行须随标题同步升级语义（不止标题/列表）：本轮 -b 时已踩坑、-c 时一次性把三要素+body 全升级避免二次返工；en_block 模板里的英文正文谨防中英混排笔误（如误插「固化」二字），写盘前用脚本残留扫描核对
 前端交互判据(鼠标/键盘/滚动是否算忙)的改动，用 jsdom 在 win 上 dispatchEvent 真实事件 + 反向差分(移除接线应让断言翻红)验证接线，而非仅读状态探针
+改 i18n.js 文案(明文/转义混存)用「key 前缀+zh先en后整行替换」而非按 value 匹配；en 文案内嵌 ASCII 双引号务必转 \"；改后立即 node --check + test_i18n.mjs 验 1400×2
+数值字段范围的单一真源应放 app.js 的 MEM_FIELD_SPECS 表，DEFAULTS/模块 fallback/抽屉回填/bindNumGuard/collectSettings 全引用它，index.html 的 min/max/value 仅作无-JS 兜底并由真源启动覆写
+改出厂默认值须三处同步：MEM_FIELD_SPECS.def、index.html 兜底 value、i18n range 文案（zh「默认 N 秒」/en「default Ns」），并由 test_mem_field_specs_parity.mjs 锁定三者一致防漂移
+jsdom harness 要触发 app.js 里调 renderSessions/workspaceGroups 的路径（如 s-apply.onclick），必须先 eval app_utils.js（含 taskOrder 等纯全局）；app_utils.js 是 "use strict" 经典脚本，jsdom 下须 .replace(/"use strict";?/,"") 转 sloppy 使其顶层 function 声明落到 window，否则 indirect eval 下全局不挂 window 致 taskOrder is not defined
