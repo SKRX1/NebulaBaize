@@ -63,6 +63,59 @@ All notable changes to this project are documented in this file.
   shell deny covering both the word-boundary and separator-anchored regex sets / desc 320-char cap), each with a
   load-bearing differential.
 
+- **`serve/conv_cache.py` 抽离（后端模块化第三步）** — 延续 tokenizer→approval 抽离链，把 serve/server.py 里彼此
+  零耦合的「会话缓存日志读取」一族整搬进新模块 `serve/conv_cache.py`：`ConvCacheLog`（解析引擎 stderr 里
+  `conversation cache: parked/restored ...` 行、维护 parked/bytes/evictions/parks/restores 累计态的日志读取器，
+  只读 stdlib os/re/time）+ `conversation_cache_view`（由入参 info/hist/totals/parked 组装 Monitor「会话缓存」卡片
+  dict，零外部依赖）。AST out-deps 扫描坐实 free names 仅 os/re/time + 参数名、无 server 全局；调用点（构造 +
+  Monitor 卡片）保持原名经 try/except import 兜回。
+  - **连带面**：无文本正则抓取源牵连（引用仅 server.py 两处调用点）；`test_pure_modules.py` 加第 14 个纯模块
+  `serve/conv_cache`（二测试：view 卡片的 int>0 opt-in 门 + totals/parked 拼装 + 停用边界 / 日志解析的 park vs
+  skip vs restore 计数 + dropped-superseded 仅改 parked + evictions），均带 load-bearing 差分。
+
+  *`serve/conv_cache.py` extraction (third back-end modularization step):* continuing the tokenizer→approval chain,
+  the mutually decoupled *conversation-cache log reader* family is lifted whole out of `serve/server.py` into a new
+  module `serve/conv_cache.py`: `ConvCacheLog` (parses the engine's `conversation cache: parked/restored ...`
+  stderr lines into running parked/bytes/evictions/parks/restores state; stdlib os/re/time only) +
+  `conversation_cache_view` (assembles the Monitor conversation-cache card dict purely from its arguments
+  info/hist/totals/parked, zero external deps). The AST out-deps scan confirms the free names are os/re/time +
+  parameters, no server globals; call sites keep their original names via a try/except import.
+  - *Blast radius:* no textual-regex capture source was involved (only two call sites in server.py);
+  `test_pure_modules.py` gains its 14th module `serve/conv_cache` with two tests (the view card's int>0 opt-in gate
+  + totals/parked splat + disabled boundaries / log-parse park-vs-skip-vs-restore counting + dropped-superseded
+  only touching parked + evictions), each with a load-bearing differential.
+- **`serve/engine_diag.py` 抽离（后端模块化第四步）** — 续抽链第四族：把 serve/server.py 里彼此零耦合的「引擎
+  退出状态/启动日志诊断」一族整搬进新模块 `serve/engine_diag.py`：`start_failure_hint`（MTP draft-head 未塞进
+  VRAM 时从引擎自身 `strata mtp:` 行给建议，否则用文字版提示）+ `engine_exit_words`（进程退出状态译成词：POSIX
+  信号 / Windows NTSTATUS）+ `engine_crashed`（判定引擎是否被系统终结＝崩溃而非自行退出）+ `start_log_marks`
+  （日志里命中的 GPU-runtime 失败标记）四个纯函数，连同其读取的 `DRAFT_HEAD_FAIL` / `DRAFT_HEAD_HINT` /
+  `_WIN_CRASH` / `TRANSIENT_START_MARKS` 四常量一并搬出。AST out-deps 扫描坐实 free names 仅 stdlib os/signal +
+  这些族内常量、无 server 全局；调用点保持原名经 try/except import 兜回。`cpu_isa_words` / `start_exit_note` /
+  `START_RETRIES` / `transient_start_failure`（启动重试与 CPU 指令集探测＝异质职责）留在 server.py（后者读
+  `TRANSIENT_START_MARKS` 经 import 兜回）。
+  - **连带面**：无文本正则抓取源牵连（server.py 内多处调用点 + transient_start_failure 读常量均经 import 兜回）；
+  `test_pure_modules.py` 加第 15 个纯模块 `serve/engine_diag`（二测试：exit_words 的表内 vs 段内未列 vs 普通退出码
+  三路差分 + crashed 的 NTSTATUS 真/普通退出假/None 假 / start_log_marks 仅返回命中项 + start_failure_hint 非
+  draft-head 短语返空、命中则拼出 mtp 建议），均带 load-bearing 差分。
+
+  *`serve/engine_diag.py` extraction (fourth back-end modularization step):* the fourth chain family — the mutually
+  decoupled *engine exit-status / start-log diagnostics* family is lifted whole out of `serve/server.py` into a new
+  module `serve/engine_diag.py`: `start_failure_hint` (MTP draft-head-did-not-fit advice from the engine's own
+  `strata mtp:` lines, else the advice in words) + `engine_exit_words` (a process exit status rendered in words:
+  POSIX signal / Windows NTSTATUS) + `engine_crashed` (True when the system ended the engine — a crash, not a clean
+  exit) + `start_log_marks` (which GPU-runtime failure texts the log holds), four pure functions lifted together
+  with the four constants they read (`DRAFT_HEAD_FAIL` / `DRAFT_HEAD_HINT` / `_WIN_CRASH` / `TRANSIENT_START_MARKS`).
+  The AST out-deps scan confirms the free names are stdlib os/signal + these in-family constants, no server globals;
+  call sites keep their original names via a try/except import. `cpu_isa_words` / `start_exit_note` / `START_RETRIES` /
+  `transient_start_failure` (start-retry + CPU-instruction-set probe, a heterogeneous responsibility) stay in
+  server.py (the last one reads `TRANSIENT_START_MARKS` through the import shim).
+  - *Blast radius:* no textual-regex capture source was involved (several call sites in server.py +
+  transient_start_failure reading the constant, all through the import shim); `test_pure_modules.py` gains its 15th
+  module `serve/engine_diag` with two tests (exit_words' in-table vs in-range-not-listed vs plain-exit-code
+  three-way differential + crashed's NTSTATUS-true / plain-exit-false / None-false / start_log_marks returning only
+  matched marks + start_failure_hint returning empty off the draft-head phrase and building the mtp advice on a hit),
+  each with a load-bearing differential.
+
 ### Fixed / 修复
 
 - **侧边栏「所有标签页突然全部隐藏」bug** — 把便签推送到对话（或任意触发采样保存的操作）后，左侧任务栏会在【每个】标签页一起变隐藏、所有显隐开关显示为关，只有点「恢复默认」才救回（commit `a75ab84`）：

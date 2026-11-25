@@ -1,4 +1,4 @@
-"""Unit tests for the fourteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
+"""Unit tests for the fifteen pure modules split out of server.py (refactor plan-B, 2026-11-17):
 
   serve/wire_codec    - openai_collect / anthropic_collect stream reassembly
   serve/net_gate      - host / origin / api-key admission gate
@@ -14,6 +14,7 @@
   serve/tokenizer     - byte tokenizer stand-in / Detokenizer / stop_strings / StopMatcher
   serve/approval      - tool-approval policy: registry-mutation set + destructive-shell deny + desc
   serve/conv_cache    - engine conversation-cache log reader + the Monitor cache-card view
+  serve/engine_diag   - engine exit-status words / crash predicate / draft-head hint / GPU-runtime marks
 
 These are PURE functions (no engine / session / I/O state), so each behaviour can be
 locked with a direct call + a load-bearing differential (the branch that MUST be taken).
@@ -41,6 +42,7 @@ from serve import engine_stall as ES         # noqa: E402
 from serve import tokenizer as TK            # noqa: E402
 from serve import approval as AP             # noqa: E402
 from serve import conv_cache as CV           # noqa: E402
+from serve import engine_diag as ED          # noqa: E402
 
 
 # ---------------------------------------------------------------- wire_codec ----
@@ -855,6 +857,57 @@ def test_conv_log_parse_events():
     print("CONV-CACHE log: park/skip/restore counting + dropped + evictions ok")
 
 
+# ---------------------------------------------------------------- engine_diag ----
+def test_engine_diag_exit_words_and_crash():
+    # engine_exit_words / engine_crashed read a process exit status. LOAD-BEARING three-way
+    # differential on the Windows NTSTATUS space (this host's os.name == 'nt'):
+    #   a known crash code (0xC000001D) -> a words line from the _WIN_CRASH table;
+    #   an unmapped code inside 0xC0000000..0xD0000000 -> the generic 'system error status' form;
+    #   a plain exit code (5) -> 'exit code 5', and engine_crashed is False for it but True for
+    #   an NTSTATUS code. None (no status) short-circuits both.
+    assert ED.engine_exit_words(None) == ""
+    assert ED.engine_crashed(None) is False
+    w_known = ED.engine_exit_words(0xC000001D)
+    assert "illegal instruction" in w_known and "0xC000001D" in w_known
+    w_range = ED.engine_exit_words(0xC0000123)          # inside the range, not in the table
+    assert "system error status" in w_range
+    w_plain = ED.engine_exit_words(5)                    # outside every range
+    assert w_plain == "exit code 5"
+    assert w_known != w_range != w_plain                 # the three branches really differ
+    assert ED.engine_crashed(0xC0000005) is True         # an NTSTATUS -> a system-ended crash
+    assert ED.engine_crashed(5) is False                 # a normal exit is not a crash
+    assert ED.engine_crashed(0) is False                 # clean exit is not a crash
+    print("ENGINE-DIAG exit words/crash: table vs range vs plain, crashed bool ok")
+
+
+def test_engine_diag_log_reads():
+    # start_log_marks / start_failure_hint read the engine's start log. LOAD-BEARING:
+    # start_log_marks returns ONLY the TRANSIENT_START_MARKS substrings actually present
+    # (an unrelated log yields []); start_failure_hint returns '' unless the draft-head
+    # failure phrase appears, and otherwise a non-empty mtp advice line built from it.
+    import tempfile
+    d = tempfile.mkdtemp()
+    assert ED.start_log_marks(None, 0) == []             # no log
+    hit = os.path.join(d, "hit.log")
+    open(hit, "wb").write(b"starting\nboom hsa_exception during queue setup\n")
+    marks = ED.start_log_marks(hit, 0)
+    assert marks == ["hsa_exception"]                     # only the present mark
+    miss = os.path.join(d, "miss.log")
+    open(miss, "wb").write(b"starting\nall good\n")
+    assert ED.start_log_marks(miss, 0) == []             # no mark present
+    assert ED.start_failure_hint(None, 0) == ""          # no log
+    open(miss, "ab").write(b"some unrelated error\n")    # present but not the draft-head phrase
+    assert ED.start_failure_hint(miss, 0) == ""
+    dh = os.path.join(d, "dh.log")
+    open(dh, "wb").write(b"strata mtp: draft head over budget\n"
+                          b"strata mtp: hint: --draft-vocab en\n"
+                          + ED.DRAFT_HEAD_FAIL.encode() + b"\n")
+    hint = ED.start_failure_hint(dh, 0)
+    assert hint.startswith(". mtp: ") and ED.DRAFT_HEAD_FAIL in hint
+    assert "--draft-vocab en" in hint                    # the engine's own hint line was picked up
+    print("ENGINE-DIAG log reads: marks-filter + draft-head hint build ok")
+
+
 def main():
     test_wire_openai_text_and_reasoning()
     test_wire_openai_tool_merge_and_bad_json_dropped()
@@ -894,6 +947,8 @@ def main():
     test_approval_desc_truncates()
     test_conv_cache_view_card()
     test_conv_log_parse_events()
+    test_engine_diag_exit_words_and_crash()
+    test_engine_diag_log_reads()
     print("PURE-MODULES TEST PASSED")
     return 0
 
