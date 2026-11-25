@@ -336,3 +336,19 @@ git tag -a v-baseline-2026-11-25-b ab580073b2a5fb2dfcf4f39697112fb4ab2f0153 -m "
 ```bat
 git tag -a v-baseline-2026-11-25-c ea2d93dbca09451fd6c41784198f01966cba47a3 -m "baseline 2026-11-25-c: ledger-sync commit ea2d93d (register v-baseline-2026-11-25-b as current rollback point, models.json drift @ab58007). Doc-only; naming the ledger-registration commit itself as a rollback point, per the -g convention."
 ```
+## 2026-11-25 系列（续）：当前回滚点 e（classifyTool 抽离 + realpage copy-list 锁，全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-e`，指向 commit `c6568a9`（`refactor(web): extract classifyTool+TEST_RE+FILE_TOOL_BASE into app_utils.js`）：把工具结果分类主题组（classifyTool 及私有常量 TEST_RE / FILE_TOOL_BASE）从 app.js 整搬进 app_utils.js（连常量同搬、调用点 app.js 不变、靠 app_utils 先于 app.js 加载共享全局）。随抽离同步更新四个 harness（contract/jsdom 导出与实测、autoverify boot 拼接、realpage 复制清单补 app_utils.js）。本轮实测全套回归 ALL GREEN。
+
+`-e` 为 annotated tag，按主人拍板 push origin main 后单独 `git push origin v-baseline-2026-11-25-e` 推到远端（已在远端）。后续 de4fe16（realpage copy-list 契约锁）已另 push 使 origin/main 前进，但 `-e` 仍锁 c6568a9 不变。
+
+| tag（保留） | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-25-e | c6568a9d72fb57a70dafdea85ca4a6608c97f820 | refactor(web): classifyTool+TEST_RE+FILE_TOOL_BASE extracted app.js→app_utils.js；连常量同搬、调用点不变；4 个 harness 同步；全套回归 ALL GREEN（已在远端） |
+
+### 重建命令（如需精确恢复命名回滚点 e）
+
+```bat
+git tag -a v-baseline-2026-11-25-e c6568a9d72fb57a70dafdea85ca4a6608c97f820 -m "baseline: classifyTool+TEST_RE+FILE_TOOL_BASE extracted to app_utils.js; full regression ALL GREEN"
+```
+
