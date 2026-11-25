@@ -9,10 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-e`（commit `b67480a6f693fd9781ea1117262ae4ffe743c358`，中英双账本对齐点：en 账本补齐到 11-26 系列 + 补登 app_utils 42 符号清单节，
-> 使中英完全对齐；顺带落账 RULES.md 一条别线沉淀条目。纯文档改动，无代码/回归范围变化。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、
-> 11-25-n、11-25-o、11-25-p、11-25-q、11-26-a、11-26-b、11-26-c、11-26-d、11-26-e… 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-e）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-25-r`
+> （commit `835dad49e1b1f52af17bb96cf8c840c32a4d948d`，WorkBuddy 痕迹清理：137 个测试 createRequire 锚点 + 展示文案 + node/python 兜底路径统一到系统 nodejs；quick 全套回归 ALL GREEN、commit `835dad4` 已推 origin、ls-remote 坐实 `-r` 已在远端）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r、11-26-d/e … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-25-r）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -629,4 +628,48 @@ git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "
 
 ```bash
 git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only; tag points at the double-ledger alignment + RULES landing commit b67480a."
+```
+
+## 2026-11-25 系列（续）：当前最新回滚点升级为 r（WorkBuddy 痕迹清理：137 测试锚点 + 展示文案 + 兜底路径，quick 全套绿）
+
+本轮打命名回滚点 `v-baseline-2026-11-25-r`，指向 commit `835dad4`（`chore(workbuddy): purge stale WorkBuddy path traces from test harness + display + node fallback`）：清除项目迁移到 `E:\Nebula\NebulaBaize` 后残留的 WorkBuddy 时代路径。运行时早已干净（active mcp_servers.json 启动本地 .venv）；残留集中在测试网路径锚点与少量展示文案：
+
+- **方案A**（load-bearing 测试锚点 + 展示文案）：137 个测试文件的 `createRequire("C:/Users/sk/.workbuddy/binaries/node/workspace/")` → `E:/Nebula/NebulaBaize/`（工作区根 node_modules 持真实 jsdom/playwright；旧 base 目录已不存在、原先仅靠 NODE_PATH 祖先回退命中）；i18n `mem.kb.path.ph` 占位符中英两处、`test_runtime_config_frontend.mjs` 桩路径、`setup.bat` 陈旧 python 候选行、`test_registry_server`/`test_skillhub` 文档示例 → 全部去 WorkBuddy。
+- **方案B**（node/python 兜底 → 系统安装）：`run_tests.py`/`test_closeout_pixel.py` 的 node 兜底 → `E:\Program Files\nodejs\node.exe`；`browser_server._find_node()` 的 workbuddy node glob → `%ProgramFiles%\nodejs\*\node.exe`。
+- **按改名铁律保留**：`audit.jsonl`/`logs`/`tool-log`/`config/.backups`/`*.bak-*`/「the old ROOT=E:\WorkBuddy bug」等历史叙事注释（「过去少量代码用 WorkBuddy」的真实化石，改动反而失真）。
+
+本轮实测：`tools/run_tests.py --quick` 全套 **ALL GREEN**（含 i18n 1392 键×2 与全部 jsdom 网）；`--full` 仅 `test_shell_timeout`/`test_self_suicide_guard` 两 FAIL，二者均不引用改动锚点、单跑即 ALL GREEN（既有 flaky 经验坐实）。numstat==--ignore-cr-at-eol 零行尾污染；commit `835dad4` 已 push origin（fast-forward `b5dd74e..835dad4`，main 0 0 同步）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-r | `835dad49e1b1f52af17bb96cf8c840c32a4d948d` | chore(workbuddy): 清理 137 测试 createRequire 锚点 + 展示文案 + node/python 兜底（WorkBuddy 痕迹清理；quick 全套 ALL GREEN；已实测 ls-remote 在远端） |
+
+**是否已在远端**：已在远端（本轮 push origin main + push origin v-baseline-2026-11-25-r，main 0 0 同步，ls-remote 命中 tag -r 解引用 commit `835dad4`）。
+
+### 重建命令（如需精确恢复命名回滚点 r）
+
+```bat
+git tag -a v-baseline-2026-11-25-r 835dad49e1b1f52af17bb96cf8c840c32a4d948d -m "WorkBuddy trace purge: 137 test createRequire anchors + display strings + node fallback; quick regression ALL GREEN"
+```
+
+## 2026-11-26 超前标号清理（在 11-25 创建却标 11-26，与时间序不符 · 删除 5 个）
+
+主人拍板删除 5 个超前标号 tag：它们实际创建于 **2026-11-25**（见 `git for-each-ref --sort=-creatordate`：-a 17:27 / -b 17:53 / -c 18:22 / -d 20:06 / -e 20:28，均在 11-25），却用了 11-26 标号，与本仓「tag 名按 git 真实日期」惯例不符、与时间序倒挂。判据：被删 5 个 tag 指向的 commit 全部是 HEAD（master）的祖先（逐 tag `git merge-base --is-ancestor` 坐实 anc=0），删 tag **不丢任何 commit**——master 链已含它们；tag 仅是命名指针，按下方命令即可重建。本地删 + `git push origin --delete` 删远端两步都做。
+
+| 已删 tag | 指向 commit（40 位） | 原语义（账本既有登记摘要） |
+|---|---|---|
+| v-baseline-2026-11-26-a | `fcb8f9b6df5da01c0d18efc78f3068f441391748` | 11-26 系列早期基线点（超前标号，11-25 创建） |
+| v-baseline-2026-11-26-b | `ca99cc274415a9bb7903acd20af8d203441df347` | 11-26 系列早期基线点（超前标号，11-25 创建） |
+| v-baseline-2026-11-26-c | `9d4699eed6a4fac7ffc16a016e801e4af4b6146b` | 11-26 系列早期基线点（超前标号，11-25 创建） |
+| v-baseline-2026-11-26-d | `505406e6741ce425202c43db7d32dcf4bbddac90` | 后端续抽链第 6 步 sampling 抽入 req_args + flaky 修复 + app_utils 自述索引（全套 --full 绿） |
+| v-baseline-2026-11-26-e | `b67480a6f693fd9781ea1117262ae4ffe743c358` | 中英双账本对齐 + 补登 app_utils 42 符号清单 + RULES 别线落账（纯文档） |
+
+### 重建命令（如需精确恢复某个被删的超前标号 tag）
+
+```bat
+git tag -a v-baseline-2026-11-26-a fcb8f9b6df5da01c0d18efc78f3068f441391748 -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
+git tag -a v-baseline-2026-11-26-b ca99cc274415a9bb7903acd20af8d203441df347 -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
+git tag -a v-baseline-2026-11-26-c 9d4699eed6a4fac7ffc16a016e801e4af4b6146b -m "superseded 11-26-series early baseline (created on 2026-11-25, date-order mismatch)"
+git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed, app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN"
+git tag -a v-baseline-2026-11-26-e b67480a6f693fd9781ea1117262ae4ffe743c358 -m "baseline: en ledger fully aligned to zh (11-26 series backfill + app_utils 42-symbol inventory section) + RULES other-line drift landed. Doc-only"
 ```
