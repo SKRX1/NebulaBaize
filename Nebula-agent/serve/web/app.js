@@ -2134,23 +2134,6 @@ async function wbLoad(path) {
     note.hidden = true;
   }
 }
-function splitPath(p) {
-  // Build [root, ..., folder] with each element carrying its own absolute prefix.
-  const norm = String(p || "").replace(/\//g, "\\");
-  const out = [];
-  let acc = "";
-  for (const part of norm.split("\\")) {
-    if (!part) {
-      if (acc === "") acc = "\\";   // leading "\" => drive-relative root marker
-      continue;
-    }
-    acc = acc ? (acc === "\\" ? "\\" + part : acc + "\\" + part) : part;
-    out.push({ name: part, path: acc });
-  }
-  // Windows drive letter: "C:" -> "C:\"
-  if (out.length && /^[A-Za-z]:$/.test(out[0].name)) out[0].path = out[0].name + "\\";
-  return out;
-}
 function wbChoose() {
   if (!wbCurrent) return;
   $("ws-path").value = wbCurrent;   // the real absolute path, always

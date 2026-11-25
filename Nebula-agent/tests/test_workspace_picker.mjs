@@ -75,7 +75,7 @@ win.fetch = async (url, opts = {}) => {
 };
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-let code = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let code = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");  // app_utils before app.js (matches index.html)
 code += `
 ;window.__api = {
   openBrowser, closeBrowser, wbLoad, wbChoose, updateResolved,

@@ -30,6 +30,7 @@ const EXPORTS = [
   "mdKindOf", "mdImageTag",
   "buildCtxArr", "renderMsgForCompact",
   "sparkIsExecuted", "sparkTimeCompare",
+  "splitPath",
 ];
 
 let fails = 0;

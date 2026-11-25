@@ -38,7 +38,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool"];
+const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool", "splitPath"];
 // publish the three function declarations onto window (model classic-script globals)
 const EXPOSE = `
 ;window.timeStr = typeof timeStr === "function" ? timeStr : undefined;
@@ -48,6 +48,7 @@ const EXPOSE = `
 ;window.extractProposalsFromText = typeof extractProposalsFromText === "function" ? extractProposalsFromText : undefined;
 ;window.detectLang = typeof detectLang === "function" ? detectLang : undefined;
 ;window.classifyTool = typeof classifyTool === "function" ? classifyTool : undefined;
+;window.splitPath = typeof splitPath === "function" ? splitPath : undefined;
 `;
 
 const utilSrc = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");
@@ -120,6 +121,23 @@ check("detectLang('') === 'en' (empty defaults en)", win.detectLang("") === "en"
   check("classifyTool(non file/test) -> null  " + JSON.stringify(win.classifyTool(non)),
         win.classifyTool(non) === null);
   check("classifyTool(null) -> null (no throw)", win.classifyTool(null) === null);
+}
+
+// splitPath: absolute-path breadcrumb splitter (now lives in app_utils.js). Pure leaf.
+{
+  const seg = win.splitPath("C:\\Users\\sk");
+  check("splitPath(C:\\Users\\sk) -> drive-letter root + segments  " + JSON.stringify(seg),
+        JSON.stringify(seg) === JSON.stringify([{name:"C:", path:"C:\\"},{name:"Users", path:"C:\\Users"},{name:"sk", path:"C:\\Users\\sk"}]));
+  // load-bearing arm flip: a leading slash roots the FIRST segment as \x (root-relative),
+  // while a bare relative path leaves the first segment as the plain name (a, not \a):
+  check("splitPath(/x/y) -> leading-slash ROOT arm (\\x not x)  " + JSON.stringify(win.splitPath("/x/y")),
+        JSON.stringify(win.splitPath("/x/y")) === JSON.stringify([{name:"x", path:"\\x"},{name:"y", path:"\\x\\y"}]));
+  check("splitPath(a/b) relative -> no drive/root (first stays a)  " + JSON.stringify(win.splitPath("a/b")),
+        JSON.stringify(win.splitPath("a/b")) === JSON.stringify([{name:"a", path:"a"},{name:"b", path:"a\\b"}]));
+  check("splitPath('') -> []  " + JSON.stringify(win.splitPath("")),
+        Array.isArray(win.splitPath("")) && win.splitPath("").length === 0);
+  check("splitPath(null) -> [] (no throw)",
+        Array.isArray(win.splitPath(null)) && win.splitPath(null).length === 0);
 }
 
 // extractNextSteps: pulls the ```next-steps``` fence, parses * / ! / ? markers + label:detail, strips fence from text

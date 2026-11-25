@@ -90,6 +90,26 @@ function firstPath(args) {
   return "";
 }
 
+// Split an absolute path into breadcrumb segments, each carrying its own absolute prefix (Windows-flavoured).
+// Pure: references only its argument + String/Array/RegExp builtins.
+function splitPath(p) {
+  // Build [root, ..., folder] with each element carrying its own absolute prefix.
+  const norm = String(p || "").replace(/\//g, "\\");
+  const out = [];
+  let acc = "";
+  for (const part of norm.split("\\")) {
+    if (!part) {
+      if (acc === "") acc = "\\";   // leading "\" => drive-relative root marker
+      continue;
+    }
+    acc = acc ? (acc === "\\" ? "\\" + part : acc + "\\" + part) : part;
+    out.push({ name: part, path: acc });
+  }
+  // Windows drive letter: "C:" -> "C:\"
+  if (out.length && /^[A-Za-z]:$/.test(out[0].name)) out[0].path = out[0].name + "\\";
+  return out;
+}
+
 // The 3-tier promotion chain: workspace -> group (if a group is set) -> global. Demotion reverses it.
 function nextScopeUp(scope, group) {
   if (scope === "workspace") return group ? "group" : "global";

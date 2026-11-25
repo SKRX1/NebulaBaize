@@ -11,7 +11,58 @@ All notable changes to this project are documented in this file.
 
 ### Changed / 变更
 
-- **`serve/exceptions.py` 抽离（后端模块化第五步）** — 续抽链第五族：把 serve/server.py 里彼此零耦合的「引擎/会话
+- **`splitPath` 抽离到 `app_utils.js`（前端续抽链新一轮）** — 后端续抽链自然收尾后转回前端
+  `app.js`（11,935 行单体）。按同一纪律扫出零依赖内聚纯叶子 `splitPath`：把绝对路径拆成可点击
+  面包屑段，每段携自己的绝对前缀（Windows 风味：`C:`→`C:\` 盘符根、前导 `/` → 根相对）。它与 app_utils.js 里
+  既有的 `firstPath` 同属「路径处理」族，整搬后天然内聚。它只引用参数 + `String`/`Array`/`RegExp` 内建，零
+  app.js 全局、零 DOM；全仓仅 app.js 两处引用（1 调用点 + 1 定义）、无测试文本抓源，调用点保持原名不改
+  （classic script 全局声明、app_utils.js 先于 app.js 加载）。字节逐字一致整搬。
+  - **连带面**：`test_app_utils_contract.mjs` 的 EXPORTS 集合加 `splitPath`（L2a 定义 / L2b 不重定义锁全绿）；
+  `test_app_utils_jsdom.mjs` 的 HELPERS/EXPOSE 加 `splitPath` 并补行为门禁：drive-letter 臂（`C:`→`C:\`）、
+  前导斜杠根臂（`/x`→`\x` 而非裸 `x`）、相对路径臂（首段保持裸 `a`）、空/null → `[]` 不抛。
+  前一轮前端链停在 spark 族，本轮路径处理族 `splitPath` 开启新一轮。
+
+  - *`splitPath` extracted into `app_utils.js` (front-end chain, new round):* after the back-end chain concluded
+  naturally, the extraction moved back to the front-end `app.js` (an 11,935-line monolith). The same discipline
+  surfaced the zero-dependency cohesive leaf `splitPath` — it splits an absolute path into clickable breadcrumb
+  segments, each carrying its own absolute prefix (Windows-flavoured: `C:`→`C:\` drive root, a leading `/` is
+  root-relative). It sits in the same *path-handling* family as the existing `firstPath` already in app_utils.js, so
+  the move is naturally cohesive. It references only its argument plus `String`/`Array`/`RegExp` builtins — zero
+  app.js globals, zero DOM; across the whole tree it is referenced in exactly two places in app.js (one call site +
+  one definition), with no textual-capture source, and the call site keeps its original name (classic-script global
+  declaration, app_utils.js loads before app.js). Byte-for-byte identical move.
+  - *Blast radius:* `test_app_utils_contract.mjs` EXPORTS gains `splitPath` (the L2a defines / L2b no-redefine locks
+  stay green); `test_app_utils_jsdom.mjs` gains `splitPath` in HELPERS/EXPOSE plus a behaviour gate — the drive-letter
+  arm (`C:`→`C:\`), the leading-slash root arm (`/x`→`\x`, not bare `x`), the relative-path arm (first segment stays
+  bare `a`) and empty/null → `[]` without throwing. The front-end chain had paused at the spark family; this round
+  opens a new one with the path-handling `splitPath`.
+- **后端模块化收官小结（续抽链第 1–5 步，自然收尾）** — `serve/server.py` 原为 **7,290 行**单体，按
+  「零外部依赖（AST out-deps=0）、零模块全局、零 mutation」纪律，逐族整搬内聚纯叶子到独立 `serve/*.py`，
+  累计五步：① `serve/tokenizer.py`（分词 / 上下文窗口计算）② `serve/approval.py`（工具审批分级）
+  ③ `serve/conv_cache.py`（引擎会话缓存日志读取 + Monitor 缓存卡视图）④ `serve/engine_diag.py`（引擎
+  退出状态词 / 崩溃判定 / draft-head 提示 / GPU-runtime marks）⑤ `serve/exceptions.py`（引擎/会话异常层级，9 类，
+  零 import）。每步均打命名回滚点 tag + `git bundle` E/F 双盘快照，全套回归 ALL GREEN。server.py 逐族
+  瘦身：第五步（exceptions）令其从 6,985 行减到 **6,926 行**；整条链从 7,290 行单体累计降到 6,926 行
+  （累计约减 364 行）。随后重扫 AST out-deps=0：唯一内聚族 `_recycle_send_to_bin` / `_recycle_restore_file`
+  触发候选质量下降停止条件——该对跨 `runtime/http_server.py` + `serve/server.py` 两个子系统各存一份
+  共享 helper，被 `tests/test_recycle_xplat_dispatch.py` X4 锁死「两份 helper 源码逐字节相同」反漂移，抽成
+  单模块会破坏 `extract_helper` 字节抓取契约、需连带改测试，属非等价改动；其余纯叶子全是零散单函数
+  不成族——后端续抽链到此自然收尾；server.py 下一阶段拆分需换切面（如按路由 handler 分组），已非
+  「摘纯叶子」能覆盖。
+  - *Back-end modularization wrap-up (chain steps 1–5, concluded naturally):* `serve/server.py` was a **7,290-line**
+  monolith; following *zero external dependency (AST out-deps=0), zero module globals, zero mutation*, cohesive pure
+  leaves were lifted family-by-family into standalone `serve/*.py` across five steps — `tokenizer` → `approval` →
+  `conv_cache` → `engine_diag` → `exceptions` (the 9-class engine/session exception hierarchy, zero imports). Each step
+  cut a named rollback tag + a `git bundle` E/F dual-drive snapshot with a full regression ALL GREEN. Step 5 cut the
+  file from 6,985 to **6,926** lines; over the whole chain the 7,290-line monolith came down to 6,926 (≈ 364 lines
+  removed in total). Re-scanning AST out-deps=0 then surfaced only the `_recycle_send_to_bin` / `_recycle_restore_file`
+  pair as a family, which hit the diminishing-returns stop condition: that pair is duplicated across `runtime/http_server.py`
+  and `serve/server.py`, and `tests/test_recycle_xplat_dispatch.py` X4 locks the two copies byte-identical (anti-drift)
+  — extracting one module breaks the `extract_helper` byte-capture contract and needs a test rewrite, so it is not an
+  equivalence move; every remaining pure leaf is a one-off singleton forming no family. The back-end chain thus concluded
+  naturally; further splitting server.py needs a different cut (e.g. by route handler), which *lift-a-pure-leaf* no longer
+  covers.
+- **`serve/exceptions.py` 抽离 — 续抽链第五族：把 serve/server.py 里彼此零耦合的「引擎/会话
   异常层级」一族整搬进新模块 `serve/exceptions.py`：`EngineDied` / `EngineStarting` / `ClientGone` / `ModelBusy` /
   `EngineSilent`（继承 `EngineDied`）/ `EngineNonFinite` / `SessionRefused`（带 kind→HTTP `status` 属性）/
   `EngineStuck` / `GpuBusy`（带 `retry_after`）九类异常。它们仅继承内置 `RuntimeError`/`Exception`/`ValueError` 或
