@@ -26,10 +26,10 @@ const check = (label, cond) => {
   if (!cond) FAILURES.push(label);
 };
 
-const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const src = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 
 // --- static lock: the pure function must be DEFINED, not just called -------------------
-check("app.js DEFINES function assembleStreamBubbles",
+check("app_utils.js/app.js DEFINES function assembleStreamBubbles",
   /^function assembleStreamBubbles\s*\(/m.test(src));
 check("pollSessionOutbox CALLS assembleStreamBubbles(",
   /assembleStreamBubbles\(entries\)/.test(src));
@@ -44,7 +44,7 @@ win.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventList
 if (typeof win.requestAnimationFrame !== "function") win.requestAnimationFrame = (cb) => setTimeout(() => cb(0), 0);
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 appCode += `\n;window.__api = { assembleStreamBubbles };`;
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 win.eval(appCode);

@@ -25,6 +25,7 @@ const EXPORTS = [
   "thinkPeek", "dedupeThink",
   "configValue", "safeCut", "taskOrder", "pickSeed",
   "snapSent", "toolSeq", "noteStreamPhase",
+  "assembleStreamBubbles", "computeWaterfall",
 ];
 
 let fails = 0;

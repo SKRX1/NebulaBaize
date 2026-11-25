@@ -54,7 +54,7 @@ win.fetch = async (url) => {
   return { ok: true, status: 200, json: async () => ({}) };
 };
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 // Expose the Step1-F internals + a direct-eval stubber so the test can no-op the
 // heavy renderers without touching app.js itself.
 appCode += `

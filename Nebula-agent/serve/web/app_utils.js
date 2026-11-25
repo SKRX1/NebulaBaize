@@ -250,3 +250,50 @@ function noteStreamPhase(m, phase, tool) {
   m._phase = phase;
   m._phaseTool = phase === "tool" ? (tool || m._phaseTool || null) : null;
 }
+
+
+// ---- stream/session-record pure transforms (extracted from app.js): assembleStreamBubbles = group schedule stream entries by session and fold multi-chunk runs into one bubble (sort by seq, join text, carry last ok/done); computeWaterfall = turn a chunk_timeline into {total, segs[]} phase segments (queue/think/gen/tool/tail) for the debug waterfall bar. Both are pure data-in/data-out: only Array/Map/sort on their arguments, no DOM, no app.js module globals. ----
+function computeWaterfall(rec) {
+  const tl = (rec && rec.chunk_timeline || []).slice().sort((a, b) => a.t - b.t);
+  if (tl.length === 0) return null;
+  const total = (typeof rec.duration_s === "number" && rec.duration_s > 0) ? rec.duration_s : tl[tl.length - 1].t;
+  if (total <= 0) return null;
+  const segs = [{ kind: "queue", start: 0, dur: tl[0].t }];
+  for (let i = 0; i < tl.length; i++) {
+    const t = tl[i].t;
+    const dur = ((i + 1 < tl.length ? tl[i + 1].t : total) - t);
+    if (dur <= 0) continue;
+    const type = tl[i].type;
+    let kind = "tail";
+    if (type === "thinking") kind = "think";
+    else if (type === "content") kind = "gen";
+    else if (type === "tool_call" || type === "tool_result" || type === "tool_progress" || type === "mcp") kind = "tool";
+    segs.push({ kind, start: t, dur });
+  }
+  // de-duplicate zero-width (shouldn't happen) and return total for bar scaling
+  return { total, segs: segs.filter((s) => s.dur > 0.0001) };
+}
+function assembleStreamBubbles(entries) {
+  if (!Array.isArray(entries) || !entries.length) return [];
+  const bySession = new Map();
+  for (const e of entries) {
+    const key = e.session_name || e.entry || "schedule";
+    if (!bySession.has(key)) bySession.set(key, []);
+    bySession.get(key).push(e);
+  }
+  const out = [];
+  for (const [key, arr] of bySession) {
+    if (arr.length === 1) { out.push({ session_name: key, ...arr[0] }); continue; }
+    arr.sort((a, b) => (a.seq == null ? 0 : a.seq) - (b.seq == null ? 0 : b.seq));
+    const last = arr[arr.length - 1];
+    out.push({
+      session_name: key,
+      workspace: (last && last.workspace) || (arr.find((x) => x && x.workspace) || {}).workspace || "",
+      text: arr.map((x) => (x && x.text) ? x.text : "").join("\n"),
+      ok: !!last.ok,
+      done: !!last.done,
+      chunks: arr.length,
+    });
+  }
+  return out;
+}
