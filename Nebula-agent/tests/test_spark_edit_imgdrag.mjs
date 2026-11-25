@@ -61,7 +61,7 @@ win.fetch = async (url) => {
 win.confirm = () => true;
 
 const i18nCode = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
-const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const appCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 // Bridge in the SAME eval so the test can read the module-scoped reorder id (a separate
 // win.eval cannot see app.js's top-level `let`).
 const bridge = `\nwindow.__t = { dragId: function () { return sparkDragId; },

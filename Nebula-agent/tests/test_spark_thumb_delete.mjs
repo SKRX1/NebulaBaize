@@ -44,7 +44,7 @@ if (typeof win.requestAnimationFrame !== "function") win.requestAnimationFrame =
 if (!win.document.getElementById("toasts")) { const d = win.document.createElement("div"); d.id = "toasts"; win.document.body.appendChild(d); }
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8");
 appCode += "\n;window.__api = { bindInlineThumbDelete, sparkThumbDelete, removeThumb, renderSpark, getSparks, setSparks, getAttachments: () => attachments, setAttachments: (x) => { attachments = x; }, getEditAttachments: () => editAttachments, setEditAttachments: (x) => { editAttachments = x; } };";
 win.eval(appCode);
 const api = win.__api;

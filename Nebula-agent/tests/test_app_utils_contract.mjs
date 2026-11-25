@@ -29,6 +29,7 @@ const EXPORTS = [
   "nebTaskFromTool", "inflightToolName",
   "mdKindOf", "mdImageTag",
   "buildCtxArr", "renderMsgForCompact",
+  "sparkIsExecuted", "sparkTimeCompare",
 ];
 
 let fails = 0;

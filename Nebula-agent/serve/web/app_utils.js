@@ -374,3 +374,17 @@ function renderMsgForCompact(m, cap) {
   if (s.length > cap) s = s.slice(0, cap) + "…[过长已截断]";
   return s;
 }
+
+
+// ---- spark execution-state / sort pure helpers (extracted from app.js): sparkIsExecuted = true when a note has run (executedAt set or status done); sparkTimeCompare = the time-mode sort comparator (unexecuted first, newest-created on top; executed below, most-recently-executed on top). Both pure: read only their argument's fields, no DOM, no app.js module globals, no mutation. ----
+// [排序方式 2026-11-24] time-mode comparator (NOT persisted; render-only).
+// Group 1 on top: notes never executed (no executedAt). Group 2 below: executed notes,
+// newest-executed first so the OLDEST executed sinks to the very bottom (owner wording).
+// Inside group 1: newest created first. Inside group 2: executedAt desc. All ties stable.
+function sparkIsExecuted(s) { return s.executedAt != null || s.status === "done"; }
+function sparkTimeCompare(a, b) {
+  const ea = sparkIsExecuted(a), eb = sparkIsExecuted(b);
+  if (ea !== eb) return ea ? 1 : -1;                       // unexecuted first
+  if (!ea) return (b.createdAt || 0) - (a.createdAt || 0); // unexecuted: newest created on top
+  return (b.executedAt || 0) - (a.executedAt || 0);        // executed: most recent on top, oldest bottom
+}

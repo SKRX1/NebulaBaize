@@ -51,7 +51,7 @@ if (!doc.getElementById("toasts")) { const d = doc.createElement("div"); d.id = 
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
+const appCode = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
 ;window.__api = { sanitizeHtml, addSpark, hasValidImageHtml };`;
 win.eval(appCode);
 const api = win.__api;
