@@ -67,7 +67,7 @@ win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 // test needs — live variables and the functions it calls — is exported from the SAME eval via
 // __peek. Variables are getters (they are reassigned at runtime); functions are direct refs.
 {
-  const appSrc = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const appSrc = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   const peek = `
 ;window.__peek = {
   health: () => health,

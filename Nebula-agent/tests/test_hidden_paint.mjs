@@ -53,7 +53,7 @@ win.fetch = async (url, opts = {}) => {
 };
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
+win.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")) + `
 ;window.__api = {
   get busy(){return busy}, get activeId(){return activeId}, get messages(){return messages},
   renderChat, renderSessions, patchSteps, sendUserMessage, setInputValue:(v)=>{const i=document.getElementById('input'); if(i) i.value=v;},
@@ -65,7 +65,7 @@ const bubbleText = () => { const bs = doc.querySelectorAll(".st-bubble"); const 
 
 (async () => {
   console.log("=== static lock: the A compensation line exists with the document.hidden guard ===");
-  const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   check("[static] A line present: guarded updateAssistant on document.hidden", appCode.includes("if (el && document.hidden) updateAssistant(el, m, true);"));
 
   console.log("=== seed live session A; rAF in RUN mode so the FIRST chunk paints normally ===");

@@ -76,7 +76,7 @@ function boot() {
   };
 
   win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-  win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
+  win.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")) + `
 ;window.__api = {
   streamAssistant, maybeAutoResume, syncBanners,
   seed: (text) => { messages = [{role: "user", text}]; },

@@ -46,7 +46,7 @@ win.fetch = async (url, opts = {}) => {
 };
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
+win.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")) + `
 ;window.__api = {
   get busy(){return busy}, get activeId(){return activeId}, get messages(){return messages}, get sessions(){return sessions},
   renderChat, renderSessions, selectSession, sendUserMessage,
@@ -57,7 +57,7 @@ const bubblesText = () => [...doc.querySelectorAll(".st-msg")].map((n) => (n.tex
 
 (async () => {
   console.log("=== static lock: the B hook is present at the renderChat tail ===");
-  const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   check("[static] B hook present: paintLive() at renderChat tail", appCode.includes("if (busy) paintLive();"));
   check("[static] paintLive helper defined as a real function",
         /function\s+paintLive\s*\(\s*\)\s*\{[\s\S]*?liveMsgEl\s*\(\s*busy\.msg\s*\)/.test(appCode));

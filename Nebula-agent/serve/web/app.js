@@ -2379,8 +2379,6 @@ function saveChat() {
   store.set("activeBranch", activeBranchId);
   saveSessions();
 }
-function timeStr(t) { return new Date(t).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}); }
-
 function msgEl(m, i) {
   const el = document.createElement("div");
   el.className = `st-msg st-msg--${m.role}`;
@@ -3595,13 +3593,6 @@ function planBlocks(text) {
   }
   out.sort((a, b) => a.at - b.at);                 // consumers read the LAST block by position
   return out;
-}
-function parsePlanItems(raw) {
-  return String(raw || "").split("\n").map((s) => s.trim()).filter(Boolean).map((s) => {
-    const done = /^[-*]\s*\[[xX]\]/i.test(s);
-    const label = s.replace(/^[-*]\s*\[[ xX]\]\s*/, "").trim();
-    return {done, label};
-  }).filter((it) => it.label);
 }
 // The checklist of the turn being streamed: the LAST plan block (the model may re-emit an updated list every
 // round, and the newest one is the truth), regardless of whether its fence is closed yet.
@@ -10718,6 +10709,7 @@ let galleryLayout = "grid";   // [SD式融合] C toggle: grid | strip (default g
 const galleryLive = [];       // [SD式融合] live records: session-only, never written to the authoritative file
 let galleryLiveSel = null;
 const gallerySelSet = new Set();   // [删除增强] B1 multi-select: entry refs (identity keys), independent of gallerySel so the single-select gates stay byte-intact
+// ---- gallery: 持久化与引导 (localStorage 镜像 + api/image-gallery 后端权威) ----
 function galleryLocalLoad(){ try { const d = JSON.parse(localStorage.getItem(GALLERY_KEY) || "null"); return (d && Array.isArray(d.items)) ? d.items : []; } catch (e) { return []; } }
 function gallerySave(){
   try { localStorage.setItem(GALLERY_KEY, JSON.stringify({ items: galleryMem.slice(0, 500) })); } catch (e) {}
@@ -10778,6 +10770,7 @@ async function galleryImportFiles(files){
   if (list.length > 1 || fail || skip || !ok) toast(ok ? "success" : (fail && !ok ? "warn" : "info"), t("img.gallery.add"), t("img.gallery.add.result", { ok, fail, skip }), 3500);
   renderGallery();
 }
+// ---- gallery: 实时预览 (SD式融合 live 阶段，session-only，永不落盘) ----
 function galleryLivePass(lv){   // [SD式融合] the STAGE panel self-paints from lv (the carrier stays whole & hidden:
                                  // renderResult must keep finding ph/img inside it via querySelector — all gate strings live there)
   const stage = $("img-gallery") ? $("img-gallery").querySelector(".img-gallery__stage") : null;
@@ -10801,6 +10794,7 @@ function galleryLivePass(lv){   // [SD式融合] the STAGE panel self-paints fro
 function galleryLiveStop(lv){ if (lv.stop) lv.stop(); }   // [SD式融合] the panel stop button re-enters the generation path's original handler
 function galleryLiveRows(){ return galleryLive.filter((l) => !l.retired && galleryView !== "saved"); }   // live cells ride at the timeline top (the saved view hides them)
 function galleryLiveRetire(lv){ if (!lv.retired) { lv.retired = true; renderGallery(); } }   // [SD式融合] retire = the cell + the stage panel drop it on the next paint
+// ---- gallery: 视图渲染 (renderGallery / 分类视图列表) ----
 function galleryViewList(){
   const q = galleryQuery.trim().toLowerCase();
   let rows = galleryMem.map((x, i) => ({ x: x, i: i })).filter((r) => galleryView === "all" || galleryCategory(r.x) === galleryView);   // [分类归属·方案A 2026-11-15] filter by category, not the saved boolean
@@ -10873,6 +10867,7 @@ function renderGallery(){
   host.append(stage, grid);
   if (liveSel) galleryLivePass(liveSel);   // [SD式融合] the live panel claims the stage (the gate-locked placeholder class, self-painted) — AFTER the stage enters the DOM (the helper re-queries it)
 }
+// ---- gallery: 操作 (单条/批量删除送回收站 + 批量收藏) ----
 async function galleryAction(act){
   if (act === "del" && gallerySelSet.size) { await galleryBatchDelete(); return; }   // [融合删除入口 2026-11-16] THE fused entry: a non-empty selection set (n=1 or more) routes to the batch leg BEFORE the focus guard (the leg already handles n=1 byte-identically)
   const sel = (gallerySel >= 0 && gallerySel < galleryMem.length) ? galleryMem[gallerySel] : null;
@@ -10982,6 +10977,7 @@ async function galleryTrashFiles(items){   // [删除增强] shared leg: files -
     else toast("success", (j && j.trashed && j.trashed.length) ? t("recycle.done").replace("{n}", String(j.trashed.length)) : t("recycle.none"), "", 2500);
   } catch (e) { toast("error", t("recycle.err"), String(e.message || e), 4000); }
 }
+// ---- gallery: 详情槽填充 (点开某图填 i2i/编辑输入) ----
 async function galleryFillSlot(it, inputId, mode){
   let blob;
   try { const r = await fetch(it.saved_ref || it.url, {headers: headers()}); if (!r.ok) throw new Error("HTTP " + r.status); blob = await r.blob(); }
@@ -12074,7 +12070,6 @@ function recycleMore(which) {
   else { recycleAuditLimit += 30; paintRecycleAudit(); }
 }
 function recycleChecked() { return Array.from(document.querySelectorAll(".recycle-ck:checked")).map((c) => c.dataset.path); }
-function fmtBytesSel(n) { return n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
 function updateRecycleSel() {
   const boxes = document.querySelectorAll(".recycle-ck");
   const checked = document.querySelectorAll(".recycle-ck:checked");

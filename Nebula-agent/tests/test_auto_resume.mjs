@@ -91,7 +91,7 @@ function boot() {
   };
   win.confirm = () => true;
   win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-  win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + EXPORT);
+  win.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")) + EXPORT);
   return { win, calls };
 }
 

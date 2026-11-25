@@ -76,7 +76,7 @@ win.addEventListener("error", (e) => console.log("  WINDOW ERROR:", e.error ? (e
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
 {
-  const appSrc = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const appSrc = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   const peek = `
 ;window.__peek = {
   health: () => health,

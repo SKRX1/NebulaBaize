@@ -55,7 +55,7 @@ win.fetch = async (url) => {
 
 // Expose the symbols we test. app.js is strict-mode, so its top-level `let`s aren't on `window`;
 // the appended assignment shares the same eval scope and can read/reassign them.
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 appCode += `
 ;window.__api = {
   apiMessages, BASE_SYSTEM, recallKnowledge, recallQuery, maybeAutoLearn, maybeAutoCompact, compactConversation,

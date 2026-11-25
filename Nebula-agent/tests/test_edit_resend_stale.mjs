@@ -73,7 +73,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let realmRejections = 0;
 win.addEventListener("unhandledrejection", () => { realmRejections++; });
 
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 appCode += `
 ;window.__api = {
   confirmEdit, editResend, openEditModal, closeEditModal,

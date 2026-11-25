@@ -46,7 +46,7 @@ win.fetch = async (url, opts = {}) => {
 };
 
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-win.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8") + `
+win.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")) + `
 ;window.__api = {
   get sessions(){return sessions}, get activeId(){return activeId}, get messages(){return messages},
   get busy(){return busy},

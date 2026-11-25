@@ -37,7 +37,7 @@ const check = (label, cond) => {
   if (!cond) FAILURES.push(label);
 };
 
-const srcText = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const srcText = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 const L = srcText.split(/\r?\n/);
 const lineOf = (needle) => L.findIndex((l) => l.includes(needle));
 
@@ -72,7 +72,7 @@ async function bootRun(stripAwait) {
   win.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   if (typeof win.requestAnimationFrame !== "function") win.requestAnimationFrame = (cb) => setTimeout(() => cb(0), 0);
   if (!win.document.getElementById("toasts")) { const d = win.document.createElement("div"); d.id = "toasts"; win.document.body.appendChild(d); }
-  let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   if (stripAwait) {
     // simulate the PRE-FIX behaviour: drop the await so send() bails on the still-empty body
     appCode = appCode.replace(/if \(pendingPastes\.size\) await Promise\.allSettled\(pendingPastes\);   \/\/ 2026-11: a paste still landing[\s\S]*?\n(\s*)let text = ceText/, "$1let text = ceText");

@@ -28,7 +28,7 @@ const { JSDOM } = require2("jsdom");
 const WEB = path.resolve(__dirname, "..", "serve", "web");
 let HTML = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 for (const [marker, file] of [["<script src=\"web/i18n.js\"></script>", "i18n.js"],
-    ["<script src=\"web/app.js\"></script>", "app.js"], ["<script src=\"web/admin.js\"></script>", "admin.js"]])
+    ["<script src=\"web/app_utils.js\"></script>", "app_utils.js"], ["<script src=\"web/app.js\"></script>", "app.js"], ["<script src=\"web/admin.js\"></script>", "admin.js"]])
   HTML = HTML.replace(marker, `<script>${fs.readFileSync(path.join(WEB, file), "utf8")}</script>`);
 
 function emptyStream() {   // reader returns done at once -> the turn yields an empty assistant body

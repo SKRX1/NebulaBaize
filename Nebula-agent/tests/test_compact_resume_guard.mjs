@@ -29,6 +29,7 @@ let html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const inject = (file, marker) => { html = html.replace(marker, `<script>${fs.readFileSync(path.join(WEB, file), "utf8")}</script>`); };
 inject("i18n.js", '<script src="web/i18n.js"></script>');
 inject("app.js", '<script src="web/app.js"></script>');
+inject("app_utils.js", '<script src="web/app_utils.js"></script>');
 inject("admin.js", '<script src="web/admin.js"></script>');
 
 const SSE_BODY = 'data: {"choices":[{"delta":{"content":"SUMMARY-OK"}}],"usage":{"prompt_tokens":100,"completion_tokens":5}}\n\ndata: [DONE]\n\n';

@@ -95,7 +95,7 @@ function toastTitles(doc) {
 }
 
 const main = async () => {
-  const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const src = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   check("static: generic toast guarded by pendingCompact+wording",
     /if \(!\(pendingCompact && \/context window exceeded even when compacting\/i\.test\(m\.error\)\)\)/.test(src));
 

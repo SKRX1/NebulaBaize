@@ -113,7 +113,7 @@ winA.fetch = async (url, opts = {}) => {
   return { ok: true, status: 200, json: async () => ({}) };
 };
 winA.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-winA.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
+winA.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const main = async () => {
@@ -186,7 +186,7 @@ const main = async () => {
     return { ok: true, status: 200, json: async () => ({}) };
   };
   winB.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-  winB.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
+  winB.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")));
   await sleep(30);
   winB.confirm = () => true;
   const btnB = docB.querySelector("#ins-compact");
@@ -221,7 +221,7 @@ const main = async () => {
     return { ok: true, status: 200, json: async () => ({}) };
   };
   winC.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-  winC.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
+  winC.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")));
   await sleep(30);
   winC.confirm = () => true;
   const btnC = docC.querySelector("#ins-compact");
@@ -260,7 +260,7 @@ const main = async () => {
     return { ok: true, status: 200, json: async () => ({}) };
   };
   winD.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-  winD.eval(fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
+  winD.eval((fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")));
   await sleep(30);
   winD.confirm = () => true;
   const btnD = docD.querySelector("#ins-compact");

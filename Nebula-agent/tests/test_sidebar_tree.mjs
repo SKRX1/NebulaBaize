@@ -75,7 +75,7 @@ win.fetch = async (url, opts = {}) => {
 
 // i18n first so the very first render already has real labels; app.js reads window.i18n at call time.
 win.eval(fs.readFileSync(path.join(WEB, "i18n.js"), "utf8"));
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 appCode += `
 ;window.__api = {
   t: (k, p) => t(k, p),
@@ -445,7 +445,7 @@ seed();
   //    The runtime handoff is the same reference-handoff pattern the switch feature uses
   //    (guarded by activeId === busy.sessionId); composer guard (send) is what stops an
   //    actual run on the freshly created task until the current one finishes.
-  const src = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+  const src = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
   const newTaskBtnBody = src.split('$("new-task-btn").onclick = () => {')[1] || "";
   const newTaskInWsBody = src.split("function newTaskInWorkspace(path) {")[1] || "";
   const newBtnBody = src.split('$("new-btn").onclick = () => {')[1] || "";

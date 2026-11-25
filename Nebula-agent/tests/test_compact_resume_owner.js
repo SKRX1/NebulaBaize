@@ -23,6 +23,7 @@ const inject = (file, marker) => {
 };
 inject("i18n.js", '<script src="web/i18n.js"></script>');
 inject("app.js", '<script src="web/app.js"></script>');
+inject("app_utils.js", '<script src="web/app_utils.js"></script>');
 inject("admin.js", '<script src="web/admin.js"></script>');
 
 function emptyStream() {   // reader returns done at once -> a summarise turn yields an empty result
