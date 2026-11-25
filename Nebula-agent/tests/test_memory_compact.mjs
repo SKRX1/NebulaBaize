@@ -79,6 +79,7 @@ appCode += `
   setLlmCompactFn, SOFT_BUDGET, getPendingCompactionUndo: () => pendingCompactionUndo,
   setMemCompactMaxWaitMs, setBusy: (v) => { busy = !!v; },
   userIsEngaged, markUserActivity, memCompactIdleMs,
+  resetUserActivity: () => { lastUserActivityMs = 0; },
   getWorkspaceKnowledge: () => workspaceKnowledge, getWorkspaceRules: () => workspaceRules,
 };`;
 win.eval(appCode);
@@ -233,6 +234,27 @@ console.log("\n=== 8. the merge is held while the user is engaged; idle window r
   api.setSettings({ memCompactIdleSec: 0 });
   check("settings.memCompactIdleSec=0 => 0ms window (no wait)", api.memCompactIdleMs() === 0, "got " + api.memCompactIdleMs());
   api.setMemCompactIdleMs(0);                  // restore the fast override for any later section
+}
+
+// ================================================================ 8.5 GLOBAL mouse/keyboard/scroll listeners
+console.log("\n=== 8.5 moving the mouse / clicking / scrolling / typing ANYWHERE re-arms the idle gate ===");
+{
+  // Baseline: expire the activity stamp and make sure the composer is not focused with a draft,
+  // so "not engaged" here genuinely means "idle", and a later flip to engaged can ONLY come from
+  // the global listeners -- deleting the window.addEventListener forEach would keep it false.
+  api.resetUserActivity();
+  try { win.document.activeElement && win.document.activeElement.blur(); } catch (e) {}
+  const inp = win.document.getElementById("input"); if (inp) inp.textContent = "";
+  check("baseline: stamped-out + unfocused + empty => NOT engaged", api.userIsEngaged() === false);
+
+  // Each global input class must, on its own, re-arm engagement via the capture-phase wiring.
+  const fires = ["pointermove", "pointerdown", "pointerup", "wheel", "keydown", "scroll"];
+  for (const name of fires) {
+    api.resetUserActivity();
+    win.dispatchEvent(new win.Event(name, { bubbles: true, cancelable: true }));
+    check("global '" + name + "' event => engaged (wiring is live)", api.userIsEngaged() === true);
+  }
+  api.resetUserActivity();   // leave a clean slate for anything below
 }
 
 // ------------------------------------------------------------------ result

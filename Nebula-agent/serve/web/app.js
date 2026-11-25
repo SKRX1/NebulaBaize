@@ -5174,12 +5174,17 @@ let MEMCOMPACT_MAX_WAIT_MS = 60000; // never hold longer than this; then defer t
 function setMemCompactMaxWaitMs(ms) { MEMCOMPACT_MAX_WAIT_MS = (typeof ms === "number" && ms >= 0) ? ms : 60000; }
 // "Is the user still actively engaged?" -- the composer (#input) being focused with a non-empty
 // draft, OR a keystroke within the last ~3s, both count as busy, so the background merge never
-// fires while the human is mid-thought / mid-typing the next task. This is the signal the plain
-// !!busy check was missing (busy only reflects a live model STREAM, not the reading/thinking gap).
+// fires while the human is mid-thought / mid-typing / mid-reading the next task. This is the signal the
+// plain !!busy check was missing (busy only reflects a live model STREAM, not the reading/thinking gap).
+// lastUserActivityMs is refreshed by GLOBAL pointer + keyboard + scroll listeners (see wiring near the
+// settings drawer), so simply moving the mouse, clicking, scrolling, or typing anywhere to read/compare
+// the last answer counts as engaged; any such motion re-arms the idle window from scratch.
 let lastUserActivityMs = 0;
 function markUserActivity() { lastUserActivityMs = Date.now(); }
 function userIsEngaged() {
-  if (Date.now() - lastUserActivityMs < 3000) return true;          // typed/clicked just now
+  // 3s global-input debounce: comfortably larger than waitIdle's 1s poll step, so any mouse move /
+  // click / wheel / scroll / keypress within the last 3s forces quiet back to zero and re-arms the wait.
+  if (Date.now() - lastUserActivityMs < 3000) return true;          // mouse/click/scroll/key just now
   const el = document.activeElement;
   const input = document.getElementById("input");
   if (input && el === input) {                                       // focused composer with a draft
@@ -9722,9 +9727,15 @@ $("s-autolearn").onclick = () => $("s-autolearn").setAttribute("aria-checked", S
 $("s-automemory").onclick = () => $("s-automemory").setAttribute("aria-checked", String($("s-automemory").getAttribute("aria-checked") !== "true"));
 // Feed the background-merge idle gate: any real typing in the composer resets its quiet counter,
 // so the idle window measures the human's actual inactivity, not just the absence of a model stream.
+// Global "is the human around?" feed: any pointer move / click / wheel / scroll / keydown anywhere
+// (capture phase so it fires even if a child stops propagation) re-arms the merge idle window. This is
+// what makes "I am scrolling / moving the mouse to read your answer" hold the background tidy off.
+["pointermove","pointerdown","pointerup","wheel","keydown","scroll"].forEach(function (evt) {
+  window.addEventListener(evt, markUserActivity, { capture: true, passive: true });
+});
+// IME safety net: a CJK composition can start without a global keydown landing on #input.
 $("input").addEventListener("input", markUserActivity);
 $("input").addEventListener("compositionstart", markUserActivity);
-$("input").addEventListener("keydown", markUserActivity);
 $("s-autorules").onclick = () => { const on = $("s-autorules").getAttribute("aria-checked") !== "true"; $("s-autorules").setAttribute("aria-checked", String(on)); settings.autoRulesMemory = on; store.set("sampling", settings); };
 $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked", String($("s-memcompact").getAttribute("aria-checked") !== "true"));
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));
