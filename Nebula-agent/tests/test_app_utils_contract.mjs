@@ -20,6 +20,7 @@ const EXPORTS = [
   "timeStr", "fmtBytesSel", "parsePlanItems",
   "extractNextSteps", "extractProposalsFromText", "detectLang",
   "firstPath", "nextScopeUp", "nextScopeDown", "clone",
+  "classifyTool",
 ];
 
 let fails = 0;

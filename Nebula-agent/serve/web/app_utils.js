@@ -103,3 +103,31 @@ function nextScopeDown(scope, group) {
 }
 
 function clone(o) { try { return JSON.parse(JSON.stringify(o)); } catch (e) { return Array.isArray(o) ? o.slice() : o; } }
+
+// ---- tool-result classifier (extracted from app.js): pure, depends only on firstPath above ----
+const TEST_RE = /\b(pytest|unittest|nose|jest|mocha|tox|go test|npm test|node --test|cargo test|mvn test|gradle test|test_[a-z0-9_]+\.|\.test\.|__tests?__)\b/i;
+const FILE_TOOL_BASE = new Set(["write", "write_file", "create", "create_file", "write_text_file", "move",
+  "rename", "edit", "edit_file", "append", "append_file", "save", "put_file", "create_directory", "mkdir"]);
+function classifyTool(t) {
+  if (!t) return null;
+  const srv = String(t.server || "").toLowerCase(), tool = String(t.tool || t.name || "").toLowerCase();
+  const base = tool.split("__").pop();
+  if (srv.includes("file") && FILE_TOOL_BASE.has(base)) {
+    const p = firstPath(t.arguments);
+    return p ? {kind: "file", path: p, ok: t.ok !== false} : null;
+  }
+  if (srv.includes("shell") || base.includes("shell") || srv.includes("terminal")) {
+    const cmd = typeof t.arguments === "string" ? t.arguments : JSON.stringify(t.arguments || "");
+    if (TEST_RE.test(cmd)) {
+      const res = String(t.result || "");
+      const fp = res.match(/(\d+)\s*passed/i);
+      const fr = res.match(/(\d+)\s*failed/i) || res.match(/failures=(\d+)/i) || res.match(/errors=(\d+)/i);
+      const tot = res.match(/Ran\s+(\d+)\s*tests?/i);
+      const passed = fp ? +fp[1] : (tot ? +tot[1] : null);
+      const failed = fr ? +fr[1] : 0;
+      const ok = t.ok !== false && failed === 0 && !/FAILED|Traceback|Error:/i.test(res.slice(0, 500));
+      return {kind: "test", cmd: cmd.replace(/\s+/g, " ").slice(0, 48), passed, failed, ok};
+    }
+  }
+  return null;
+}

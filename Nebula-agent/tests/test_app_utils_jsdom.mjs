@@ -38,7 +38,7 @@ const check = (label, cond, extra = "") => {
   if (!cond) FAILURES.push(label);
 };
 
-const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang"];
+const HELPERS = ["timeStr", "fmtBytesSel", "parsePlanItems", "extractNextSteps", "extractProposalsFromText", "detectLang", "classifyTool"];
 // publish the three function declarations onto window (model classic-script globals)
 const EXPOSE = `
 ;window.timeStr = typeof timeStr === "function" ? timeStr : undefined;
@@ -47,6 +47,7 @@ const EXPOSE = `
 ;window.extractNextSteps = typeof extractNextSteps === "function" ? extractNextSteps : undefined;
 ;window.extractProposalsFromText = typeof extractProposalsFromText === "function" ? extractProposalsFromText : undefined;
 ;window.detectLang = typeof detectLang === "function" ? detectLang : undefined;
+;window.classifyTool = typeof classifyTool === "function" ? classifyTool : undefined;
 `;
 
 const utilSrc = fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8");
@@ -99,6 +100,27 @@ check("detectLang('hello world') === 'en'  " + JSON.stringify(win.detectLang("he
 check("detectLang(纯中文) === 'zh'  " + JSON.stringify(win.detectLang("这是一段中文文本")),
       win.detectLang("这是一段中文文本") === "zh");
 check("detectLang('') === 'en' (empty defaults en)", win.detectLang("") === "en");
+
+// classifyTool: tool-result classifier (file vs test), now lives in app_utils.js.
+// It calls firstPath from the same module -> bootUtil(utilSrc) eval already binds it.
+{
+  const fileTool = { server: "filesystem", tool: "filesystem__write", arguments: { path: "a/b/c.txt" }, ok: true };
+  const fc = win.classifyTool(fileTool);
+  check("classifyTool(file write) -> kind file + path  " + JSON.stringify(fc),
+        !!fc && fc.kind === "file" && fc.path === "a/b/c.txt" && fc.ok === true);
+  const shell = { server: "shell", tool: "shell__exec", arguments: "python tests/test_login.py", result: "9 passed in 1.2s", ok: true };
+  const sc = win.classifyTool(shell);
+  check("classifyTool(green pytest) -> kind test + ok true  " + JSON.stringify(sc),
+        !!sc && sc.kind === "test" && sc.ok === true && sc.passed === 9 && sc.failed === 0);
+  const redshell = { server: "shell", tool: "shell__exec", arguments: "pytest tests/test_login.py", result: "8 passed, 2 failed", ok: true };
+  const rc = win.classifyTool(redshell);
+  check("classifyTool(red pytest) -> kind test + ok false + failed 2  " + JSON.stringify(rc),
+        !!rc && rc.kind === "test" && rc.ok === false && rc.failed === 2);
+  const non = { server: "websearch", tool: "websearch__search", arguments: "hello" };
+  check("classifyTool(non file/test) -> null  " + JSON.stringify(win.classifyTool(non)),
+        win.classifyTool(non) === null);
+  check("classifyTool(null) -> null (no throw)", win.classifyTool(null) === null);
+}
 
 // extractNextSteps: pulls the ```next-steps``` fence, parses * / ! / ? markers + label:detail, strips fence from text
 {

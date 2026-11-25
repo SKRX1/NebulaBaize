@@ -3490,32 +3490,6 @@ let currentGroup = "";   // the active workspace's group label ("" => no group t
 // Draft lines ticked in the approval banner, keyed by CONTENT (stable when other
 // lines are dropped). Default: everything ticked, so "merge" = approve all.
 let rulesSel = new Set();
-const TEST_RE = /\b(pytest|unittest|nose|jest|mocha|tox|go test|npm test|node --test|cargo test|mvn test|gradle test|test_[a-z0-9_]+\.|\.test\.|__tests?__)\b/i;
-const FILE_TOOL_BASE = new Set(["write", "write_file", "create", "create_file", "write_text_file", "move",
-  "rename", "edit", "edit_file", "append", "append_file", "save", "put_file", "create_directory", "mkdir"]);
-function classifyTool(t) {
-  if (!t) return null;
-  const srv = String(t.server || "").toLowerCase(), tool = String(t.tool || t.name || "").toLowerCase();
-  const base = tool.split("__").pop();
-  if (srv.includes("file") && FILE_TOOL_BASE.has(base)) {
-    const p = firstPath(t.arguments);
-    return p ? {kind: "file", path: p, ok: t.ok !== false} : null;
-  }
-  if (srv.includes("shell") || base.includes("shell") || srv.includes("terminal")) {
-    const cmd = typeof t.arguments === "string" ? t.arguments : JSON.stringify(t.arguments || "");
-    if (TEST_RE.test(cmd)) {
-      const res = String(t.result || "");
-      const fp = res.match(/(\d+)\s*passed/i);
-      const fr = res.match(/(\d+)\s*failed/i) || res.match(/failures=(\d+)/i) || res.match(/errors=(\d+)/i);
-      const tot = res.match(/Ran\s+(\d+)\s*tests?/i);
-      const passed = fp ? +fp[1] : (tot ? +tot[1] : null);
-      const failed = fr ? +fr[1] : 0;
-      const ok = t.ok !== false && failed === 0 && !/FAILED|Traceback|Error:/i.test(res.slice(0, 500));
-      return {kind: "test", cmd: cmd.replace(/\s+/g, " ").slice(0, 48), passed, failed, ok};
-    }
-  }
-  return null;
-}
 // --- the ```plan checklist ---------------------------------------------------
 // The block is matched WITH or WITHOUT its closing fence: while a turn streams the closing fence has not
 // arrived yet, and the panel must still be able to show the checklist the model is currently working on.

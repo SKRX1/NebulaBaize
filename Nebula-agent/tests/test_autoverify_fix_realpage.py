@@ -180,10 +180,10 @@ def main() -> int:
     #   web/          (symlink or copy of serve/web/ so srcs web/app.js resolve)
     # We use a copy to avoid symlink issues on Windows.
     web_copy = os.path.join(work, "web")
-    # Only copy what the page loads: i18n.js, app.js, admin.js, tokens.css, components.css, app.css, favicon.svg, sprite.svg, img/
+    # Only copy what the page loads: i18n.js, app_utils.js, app.js, admin.js, tokens.css, components.css, app.css, favicon.svg, sprite.svg, img/
     # Faster than full copy and sufficient for the harness.
     os.makedirs(web_copy, exist_ok=True)
-    for fname in ["i18n.js", "app.js", "admin.js", "tokens.css", "components.css", "app.css"]:
+    for fname in ["i18n.js", "app_utils.js", "app.js", "admin.js", "tokens.css", "components.css", "app.css"]:
         src_f = os.path.join(WEB, fname)
         if os.path.isfile(src_f):
             shutil.copy2(src_f, os.path.join(web_copy, fname))
