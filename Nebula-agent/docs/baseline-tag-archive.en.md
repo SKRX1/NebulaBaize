@@ -368,3 +368,53 @@ ls-remote hits tag -d deref == 505406e6741ce425202c43db7d32dcf4bbddac90).
 ```bat
 git tag -a v-baseline-2026-11-26-d 505406e6741ce425202c43db7d32dcf4bbddac90 -m "baseline: sampling block extracted to req_args (byte-identical, diff test), schedule-contract flaky fixed (bounded poll), app_utils 42-sym/14-family doc index. Full regression --full ALL GREEN (incl post-green hooks)."
 ```
+
+### app_utils.js extraction-chain full symbol inventory (source of truth = the EXPORTS list in tests/test_app_utils_contract.mjs, 42 total)
+
+The symbols below have been moved whole from app.js into `serve/web/app_utils.js`; app.js no longer redefines them (contract two-way lock: app_utils must define + app.js must not redefine).
+Load-order rule: index.html must load `<script src="web/app_utils.js">` before `web/app.js` so that app_utils, loading first, exposes the symbols below as globals for app.js call sites to use.
+
+| # | symbol | topic group |
+|---|---|---|
+| 1 | `timeStr` | misc basics |
+| 2 | `fmtBytesSel` | misc basics |
+| 3 | `parsePlanItems` | plan/proposal text |
+| 4 | `extractNextSteps` | plan/proposal text |
+| 5 | `extractProposalsFromText` | plan/proposal text |
+| 6 | `detectLang` | misc basics |
+| 7 | `firstPath` | path/scope |
+| 8 | `nextScopeUp` | path/scope |
+| 9 | `nextScopeDown` | path/scope |
+| 10 | `clone` | misc basics |
+| 11 | `classifyTool` | tool-result classification |
+| 12 | `bugBoxSigKey` | bug-box aggregation |
+| 13 | `bugBoxStats` | bug-box aggregation |
+| 14 | `bugBoxGroups` | bug-box aggregation |
+| 15 | `thinkPeek` | pure think-text transforms |
+| 16 | `dedupeThink` | pure think-text transforms |
+| 17 | `configValue` | stateless helper |
+| 18 | `safeCut` | stateless helper |
+| 19 | `taskOrder` | stateless helper |
+| 20 | `pickSeed` | stateless helper |
+| 21 | `snapSent` | stream/think path |
+| 22 | `toolSeq` | stream/think path |
+| 23 | `noteStreamPhase` | stream/think path |
+| 24 | `assembleStreamBubbles` | stream/session record |
+| 25 | `computeWaterfall` | stream/session record |
+| 26 | `nebTaskFromTool` | tool/task-name parsing |
+| 27 | `inflightToolName` | tool/task-name parsing |
+| 28 | `mdKindOf` | markdown render (kind by url) |
+| 29 | `mdImageTag` | markdown render (image-tag construction) |
+| 30 | `buildCtxArr` | context compaction (build compaction input array) |
+| 31 | `renderMsgForCompact` | context compaction (per-message render+truncate) |
+| 32 | `sparkIsExecuted` | spark execution check (pure boolean) |
+| 33 | `sparkTimeCompare` | spark sort (pure comparator) |
+| 34 | `splitPath` | path/scope (this round: app.js -> app_utils.js) |
+| 35 | `proposalMarkdown` | markdown render (this round: app.js -> app_utils.js) |
+| 36 | `designFileName` | string/identifier normalisation (this round: app.js -> app_utils.js) |
+| 37 | `safeGroup` | string/identifier normalisation (this round: app.js -> app_utils.js) |
+| 38 | `endpointKey` | string/identifier normalisation (this round: app.js -> app_utils.js) |
+| 39 | `normalizeTags` | string/identifier normalisation (this round: app.js -> app_utils.js) |
+| 40 | `toolResultText` | string/identifier normalisation (this round: app.js -> app_utils.js) |
+| 41 | `_memEstTokens` | memory-text metrics (this round: app.js -> app_utils.js) |
+| 42 | `_memEntryCount` | memory-text metrics (this round: app.js -> app_utils.js) |
