@@ -9752,6 +9752,24 @@ $("s-automemory").onclick = () => $("s-automemory").setAttribute("aria-checked",
 // IME safety net: a CJK composition can start without a global keydown landing on #input.
 $("input").addEventListener("input", markUserActivity);
 $("input").addEventListener("compositionstart", markUserActivity);
+
+// Inline range guard for the two memory-timing number fields. On blur: if the value is not an
+// integer inside [min,max], show a localized hint (t() keeps it in sync with zh/en) and snap the
+// field back to its default so a stray keystroke can never persist an out-of-range setting.
+function bindNumGuard(inputId, warnId, min, max, defVal, warnKey) {
+  const inp = $(inputId); if (!inp) return;
+  const warn = $(warnId);
+  inp.addEventListener("blur", function () {
+    const v = +inp.value;
+    const ok = Number.isInteger(v) && v >= min && v <= max;
+    if (!ok) {
+      inp.value = defVal;
+      if (warn) { warn.textContent = t(warnKey); warn.hidden = false; }
+    } else if (warn) { warn.hidden = true; }
+  });
+}
+bindNumGuard("s-memidle",  "s-memidle-warn",  0, 600, 12, "drawer.memidle.range");
+bindNumGuard("s-memidle2", "s-memidle2-warn", 1, 600,  3, "drawer.memidle2.range");
 $("s-autorules").onclick = () => { const on = $("s-autorules").getAttribute("aria-checked") !== "true"; $("s-autorules").setAttribute("aria-checked", String(on)); settings.autoRulesMemory = on; store.set("sampling", settings); };
 $("s-memcompact").onclick = () => $("s-memcompact").setAttribute("aria-checked", String($("s-memcompact").getAttribute("aria-checked") !== "true"));
 $("s-autocompact").onclick = () => $("s-autocompact").setAttribute("aria-checked", String($("s-autocompact").getAttribute("aria-checked") !== "true"));

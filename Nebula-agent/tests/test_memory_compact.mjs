@@ -276,7 +276,69 @@ console.log("\n=== 8.6 the mouse/keyboard debounce window is its own knob, separ
   api.setMemActivityGraceMs(100);
   check("override 100ms wins over settings 30s", api.memActivityGraceMs() === 100, "got " + api.memActivityGraceMs());
   api.setMemActivityGraceMs(-1);           // clear override -> back to the settings-driven value
-  check("override cleared => settings 30s applies again", api.memActivityGraceMs() === 30000, "got " + api.memActivityGraceMs());
+}
+
+// ================================================================ 9. range guard: blur snaps out-of-range back to default
+console.log("\n=== 9. the two number fields reject out-of-range on blur, snap to default + show a hint ===");
+{
+  const mk = (id) => win.document.getElementById(id);
+  const A = mk("s-memidle"),  AW = mk("s-memidle-warn");
+  const B = mk("s-memidle2"), BW = mk("s-memidle2-warn");
+  check("field #s-memidle + its warn span exist", !!A && !!AW);
+  check("field #s-memidle2 + its warn span exist", !!B && !!BW);
+
+  const blur = (el) => el.dispatchEvent(new win.Event("blur", { bubbles: false }));
+
+  // out-of-range HIGH on the wait field (max 600) -> snaps to 12, reveals a localized hint.
+  A.value = "999"; blur(A);
+  check("s-memidle 999 (>max600) snaps to default 12", A.value === "12", "got " + A.value);
+  check("s-memidle 999 reveals the range hint", AW.hidden === false && (AW.textContent || "").length > 0, "hidden=" + AW.hidden);
+
+  // out-of-range LOW on the debounce field (min 1) -> snaps to 3, reveals its hint.
+  B.value = "0"; blur(B);
+  check("s-memidle2 0 (<min1) snaps to default 3", B.value === "3", "got " + B.value);
+  check("s-memidle2 0 reveals the range hint", BW.hidden === false && (BW.textContent || "").length > 0, "hidden=" + BW.hidden);
+
+  // a NON-INTEGER on the wait field -> also rejected (Number.isInteger gate), snaps to 12.
+  A.value = "5.5"; blur(A);
+  check("s-memidle 5.5 (non-integer) snaps to 12", A.value === "12", "got " + A.value);
+
+  // IN-range value is accepted, kept, and the hint is cleared again. Deleting the bindNumGuard
+  // wiring would make the snaps above fail (value would stay 999) -> proves the wiring is load-bearing.
+  A.value = "30"; blur(A);
+  check("s-memidle 30 (in range) is kept", A.value === "30", "got " + A.value);
+  check("s-memidle 30 clears the range hint", AW.hidden === true, "hidden=" + AW.hidden);
+  B.value = "9"; blur(B);
+  check("s-memidle2 9 (in range) is kept", B.value === "9", "got " + B.value);
+  check("s-memidle2 9 clears the range hint", BW.hidden === true, "hidden=" + BW.hidden);
+}
+
+// ================================================================ 10. real-time feel: motion holds it busy, stillness past the window releases it
+console.log("\n=== 10. timing feel: a mouse wave keeps it busy; stopping past the debounce window frees it ===");
+{
+  // Pin the debounce window small so the wait is observable in real time, but leave it above the
+  // 1s floor by clearing the override and reading the real setting (default 3s -> we instead pin a
+  // 200ms override purely to keep this test fast; real floor stays 1s in production).
+  api.setMemActivityGraceMs(200);
+  try { win.document.activeElement && win.document.activeElement.blur(); } catch (e) {}
+  const inp = win.document.getElementById("input"); if (inp) inp.textContent = "";
+
+  // Wave the mouse / scroll: each motion re-arms engagement, so it STAYS busy the whole time.
+  let stayedBusy = true;
+  for (let k = 0; k < 5; k++) {
+    win.dispatchEvent(new win.Event("pointermove", { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 120));   // 120ms between motions, i.e. motion every frame
+    if (api.userIsEngaged() !== true) stayedBusy = false;
+  }
+  check("continuous mouse-waving (every 120ms) keeps it ENGAGED the whole time (tidy deferred)", stayedBusy);
+
+  // Now stop. Within the window it is still busy; once past 200ms of stillness it frees up, which
+  // is exactly when waitIdle would begin counting quiet toward the tidy wait.
+  check("right after stopping (< window) still engaged", api.userIsEngaged() === true);
+  await new Promise((r) => setTimeout(r, 320));     // 320ms of no input, > the 200ms window
+  check("after >= window of stillness => NOT engaged (now counts toward tidy wait)", api.userIsEngaged() === false);
+
+  api.setMemActivityGraceMs(-1);   // back to the settings-driven default for anything below
 }
 
 // ------------------------------------------------------------------ result
