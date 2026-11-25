@@ -47,7 +47,7 @@ win.localStorage.setItem("strata.lang", "en");   // en so i18n labels are determ
 // minimal fetch stub (the app's boot + any postQuiet path never really hits the wire)
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
-const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 const injected = appCode + `
 ;send = async (human = true) => { window.__send.push(ceText(document.getElementById("input"))); };
 postQuiet = (url, body) => { window.__pq.push({ url, body }); };

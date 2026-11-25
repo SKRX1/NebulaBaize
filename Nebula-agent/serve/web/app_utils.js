@@ -131,3 +131,30 @@ function classifyTool(t) {
   }
   return null;
 }
+
+
+// ---- bug-box pure aggregation trio (extracted from app.js): signature key, status counts, fold-by-signature groups. Pure over the passed array, no app.js state. ----
+function bugBoxSigKey(e) {          // signature = same key the capture uses for merge
+  return (e && e.sig != null) ? e.sig : (e && e.msg != null ? e.msg : '');
+}
+function bugBoxStats(all) {         // counts over the FULL box (status field already on every record)
+  const s = { total: all.length, open: 0, fixing: 0, verified: 0 };
+  for (const e of all) {
+    const st = (!e.status || e.status === 'open') ? 'open' : e.status;   // pre-status legacy rows count as open
+    if (st in s) s[st] += 1;
+  }
+  return s;
+}
+function bugBoxGroups(entriesDesc) { // fold same-signature rows into one representative + count
+  const order = []; const bySig = new Map();
+  for (const e of entriesDesc) {
+    const sig = bugBoxSigKey(e);
+    let g = bySig.get(sig);
+    if (!g) { g = { rep: e, count: 1, tsList: [e.ts] }; bySig.set(sig, g); order.push(g); }
+    else {
+      g.count += 1; g.tsList.push(e.ts);
+      if (e.ts > g.rep.ts) g.rep = e;            // representative = newest occurrence
+    }
+  }
+  return order;
+}

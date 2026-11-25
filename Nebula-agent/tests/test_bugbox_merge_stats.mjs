@@ -39,7 +39,7 @@ win.localStorage.setItem("strata.lang", "en");   // deterministic en labels
 
 win.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
 
-const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+const appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 const injected = appCode + `
 ;toast = (kind, title, text, ms, action) => { window.__lastToastAction = action; };   // capture the undo action (E block)
 ;send = async () => { window.__send.push(1); };

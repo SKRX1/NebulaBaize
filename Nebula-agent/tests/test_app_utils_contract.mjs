@@ -21,6 +21,7 @@ const EXPORTS = [
   "extractNextSteps", "extractProposalsFromText", "detectLang",
   "firstPath", "nextScopeUp", "nextScopeDown", "clone",
   "classifyTool",
+  "bugBoxSigKey", "bugBoxStats", "bugBoxGroups",
 ];
 
 let fails = 0;

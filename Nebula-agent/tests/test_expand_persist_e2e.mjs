@@ -26,7 +26,7 @@ const check = (label, cond, extra = "") => {
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 // top-level declarations do not land on window from a realm eval -- expose them the same
 // way test_stream_debug.mjs does (append a wiring block to the code before eval).
-const appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8") +
+const appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8")) +
   "\n;window.__t = { renderBugBox, renderKbCard, renderNotesCard, expandSetLoad, expandSetSave, bugBoxExpanded, memExpanded, bugBoxSave, restoreMemExpand };\n";
 const i18nCode = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
 

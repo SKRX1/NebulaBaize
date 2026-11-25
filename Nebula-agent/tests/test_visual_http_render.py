@@ -176,7 +176,7 @@ def main() -> int:
         # (the page directory, or which <link> is broken). Mirrors probe3 topology (MEASURED
         # thresholds 130000/110000/40000 come from THIS full staging).
         web_src = os.path.join(HERE, "serve", "web")
-        for _a in ("tokens.css", "components.css", "app.css", "i18n.js", "app.js", "admin.js", "sprite.svg"):
+        for _a in ("tokens.css", "components.css", "app.css", "i18n.js", "app_utils.js", "app.js", "admin.js", "sprite.svg"):
             _s = os.path.join(web_src, _a)
             if os.path.isfile(_s):
                 shutil.copyfile(_s, os.path.join(web, _a))
