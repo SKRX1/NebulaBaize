@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-25-t`
-> (commit `798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8`, the zh/en double-ledger alignment point: the en ledger synced to zh — backfilled the `-r` current-rollback-point section + the `2026-11-26` superseded-numbering cleanup section so zh/en are fully aligned; doc-only; quick regression ALL GREEN, commit `798a3d0` pushed to origin, ls-remote confirms `-t` is on the remote).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t, 11-26-d/e … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-25-t) section wins.
+> The current latest rollback point is `v-baseline-2026-11-25-u`
+> (commit `4c5ade2b98c3820d1c763680b5d27de908c7068d`, the README gate-anchor column full-advance point: the 13 gate-anchor table rows' "last real-green run" column was advanced in bulk from `-g` (2026-11-13) to `-u` (this point), the old `-g` series semantic note kept as anchor-history; doc-only; full regression ran over 292 suites (only image_e2e_sentinel flaked under 292-suite wall-clock load, single-run RC=0 proven, the rest green), commit `4c5ade2` pushed to origin, ls-remote confirms `-u` deref == `4c5ade2` is on the remote).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-d/e … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-25-u) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -504,4 +504,21 @@ This round cut named rollback point `v-baseline-2026-11-25-t` at commit `798a3d0
 
 ```bat
 git tag -a v-baseline-2026-11-25-t 798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8 -m "baseline: lock rollback point at 798a3d0 (en ledger synced to zh: -r current-rollback-point + 2026-11-26 cleanup backfilled; doc-only; quick regression ALL GREEN)"
+```
+## 2026-11-25 series (cont.): current latest rollback point upgraded to u (README gate-anchor column advanced from -g to -u, doc-only)
+
+This round cut named rollback point `v-baseline-2026-11-25-u` at commit `4c5ade2b98c3820d1c763680b5d27de908c7068d`, locking the "README gate-anchor column full advance" point: the 13 gate-anchor table rows' "last real-green run (manual-observation anchor)" column was advanced in bulk from `v-baseline-20261113-g` (2026-11-13, anchor d7ec6ef) to `-u` (this point 4c5ade2), and the hard-coded suites count was corrected from the stale 172 to the real 292; the old `-g` series semantic note (d7ec6ef / sparkMaxBars differential lock) is kept as anchor-history, and the L323 historical prose registration is left intact as past fact. Doc-only; no code / regression-scope change.
+
+Full regression ran on commit `4c5ade2` (the `-u` deref): of the 292 suites, **only** `tools/image_e2e_sentinel.py` flaked to FAIL because its fast-path took 62.9s > the 60s cap under 292-suite concurrent wall-clock contention; single-running that suite gave RC=0 (FAST 12.1s, ratio 0.93x), proving it is high-load jitter and not a regression from this round; the other 291 suites are green.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-25-u | `4c5ade2b98c3820d1c763680b5d27de908c7068d` | README gate-anchor column advanced -g to -u + suites 172 to 292 fix (doc-only; full suite 292 green except image_e2e_sentinel high-load flaky · single-run RC=0 · rest green; ls-remote confirms on remote) |
+
+**On the remote**: already on the remote (ls-remote hits tag -u deref == `4c5ade2`; this round's single push of `-u` should be up-to-date).
+
+### Rebuild command (to restore named rollback point u)
+
+```bat
+git tag -a v-baseline-2026-11-25-u 4c5ade2b98c3820d1c763680b5d27de908c7068d -m "baseline: lock rollback point at 4c5ade2 (README gate-anchor column advanced -g to -u; suites 172 to 292; doc-only; full suite 292 green except image_e2e_sentinel high-load flaky single-run RC=0)"
 ```

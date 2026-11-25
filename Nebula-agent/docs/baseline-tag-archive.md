@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-25-t`
-> （commit `798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8`，中英双账本对齐点：en 账本同步补登 `-r` 当前回滚点节 + `2026-11-26` 超前标号清理节，使中英完全对齐；纯文档，quick 全套回归 ALL GREEN、commit `798a3d0` 已推 origin、ls-remote 坐实 `-t` 已在远端）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t、11-26-d/e … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-25-t）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-25-u`
+> （commit `4c5ade2b98c3820d1c763680b5d27de908c7068d`，README 门禁锚点列整体推进点：把锚点表 13 行的「上次实跑绿」列由 `-g`(2026-11-13) 统一推进到 `-u`(本点)，旧 `-g` 系列语义注释保留为 anchor-history；纯文档，full 全套回归在 292 套件上实跑（仅 image_e2e_sentinel 因 292 套墙钟争用 flaky、单跑 RC=0 坐实，其余全绿）、commit `4c5ade2` 已推 origin、ls-remote 坐实 `-u` deref == `4c5ade2` 已在远端）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-d/e … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-25-u）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -704,4 +704,21 @@ git tag -a v-baseline-2026-11-25-s b6a177736e4c5cd510a4e6dec4df305eddce05da -m "
 
 ```bat
 git tag -a v-baseline-2026-11-25-t 798a3d0747b86e7fe23960c46f02fa8fe0bc2ae8 -m "baseline: lock rollback point at 798a3d0 (en ledger synced to zh: -r current-rollback-point + 2026-11-26 cleanup backfilled; doc-only; quick regression ALL GREEN)"
+```
+## 2026-11-25 系列（续）：当前最新回滚点升级到 u（README 门禁锚点列由 -g 整体推进到 -u，纯文档）
+
+本轮在 commit `4c5ade2b98c3820d1c763680b5d27de908c7068d` 打命名回滚点 `v-baseline-2026-11-25-u`，锁定「README 门禁锚点列整体推进」点：把锚点表 13 行的「上次实跑绿（人工观测锚）」列由 `v-baseline-20261113-g`（2026-11-13，锚 d7ec6ef）统一推进到 `-u`（本点 4c5ade2），并将写死的 suites 数由过时的 172 修正为真实 292；旧 `-g` 系列语义注释（d7ec6ef / sparkMaxBars 差分锁）保留为 anchor-history，L323 历史流水登记正文按过去事实保留不改。纯文档；无代码 / 回归范围变更。
+
+full 全套回归在 commit `4c5ade2`（即 `-u` deref）上实跑：292 套件中**仅** `tools/image_e2e_sentinel.py` 因 292 套件并发墙钟争用导致 fast-path 62.9s > 60s cap 而 flaky FAIL，单跑该套件 RC=0（FAST 12.1s、ratio 0.93x）坐实为高负载抖动而非本轮回归；其余 291 套件全绿。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-25-u | `4c5ade2b98c3820d1c763680b5d27de908c7068d` | README 门禁锚点列由 -g 整体推进到 -u + suites 数 172→292 修正（纯文档；full 全套 292 套件仅 image_e2e_sentinel 高负载 flaky·单跑 RC=0·其余全绿；ls-remote 坐实已在远端） |
+
+**远端**：已在远端（ls-remote 命中 tag -u deref == `4c5ade2`；本轮单推 origin `-u` 应 up-to-date）。
+
+### 重建命令（如需恢复命名回滚点 u）
+
+```bat
+git tag -a v-baseline-2026-11-25-u 4c5ade2b98c3820d1c763680b5d27de908c7068d -m "baseline: lock rollback point at 4c5ade2 (README gate-anchor column advanced -g to -u; suites 172 to 292; doc-only; full suite 292 green except image_e2e_sentinel high-load flaky single-run RC=0)"
 ```
