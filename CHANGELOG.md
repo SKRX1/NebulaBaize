@@ -9,7 +9,7 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [0.1.1-rc.1] - 2026-11-25
+## [0.1.1] - 2026-11-25
 
 ### Changed / 变更
 
