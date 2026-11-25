@@ -12,11 +12,13 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-25-o` (commit `a6afc2a6ee1e8ea07b5740d77814a4044d9411b6`, the 5th back-end
-> modularization step: `serve/exceptions.py` engine/session exception-hierarchy extraction, full regression ALL
-> GREEN). The "current rollback point / current latest rollback point" wording in each section heading below is a
-> point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n … each was the newest
-> baseline at its time); wherever it disagrees with this overview, this (newest = o) section wins.
+> The current latest rollback point is `v-baseline-2026-11-26-c` (commit `9d4699eed6a4fac7ffc16a016e801e4af4b6146b`, front-end
+> extraction chain round 4: the memory-text-metrics family (`_memEstTokens`/`_memEntryCount`) moved into `app_utils.js`,
+> a **42-symbol / 14-family** milestone, full regression --full ALL GREEN).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time
+> snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n, 11-25-o, 11-25-p, 11-25-q, 11-26-a,
+> 11-26-b, 11-26-c … each was the newest baseline at its time); wherever it disagrees with this overview, this
+> (newest = 11-26-c) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
