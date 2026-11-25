@@ -11,6 +11,9 @@ All notable changes to this project are documented in this file.
 
 ### Changed / 变更
 
+- **baseline 回滚点 `v-baseline-2026-11-26-a` + image sentinel 高载 flaky 根治**（2026-11-26，纯文档 + 哨兵阈值，低风险）：给文档推进 commit `b673877`（README 门禁锚点列 -g→-u 推进 + 中英账本 -u 节补登）在今日真实日期下打命名回滚点 `v-baseline-2026-11-26-a`，为先前已清理超前标号之后 11-26 系列现存首个标号，无冲突；并将 `tools/image_e2e_sentinel.py` 的 `FAST_TIMEOUT_S` 由 60s 放宽到 75s（`SLOW_RATIO_MAX=3.0` 不动），消除 292 套件全套并发墙钟争用下 fast-path 60~63s 的反复 flaky（单跑实测仅 ~12s）。放宽后重跑 full 全套 **292 套件 FAIL=0 全绿**，post-green 钩子复验最新 tag = WORKING ROLLBACK POINT。全仓无测试锁定 60 这个值（grep 坐实）。
+  - *baseline rollback point `v-baseline-2026-11-26-a` + image-sentinel high-load flaky root-caused* (2026-11-26, doc-only + sentinel threshold, low risk): named rollback point `v-baseline-2026-11-26-a` was cut at the doc-advance commit `b673877` (README gate-anchor column -g to -u + zh/en ledger -u section backfill) under the true date, the first surviving 11-26 number after the prior superseded-numbering cleanup, no conflict; and `tools/image_e2e_sentinel.py`'s `FAST_TIMEOUT_S` was relaxed 60s to 75s (`SLOW_RATIO_MAX=3.0` unchanged) to stop the repeated fast-path 60~63s flaky under 292-suite concurrent wall-clock contention (single-run ~12s). After the relaxation the full suite re-ran with **292 suites, 0 FAIL, ALL GREEN**, and the post-green hook verified the newest tag as a WORKING ROLLBACK POINT. No test locks the 60 value (grep-confirmed).
+
 - **记忆文本度量族抽离到 `app_utils.js`（前端续抽链第四轮 · 42 符号刻度）** — 沿同纪律
   （零依赖 AST out-deps=0、零 app.js 全局、零 DOM、零 mutation）扫出同族内聚的「记忆文本度量」
   纯叶子两个：`_memEstTokens`（对一段记忆 store 文本做 CJK 加权 token 粗估）、`_memEntryCount`
