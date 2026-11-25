@@ -255,3 +255,6 @@ web 功能改动落地链：HTML(index.html 按行号替块)+i18n.js(双语各�
 ws-persona（工作区人设）字数/token 预警复用 app.js 的 paintPersonaCount(txt,el) + personaWarnThreshold（共用 s-pwarn 阈值）与 i18n 键 drawer.persona.count/.count.over，刻意不加恢复/预设；renderPersonaCount(s-persona) 已重构为委派 paintPersonaCount，改计数逻辑须同步测 test_ws_persona_count.mjs。
 门禁源码断言用 includes("...<css/js 内容>\n") 这类【带裸 LF 结尾的精确串】时，若目标文件是 CRLF（app.css/app.js 皆然），「}」后实为 \r\n，needle 以 \n 收尾必假红（node 实测 crlf_file=true→includesLF=false、CRLF 变体=true）。修法：readFileSync 后 .replace(/\r\n/g,"\n") 归一化出 LF 副本再判（绝不为迎合 needle 去改 CSS/JS 内容本身）。实例：test_img_gallery_jsdom.mjs 的 I2 自初始发布即因此假红（2026-11-24 拔掉，全套转 0-FAIL）。
 凡 kind=local 且 base_url 为空的模型必须在 config/models.json 声明 context_window；否则后端 ctx_window() 回退到运行时探测 n_ctx 或兜底值，与前端写死分母不一致，可在低占用(如22%)时误判 context_overflow 秒拒(finish=None/elapsed≈0.2s)。已为 selected 模型 qwen3.8-flash-next-iq3_s 补 131072(2026-11-25 实测坐实)。
+账本补登节按时间序落位：新 tag 若时序在最后节之后则直接 append 到文件末尾（断言 raw.endswith CRLF），仅当插在中段才用唯一节标题 find 定位拼接；两种路径都要插后断言 bare_lf=0 + numstat==--ignore-cr-at-eol
+baseline-tag-archive.md 补登计数断言勿写死 ==3：若新节语义列或 tag message 内嵌了同系列其它 tag 名（如 c 节含 "-b" 字样两处），被引用 tag 的计数会相应增加，须用 n_target==3 且 n_other==before+实际增量 的相对断言
+账本节内「是否已在远端」措辞须由脚本 ls-remote origin refs/tags/<tag> 实时查 onremote 注入（本地已打 tag ≠ 远端已推），据实写「已在远端」或「本地 tag、按惯例未推、留待拍板」，禁止照抄旧节写死
