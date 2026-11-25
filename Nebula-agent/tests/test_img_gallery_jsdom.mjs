@@ -27,7 +27,7 @@ const gateway = fs.readFileSync(path.join(ROOT, "runtime", "http_server.py"), "u
 
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 const css = fs.readFileSync(path.join(WEB, "app.css"), "utf8");
 // EOL-agnostic source for the structural CSS locks below: app.css ships CRLF, so a needle
 // ending in "\n" would miss on a CR+LF file (the historical I2 false red). Normalise once.

@@ -29,7 +29,7 @@ const check = (label, cond, extra = "") => {
 
 const html = fs.readFileSync(path.join(WEB, "index.html"), "utf8");
 const i18nSrc = fs.readFileSync(path.join(WEB, "i18n.js"), "utf8");
-let appCode = fs.readFileSync(path.join(WEB, "app.js"), "utf8");
+let appCode = (fs.readFileSync(path.join(WEB, "app_utils.js"), "utf8") + "\n" + fs.readFileSync(path.join(WEB, "app.js"), "utf8"));
 
 appCode += `
 ;window.__api = {

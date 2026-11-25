@@ -23,6 +23,7 @@ const EXPORTS = [
   "classifyTool",
   "bugBoxSigKey", "bugBoxStats", "bugBoxGroups",
   "thinkPeek", "dedupeThink",
+  "configValue", "safeCut", "taskOrder", "pickSeed",
 ];
 
 let fails = 0;

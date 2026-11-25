@@ -832,13 +832,6 @@ async function loadConfig() {
   }).join("");
   $("cfg-card").hidden = false;
 }
-function configValue(k, el) {
-  const s = el.value.trim();
-  if (s === "") return null;
-  if (k.kind === "bool") return s === "true";
-  if (k.kind === "number") return Number(s);
-  return s;                                         // enum, or names (the server splits them at commas)
-}
 $("cfg-save").addEventListener("click", async () => {
   const set = {};
   cfgKeys.forEach((k, i) => {
@@ -1154,20 +1147,6 @@ const MARKDOWN_LONG = 24000;    // chars above which we switch to incremental re
 const MARKDOWN_TAIL = 9000;     // size of the live trailing window we re-parse each frame
 // Nearest render-safe boundary at/before `minStart`: a complete block (blank-line edge, no open fence),
 // so the incremental tail renderer never splits a paragraph or a code block (C10 fence fallback).
-function safeCut(text, minStart) {
-  let cut = minStart;
-  while (cut > 0 && text[cut - 1] !== "\n") cut--;                 // back to a line start
-  if (cut > 0) {                                                  // back to a blank-line edge if mid-block
-    const prev = text.lastIndexOf("\n\n", cut - 1);
-    if (prev >= 0) cut = prev + 2; else cut = 0;
-  }
-  const pref = text.slice(0, cut);
-  if ((pref.match(/```/g) || []).length % 2 === 1) {              // odd -> an open fence; cut before its opener
-    const open = pref.lastIndexOf("```");
-    cut = open >= 0 ? open : 0;
-  }
-  return Math.max(0, cut);
-}
 // Reconcile the bubble's segment nodes (see answerSpec/patchTool). Nothing is destroyed unless it really
 // changed, so a running badge keeps blinking smoothly and the frame cost stays proportional to the new text.
 // Work-log folding: when the turn used tools, every segment BEFORE the trailing markdown (intermediate
@@ -1449,10 +1428,6 @@ function timeAgo(ts) {
   if (d < 864e5) return t("side.time.hour", {n: Math.floor(d / 36e5)});
   if (d < 30 * 864e5) return t("side.time.day", {n: Math.floor(d / 864e5)});
   return t("side.time.month", {n: Math.floor(d / (30 * 864e5))});
-}
-function taskOrder(a, b) {
-  if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;   // pinned tasks float to the top of their group
-  return (b.updatedAt || 0) - (a.updatedAt || 0);
 }
 function workspaceGroups() {
   sessions.forEach((s) => registerWorkspace(s.workspace));    // legacy flat tasks grow a parent row
@@ -7821,15 +7796,6 @@ async function send(human = true, targetSession = null) {
 // A fresh seed for one turn, used when the drawer's field is left empty ("留空 = 随机"). crypto keeps
 // it from being guessable and the range stays inside a positive int32 — the engine treats seed <= 0 as
 // "unset" and would fall back to its own invisible random, which is the one case we must avoid here.
-function pickSeed() {
-  try {
-    const a = new Uint32Array(1);
-    crypto.getRandomValues(a);
-    return 1 + (a[0] % 2147483646);
-  } catch (e) {
-    return 1 + Math.floor(Math.random() * 2147483646);
-  }
-}
 // The last seed actually sent, mirrored to localStorage so the drawer can still answer "what did it
 // use?" after a reload (the per-turn chips live in the saved chat, but the drawer line is global).
 let lastSeedUsed = null, lastSeedPinned = false;

@@ -191,3 +191,40 @@ function dedupeThink(src) {
   }
   return out.join("\n");
 }
+
+
+// ---- stateless micro-utils (extracted from app.js): configValue = coerce a config <input> value by kind; safeCut = back up a streaming cut point to a line/blank-line/unclosed-fence edge; taskOrder = pinned-first then updatedAt-desc comparator; pickSeed = crypto-backed 1..2^31 seed. All pure/leaf: args-only or stdlib (crypto/Math), no app.js module globals, no DOM side effects. ----
+function taskOrder(a, b) {
+  if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;   // pinned tasks float to the top of their group
+  return (b.updatedAt || 0) - (a.updatedAt || 0);
+}
+function configValue(k, el) {
+  const s = el.value.trim();
+  if (s === "") return null;
+  if (k.kind === "bool") return s === "true";
+  if (k.kind === "number") return Number(s);
+  return s;                                         // enum, or names (the server splits them at commas)
+}
+function safeCut(text, minStart) {
+  let cut = minStart;
+  while (cut > 0 && text[cut - 1] !== "\n") cut--;                 // back to a line start
+  if (cut > 0) {                                                  // back to a blank-line edge if mid-block
+    const prev = text.lastIndexOf("\n\n", cut - 1);
+    if (prev >= 0) cut = prev + 2; else cut = 0;
+  }
+  const pref = text.slice(0, cut);
+  if ((pref.match(/```/g) || []).length % 2 === 1) {              // odd -> an open fence; cut before its opener
+    const open = pref.lastIndexOf("```");
+    cut = open >= 0 ? open : 0;
+  }
+  return Math.max(0, cut);
+}
+function pickSeed() {
+  try {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return 1 + (a[0] % 2147483646);
+  } catch (e) {
+    return 1 + Math.floor(Math.random() * 2147483646);
+  }
+}
