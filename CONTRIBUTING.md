@@ -62,6 +62,20 @@
 
 ---
 
+### 3.5 改动生效方式
+
+一段代码改动能不能免重启生效，取决于它跑在哪个进程、是不是常驻：
+
+- **前端** `serve/web/*`：静态每次请求读盘，**硬刷浏览器即可**，不必重启。
+- **MCP 子进程** `servers/*.py` 或 `mcp_servers.json` 的 env/args：点 MCP 面板「重载子进程」（= `_reload_executor` 重读 json + 重新 spawn 全部子进程）**免重启**生效；子进程 env 在 spawn 时一次性注入。
+- **后端网关进程** `runtime/*.py`、`serve/*.py` 的新路由/新逻辑：网关进程 import 时已编进内存，**必须重启 8099**，「重载子进程」救不了它。
+
+**贡献取向（主人拍板，plan A）**：易变的业务逻辑优先写成 `servers/` 里的 **MCP server 工具**（住 `servers/`，改后 reload 即热生效、不碰网关）；只有不得不进网关进程的核心（路由骨架 / 鉴权 / 流式转发骨架）才接受重启 8099。
+
+「重载子进程只换子进程、不换网关进程」这条事实由前端门禁 `tests/test_mcp_reload_jsdom.mjs` 锁定（reload 只 POST 子进程端点 `api/servers/reload`、成功后不整页导航）。
+
+---
+
 ## 4. 提交范围
 
 只 add 本轮相关代码/文档/测试；以下**不裹入** commit：

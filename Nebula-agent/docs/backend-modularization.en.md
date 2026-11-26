@@ -51,6 +51,16 @@ zero-coupling move* discipline. This file tracks that extraction chain and the m
 "chain" = the incremental chain that keeps lifting one zero-coupling cohesive family at a time (tokenizer → approval
 → conv_cache → engine_diag → exceptions). Every step cuts a named rollback tag + a bundle snapshot — see `baseline-tag-archive.md`.
 
+## Process boundary (2026-11-27): reload swaps the children, not the gateway itself
+
+This document is about lifting pure functions out of the gateway process into `serve/*`; those modules still run **inside the gateway process** — changing them requires restarting 8099. The counterpart is the MCP servers under `servers/`, which are **separate child processes**.
+
+`_reload_executor` in `runtime/http_server.py` re-reads `mcp_servers.json`, then `new.start_all()` re-spawns every MCP child and `stop_all()` kills the old ones — it **does not touch the gateway's own already-imported `runtime/` and `serve/` code**. So editing `servers/` or the mcp json's env/args applies without a restart via “reload children”; changing the gateway process itself (including the `serve/*` pure modules this document extracts) requires restarting 8099.
+
+The front-end corroboration: the gate `tests/test_mcp_reload_jsdom.mjs` boots app.js under jsdom and proves reload POSTs only the child endpoint `api/servers/reload`, only refreshes the MCP list on success (no full-page navigation), and never falls back to a restart endpoint — corroborating the back-end fact stated in this section.
+
+The resulting contribution stance (ratified plan A, see CONTRIBUTING §3.5): volatile business logic first as an MCP tool under `servers/` so it reloads without a restart; do not push new capability into the gateway process.
+
 ## Candidate-pool status
 
 server.py keeps growing with new code. Before extracting the next family, re-run the AST out-deps=0 scan to re-list

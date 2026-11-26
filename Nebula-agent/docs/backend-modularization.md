@@ -46,6 +46,16 @@
 每次挑一个零耦合内聚纯族续抽的增量链（tokenizer → approval → conv_cache → engine_diag → exceptions）。每步都打命名回滚
 点 tag + bundle 固化，详见 `baseline-tag-archive.md`。
 
+## 进程边界（2026-11-27）：reload 只换子进程、不碰网关自身
+
+本文讲的是把网关进程内的纯函数摘进 `serve/*`，这些模块仍跑在**网关进程**里——改它们必须重启 8099。与之相对的是 `servers/` 下的 MCP server，它们是**独立子进程**。
+
+`runtime/http_server.py` 的 `_reload_executor` 做的是：重读 `mcp_servers.json` 后 `new.start_all()` 重新 spawn 全部 MCP 子进程、再 `stop_all()` 杀旧——它**不碰网关自己已 import 进内存的 `runtime/` 与 `serve/` 代码**。所以：改 `servers/` 或 mcp json 的 env/args 点「重载子进程」即免重启生效；改网关进程自身（含本文摘出的 `serve/*` 纯模块）的新路由/新逻辑则必须重启 8099。
+
+这条边界的前端侧左证：门禁 `tests/test_mcp_reload_jsdom.mjs` 用 jsdom 真 boot app.js 坐实 reload 只 POST 子进程端点 `api/servers/reload`、成功后只局部刷列表不整页导航、从不落到任何 restart 端点——与本节后端事实互为左证。
+
+据此的贡献取向（主人拍板 plan A，详 CONTRIBUTING §3.5）：易变的业务逻辑优先写成 `servers/` 的 MCP 工具，就能 reload 免重启；不要把新能力塞进网关进程。
+
 ## 候选池现状
 
 server.py 仍随新代码增长。续抽下一族前先跑 AST out-deps=0 扫描重列候选（`tools/_q_*.py` 探针系列，用完即删）。

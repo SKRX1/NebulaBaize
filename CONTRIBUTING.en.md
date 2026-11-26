@@ -72,6 +72,20 @@ permissive CLA model).
 
 ---
 
+### 3.5 How changes take effect
+
+Whether a change lands without a restart depends on which process it runs in and whether it is resident:
+
+- **Frontend** `serve/web/*`: static files are re-read on every request, so a **hard browser refresh is enough**, no restart.
+- **MCP subprocesses** `servers/*.py` or the env/args in `mcp_servers.json`: click the MCP panel's **reload children** (= `_reload_executor` re-reads the json + re-spawns all children) to apply **without a restart**; a child's env is injected once at spawn.
+- **Gateway process** `runtime/*.py`, `serve/*.py` new routes/new logic: already compiled into the gateway's memory at import, so they **require restarting 8099**; "reload children" cannot save them.
+
+**Contribution stance (ratified, plan A)**: put volatile business logic first as an **MCP server tool** under `servers/` (lives in `servers/`, reloads hot, never touches the gateway); only code that genuinely has to live in the gateway process (the routing skeleton / auth / streaming-forward skeleton) accepts an 8099 restart.
+
+The fact "reload children swaps the children, not the gateway process" is locked by the frontend gate `tests/test_mcp_reload_jsdom.mjs` (reload POSTs only the child endpoint `api/servers/reload`; on success it does not navigate the page).
+
+---
+
 ## 4. What to include in a commit
 
 Only add code/docs/tests related to the current task; do **not** bundle the following:
