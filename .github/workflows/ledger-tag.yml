@@ -1,0 +1,35 @@
+# ledger-tag：把"baseline 账本（中英）登记的命名回滚点 ↔ git 真实 tag deref 是否一致"
+# 这道人工核对固化成自动门禁。判据与差分锁的唯一真相源是 Nebula-agent/tools/ledger_tag_parity.py：
+#   - 已登记日内缺字母（git 有该 tag 但账本缺行 = 账本滞后断层，曾发生过 -e 事故）    -> 红；
+#   - 账本声明的 commit 与 tag deref 不符（账本写错 sha）                              -> 红；
+#   - 中英两账本登记的 tag 集合不一致（单边补登漂移）                                  -> 红；
+#   - 已删超前标号（账本有行但 git 不存在）/ 账本从未登记的历史日期                     -> 绿（合法跳过）。
+# 为什么独立成一条、不挂 build-release.yml：build-release.yml 只在 push tag / 手动时跑，
+# 而账本滞后断层发生在每一次改了 baseline-tag-archive*.md 的普通 push；本门禁 on: push main
+# + pull_request 恰好补上这一段。判据刻意只覆盖"账本已登记的日期"，不会为从不逐 tag 登记的
+# 历史日期（现网 71 个）假红。
+name: ledger-tag
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ledger-tag:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 + 显式 fetch --tags：actions/checkout 默认只抓当前 commit 且不带
+      # 全部 tag，门禁需要把全部 v-baseline-* tag 抓下来才能做 deref / 连续性核对。
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags (for deref + continuity)
+        run: git fetch --tags --force
+
+      # 脚本用 git rev-parse --show-toplevel 自定位仓库顶层（即此处 checkout 的根），
+      # 不需硬编码子目录。退出码 0=全绿、1=有不一致，CI 据此红/绿。
+      - name: Check ledger <-> tag deref consistency
+        run: python3 Nebula-agent/tools/ledger_tag_parity.py

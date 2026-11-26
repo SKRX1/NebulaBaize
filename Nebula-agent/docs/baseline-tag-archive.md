@@ -841,3 +841,35 @@ git tag -a v-baseline-2026-11-26-f c1680a0271c5ba8fe1a97c5d807d8185a0baa24f -m "
 ```bat
 git tag -a v-baseline-2026-11-26-g 82f52e54084f4ddc8826c5f48212d12ab923d479 -m "baseline 2026-11-26-g: ledger/code sync point 82f52e5 (pure-doc, full regression green)"
 ```
+
+## 2026-11-25 系列（前序补登 a-j）：补齐早期已打但账本未登记的命名回滚点（消除账本内 a-j 断层）
+
+本节一次性补登 2026-11-25 早期已打 tag 但账本（中英）当时未登记的命名回滚点 a/b/c/d/e/f/g/h/i/j，让中英账本的 11-25 登记字母从 k-u 连续扩展到 a-u。每条 sha 均为 `git rev-parse <tag>^{}` 实测解引用所得、且 `git merge-base --is-ancestor <commit> HEAD` 全部 anc=0（在 HEAD 链上、可审计）。本账本早期各节的 a/b/c/e/f/g 行 sha 未用反引号包裹（不被门禁 ROW_RE 收录），本节用规范带反引号格式重登，二者解引用 commit 一致。
+
+| tag | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-25-a | `e73c3d5321e93d8cb9f59c2a7c04937e15a5f585` | fix(models): 为选中本地模型 qwen3.8-flash-next-iq3_s 声明 context_window 131072（kind=local base_url 空必声明 ctx_window，防低占用误判 overflow） |
+| v-baseline-2026-11-25-b | `ab580073b2a5fb2dfcf4f39697112fb4ab2f0153` | chore(config): models.json daemon 运行态漂移落账（模型列表重排 + 补全 ctx_in/context_window） |
+| v-baseline-2026-11-25-c | `ea2d93dbca09451fd6c41784198f01966cba47a3` | docs(ledger): 登记 v-baseline-2026-11-25-b（models.json drift @ab58007）账本登记 commit 本身作回滚点 |
+| v-baseline-2026-11-25-d | `51182e9a6c11acd9fcbfb943e74a08d2410f2edf` | refactor(web): app_utils.js 续抽第三块纯叶子 firstPath/nextScope/clone + 补加载序契约测试 |
+| v-baseline-2026-11-25-e | `c6568a9d72fb57a70dafdea85ca4a6608c97f820` | refactor(web): 抽离 classifyTool + TEST_RE + FILE_TOOL_BASE 进 app_utils.js |
+| v-baseline-2026-11-25-f | `e458249170c1a382efde04d13ff393d9332be213` | refactor(web): 抽离 snapSent + toolSeq + noteStreamPhase 进 app_utils.js |
+| v-baseline-2026-11-25-g | `704c3d0b5c8e506247c338860ea80e68cb621212` | refactor(web): 抽离 assembleStreamBubbles + computeWaterfall 进 app_utils.js |
+| v-baseline-2026-11-25-h | `3827058eb209094a1d37f9f0af43798fb774a91e` | refactor(web): 抽离 mdKindOf + mdImageTag + MD_EXT_* 进 app_utils.js |
+| v-baseline-2026-11-25-i | `416943d2a8970c73af9aa7c947b5f3f5427a309b` | refactor(web): 抽离 buildCtxArr + renderMsgForCompact 进 app_utils.js |
+| v-baseline-2026-11-25-j | `8d8a27dd3852f053e810f710defa5ea34de185fe` | refactor(web): 抽离 sparkIsExecuted + sparkTimeCompare 进 app_utils.js |
+
+### 重建命令（按需恢复 11-25 早期命名回滚点）
+
+```bat
+git tag -a v-baseline-2026-11-25-a e73c3d5321e93d8cb9f59c2a7c04937e15a5f585 "v-baseline-2026-11-25-a backfill"
+git tag -a v-baseline-2026-11-25-b ab580073b2a5fb2dfcf4f39697112fb4ab2f0153 "v-baseline-2026-11-25-b backfill"
+git tag -a v-baseline-2026-11-25-c ea2d93dbca09451fd6c41784198f01966cba47a3 "v-baseline-2026-11-25-c backfill"
+git tag -a v-baseline-2026-11-25-d 51182e9a6c11acd9fcbfb943e74a08d2410f2edf "v-baseline-2026-11-25-d backfill"
+git tag -a v-baseline-2026-11-25-e c6568a9d72fb57a70dafdea85ca4a6608c97f820 "v-baseline-2026-11-25-e backfill"
+git tag -a v-baseline-2026-11-25-f e458249170c1a382efde04d13ff393d9332be213 "v-baseline-2026-11-25-f backfill"
+git tag -a v-baseline-2026-11-25-g 704c3d0b5c8e506247c338860ea80e68cb621212 "v-baseline-2026-11-25-g backfill"
+git tag -a v-baseline-2026-11-25-h 3827058eb209094a1d37f9f0af43798fb774a91e "v-baseline-2026-11-25-h backfill"
+git tag -a v-baseline-2026-11-25-i 416943d2a8970c73af9aa7c947b5f3f5427a309b "v-baseline-2026-11-25-i backfill"
+git tag -a v-baseline-2026-11-25-j 8d8a27dd3852f053e810f710defa5ea34de185fe "v-baseline-2026-11-25-j backfill"
+```
