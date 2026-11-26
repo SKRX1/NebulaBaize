@@ -9,8 +9,8 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-j`
-> （commit `d499c196a74e238f1d4639051ff7bc4ed10e90d8`，10-30 a-q 分段登记落地点：中英账本登记 10-30 现存真实连续段 a-q（17 行，每条 sha git rev-list -n1 + anc=0 实测），门禁该日窗 OFF -> [a..q] 无窗内假缺；10-30 是三老日期里唯一结构适用连续性窗的日期（10-31 含多字母 ctx 且乱序、11-02 仅 f，均据实保持 OFF）；CHANGELOG 中英补记 POC 三连。纯文档；quick 250 ALL GREEN，权威 HEAD 上 full incl. post-green ALL GREEN。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i 之后。）
+> 当前最新回滚点 = `v-baseline-2026-11-26-k`
+> （commit `135f3f2e797c80d7944d04ae259d5b4d698c2594`，分段登记工作线结案：数据驱动扫描坐实未登记的仅 2026-10-31（非 a 起、含多字母 ctx 乱序）与 2026-11-02（仅孤字母 f），二者均结构不适用连续性窗；7 个已登记日（2026-10-30 / 11-21~26）即终态，分段登记线饱和无候选。纯文档（CHANGELOG + 本账本）；该 HEAD 上 full incl. post-green ALL GREEN。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i/j 之后。）
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
@@ -1035,5 +1035,22 @@ git tag -a v-baseline-2026-10-30-q 889e457f3830b98a417dc752fd88688d67491650 -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-j d499c196a74e238f1d4639051ff7bc4ed10e90d8 -m "baseline 2026-11-26-j: 10-30 a-q segmented-registration landing point d499c19"
+```
+
+## 2026-11-26 系列：当前最新回滚点升级到 k（分段登记工作线结案 commit 135f3f2，全套绿）
+
+本轮在 commit `135f3f2e797c80d7944d04ae259d5b4d698c2594` 打命名回滚点 `v-baseline-2026-11-26-k`，锁定「分段登记工作线结案」这一账本回滚点：该 commit 在 CHANGELOG [Unreleased] Changed 段顶补登中英配对条目，数据驱动扫描坐实 git 全量 9 个 baseline tag 日期中未登记的仅 `2026-10-31`（非 a 起点、含多字母 `ctx` 乱序）与 `2026-11-02`（仅孤字母 `f`），二者均结构不适用连续性窗（适用判据：a 起点 + 无多字母 + 整段相邻连续 + run>=2 四条件全满足），故 7 个已登记日（`2026-10-30` / `2026-11-21~26`）即「窗 OFF 且结构适用」候选的终态，分段登记线饱和结案、无后续可补登项。纯文档（CHANGELOG + 本账本）；该 HEAD 上 full 全套 incl. post-green ALL GREEN（post-green checkout 最新 tag 复验 VERDICT: WORKING ROLLBACK POINT）。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i/j 之后。
+已实测：`ledger_tag_parity` 门禁 ALL GREEN；full 全套 incl. post-green ALL GREEN；账本逐 tag 登记史、速览与 tag 历史三者账实一致。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-k | `135f3f2e797c80d7944d04ae259d5b4d698c2594` | 分段登记工作线结案 commit：CHANGELOG [Unreleased] 中英配对留痕「窗 OFF 且结构适用老日期已饱和」（10-31 非 a 起含 ctx 多字母、11-02 仅孤 f 均不适用）；纯文档；full incl. post-green ALL GREEN；本地 tag、按惯例待推 |
+
+**是否已在远端**：本轮先 push origin main 使 HEAD 前进到本结案 commit 坐实 0 0，再单独 `git push origin v-baseline-2026-11-26-k`（见下）；远端 peel == `135f3f2e797c80d7944d04ae259d5b4d698c2594` 与账本声明一致。
+
+### 重建命令（如需恢复命名回滚点 k）
+
+```bat
+git tag -a v-baseline-2026-11-26-k 135f3f2e797c80d7944d04ae259d5b4d698c2594 -m "baseline 2026-11-26-k: segmented-registration line closure commit 135f3f2"
 ```
 

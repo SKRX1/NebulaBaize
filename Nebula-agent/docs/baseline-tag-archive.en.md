@@ -12,8 +12,8 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-26-j`
-> (commit `d499c196a74e238f1d4639051ff7bc4ed10e90d8`, the 10-30 a-q segmented-registration landing point: both ledgers register 10-30's surviving real contiguous run a-q (17 rows, each sha git rev-list -n1 + anc=0), the gate's 10-30 window flips OFF -> [a..q] with no in-window false gap; 10-30 is the only structurally-applicable of the three old dates (10-31 has multi-letter ctx + out-of-order, 11-02 only f -- both kept OFF as measured); CHANGELOG records the POC trilogy in zh/en. Pure-doc; quick 250 ALL GREEN, full incl. post-green ALL GREEN at the authoritative HEAD. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i.)
+> Current latest rollback point = `v-baseline-2026-11-26-k`
+> (commit `135f3f2e797c80d7944d04ae259d5b4d698c2594`, the segmented-registration line closure: a data-driven scan showed the only unregistered baseline dates are 2026-10-31 (not a-start, multi-letter ctx out-of-order) and 2026-11-02 (lone letter f) -- both structurally inapplicable to a contiguity window; the 7 registered dates 2026-10-30/2026-11-21~26 are the terminal set, the line is saturated with no candidate left. Pure-doc (CHANGELOG + ledger); full incl. post-green ALL GREEN at this HEAD. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i/j.)
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
@@ -835,5 +835,22 @@ Verified: the `ledger_tag_parity` gate is ALL GREEN (the 10-30 window flips from
 
 ```bat
 git tag -a v-baseline-2026-11-26-j d499c196a74e238f1d4639051ff7bc4ed10e90d8 -m "baseline 2026-11-26-j: 10-30 a-q segmented-registration landing point d499c19"
+```
+
+## 2026-11-26 series: current latest rollback point upgraded to k (segmented-registration line closure commit 135f3f2, all green)
+
+This round cuts named rollback point `v-baseline-2026-11-26-k` at commit `135f3f2e797c80d7944d04ae259d5b4d698c2594`, pinning the *segmented-registration line closure* ledger rollback point: that commit adds a zh/en CHANGELOG [Unreleased] Changed note that a data-driven scan showed the only unregistered baseline-tag dates are `2026-10-31` (not a-start, multi-letter ctx out-of-order) and `2026-11-02` (lone letter f) -- both structurally inapplicable to a contiguity window (criterion: a-start + no multi-letter + fully-adjacent-contiguous + run>=2, all four required), so the 7 registered dates (`2026-10-30` / `2026-11-21~26`) are the terminal set of window-OFF structurally-applicable candidates; the line is closed as saturated with no candidate left. Pure-doc (CHANGELOG + this ledger); the full suite at this HEAD is ALL GREEN incl. post-green (post-green checks out the latest tag and re-verifies VERDICT: WORKING ROLLBACK POINT). This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i/j.
+Verified: the `ledger_tag_parity` gate is ALL GREEN; full suite ALL GREEN incl. post-green; the ledger tag-by-tag registration history, the overview and the tag history are all consistent.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-k | `135f3f2e797c80d7944d04ae259d5b4d698c2594` | segmented-registration line closure commit: CHANGELOG [Unreleased] zh/en note 'window-OFF structurally-applicable legacy dates saturated' (10-31 not a-start with multi-letter ctx, 11-02 lone f, both inapplicable); pure-doc; full incl. post-green ALL GREEN; local tag, pushed per convention |
+
+**Already on remote?**: this round first pushed origin main so HEAD advanced to this closure commit, confirmed 0 0, then separately `git push origin v-baseline-2026-11-26-k` (below); remote peel == `135f3f2e797c80d7944d04ae259d5b4d698c2594` matching the ledger declaration.
+
+### Rebuild commands (to restore named rollback point k)
+
+```bat
+git tag -a v-baseline-2026-11-26-k 135f3f2e797c80d7944d04ae259d5b4d698c2594 -m "baseline 2026-11-26-k: segmented-registration line closure commit 135f3f2"
 ```
 
