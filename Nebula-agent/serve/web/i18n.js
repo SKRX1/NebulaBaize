@@ -791,6 +791,8 @@
       "ws.persona": "人设 / 系统提示（本工作区，可选）",
       "ws.persona.ph": "例如：你是一名资深后端工程师，回答要简洁、优先给可运行代码",
       "cancel": "取消",
+      "confirm.title": "确认操作",
+      "common.ok": "确定",
 
       /* ── Schedule modal ── */
       "sched.title": "新建定时任务",
@@ -2217,6 +2219,8 @@
       "ws.persona": "Persona / system prompt (this workspace, optional)",
       "ws.persona.ph": "e.g. You are a senior backend engineer: be concise, prefer runnable code",
       "cancel": "Cancel",
+      "confirm.title": "Confirm",
+      "common.ok": "OK",
 
       /* ── Schedule modal ── */
       "sched.title": "New schedule",

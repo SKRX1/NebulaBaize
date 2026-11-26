@@ -11405,11 +11405,66 @@ function openCtxMenu(x, y, items) {
   msgCtxMenu.style.top = Math.min(y, innerHeight - r.height - 8) + "px";
 }
 
-function deleteMessage(i) {
+// 2026-11-26 (confirm-box upgrade, progressive step 1): async, centered, accessible
+// replacement for the native window.confirm. The native box is blocked, TOP-anchored,
+// unstyleable, and under an IP origin it shows a raw "127.0.0.1:8099 显示" title -- none of
+// which CSS can fix. This builds a DOM modal on the SAME .st-modal / .st-modal__card base the
+// rest of the app already uses, so it is centered (the base carries margin:auto) and visually
+// consistent, and it is promise-based:  await askConfirm(msg) -> boolean. One reusable helper
+// so the other confirm() sites can migrate onto it incrementally without rebuilding the box.
+function askConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "st-modal";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    const titleId = "ask-confirm-title";
+    overlay.setAttribute("aria-labelledby", titleId);
+    const card = document.createElement("div");
+    card.className = "st-modal__card";
+    card.style.maxWidth = "min(420px, 92vw)";
+    const head = document.createElement("div");
+    head.className = "st-modal__head";
+    const ttl = document.createElement("span");
+    ttl.id = titleId;
+    ttl.textContent = opts.title || t("confirm.title");
+    head.appendChild(ttl);
+    const desc = document.createElement("div");
+    desc.textContent = message;
+    const actions = document.createElement("div");
+    actions.className = "st-modal__actions";
+    const spacer = document.createElement("span");
+    spacer.className = "spacer";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "st-btn st-btn--ghost st-btn--sm";
+    cancel.textContent = opts.cancelText || t("cancel");
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "st-btn st-btn--primary st-btn--sm";
+    ok.textContent = opts.okText || t("common.ok");
+    actions.append(spacer, cancel, ok);
+    card.append(head, desc, actions);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    const close = (val) => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      resolve(val);
+    };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); close(false); } };
+    cancel.onclick = () => close(false);
+    ok.onclick = () => close(true);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
+    document.addEventListener("keydown", onKey);
+    ok.focus();
+  });
+}
+
+async function deleteMessage(i) {
   if (busy && busy.msg === messages[i]) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
-  if (typeof window.confirm === "function") {
-    try { if (!window.confirm(t("ctx.delete.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
-  }
+  if (!(await askConfirm(t("ctx.delete.confirm")))) return;
   const removed = messages[i];
   messages.splice(i, 1);
   saveChat();
