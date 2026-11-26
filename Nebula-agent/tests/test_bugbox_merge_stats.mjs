@@ -13,6 +13,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { clickConfirm, rejectConfirm, stubTrue, stubFalse } from "./_ask_confirm_helper.mjs";
 
 const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
@@ -154,15 +155,18 @@ check("C2. control: distinct signatures stay THREE rows", box().length === 3, "s
     { ts: 61, kind: "bug:x", status: "fixing", sig: "S2", msg: "two", stack: "" },
     { ts: 62, kind: "bug:x", status: "verified", sig: "S3", msg: "three", stack: "" },
   ]);
-  win.confirm = () => true;            // stub native confirm (jsdom native returns undefined)
+  // 2026-11-26 migrated to askConfirm: the native stub is gone; drive the delete through the centered box (click OK / Cancel) instead.
   win.__lastToastAction = null;
-  api._bugboxClearAll();
+  const pE1 = api._bugboxClearAll();   // async: opens the box, resumes after the click
+  await clickConfirm(win);             // click OK on the centered confirm box
+  await pE1;
   check("E1. clear all empties the box (3 -> 0)", box().length === 0, "stored=" + box().length);
   if (win.__lastToastAction && win.__lastToastAction.run) win.__lastToastAction.run();   // user clicks Undo in the toast
   check("E1. undo restores all 3 entries", box().length === 3, "stored=" + box().length);
   // E2 control: declined confirm must NOT clear
-  win.confirm = () => false;
-  api._bugboxClearAll();
+  const pE2 = api._bugboxClearAll();
+  await rejectConfirm(win);            // click Cancel on the centered confirm box
+  await pE2;
   check("E2. control: declined confirm keeps all 3 entries", box().length === 3, "stored=" + box().length);
 }
 

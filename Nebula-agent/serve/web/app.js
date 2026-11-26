@@ -6576,10 +6576,8 @@ async function drainSparkQueue() {
   toast("success", t("spark.sent.toast"));
 }
 
-function deleteSpark(id) {
-  if (typeof window.confirm === "function") {
-    try { if (!window.confirm(t("spark.del.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
-  }
+async function deleteSpark(id) {
+  if (!(await askConfirm(t("spark.del.confirm")))) return;
   sparkSel.delete(id);
   setSparks(getSparks().filter((x) => x.id !== id));
   renderSpark();
@@ -6698,10 +6696,8 @@ function clearDoneSparks() {
   renderSpark();
 }
 
-function clearAllSparks() {
-  if (typeof window.confirm === "function") {
-    try { if (!window.confirm(t("spark.clear.all.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
-  }
+async function clearAllSparks() {
+  if (!(await askConfirm(t("spark.clear.all.confirm")))) return;
   setSparks(getSparks().filter((s) => s.archived));   // keep memory-promoted items alive
   sparkSel.clear();
   renderSpark();
@@ -9666,10 +9662,9 @@ function renderWsPersonaCount() {
   if (!ta || !el) return;
   paintPersonaCount(ta.value || "", el);
 }
-function personaRestoreDefault() {
+async function personaRestoreDefault() {
   const msg = t("drawer.persona.restore.confirm");
-  let ok = false;
-  try { ok = window.confirm(msg); } catch (e) { ok = confirm(msg); }
+  let ok = await askConfirm(msg);
   if (!ok) return;
   $("s-persona").value = DEFAULTS.persona || "";
   if ($("persona-preset")) $("persona-preset").value = "";
@@ -9706,12 +9701,11 @@ function personaSavePreset() {
   if ($("persona-preset")) $("persona-preset").value = name;
   toast("success", t("drawer.persona.preset.saved").replace("{n}", name), "");
 }
-function personaDelPreset() {
+async function personaDelPreset() {
   const sel = $("persona-preset"); if (!sel || !sel.value || sel.value === "__factory__") return;
   const name = sel.value;
   const msg = t("drawer.persona.preset.del.confirm").replace("{n}", name);
-  let ok = false;
-  try { ok = window.confirm(msg); } catch (e) { ok = confirm(msg); }
+  let ok = await askConfirm(msg);
   if (!ok) return;
   settings.personaPresets = personaPresets().filter(function (pt) { return pt.name !== name; });
   renderPersonaPresets();
@@ -9951,12 +9945,10 @@ function _bugboxMergeDups() {
   toast("success", t("debug.bugbox.mergedup"), t("debug.bugbox.mergedup.done", { n: saved }));
 }
 
-function _bugboxClearAll() {
+async function _bugboxClearAll() {
   const all = bugBoxEntries();
   if (!all.length) { toast("info", t("debug.bugbox.clearall"), t("debug.bugbox.empty")); return; }
-  if (typeof window.confirm === "function") {
-    try { if (!window.confirm(t("debug.bugbox.clearall.confirm", {n: all.length}))) return; } catch (e) { /* jsdom: ignore */ }
-  }
+  if (!(await askConfirm(t("debug.bugbox.clearall.confirm", {n: all.length})))) return;
   const backup = all.slice();
   bugBoxSave([]);
   renderBugBox();
@@ -10653,22 +10645,13 @@ async function galleryAction(act){
 // [删除增强 2026-11-15] batch delete: the summary box (the checkbox DEFAULT-checked, per the
 // ratification — every box opens checked, no memory). Single deletes keep window.confirm so
 // the G-locks stay byte-intact. The batch bar only exists while the set is non-empty.
-async function galleryConfirmDelete(items){   // [方案A 2026-11-16] the SHARED confirm box (single n=1 AND batch). Returns {confirmed, trash}. cancel -> confirmed=false (nothing deletes). The box opens DEFAULT-CHECKED (the locked fact: files follow).
-  const box = document.createElement("div"); box.className = "img-gallery__batchconfirm";
-  box.setAttribute("data-testid", "batch-confirm");
-  const msg = document.createElement("div"); msg.textContent = t("img.gallery.batch.confirm").replace("{n}", String(items.length));
-  const lab = document.createElement("label"); lab.className = "img-gallery__batchcheck";   // [删除增强] the default-checked box (decoy-locked)
-  const ck = document.createElement("input"); ck.type = "checkbox"; ck.checked = true; ck.setAttribute("data-testid", "batch-check");   // DEFAULT-CHECKED — the locked fact
-  lab.append(ck, document.createTextNode(t("img.gallery.batch.alsoFile")));
-  const row = document.createElement("div"); row.className = "st-btnrow";
-  const ok = document.createElement("button"); ok.type = "button"; ok.className = "st-btn st-btn--primary st-btn--sm"; ok.textContent = t("img.gallery.batch.ok");
-  const no = document.createElement("button"); no.type = "button"; no.className = "st-btn st-btn--ghost st-btn--sm"; no.textContent = t("cancel");
-  row.append(ok, no); box.append(msg, lab, row);
-  const host = $("img-gallery"); host.append(box);   // in place: jsdom-friendly, no modal plumbing
-  await new Promise((res) => { ok.onclick = res; no.onclick = () => { box.__cancelled = true; res(); }; });   // cancel = the box leaves and NOTHING deletes
-  const confirmed = !box.__cancelled;
-  box.remove();
-  return { confirmed, trash: confirmed && ck.checked };
+async function galleryConfirmDelete(items){   // 2026-11-26 the SHARED box now rides the generic askConfirm (the box, the DEFAULT-CHECKED box and the cancel-leave contract all live in ONE reusable helper). Returns {confirmed, trash}: cancel -> confirmed=false; OK with the tick (the default) -> {confirmed:true, trash:true} (files follow to the Recycle Bin); OK unticked -> {confirmed:true, trash:false} (index-only). The data-testid anchors (batch-confirm / batch-check) are kept so the batch gate still locates them.
+  const r = await askConfirm(t("img.gallery.batch.confirm").replace("{n}", String(items.length)), {
+    testid: "batch-confirm",
+    okText: t("img.gallery.batch.ok"),
+    checkbox: { label: t("img.gallery.batch.alsoFile"), checked: true, testid: "batch-check" },
+  });
+  return { confirmed: !!r.confirmed, trash: !!r.confirmed && !!r.checked };
 }
 async function galleryBatchDelete(){
   const items = [...gallerySelSet];   // identity refs: entries AND live rows
@@ -11421,6 +11404,7 @@ function askConfirm(message, opts) {
     overlay.setAttribute("aria-modal", "true");
     const titleId = "ask-confirm-title";
     overlay.setAttribute("aria-labelledby", titleId);
+    if (opts.testid) overlay.setAttribute("data-testid", opts.testid);
     const card = document.createElement("div");
     card.className = "st-modal__card";
     card.style.maxWidth = "min(420px, 92vw)";
@@ -11432,6 +11416,16 @@ function askConfirm(message, opts) {
     head.appendChild(ttl);
     const desc = document.createElement("div");
     desc.textContent = message;
+    let box = null;
+    if (opts.checkbox) {
+      const lab = document.createElement("label");
+      lab.className = "ask-confirm__check";
+      box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = opts.checkbox.checked !== false;   // DEFAULT-CHECKED unless opted out
+      box.setAttribute("data-testid", opts.checkbox.testid || "ask-confirm-check");
+      lab.append(box, document.createTextNode(opts.checkbox.label));
+    }
     const actions = document.createElement("div");
     actions.className = "st-modal__actions";
     const spacer = document.createElement("span");
@@ -11445,18 +11439,21 @@ function askConfirm(message, opts) {
     ok.className = "st-btn st-btn--primary st-btn--sm";
     ok.textContent = opts.okText || t("common.ok");
     actions.append(spacer, cancel, ok);
-    card.append(head, desc, actions);
+    card.append(head, desc); if (box) card.appendChild(box); card.append(actions);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-    const close = (val) => {
+    // emit() honors the checkbox contract: no checkbox -> resolve(bool), the
+    // legacy deleteMessage + gate stay untouched; with a checkbox -> resolve
+    // { confirmed, checked } so the "also delete files" callers read the tick.
+    const emit = (confirmed) => {
       document.removeEventListener("keydown", onKey);
       overlay.remove();
-      resolve(val);
+      resolve(box ? { confirmed, checked: box.checked } : confirmed);
     };
-    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); close(false); } };
-    cancel.onclick = () => close(false);
-    ok.onclick = () => close(true);
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); emit(false); } };
+    cancel.onclick = () => emit(false);
+    ok.onclick = () => emit(true);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) emit(false); });
     document.addEventListener("keydown", onKey);
     ok.focus();
   });

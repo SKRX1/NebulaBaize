@@ -18,6 +18,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { clickConfirm } from "./_ask_confirm_helper.mjs";
 
 const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
@@ -154,12 +155,14 @@ const main = async () => {
   //    (marked "Sent"), so after deleting the pending one we expect 1 item, badge cleared.
   check("one pending spark remains before delete", doc.querySelectorAll("#spark-list .spark-exec").length === 1);
   const pendingItem = [...doc.querySelectorAll("#spark-list .spark-item")].find((el) => el.querySelector(".spark-exec"));
-  pendingItem.querySelector(".spark-del").click();
+  pendingItem.querySelector(".spark-del").click();   // async deleteSpark -> opens the box
+  await clickConfirm(win);                           // 2026-11-26 confirm through the centered box
   check("pending spark deleted (exec button gone)", doc.querySelectorAll("#spark-list .spark-exec").length === 0);
   check("sent spark still listed", sparkCount() === 1, `count=${sparkCount()}`);
   check("badge cleared (sent not counted)", $("#spark-tab-badge").hidden === true);
   // delete the sent one too → list empty
-  doc.querySelector("#spark-list .spark-item .spark-del").click();
+  doc.querySelector("#spark-list .spark-item .spark-del").click();   // async
+  await clickConfirm(win);                                            // 2026-11-26 confirm through the box
   check("all sparks removed → empty", sparkCount() === 0, `count=${sparkCount()}`);
   check("badge hidden when empty", $("#spark-tab-badge").hidden === true);
 

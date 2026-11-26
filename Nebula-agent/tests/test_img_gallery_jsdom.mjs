@@ -162,14 +162,14 @@ console.log("\n=== G. [方案A 2026-11-16] single delete shares the in-place box
   await tick();
   check("G1a the single-delete del click opens the in-place box (NOT a native confirm)", !!boxOf());
   check("G1b THE DEFAULT: the box opens CHECKED (the file follows — the locked fact)", !!boxChk() && boxChk().checked === true);
-  boxBtns()[1].click();   // cancel
+  boxBtns().find((b) => b.className.includes("st-btn--ghost")).click();   // cancel (2026-11-26 generic askConfirm box: [cancel=ghost, OK=primary], NOT positional)
   await tick();
   check("G1c box CANCEL keeps the entry and fires NO fetch (index still 1)", api.galleryMem().length === 1 && !boxOf() && api.__recycled().length === 0);
 
   delClick();
   await tick();
   check("G2a the box reopened for the confirmed delete", !!boxOf());
-  boxBtns()[0].click();   // OK (box still default-checked)
+  boxBtns().find((b) => b.className.includes("st-btn--primary")).click();   // OK via the primary class (NOT index 0 anymore)
   await tick(120);
   check("G2b the recycle fetch fired ONCE for exactly this file (default-check is load-bearing)", api.__recycled().length === 1 && api.__recycled()[0].paths.length === 1);
   check("G2c the entry left the authoritative list (empty = real intent, NOT the old value)", api.galleryMem().length === 0 && api.gallerySel() === -1);
@@ -240,7 +240,7 @@ console.log("\n=== J. [ws-空修复 2026-11-16] EMPTY workspace + url-shape path
   await tick();
   const box = win.document.querySelector('[data-testid="batch-confirm"]');
   check("J1 the box opens default-CHECKED even on a workspace-less session", !!box && box.querySelector('[data-testid="batch-check"]').checked === true);
-  box.querySelectorAll("button")[0].click();   // OK (default checked)
+  box.querySelector("button.st-btn--primary").click();   // OK via the primary class (2026-11-26 generic box)
   await tick(120);
   check("J2 THE FIX: a workspace-EMPTY url-shape delete STILL fires /api/recycle (was silently swallowed)", api.__recycled().length === recBefore + 1);
   check("J3 the fired fetch carried the url-shape path (the backend maps it to the install root)", api.__recycled()[recBefore].paths.length === 1 && api.__recycled()[recBefore].paths[0].startsWith("/data/generated/images/"));

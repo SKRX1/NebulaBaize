@@ -28,7 +28,7 @@ const css = fs.readFileSync(path.join(WEB, "app.css"), "utf8");
 console.log("\n=== A. static locks ===");
 check("S1 the batch bar + summary box css exist", css.includes(".img-gallery__batchbar{") && css.includes(".img-gallery__batchconfirm{"));
 check("S2 the set is INDEPENDENT of gallerySel (the single-select gates stay byte-intact)", /const gallerySelSet = new Set\(\);/.test(appCode));
-check("S3 the default-checked fact is exactly one line (the decoy hits it)", appCode.split("\n").filter((l) => l.includes('ck.checked = true; ck.setAttribute("data-testid", "batch-check")')).length === 1);
+check("S3 the DEFAULT-CHECKED fact survives the askConfirm delegation: the gallery call declares checked:true AND the generic helper defaults the tick ON (opts.checkbox.checked !== false)", appCode.includes('checked: true, testid: "batch-check"') && appCode.includes("box.checked = opts.checkbox.checked !== false"));
 check("S4 [方案A 2026-11-16 融合追加] single + batch share ONE confirm component AND one ENTRY: the batch bar lost its own delete button (appCode has no batch.del call), galleryAction routes a non-empty set to galleryBatchDelete, and the single-delete native window.confirm stays REMOVED", /async function galleryConfirmDelete\(items\)/.test(appCode) && !/window\.confirm\(t\("img\.gallery\.confirm\.del"\)/.test(appCode) && !/t\("img\.gallery\.batch\.del"\)/.test(appCode) && /if \(act === "del" && gallerySelSet\.size\) \{ await galleryBatchDelete\(\); return; \}/.test(appCode) && !/bar\.append\(cnt, fav, del/.test(appCode));
 check("S5 the saved-cells batch counter is a SEPARATE var (the `i`-pollution regression lock): the loop keeps `i` a pure index and never appends a class to it", /const batchCls = gallerySelSet\.has\(x\)/.test(appCode) && !/className[^;]*\+\s*i\b/.test(appCode));
 check("S6 [成员视觉契约 2026-11-16] member cells paint a tick box in the DEFAULT mode: BOTH render gates are mode-OR-membership (exactly two), the MEMBER outline takes --st-info (split from the focus accent), and the FOCUS cell grows an ::after dot", appCode.split("\n").filter((l) => l.includes("if (galleryMultiSel || gallerySelSet.has(")).length === 2 && css.includes(".img-gallery__cell--selset{outline:2px solid var(--st-info)") && css.includes(".img-gallery__cell--sel::after{"));
@@ -105,7 +105,7 @@ check("B3a the summary box opened", !!box);
 const ck = box && box.querySelector('[data-testid="batch-check"]');
 check("B3b THE DEFAULT: the box opens CHECKED (files follow)", !!ck && ck.checked === true);
 check("B3c the box message counts the whole selection", !!box && box.textContent.includes("3"));
-box.querySelectorAll("button")[0].click();   // ok
+box.querySelector("button.st-btn--primary").click();   // ok (2026-11-26 generic box: cancel-then-OK, click by the primary class not index 0)
 await tick(120);
 check("B3d the recycle fetch fired once for exactly the 3 selected files", RECYCLED.length === 1, "n=" + RECYCLED.length);
 check("B3e the payload carries the workspace + the 3 generated paths", RECYCLED[0] && RECYCLED[0].workspace === "wsX" && RECYCLED[0].paths.length === 3);
@@ -125,7 +125,7 @@ console.log("\n=== B4 decoy differential: box UNCHECKED -> index-only removal, N
   const ck2 = box2 && box2.querySelector('[data-testid="batch-check"]');
   check("B4b the box opens checked (the locked default)", !!ck2 && ck2.checked === true);
   ck2.checked = false;   // the user un-ticks: the files stay in the folder
-  box2.querySelectorAll("button")[0].click();
+  box2.querySelector("button.st-btn--primary").click();   // 2026-11-26 click the primary, not index 0
   await tick(120);
   check("B4c NO recycle fetch fired when un-checked (decoy proves B3 is load-bearing)", env2.RECYCLED.length === 0);
   check("B4d both entries left the index — empty = real intent, the A5 family (3-2=1 left)", api2.galleryMem().length === 1 && api2.gallerySelSet().size === 0);
