@@ -773,3 +773,50 @@ Verified: the `ledger_tag_parity` gate is ALL GREEN (the 11-21 window flips from
 git tag -a v-baseline-2026-11-26-i de5b1ac876441b764a44fbc34f5edfa4218a153a -m "baseline 2026-11-26-i: 11-21 segmented-registration POC landing point de5b1ac"
 ```
 
+## 2026-10-30 series (segmented-registration POC: a-q): register the surviving real contiguous run a-q; 10-30 is the only structurally-applicable old date
+
+This section is the second segmented-registration POC sample (following 11-21 j-k). The three-old-date profile measurement: 10-30 has real single-letter tags a-q in git (fully contiguous, no multi-letter suffix, no out-of-order), making it the only one of the three old dates (10-30/10-31/11-02) structurally applicable to a contiguity window -- 10-31 contains the multi-letter ctx and is out-of-order (window not applicable), 11-02 has only the single letter f (window degenerates to a point). So this round registers only 10-30's surviving real contiguous run a-q in canonical backticked form, flipping that date's gate-registered letters from empty (window OFF) to {a..q} (window [a..q]). The window locks only the real contiguous run a..q; all a-q really exist in git (each verified by `git rev-list -n1`, `git merge-base --is-ancestor` anc=0), exist fully covers the window, so there is no false in-window gap. This section proves segmented registration can safely widen the window for a structurally-applicable old date.
+
+| tag | points to commit (40-hex) | day semantics |
+|---|---|---|
+| v-baseline-2026-10-30-a | `216d745505a9e3e3897ddb87fa0172e07abc91ef` | fix(chip): paste chip carries contenteditable=false (atomic-attribute fix) |
+| v-baseline-2026-10-30-b | `c403c68b370728597cf5821c2e96a6151b7b06b6` | fix(css): .ce-input border repointed to real token --st-line |
+| v-baseline-2026-10-30-c | `cc5571ece2ce0fe3a49fd7162fad739714db5814` | fix(modal+css): edit-modal autosize runs after un-hide; drop focus green-border |
+| v-baseline-2026-10-30-d | `de4f5217ad5010f1844cd95ad4da62f02807653c` | revert(css): restore shared .ce-input focus green-border (covers composer + edit-area) |
+| v-baseline-2026-10-30-e | `406abfb56871843bf29ebc54666135c9d7d00832` | feat(modal): edit-modal no mask-close + draggable title-bar handle + viewer z-index 80 |
+| v-baseline-2026-10-30-f | `bb7ffb8dd159996a28d9a62430d0956d9f35bf32` | docs(readme): advance gate anchor -d to -e (pins real-green commit 406abfb) |
+| v-baseline-2026-10-30-g | `836e59b80740831d06cb025741c85a9eebf92681` | polish(modal): edit-modal drag bar tuned (head bar 16px / min-height 28px) |
+| v-baseline-2026-10-30-h | `51fa971961635e769551e768939553eae75fbc73` | chore(gitignore): ignore recycle one-shot tools + .strata-recycle runtime dir |
+| v-baseline-2026-10-30-i | `e3ac0cfe6242fcf2ab60ec0e4eea5e6232f8d949` | chore(debug-tab): show sidebar on debug tab too |
+| v-baseline-2026-10-30-j | `2a4ba37ff84ef6684b6c04002fd8947f99e94fb7` | perf(recycle): batched PowerShell trash (batch 10 x 4 procs sweet spot) |
+| v-baseline-2026-10-30-k | `019722ad6abbc820e9619760aeb579ad8bb8a15e` | feat(recycle): select-all count line shows summed size; three-state selall |
+| v-baseline-2026-10-30-l | `046ba3d34d6d92457dcd2cc7a1274467a0e9ef7e` | feat(memory+debug): persist item-level expand/collapse across refresh/restart |
+| v-baseline-2026-10-30-m | `4591c4ee176a1d8ca87d132aa4ee4b039d948fb8` | test: e2e gate for expand persistence (real boot -> localStorage -> restore) |
+| v-baseline-2026-10-30-n | `66d3bb267d1b2b25147d3697ab9ce69d32fb6078` | test: nav-tabs-level static+jsdom gate (8 tabs + 8 panels aria pairing bijection) |
+| v-baseline-2026-10-30-o | `c3496c5147416796a6c91319c00d5292c2aea074` | chore(rules): nav-tabs-level gate jsdom-parse rule |
+| v-baseline-2026-10-30-p | `be58852f2fa9f90442a97ccd43ac38ff71a39520` | feat(hallucination): A+B fence-hallucination guard, both chains covered |
+| v-baseline-2026-10-30-q | `889e457f3830b98a417dc752fd88688d67491650` | chore(config): record websearch STRATA_PROXY env runtime drift (socks5 fallback) |
+
+### Rebuild commands (to restore the 10-30 contiguous run a-q named rollback points)
+
+```bat
+git tag -a v-baseline-2026-10-30-a 216d745505a9e3e3897ddb87fa0172e07abc91ef -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-b c403c68b370728597cf5821c2e96a6151b7b06b6 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-c cc5571ece2ce0fe3a49fd7162fad739714db5814 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-d de4f5217ad5010f1844cd95ad4da62f02807653c -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-e 406abfb56871843bf29ebc54666135c9d7d00832 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-f bb7ffb8dd159996a28d9a62430d0956d9f35bf32 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-g 836e59b80740831d06cb025741c85a9eebf92681 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-h 51fa971961635e769551e768939553eae75fbc73 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-i e3ac0cfe6242fcf2ab60ec0e4eea5e6232f8d949 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-j 2a4ba37ff84ef6684b6c04002fd8947f99e94fb7 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-k 019722ad6abbc820e9619760aeb579ad8bb8a15e -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-l 046ba3d34d6d92457dcd2cc7a1274467a0e9ef7e -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-m 4591c4ee176a1d8ca87d132aa4ee4b039d948fb8 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-n 66d3bb267d1b2b25147d3697ab9ce69d32fb6078 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-o c3496c5147416796a6c91319c00d5292c2aea074 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-p be58852f2fa9f90442a97ccd43ac38ff71a39520 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-q 889e457f3830b98a417dc752fd88688d67491650 -m "10-30 segmented-registration POC a-q"
+```
+
+

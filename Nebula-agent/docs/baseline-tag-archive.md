@@ -973,3 +973,50 @@ git tag -a v-baseline-2026-11-21-k 10f05b731470ca9ad3777f79d25594008bff5e98 -m "
 git tag -a v-baseline-2026-11-26-i de5b1ac876441b764a44fbc34f5edfa4218a153a -m "baseline 2026-11-26-i: 11-21 segmented-registration POC landing point de5b1ac"
 ```
 
+## 2026-10-30 系列（分段登记 POC：a-q）：登记现存真实连续段 a-q，10-30 是三老日期里唯一结构适用日
+
+本节点名做「分段登记」POC 的第二个样本（承 11-21 j-k）。三老日期画像实测：10-30 在 git 里真实存在单字母 tag a-q（连续完整、无多字母后缀、无乱序），是三老日期（10-30/10-31/11-02）里唯一结构适用连续性窗的日期——10-31 含多字母 ctx 且乱序（窗不适用）、11-02 仅单字母 f（窗退化一点）。故本轮只把 10-30 的现存真实连续段 a-q 用规范带反引号格式登记，使门禁该日登记字母从空（窗 OFF）变为 {a..q}（窗 [a..q]）。窗只锁 a..q 这段真实连续区间；a-q 全部在 git 真实存在（逐条 `git rev-list -n1` 实测、`git merge-base --is-ancestor` anc=0），exist 全覆盖窗内，故窗内无假缺。此节证明「分段登记」可对结构适用的老日期安全扩窗。
+
+| tag | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-10-30-a | `216d745505a9e3e3897ddb87fa0172e07abc91ef` | fix(chip): paste chip carries contenteditable=false (atomic-attribute fix) |
+| v-baseline-2026-10-30-b | `c403c68b370728597cf5821c2e96a6151b7b06b6` | fix(css): .ce-input border repointed to real token --st-line |
+| v-baseline-2026-10-30-c | `cc5571ece2ce0fe3a49fd7162fad739714db5814` | fix(modal+css): edit-modal autosize runs after un-hide; drop focus green-border |
+| v-baseline-2026-10-30-d | `de4f5217ad5010f1844cd95ad4da62f02807653c` | revert(css): restore shared .ce-input focus green-border (covers composer + edit-area) |
+| v-baseline-2026-10-30-e | `406abfb56871843bf29ebc54666135c9d7d00832` | feat(modal): edit-modal no mask-close + draggable title-bar handle + viewer z-index 80 |
+| v-baseline-2026-10-30-f | `bb7ffb8dd159996a28d9a62430d0956d9f35bf32` | docs(readme): advance gate anchor -d to -e (pins real-green commit 406abfb) |
+| v-baseline-2026-10-30-g | `836e59b80740831d06cb025741c85a9eebf92681` | polish(modal): edit-modal drag bar tuned (head bar 16px / min-height 28px) |
+| v-baseline-2026-10-30-h | `51fa971961635e769551e768939553eae75fbc73` | chore(gitignore): ignore recycle one-shot tools + .strata-recycle runtime dir |
+| v-baseline-2026-10-30-i | `e3ac0cfe6242fcf2ab60ec0e4eea5e6232f8d949` | chore(debug-tab): show sidebar on debug tab too |
+| v-baseline-2026-10-30-j | `2a4ba37ff84ef6684b6c04002fd8947f99e94fb7` | perf(recycle): batched PowerShell trash (batch 10 x 4 procs sweet spot) |
+| v-baseline-2026-10-30-k | `019722ad6abbc820e9619760aeb579ad8bb8a15e` | feat(recycle): select-all count line shows summed size; three-state selall |
+| v-baseline-2026-10-30-l | `046ba3d34d6d92457dcd2cc7a1274467a0e9ef7e` | feat(memory+debug): persist item-level expand/collapse across refresh/restart |
+| v-baseline-2026-10-30-m | `4591c4ee176a1d8ca87d132aa4ee4b039d948fb8` | test: e2e gate for expand persistence (real boot -> localStorage -> restore) |
+| v-baseline-2026-10-30-n | `66d3bb267d1b2b25147d3697ab9ce69d32fb6078` | test: nav-tabs-level static+jsdom gate (8 tabs + 8 panels aria pairing bijection) |
+| v-baseline-2026-10-30-o | `c3496c5147416796a6c91319c00d5292c2aea074` | chore(rules): nav-tabs-level gate jsdom-parse rule |
+| v-baseline-2026-10-30-p | `be58852f2fa9f90442a97ccd43ac38ff71a39520` | feat(hallucination): A+B fence-hallucination guard, both chains covered |
+| v-baseline-2026-10-30-q | `889e457f3830b98a417dc752fd88688d67491650` | chore(config): record websearch STRATA_PROXY env runtime drift (socks5 fallback) |
+
+### 重建命令（如需恢复 10-30 连续段 a-q 的命名回滚点）
+
+```bat
+git tag -a v-baseline-2026-10-30-a 216d745505a9e3e3897ddb87fa0172e07abc91ef -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-b c403c68b370728597cf5821c2e96a6151b7b06b6 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-c cc5571ece2ce0fe3a49fd7162fad739714db5814 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-d de4f5217ad5010f1844cd95ad4da62f02807653c -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-e 406abfb56871843bf29ebc54666135c9d7d00832 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-f bb7ffb8dd159996a28d9a62430d0956d9f35bf32 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-g 836e59b80740831d06cb025741c85a9eebf92681 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-h 51fa971961635e769551e768939553eae75fbc73 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-i e3ac0cfe6242fcf2ab60ec0e4eea5e6232f8d949 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-j 2a4ba37ff84ef6684b6c04002fd8947f99e94fb7 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-k 019722ad6abbc820e9619760aeb579ad8bb8a15e -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-l 046ba3d34d6d92457dcd2cc7a1274467a0e9ef7e -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-m 4591c4ee176a1d8ca87d132aa4ee4b039d948fb8 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-n 66d3bb267d1b2b25147d3697ab9ce69d32fb6078 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-o c3496c5147416796a6c91319c00d5292c2aea074 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-p be58852f2fa9f90442a97ccd43ac38ff71a39520 -m "10-30 segmented-registration POC a-q"
+git tag -a v-baseline-2026-10-30-q 889e457f3830b98a417dc752fd88688d67491650 -m "10-30 segmented-registration POC a-q"
+```
+
+
