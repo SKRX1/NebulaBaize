@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-d`
-> （commit `62db181122091cc541a5f6e074187b1b0d54e517`，账本速览-c 一致点：账本补登 -c 三要素同步（header/body/list 全升级 -c）且各 -a/-b/-c 节表行 commit == git deref 真值的文档提交（62db181）打命名回滚点 `v-baseline-2026-11-26-d` 锁定该文档一致态；纯文档；main 当时 0 0 同步、本轮 push 单 tag。说明：本轮 tag 在 2026-11-26 真实日期下打，是 11-26 系列第 4 个现存标号（续 a/b/c 之后），此前被清理的旧 d/e 超前标号与本 tag 不同 commit、已不存在）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-d）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-26-f`
+> （commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`，焦点陷阱 + B5 无障碍门禁原子回滚点：c1680a0（app.js 原生 confirm 全量迁入 askConfirm + 打开记住 opener / Tab·Shift+Tab 锁框内 / 关闭还原焦点 WCAG 2.4.3 + test_ask_confirm_jsdom.mjs B5 块「Tab 锁框内」「关闭 activeElement===opener」门禁）；功能代码与其回归测试 amend 原子同 commit；全套 --full ALL GREEN（RC=0 无 flaky）。说明：本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d 之后，是焦点陷阱功能点 c1680a0 的原子回滚点）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/f … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-f）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -789,4 +789,21 @@ git tag -a v-baseline-2026-11-26-c 22c6ef4e5c963de7af65af40465cbdedf5239ae0 -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-d 62db181122091cc541a5f6e074187b1b0d54e517 -m "baseline: lock ledger-speed-view -c parity at 62db181 (archive zh+en speed-view header/body/list all upgraded to -c; each -a/-b/-c section table-row commit == git deref truth; data-driven parity recheck PARITY OK; doc-only)"
+```
+
+## 2026-11-26 系列：当前最新回滚点升级到 f（焦点陷阱 + B5 无障碍门禁原子回滚点 c1680a0，全套绿）
+
+本轮在 commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f` 打命名回滚点 `v-baseline-2026-11-26-f`，锁定「原生 confirm 全量迁入 askConfirm + 焦点陷阱（记住 opener / Tab·Shift+Tab 锁框内 / 关闭还原焦点）+ B5 jsdom 无障碍门禁」的功能原子点；全套 --full 回归 ALL GREEN（RC=0 无 flaky）。功能代码与其回归测试 amend 在同一 commit，回滚点原子。
+本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d 之后（账本现存登记最新到 d；本轮据实只补 -f 节，-e 的登记属别线未补范围）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-f | `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f` | 焦点陷阱 + B5 无障碍门禁原子点：c1680a0（askConfirm 焦点陷阱 + test_ask_confirm_jsdom.mjs B5 Tab 锁框内/关闭还原 opener）；--full ALL GREEN |
+
+**是否已在远端**：已在远端（本轮 push origin main 后单独 `git push origin v-baseline-2026-11-26-f` 推到远端，main 0 0 同步，ls-remote peel == `c1680a0`）。
+
+### 重建命令（如需恢复命名回滚点 f）
+
+```bat
+git tag -a v-baseline-2026-11-26-f c1680a0271c5ba8fe1a97c5d807d8185a0baa24f -m "baseline: askConfirm focus-trap + B5 a11y gate (atomic, all-green)"
 ```

@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-d`
-> (commit `62db181122091cc541a5f6e074187b1b0d54e517`, the ledger speed-view -c parity point: named rollback point `v-baseline-2026-11-26-d` locks the doc-consistency state where the archive speed-view header/body/list were all upgraded to -c and every -a/-b/-c section table-row commit equals the git deref truth (doc commit 62db181); doc-only; main in 0 0 sync at the time, single-push of this tag. Note: the tag was cut under the true date 2026-11-26, the 4th surviving 11-26 number (continuing after a/b/c); the previously cleaned-up old d/e superseded numbers point to different commits and no longer exist).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-d) section wins.
+> The current latest rollback point is `v-baseline-2026-11-26-f`
+> (commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`, the atomic rollback point of the askConfirm focus-trap + B5 a11y gate: c1680a0 (app.js native confirm fully migrated to askConfirm + remembers opener on open / Tab and Shift+Tab kept inside the dialog / focus restored to opener on close, WCAG 2.4.3 + the B5 block in test_ask_confirm_jsdom.mjs asserting Tab-stays-inside and activeElement===opener after close); feature code and its regression lock amended into one atomic commit; full --full regression ALL GREEN (RC=0, no flaky). Note: the tag was cut under the true date 2026-11-26, continuing after a/b/c/d as the atomic rollback point of feature commit c1680a0).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/f … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-f) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -589,4 +589,21 @@ This tag was created under the true date 2026-11-26, the 4th surviving 11-26 num
 
 ```bat
 git tag -a v-baseline-2026-11-26-d 62db181122091cc541a5f6e074187b1b0d54e517 -m "baseline: lock ledger-speed-view -c parity at 62db181 (archive zh+en speed-view header/body/list all upgraded to -c; each -a/-b/-c section table-row commit == git deref truth; data-driven parity recheck PARITY OK; doc-only)"
+```
+
+## 2026-11-26 series: current latest rollback point upgraded to f (askConfirm focus-trap + B5 a11y gate atomic point c1680a0, all-green)
+
+This round cut the named rollback point `v-baseline-2026-11-26-f` at commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`, locking the atomic feature point of "native confirm fully migrated to askConfirm + focus trap (remembers opener / Tab and Shift+Tab kept inside the dialog / focus restored on close) + B5 jsdom a11y gate"; the full --full regression was ALL GREEN (RC=0, no flaky). Feature code and its regression lock were amended into a single commit, so the rollback point is atomic.
+The tag was cut under the true date 2026-11-26, continuing after a/b/c/d (the ledger's existing newest registered entry was d; this round only appends the -f section).
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-f | `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f` | focus-trap + B5 a11y gate atomic point: c1680a0 (askConfirm focus trap + test_ask_confirm_jsdom.mjs B5 Tab-stays-inside / close-restore-opener); --full ALL GREEN |
+
+**On the remote**: this round pushed origin main then single-pushed `git push origin v-baseline-2026-11-26-f`; main in 0 0 sync, ls-remote peel == `c1680a0`.
+
+### Rebuild command (to restore named rollback point f)
+
+```bat
+git tag -a v-baseline-2026-11-26-f c1680a0271c5ba8fe1a97c5d807d8185a0baa24f -m "baseline: askConfirm focus-trap + B5 a11y gate (atomic, all-green)"
 ```
