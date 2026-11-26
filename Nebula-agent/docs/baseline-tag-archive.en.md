@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-26-l`
-> (commit `15225792ec3504a6cfaabd1661d1df1062e6362a`, the cross-line memory-rules landing (chore rules): RULES.md +2 entries -- pure-stdlib gate split into unit-testable run_checks + IO-only main mirroring the secret_scan triad; a CI gate needing all tags/commits must set actions/checkout fetch-depth:0 + git fetch --tags --force else deref/continuity check is blind. Pure-doc (memory rules); full incl. post-green ALL GREEN at this HEAD. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i/j/k.)
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
+> Current latest rollback point = `v-baseline-2026-11-27-b`
+> (commit `843f8ce9c74c880c918513fbb063ada86326e2f4`, codifying how changes take effect: CONTRIBUTING 3.5 (zh+en) a three-process take-effect matrix + backend-modularization (zh+en) a "process boundary" section stating `_reload_executor` re-spawns only the `servers/` children and never touches the gateway's own already-imported `runtime/`+`serve/`, cross-referencing the frontend gate `tests/test_mcp_reload_jsdom.mjs` as mutual corroboration (plan A stance: volatile logic first as an MCP tool under `servers/` so it reloads without a restart). Pure-doc; numstat == --ignore-cr-at-eol, zero line-ending churn. This tag is cut under the real 2026-11-27 date, after that day's a.)
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-27-b) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -871,3 +871,20 @@ Verified: the `ledger_tag_parity` gate is ALL GREEN; full suite ALL GREEN incl. 
 git tag -a v-baseline-2026-11-26-l 15225792ec3504a6cfaabd1661d1df1062e6362a -m "baseline 2026-11-26-l: cross-line memory-rules landing commit 1522579"
 ```
 
+
+## 2026-11-27 series: current latest rollback point upgraded to b (codifying how-changes-take-effect doc commit 843f8ce, doc-only)
+
+This round cuts named rollback point `v-baseline-2026-11-27-b` at commit `843f8ce9c74c880c918513fbb063ada86326e2f4`, pinning the *codifying-how-changes-take-effect* ledger rollback point: that commit turns the ratified plan-A contribution stance into documentation -- (1) `CONTRIBUTING.md` + `CONTRIBUTING.en.md` each add `### 3.5 How changes take effect`, a three-process matrix: frontend `serve/web/*` = hard browser refresh suffices / MCP subprocesses `servers/*.py` or the mcp-json env-args = click reload-children (`_reload_executor`) no restart / back-end gateway process `runtime/*.py`+`serve/*.py` new routes/new logic = must restart 8099; (2) `backend-modularization.md` + `.en.md` each add a "process boundary" section stating that `_reload_executor` in `runtime/http_server.py` re-reads the mcp json + re-spawns every `servers/` child and `stop_all()`s the old ones, **never touching the gateway's own already-imported `runtime/` and `serve/` code**, cross-referencing the frontend gate `tests/test_mcp_reload_jsdom.mjs` (jsdom boots app.js and proves reload POSTs only `api/servers/reload` and does not navigate on success) as mutual corroboration. Pure-doc; 4 files, 48 insertions, numstat == --ignore-cr-at-eol (zero line-ending churn). This tag is cut under the real 2026-11-27 date, after that day's a.
+Verified: `node --check` / doc gates pass immediately after the edit; per-file numstat equals --ignore-cr-at-eol confirming zero line-ending churn; tag deref == `843f8ce`.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-27-b | `843f8ce9c74c880c918513fbb063ada86326e2f4` | codify-how-changes-take-effect doc commit (docs ops): CONTRIBUTING 3.5 (zh+en) three-process matrix + backend-modularization (zh+en) "process boundary" section (_reload_executor swaps only the servers/ children, never the gateway's own runtime/serve) + cross-ref frontend gate test_mcp_reload_jsdom.mjs; pure-doc; numstat == --ignore-cr-at-eol zero churn; local tag, pushed as a single tag after this round's push origin main |
+
+**Already on remote?**: this round first pushed origin main so HEAD advanced to this backfill commit (containing 843f8ce), confirmed 0 0, then separately `git push origin v-baseline-2026-11-27-b`; remote peel == `843f8ce9c74c880c918513fbb063ada86326e2f4` matching the ledger declaration.
+
+### Rebuild command (to restore named rollback point b)
+
+```bat
+git tag -a v-baseline-2026-11-27-b 843f8ce9c74c880c918513fbb063ada86326e2f4 -m "baseline 2026-11-27-b: reload gate + proxy boot-check + docs (CONTRIBUTING 3.5 / backend process boundary)"
+```

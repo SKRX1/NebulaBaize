@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-l`
-> （commit `15225792ec3504a6cfaabd1661d1df1062e6362a`，跨线记忆条目落账（chore rules）：RULES.md +2 条——新增纯 stdlib 门禁拆可单测纯 run_checks + 仅 IO 装配 main 复用 secret_scan 三件套；CI 门禁需全 tag/commit 时 actions/checkout 须 fetch-depth:0 + git fetch --tags --force 否则 deref/连续性核对失明。纯文档（记忆规则）；该 HEAD 上 full incl. post-green ALL GREEN。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i/j/k 之后。）
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-27-b`
+> （commit `843f8ce9c74c880c918513fbb063ada86326e2f4`，运维生效方式文档化：CONTRIBUTING §3.5 中英「改动生效方式」三进程矩阵 + backend-modularization 中英「进程边界」节坐实 `_reload_executor` 只重 spawn `servers/` 子进程、不碰网关已 import 的 `runtime/`+`serve/`，并交叉引用前端门禁 `tests/test_mcp_reload_jsdom.mjs` 互为佐证（plan A 贡献取向：易变逻辑优先落 `servers/` MCP 工具免重启）。纯文档；numstat == --ignore-cr-at-eol 零行尾污染。本轮 tag 在 2026-11-27 真实日期下打，续 a 之后。）
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-27-b）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -1071,3 +1071,20 @@ git tag -a v-baseline-2026-11-26-k 135f3f2e797c80d7944d04ae259d5b4d698c2594 -m "
 git tag -a v-baseline-2026-11-26-l 15225792ec3504a6cfaabd1661d1df1062e6362a -m "baseline 2026-11-26-l: cross-line memory-rules landing commit 1522579"
 ```
 
+
+## 2026-11-27 系列：当前最新回滚点升级到 b（运维生效方式文档化 843f8ce，纯文档）
+
+本轮在 commit `843f8ce9c74c880c918513fbb063ada86326e2f4` 打命名回滚点 `v-baseline-2026-11-27-b`，锁定「运维生效方式文档化」这一账本回滚点：该 commit 把主人已拍板的 plan A 贡献取向固化进文档——（1）`CONTRIBUTING.md` + `CONTRIBUTING.en.md` 各加 `### 3.5 改动生效方式`，按进程给出三档矩阵：前端 `serve/web/*` 硬刷新即可 / MCP 子进程 `servers/*.py` 或 mcp json 的 env-args 点「重载子进程」(`_reload_executor`) 免重启 / 后端网关进程 `runtime/*.py`+`serve/*.py` 新路由新逻辑必须重启 8099；（2）`backend-modularization.md` + `.en.md` 各加「进程边界」节，坐实 `runtime/http_server.py` 的 `_reload_executor` 只重读 mcp json + 重新 spawn 全部 `servers/` 子进程、`stop_all` 杀旧，**不碰网关自身已 import 的 `runtime/` 与 `serve/` 代码**，并交叉引用前端门禁 `tests/test_mcp_reload_jsdom.mjs`（jsdom 真 boot app.js 坐实 reload 只 POST `api/servers/reload`、成功后不整页导航）互为佐证。纯文档；4 文件 48 行纯插入，numstat == --ignore-cr-at-eol（零行尾污染）。本轮 tag 在 2026-11-27 真实日期下打，续当天 a 之后。
+已实测：改动后 `node --check`/文档门禁即时验；numstat 与 --ignore-cr-at-eol 逐文件相等坐实零行尾污染；tag deref == `843f8ce`。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-27-b | `843f8ce9c74c880c918513fbb063ada86326e2f4` | 运维生效方式文档化 commit（docs ops）：CONTRIBUTING §3.5 中英三进程矩阵 + backend-modularization 中英「进程边界」节（_reload_executor 只换 servers/ 子进程、不碰网关自身 runtime/serve）+ 交叉引用前端门禁 test_mcp_reload_jsdom.mjs 互佐证；纯文档；numstat == --ignore-cr-at-eol 零行尾污染；本地 tag、随本轮 push origin main 后单推该 tag |
+
+**是否已在远端**：本轮先 push origin main 使 HEAD 前进到本账本补登 commit（含 843f8ce）坐实 0 0，再单独 `git push origin v-baseline-2026-11-27-b`；远端 peel == `843f8ce9c74c880c918513fbb063ada86326e2f4` 与账本声明一致。
+
+### 重建命令（如需恢复命名回滚点 b）
+
+```bat
+git tag -a v-baseline-2026-11-27-b 843f8ce9c74c880c918513fbb063ada86326e2f4 -m "baseline 2026-11-27-b: reload gate + proxy boot-check + docs (CONTRIBUTING 3.5 / backend process boundary)"
+```
