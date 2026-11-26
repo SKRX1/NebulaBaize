@@ -940,3 +940,19 @@ git tag -a v-baseline-2026-11-24-h 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 -m "
 git tag -a v-baseline-2026-11-26-h d170ed16cdbfea8965c20944d03ccfb637c7bff1 -m "baseline 2026-11-26-h: ledger<->tag deref parity gate landing point d170ed1"
 ```
 
+## 2026-11-21 系列（分段登记 POC：j-k）：仅登记现存真实连续段，验证门禁窗只锁该子区间不造假缺
+
+本节点名做「分段登记」POC：11-21 早期的 a-i 已在 11-21 批量清理节删除（git 不存在），现存真实 tag 仅连续的 j/k 两个。本节只把现存真实连续段 j-k 用规范带反引号格式登记，使门禁该日登记字母从空（窗 OFF）变为 {j,k}（窗 [j..k]）。窗只锁 j..k 这段真实连续区间，被删的 a-i 不在 git 故不参与 deref/连续性、不会误报；登记段也不含任何 git 不存在的字母，故窗内无假缺。每条 sha 均为 `git rev-parse <tag>^{}` 实测解引用、`git merge-base --is-ancestor` anc=0。此节是低风险 POC 示范，证明「分段登记」可安全扩窗而无需补齐全部历史字母。
+
+| tag | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-21-j | `48c7338935399a3bd4d7eef13a2524706d45802b` | docs(archive): 批量归档清理 10-22~11-20 早期 baseline tag（现存连续段 j 起点） |
+| v-baseline-2026-11-21-k | `10f05b731470ca9ad3777f79d25594008bff5e98` | docs(rules): 沉淀「删 tag 持久化须本地删+push删远端两步」判据 |
+
+### 重建命令（如需恢复 11-21 现存连续段 j-k）
+
+```bat
+git tag -a v-baseline-2026-11-21-j 48c7338935399a3bd4d7eef13a2524706d45802b -m "v-baseline-2026-11-21-j segmented-POC"
+git tag -a v-baseline-2026-11-21-k 10f05b731470ca9ad3777f79d25594008bff5e98 -m "v-baseline-2026-11-21-k segmented-POC"
+```
+

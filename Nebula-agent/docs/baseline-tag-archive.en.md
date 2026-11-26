@@ -740,3 +740,19 @@ Verified: the `ledger_tag_parity` gate is ALL GREEN; the differential lock's 8 c
 git tag -a v-baseline-2026-11-26-h d170ed16cdbfea8965c20944d03ccfb637c7bff1 -m "baseline 2026-11-26-h: ledger<->tag deref parity gate landing point d170ed1"
 ```
 
+## 2026-11-21 series (segmented-registration POC: j-k): register only the surviving real contiguous run, proving the gate window locks that sub-range with no false gap
+
+This node runs the *segmented-registration* POC: 11-21's early a-i were deleted in the 11-21 batch-cleanup section (absent from git); the only surviving real tags are the contiguous j/k. This section registers only the surviving contiguous run j-k in canonical backticked form, flipping the gate's registered letters for that date from empty (window OFF) to {j,k} (window [j..k]). The window locks only the real contiguous run j..k; the deleted a-i are not in git so they take no part in deref/continuity and cannot false-report; the registered run contains no letter that is absent from git, so there is no in-window false gap. Every sha is a real `git rev-parse <tag>^{}` dereference with `git merge-base --is-ancestor` anc=0. This section is a low-risk POC demonstration that segmented-registration safely widens the window without backfilling every historical letter.
+
+| tag | commit (40-hex) | day semantics |
+|---|---|---|
+| v-baseline-2026-11-21-j | `48c7338935399a3bd4d7eef13a2524706d45802b` | docs(archive): batch-archive cleanup of 10-22~11-20 early baseline tags (start of the surviving contiguous run j) |
+| v-baseline-2026-11-21-k | `10f05b731470ca9ad3777f79d25594008bff5e98` | docs(rules): distill the 'delete-tag persistence needs both local-delete + push-delete-remote' rule |
+
+### Rebuild commands (to restore the surviving 11-21 contiguous run j-k)
+
+```bat
+git tag -a v-baseline-2026-11-21-j 48c7338935399a3bd4d7eef13a2524706d45802b -m "v-baseline-2026-11-21-j segmented-POC"
+git tag -a v-baseline-2026-11-21-k 10f05b731470ca9ad3777f79d25594008bff5e98 -m "v-baseline-2026-11-21-k segmented-POC"
+```
+
