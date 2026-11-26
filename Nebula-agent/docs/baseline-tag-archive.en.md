@@ -12,8 +12,8 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-26-i`
-> (commit `de5b1ac876441b764a44fbc34f5edfa4218a153a`, the 11-21 segmented-registration POC landing point: both ledgers register only the surviving real contiguous run j-k (a-i deleted and absent from git), the gate's 11-21 window flips OFF -> [j..k] with no false in-window gap; an offline run_checks differential POC proves segmented registration locks only that sub-range and is safer than a full window. Pure-doc; the --quick regression at this HEAD is ALL GREEN (250 suites incl. S8). This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h.)
+> Current latest rollback point = `v-baseline-2026-11-26-j`
+> (commit `d499c196a74e238f1d4639051ff7bc4ed10e90d8`, the 10-30 a-q segmented-registration landing point: both ledgers register 10-30's surviving real contiguous run a-q (17 rows, each sha git rev-list -n1 + anc=0), the gate's 10-30 window flips OFF -> [a..q] with no in-window false gap; 10-30 is the only structurally-applicable of the three old dates (10-31 has multi-letter ctx + out-of-order, 11-02 only f -- both kept OFF as measured); CHANGELOG records the POC trilogy in zh/en. Pure-doc; quick 250 ALL GREEN, full incl. post-green ALL GREEN at the authoritative HEAD. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i.)
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
@@ -819,4 +819,21 @@ git tag -a v-baseline-2026-10-30-p be58852f2fa9f90442a97ccd43ac38ff71a39520 -m "
 git tag -a v-baseline-2026-10-30-q 889e457f3830b98a417dc752fd88688d67491650 -m "10-30 segmented-registration POC a-q"
 ```
 
+
+## 2026-11-26 series: current latest rollback point upgraded to j (10-30 a-q segmented-registration landing point d499c19, all green)
+
+This round cuts named rollback point `v-baseline-2026-11-26-j` at commit `d499c196a74e238f1d4639051ff7bc4ed10e90d8`, pinning the *10-30 surviving-real-contiguous-run a-q segmented-registration landing* ledger rollback point: both zh/en ledgers gain a '2026-10-30 series (segmented-registration POC: a-q)' section registering 10-30's surviving real contiguous run a-q (17 rows; each sha verified by `git rev-list -n1`, `git merge-base --is-ancestor` anc=0), flipping that date's gate-registered letters from empty (window OFF) to {a..q} (window [a..q]). All a-q really exist in git and exist fully covers the window, so there is no false in-window gap. The three-old-date profile: 10-30 is the only date structurally applicable to a contiguity window (a-q fully contiguous, no multi-letter, no out-of-order); 10-31 has the multi-letter ctx and is out-of-order, 11-02 has only the single letter f -- both are structurally inapplicable and kept window-OFF as measured. The CHANGELOG [Unreleased] section records the POC trilogy (11-21 j-k / 10-30 a-q + the -i rollback point + the three-old-date profile) in zh/en. Pure-doc; the quick suite at this HEAD is 250 ALL GREEN and the full suite at the authoritative HEAD is ALL GREEN incl. post-green (post-green checkout -j=d499c19 re-verified VERDICT: TAG IS A WORKING ROLLBACK POINT). This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i.
+Verified: the `ledger_tag_parity` gate is ALL GREEN (the 10-30 window flips from OFF to [a..q] with no false gap); full suite ALL GREEN incl. post-green (post-green really checks out -j and re-verifies green); the ledger tag-by-tag registration history, the overview and the tag history are all consistent.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-j | `d499c196a74e238f1d4639051ff7bc4ed10e90d8` | 10-30 a-q segmented-registration landing point: both ledgers gain a '10-30 (segmented-registration POC: a-q)' section registering the surviving real contiguous run a-q, the gate's window for that date flips OFF -> [a..q] with no false gap; CHANGELOG records the POC trilogy in zh/en; full incl. post-green ALL GREEN (post-green checkout -j re-verifies VERDICT: WORKING ROLLBACK POINT); local tag, pushed per convention |
+
+**Already on remote?**: this round first pushed origin main so HEAD advanced to this registration commit, confirmed 0 0, then separately `git push origin v-baseline-2026-11-26-j` (below); remote peel == `d499c196a74e238f1d4639051ff7bc4ed10e90d8` matching the ledger declaration.
+
+### Rebuild commands (to restore named rollback point j)
+
+```bat
+git tag -a v-baseline-2026-11-26-j d499c196a74e238f1d4639051ff7bc4ed10e90d8 -m "baseline 2026-11-26-j: 10-30 a-q segmented-registration landing point d499c19"
+```
 

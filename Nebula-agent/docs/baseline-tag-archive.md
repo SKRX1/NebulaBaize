@@ -9,8 +9,8 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-i`
-> （commit `de5b1ac876441b764a44fbc34f5edfa4218a153a`，11-21 分段登记 POC 落地点：中英账本仅登记现存真实连续段 j-k（a-i 已删、git 不存在），门禁该日窗 OFF -> [j..k] 无窗内假缺；离线 run_checks 差分 POC 证分段登记只锁该子区间且比全窗更安全。纯文档；该 HEAD 的 --quick 全套 ALL GREEN（250 suites 含 S8）。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h 之后。）
+> 当前最新回滚点 = `v-baseline-2026-11-26-j`
+> （commit `d499c196a74e238f1d4639051ff7bc4ed10e90d8`，10-30 a-q 分段登记落地点：中英账本登记 10-30 现存真实连续段 a-q（17 行，每条 sha git rev-list -n1 + anc=0 实测），门禁该日窗 OFF -> [a..q] 无窗内假缺；10-30 是三老日期里唯一结构适用连续性窗的日期（10-31 含多字母 ctx 且乱序、11-02 仅 f，均据实保持 OFF）；CHANGELOG 中英补记 POC 三连。纯文档；quick 250 ALL GREEN，权威 HEAD 上 full incl. post-green ALL GREEN。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i 之后。）
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
@@ -1019,4 +1019,21 @@ git tag -a v-baseline-2026-10-30-p be58852f2fa9f90442a97ccd43ac38ff71a39520 -m "
 git tag -a v-baseline-2026-10-30-q 889e457f3830b98a417dc752fd88688d67491650 -m "10-30 segmented-registration POC a-q"
 ```
 
+
+## 2026-11-26 系列：当前最新回滚点升级到 j（10-30 a-q 分段登记落地点 d499c19，全套绿）
+
+本轮在 commit `d499c196a74e238f1d4639051ff7bc4ed10e90d8` 打命名回滚点 `v-baseline-2026-11-26-j`，锁定「10-30 现存真实连续段 a-q 分段登记落地」这一账本回滚点：向中英双账本各 append「2026-10-30 系列（分段登记 POC：a-q）」节，登记 10-30 现存真实连续段 a-q 共 17 行（每条 sha 均 `git rev-list -n1` 实测、`git merge-base --is-ancestor` anc=0），门禁该日登记字母从空（窗 OFF）变为 {a..q}（窗 [a..q]）。a-q 全部在 git 真实存在，exist 全覆盖窗内，故窗内无假缺。三老日期画像实测：10-30 是唯一结构适用连续性窗的日期（a-q 完整连续无多字母无乱序）；10-31 含多字母 ctx 且乱序、11-02 仅单字母 f——均结构不适用窗，据实保持窗 OFF。CHANGELOG [Unreleased] 段中英对照补记 POC 三连（11-21 j-k / 10-30 a-q + -i 续位 + 三老画像结论）。纯文档；该 HEAD 上 quick 全套 250 ALL GREEN，权威 HEAD 上 full 全套 incl. post-green ALL GREEN（post-green checkout -j=d499c19 复验 VERDICT: TAG IS A WORKING ROLLBACK POINT）。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i 之后。
+已实测：`ledger_tag_parity` 门禁 ALL GREEN（10-30 窗由 OFF 转 [a..q] 无假缺）；full 全套 incl. post-green ALL GREEN（post-green 真 checkout -j 复验仍绿）；账本逐 tag 登记史与速览、tag 历史三者账实一致。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-j | `d499c196a74e238f1d4639051ff7bc4ed10e90d8` | 10-30 a-q 分段登记落地点：中英账本 append「10-30（分段登记 POC：a-q）」节登记现存真实连续段 a-q，门禁该日窗 OFF -> [a..q] 无假缺；CHANGELOG 中英补记 POC 三连；full incl. post-green ALL GREEN（post-green checkout -j 复验 VERDICT: WORKING ROLLBACK POINT）；本地 tag、按惯例待推 |
+
+**是否已在远端**：本轮先 push origin main 使 HEAD 前进到本登记 commit 坐实 0 0，再单独 `git push origin v-baseline-2026-11-26-j`（见下）；远端 peel == `d499c196a74e238f1d4639051ff7bc4ed10e90d8` 与账本声明一致。
+
+### 重建命令（如需恢复命名回滚点 j）
+
+```bat
+git tag -a v-baseline-2026-11-26-j d499c196a74e238f1d4639051ff7bc4ed10e90d8 -m "baseline 2026-11-26-j: 10-30 a-q segmented-registration landing point d499c19"
+```
 
