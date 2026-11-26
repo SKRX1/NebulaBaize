@@ -275,3 +275,5 @@ jsdom harness 要触发 app.js 里调 renderSessions/workspaceGroups 的路径�
 测 async onclick/async 删除宿主：先不 await 触发拿 promise（此时框已挂载）→ await clickConfirm/rejectConfirm(win) 点框 → 再 await 该 promise；直接 `await onclick()` 会永久挂起（无人点框 promise 不 resolve）。按 accept/reject 分支选点 primary(OK) 还是 ghost(取消)。
 把生产函数源码 eval 进自带闭包驱动测试（grab-closure）时迁 await 目标符号：闭包内须补该符号的 async 镜像（如 askConfirm），且若测试手写 `function(){${FN.body}}` 重建而 body 含 await，重建头必须加 `async`，否则 AsyncFunction 编译期 SyntaxError；CJS 测试(用 require)不能写 top-level await（报既含 require 含 top-level await），须 async IIFE 包裹含 await 那段。
 askConfirm 焦点陷阱 a11y 门禁锁点在 tests/test_ask_confirm_jsdom.mjs 的 B5 块：jsdom 无原生 Tab 焦点管理，dispatch Tab 后 activeElement 仅能由 onTrap 的 preventDefault+focus 改变，故 B5b(Tab 锁框内)/B5c(Shift+Tab 双向)/B5e(关闭还原 opener) 天然 load-bearing；B5f 断言框节点 isConnected===false（index.html 预置 app modal 也占 .st-modal，不能用 length===0 数框）。
+新增纯 stdlib 门禁脚本时，把判据拆成可单测的纯函数（run_checks 接收已加载数据、main 只做 IO 装配），CI 工作流与回归测试与本地三处复用同一真相源，镜像既有 secret_scan.py + secret-scan.yml + test_secret_scan.py 三件套结构。
+CI 门禁工作流若判据需要全部 tag/commit，actions/checkout 默认不带全部 tag，必须显式 fetch-depth: 0 + git fetch --tags --force，否则 deref/连续性核对会因 tag 缺失失明。
