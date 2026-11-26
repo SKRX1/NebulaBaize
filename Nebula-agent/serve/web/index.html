@@ -1390,8 +1390,12 @@
       </div>
       <div class="model-field">
         <label class="st-label" for="mf-model" data-i18n="model.f.model">模型名称</label>
-        <input class="st-input" id="mf-model" type="text" spellcheck="false" autocomplete="off"
-               data-i18n-attr="placeholder:model.f.model.ph">
+        <div class="model-row">
+          <input class="st-input" id="mf-model" type="text" spellcheck="false" autocomplete="off"
+                 data-i18n-attr="placeholder:model.f.model.ph">
+          <button class="st-btn st-btn--secondary" id="mf-fill-live" type="button" data-i18n="model.f.fill.live">用引擎实载名</button>
+        </div>
+        <p class="muted small" data-i18n="model.f.fill.live.hint">本机模型可不手填：引擎已加载时点右侧按钮即可填入其真实名称，避免名字对不上而误判为未加载。</p>
       </div>
       <details class="model-adv">
         <summary data-i18n="model.f.advanced">高级设置</summary>

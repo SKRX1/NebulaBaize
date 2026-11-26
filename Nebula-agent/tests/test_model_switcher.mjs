@@ -77,6 +77,7 @@ code += `
   loadModels, currentModel, requestModel, paintModelChip, openModelPop, closeModelPop, renderModelPop,
   selectModel, openModelModal, openModelForm, submitModelForm, renderModelList,
   modelThinking, modelAcceptsImages, modelAllowsTools, getDoc: () => modelsDoc,
+  fillLiveModel, engineLoaded,
   setSessionThinking: (v) => { settings.thinking = v; },
 };`;
 win.eval(code);
@@ -230,6 +231,32 @@ check("it does NOT close the form - the in-progress edits survive (load-bearing)
 // Cancel still returns to the list (the dirty-flag reset on cancel did not break the explicit path)
 $("mf-cancel").click();
 check("Cancel still leaves the form for the list", $("model-form").hidden === true && $("model-list").hidden === false);
+console.log("\n=== T7: the Add-model dialog fills from the engine's real served name ===");
+// the engine self-reports the served id; this is the ground truth a hand-typed name must match
+api.getDoc().probe = { __engine__: { url: "http://127.0.0.1:8080/v1", ok: true, loaded: "inkling-2-mini-sq-15-abl" } };
+api.openModelForm(null);
+check("the dialog ships a Use-engine-loaded-name button", $("mf-fill-live") !== null);
+check("mf-model starts empty for a brand-new entry", $("mf-model").value === "");
+$("mf-fill-live").click();
+check("clicking copies the engine's served name into the model field (load-bearing)",
+      $("mf-model").value === "inkling-2-mini-sq-15-abl", JSON.stringify($("mf-model").value));
+check("a blank display name is filled from the served id too",
+      $("mf-name").value === "inkling-2-mini-sq-15-abl", JSON.stringify($("mf-name").value));
+// decoy: with nothing loaded the field must NOT be clobbered (warn, no silent blank)
+$("mf-model").value = "keep-me";
+api.getDoc().probe = { __engine__: {} };                 // engine answers but names nothing
+$("mf-fill-live").click();
+check("nothing loaded -> field left untouched, no silent blank (load-bearing decoy)",
+      $("mf-model").value === "keep-me", JSON.stringify($("mf-model").value));
+// it must NOT overwrite an already-set display name
+api.getDoc().probe = { __engine__: { ok: true, loaded: "inkling-2-mini-sq-15-abl" } };
+$("mf-name").value = "My Display Name";
+$("mf-model").value = "";
+$("mf-fill-live").click();
+check("an existing display name is preserved; only the blank one gets filled",
+      $("mf-name").value === "My Display Name", JSON.stringify($("mf-name").value));
+$("mf-cancel").click();
+
 console.log("");
 if (FAILURES.length) {
   console.log(`MODEL SWITCHER: ${FAILURES.length} FAILED`);

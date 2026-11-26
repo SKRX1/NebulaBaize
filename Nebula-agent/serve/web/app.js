@@ -7279,6 +7279,19 @@ function modelCompareKey(s) {
   for (const suf of DECOR) { if (k.endsWith(suf)) { k = k.slice(0, -suf.length); break; } }
   return k;
 }
+// "same weights" test, used by modelDot. Exact match is rare in the wild: llama.cpp reports a
+// TRUNCATED served name (inkling-2-mini-sq-15-abl) while the config carries the full word
+// (...-abliterated), and the local model name may legitimately differ from the served id by a
+// prefix. So we call them the SAME weights when one name is a prefix of the other (after
+// normalisation), guarded by a minimum length so a stub "" or "q" cannot match everything. A
+// genuinely different sibling (swift-1.5-iq3_s vs swift-1.5-iq3_xxs) is NOT a prefix and stays amber.
+function modelSameWeights(a, b) {
+  const ka = modelCompareKey(a), kb = modelCompareKey(b);
+  if (!ka || !kb) return false;
+  if (ka === kb) return true;
+  if (ka.length < 4 || kb.length < 4) return false;        // too short to imply the same weights
+  return ka.startsWith(kb) || kb.startsWith(ka);
+}
 function modelDot(m) {
   const on = modelOnline(m);
   if (on === null) return "na";
@@ -7289,18 +7302,31 @@ function modelDot(m) {
   // A local entry with no base_url is served by THIS gateway's own upstream, which IS the probed
   // engine — so it can never be a "sibling instance". Compare by model name, not by endpoint.
   if (!url) {
-    return modelCompareKey(m.model) === modelCompareKey(e.loaded) ? "on" : "mismatch";
+    return modelSameWeights(m.model, e.loaded) ? "on" : "mismatch";
   }
   // A local entry pointing at an explicit base_url: green only when that base_url is the engine
   // AND the engine names this exact model; same port but a sibling weight => amber (mismatch).
   if (endpointKey(url) !== endpointKey(e.url)) return "on";   // genuinely a different instance
   const want = String(m.model || "").trim();
   if (!want) return "on";
-  return modelCompareKey(want) === modelCompareKey(e.loaded) ? "on" : "mismatch";
+  return modelSameWeights(want, e.loaded) ? "on" : "mismatch";
 }
 function engineLoaded() {
   const e = (modelsDoc && modelsDoc.probe && modelsDoc.probe.__engine__) || null;
   return (e && e.loaded) || "";
+}
+// One-click: fill the model form from the engine's self-reported loaded name. This is the
+// antidote to hand-typing a name that does not match the served id (a full word vs the engine's
+// truncated served name), which is the root cause of a false amber dot. The engine's own name is
+// the ground truth, so when present we copy it straight into both the model id and (if blank) the
+// display name. No network needed: loadModels() already probed __engine__ before this dialog opens.
+function fillLiveModel() {
+  const live = engineLoaded();
+  if (!live) { toast("warn", t("model.f.fill.live.none")); return; }
+  $("mf-model").value = live;
+  if (!$("mf-name").value.trim()) $("mf-name").value = live;
+  markModelFormTouched();
+  toast("success", t("model.f.fill.live.ok"), live);
 }
 function dotHint(dot) {
   if (dot === "mismatch") {
@@ -7563,6 +7589,7 @@ async function testModelForm() {
     $("model-done").hidden = false;
   };
   $("mf-test").onclick = testModelForm;
+  $("mf-fill-live").onclick = fillLiveModel;
   $("model-list").onclick = (e) => {
     const row = e.target.closest("[data-id]");
     const act = e.target.closest("[data-mact]");
