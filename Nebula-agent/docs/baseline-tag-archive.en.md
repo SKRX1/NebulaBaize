@@ -12,8 +12,8 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-26-h`
-> (commit `d170ed16cdbfea8965c20944d03ccfb637c7bff1`, the ledger<->tag deref parity gate landing point: adds ledger_tag_parity.py + an 8-case differential lock + .github/workflows/ledger-tag.yml, registered in run_tests SUITES (QUICK), catching the -e class ledger-lag gap automatically; backfills the 11-22/23/24 early unregistered tags into both zh/en ledgers to widen the continuity window. Pure tooling/docs; the --quick regression at this HEAD was ALL GREEN and the ledger-tag CI run (headSha d170ed1) completed success. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g, as the rollback anchor of the gate-landing point.)
+> Current latest rollback point = `v-baseline-2026-11-26-i`
+> (commit `de5b1ac876441b764a44fbc34f5edfa4218a153a`, the 11-21 segmented-registration POC landing point: both ledgers register only the surviving real contiguous run j-k (a-i deleted and absent from git), the gate's 11-21 window flips OFF -> [j..k] with no false in-window gap; an offline run_checks differential POC proves segmented registration locks only that sub-range and is safer than a full window. Pure-doc; the --quick regression at this HEAD is ALL GREEN (250 suites incl. S8). This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h.)
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
@@ -754,5 +754,22 @@ This node runs the *segmented-registration* POC: 11-21's early a-i were deleted 
 ```bat
 git tag -a v-baseline-2026-11-21-j 48c7338935399a3bd4d7eef13a2524706d45802b -m "v-baseline-2026-11-21-j segmented-POC"
 git tag -a v-baseline-2026-11-21-k 10f05b731470ca9ad3777f79d25594008bff5e98 -m "v-baseline-2026-11-21-k segmented-POC"
+```
+
+## 2026-11-26 series: current latest rollback point upgraded to i (11-21 segmented-registration POC landing point de5b1ac, all green)
+
+This round cuts named rollback point `v-baseline-2026-11-26-i` at commit `de5b1ac876441b764a44fbc34f5edfa4218a153a`, pinning the *11-21 surviving-real-contiguous-run j-k segmented-registration POC* ledger-landing rollback point: both zh/en ledgers gain a '2026-11-21 series (segmented-registration POC: j-k)' section registering only the surviving real contiguous run j/k (a-i were deleted in the 11-21 cleanup and are absent from git), flipping that date's gate-registered letters from empty (window OFF) to {j,k} (window [j..k]). A four-case differential POC over the gate's own run_checks pure functions proves segmented-registration locks only the real sub-range with no false in-window gap and is safer than a full window (POC-A registered-run 0 gap / POC-B out-of-window letters not pulled into the gap check / POC-C a full window missing a surviving letter MUST be red / POC-D a single-letter window is even narrower). Pure-doc; the --quick regression at this HEAD is ALL GREEN (250 suites, incl. the S8 real-repo self-boot). This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h.
+Verified: the `ledger_tag_parity` gate is ALL GREEN (the 11-21 window flips from OFF to [j..k] with no false gap); quick suite 250 ALL GREEN; the ledger tag-by-tag registration history, the overview and the tag history are all consistent.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-i | `de5b1ac876441b764a44fbc34f5edfa4218a153a` | 11-21 segmented-registration POC landing point: both ledgers gain a '11-21 (segmented-registration POC: j-k)' section registering only the surviving contiguous run j-k, the gate's window for that date flips OFF -> [j..k] with no false gap; offline differential POC proves segmented registration is safe and beats a full window; quick suite 250 ALL GREEN; local tag, pushed per convention |
+
+**Already on remote?**: this round first pushed origin main so HEAD advanced to the POC-landing commit, confirmed 0 0, then separately `git push origin v-baseline-2026-11-26-i` (below); remote peel == `de5b1ac876441b764a44fbc34f5edfa4218a153a` matching the ledger declaration.
+
+### Rebuild commands (to restore named rollback point i)
+
+```bat
+git tag -a v-baseline-2026-11-26-i de5b1ac876441b764a44fbc34f5edfa4218a153a -m "baseline 2026-11-26-i: 11-21 segmented-registration POC landing point de5b1ac"
 ```
 

@@ -9,8 +9,8 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-h`
-> （commit `d170ed16cdbfea8965c20944d03ccfb637c7bff1`，账本↔tag deref 一致性门禁落地点：新增 ledger_tag_parity.py + 8 用例差分锁 + .github/workflows/ledger-tag.yml，登记进 run_tests SUITES（QUICK），自动拦截 -e 类账本滞后断层；并向中英双账本补登 11-22/23/24 早期未登记 tag 以扩宽连续性窗。纯工具/文档；该 HEAD 的 --quick 全套回归 ALL GREEN，ledger-tag CI（headSha d170ed1）completed success。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g 之后，是门禁落地点这一回滚锚点。）
+> 当前最新回滚点 = `v-baseline-2026-11-26-i`
+> （commit `de5b1ac876441b764a44fbc34f5edfa4218a153a`，11-21 分段登记 POC 落地点：中英账本仅登记现存真实连续段 j-k（a-i 已删、git 不存在），门禁该日窗 OFF -> [j..k] 无窗内假缺；离线 run_checks 差分 POC 证分段登记只锁该子区间且比全窗更安全。纯文档；该 HEAD 的 --quick 全套 ALL GREEN（250 suites 含 S8）。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h 之后。）
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
@@ -954,5 +954,22 @@ git tag -a v-baseline-2026-11-26-h d170ed16cdbfea8965c20944d03ccfb637c7bff1 -m "
 ```bat
 git tag -a v-baseline-2026-11-21-j 48c7338935399a3bd4d7eef13a2524706d45802b -m "v-baseline-2026-11-21-j segmented-POC"
 git tag -a v-baseline-2026-11-21-k 10f05b731470ca9ad3777f79d25594008bff5e98 -m "v-baseline-2026-11-21-k segmented-POC"
+```
+
+## 2026-11-26 系列：当前最新回滚点升级到 i（11-21 分段登记 POC 落地点 de5b1ac，全套绿）
+
+本轮在 commit `de5b1ac876441b764a44fbc34f5edfa4218a153a` 打命名回滚点 `v-baseline-2026-11-26-i`，锁定「11-21 现存真实连续段 j-k 分段登记 POC」这一账本落地回滚点：向中英双账本各 append「2026-11-21 系列（分段登记 POC：j-k）」节，仅登记现存真实连续段 j/k（a-i 已在 11-21 清理节删除、git 不存在），门禁该日登记字母从空（窗 OFF）变为 {j,k}（窗 [j..k]）。用门禁自身 run_checks 纯函数离线跑四差分 POC 坐实「分段登记只锁真实子区间、不造假缺，且比全窗更安全」（POC-A 登记段 0 缺 / POC-B 窗外字母不入判缺 / POC-C 全窗漏现存字母必红 / POC-D 单字母窗更窄）。纯文档；该 HEAD 的 --quick 全套回归 ALL GREEN（250 suites，含差分 S8 真仓自举）。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h 之后。
+已实测：`ledger_tag_parity` 门禁 ALL GREEN（11-21 窗由 OFF 转 [j..k] 无假缺）；quick 全套 250 ALL GREEN；账本逐 tag 登记史与速览、tag 历史三者账实一致。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-i | `de5b1ac876441b764a44fbc34f5edfa4218a153a` | 11-21 分段登记 POC 落地点：中英账本 append「11-21（分段登记 POC：j-k）」节，仅登记现存连续段 j-k，门禁该日窗 OFF -> [j..k] 无假缺；离线差分 POC 证分段登记安全且优于全窗；quick 全套 250 ALL GREEN；本地 tag、按惯例待推 |
+
+**是否已在远端**：本轮先 push origin main 使 HEAD 前进到本 POC 落地 commit 坐实 0 0，再单独 `git push origin v-baseline-2026-11-26-i`（见下）；远端 peel == `de5b1ac876441b764a44fbc34f5edfa4218a153a` 与账本声明一致。
+
+### 重建命令（如需恢复命名回滚点 i）
+
+```bat
+git tag -a v-baseline-2026-11-26-i de5b1ac876441b764a44fbc34f5edfa4218a153a -m "baseline 2026-11-26-i: 11-21 segmented-registration POC landing point de5b1ac"
 ```
 
