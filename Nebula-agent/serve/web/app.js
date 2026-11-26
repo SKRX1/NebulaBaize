@@ -10201,7 +10201,21 @@ setTimeout(() => {
         o.value = f.path; o.label = f.name + "  (" + f.role_guess + ")";
         d.appendChild(o);
       }
-      toast("success", t("img.cfg.scan_ok", { n: files.length }));
+      // [方案A 2026-11-27] scan once -> auto-fill the empty model fields. Only blanks are
+      // written (a hand-set / already-configured path is never overwritten), and the per-field
+      // datalist stays populated so a different quantized .gguf can still be picked. files are
+      // already sorted by (role_guess, name), so cand[0] is the deterministic pick per role.
+      const fieldOf = { diffusion_model: "img-cfg-diffusion_model", vae: "img-cfg-vae",
+                        llm: "img-cfg-llm", llm_vision: "img-cfg-llm_vision" };
+      let filled = 0;
+      for (const role of Object.keys(fieldOf)) {
+        const inp = el(fieldOf[role]); if (!inp) continue;
+        if (inp.value.trim()) continue;                       // never clobber a filled field
+        const cand = files.filter((f) => f.role_guess === role);
+        if (cand.length) { inp.value = cand[0].path; filled++; }
+      }
+      if (filled) toast("success", t("img.cfg.scan_autofill", { n: filled }));
+      else toast("success", t("img.cfg.scan_ok", { n: files.length }));
     } catch (e) { toast("error", t("img.cfg.scan_fail"), String((e && e.message) || e)); }
   };
   // load existing config on page ready
