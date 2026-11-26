@@ -7267,6 +7267,18 @@ function modelOnline(m) {
 //   na        this server reports no probe (old build / proxy mode)   -> dimmed, no claim
 // "mismatch" exists because iq3-s and iq3-xxs share one GPU and one 8080: the port being
 // alive says nothing about *which* weights are loaded.
+// Model-name compare normalisation. The `model` field can carry a LOCAL decoration suffix we
+// append for our own naming (".strata") that the engine NEVER reports back through /v1/models, so
+// a verbatim compare always reads mismatch (a false amber dot) even when this entry names the very
+// weights the engine holds. Compare BOTH sides through this so m.model and e.loaded are held to the
+// same standard. Only the KNOWN decoration suffixes are stripped -- a real model id may legitimately
+// contain dots (qwen3.8-flash, swift-1.5-iq3_xxs), so we never strip an arbitrary after-dot segment.
+function modelCompareKey(s) {
+  const DECOR = [".strata"];
+  let k = String(s || "").trim().toLowerCase();
+  for (const suf of DECOR) { if (k.endsWith(suf)) { k = k.slice(0, -suf.length); break; } }
+  return k;
+}
 function modelDot(m) {
   const on = modelOnline(m);
   if (on === null) return "na";
@@ -7277,14 +7289,14 @@ function modelDot(m) {
   // A local entry with no base_url is served by THIS gateway's own upstream, which IS the probed
   // engine — so it can never be a "sibling instance". Compare by model name, not by endpoint.
   if (!url) {
-    return String(m.model || "").trim().toLowerCase() === String(e.loaded).trim().toLowerCase() ? "on" : "mismatch";
+    return modelCompareKey(m.model) === modelCompareKey(e.loaded) ? "on" : "mismatch";
   }
   // A local entry pointing at an explicit base_url: green only when that base_url is the engine
   // AND the engine names this exact model; same port but a sibling weight => amber (mismatch).
   if (endpointKey(url) !== endpointKey(e.url)) return "on";   // genuinely a different instance
   const want = String(m.model || "").trim();
   if (!want) return "on";
-  return want.toLowerCase() === String(e.loaded).trim().toLowerCase() ? "on" : "mismatch";
+  return modelCompareKey(want) === modelCompareKey(e.loaded) ? "on" : "mismatch";
 }
 function engineLoaded() {
   const e = (modelsDoc && modelsDoc.probe && modelsDoc.probe.__engine__) || null;

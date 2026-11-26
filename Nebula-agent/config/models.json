@@ -110,11 +110,11 @@
       "context_window": 131072
     },
     {
-      "id": "inkling-2-mini-sq-20.strata",
-      "name": "Inkling-2-Mini-SQ-15.strata",
-      "kind": "local",
-      "base_url": "http://127.0.0.1:8080/v1",
-      "model": "Inkling-2-Mini-SQ-15.strata",
+      "id": "inkling-2-mini-abliterated-fit",
+      "name": "inkling-2-mini-ud-q3_k_xl",
+      "kind": "custom",
+      "base_url": "http://127.0.0.1:47831/v1",
+      "model": "inkling-2-mini-ud-q3_k_xl",
       "tools": true,
       "vision": true,
       "think_modes": [
@@ -128,11 +128,11 @@
       "context_window": 131072
     },
     {
-      "id": "inkling-2-mini-abliterated-fit",
-      "name": "inkling-2-mini-ud-q3_k_xl",
-      "kind": "custom",
-      "base_url": "http://127.0.0.1:47831/v1",
-      "model": "inkling-2-mini-ud-q3_k_xl",
+      "id": "inkling-2-mini-sq-20.strata",
+      "name": "Inkling-2-Mini-SQ-15",
+      "kind": "local",
+      "base_url": "",
+      "model": "Inkling-2-Mini-SQ-15",
       "tools": true,
       "vision": true,
       "think_modes": [
