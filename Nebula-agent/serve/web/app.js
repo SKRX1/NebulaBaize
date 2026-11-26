@@ -1606,12 +1606,12 @@ function cyclePerm(sid) {
   setSessionPerm(s.id, next);
   toast("info", t("side.permset", {perm: t(PERM_LABEL_KEYS[next])}));
 }
-function deleteTask(sid) {
+async function deleteTask(sid) {
   const s = findSession(sid);
   if (!s) return;
   if (sessions.length <= 1) { toast("warn", t("toast.lasttask.title"), t("toast.lasttask.msg")); return; }
   if (busy && sid === busy.sessionId) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
-  if (!confirm(t("side.deltask.confirm", {name: sessionTitle(s)}))) return;
+  if (!(await askConfirm(t("side.deltask.confirm", {name: sessionTitle(s)})))) return;
   sessions = sessions.filter((x) => x.id !== sid);
   batchSel.delete(sid);
   if (activeId === sid) { activeId = sessions[0].id; messages = sessions[0].messages || []; renderChat(); syncCtxFromSession(); }
@@ -1729,12 +1729,12 @@ function toggleWorkspace(path) {
 // "Remove from list": the folder on disk is untouched; the sidebar entry (and the tasks that lived
 // in it, after an explicit confirm) are dropped. The confirm names the count so nobody loses a chat
 // history by accident.
-function removeWorkspace(path) {
+async function removeWorkspace(path) {
   const tasks = sessions.filter((s) => wsKey(s.workspace) === wsKey(path));
   const name = wsLabel(path);
   const msg = tasks.length ? t("side.removews.confirm", {name, n: tasks.length})
                            : t("side.removews.confirm0", {name});
-  if (!confirm(msg)) return;
+  if (!(await askConfirm(msg))) return;
   if (busy && tasks.some((s) => s.id === activeId)) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   sessions = sessions.filter((s) => wsKey(s.workspace) !== wsKey(path));
   workspaces = workspaces.filter((w) => wsKey(w.path) !== wsKey(path));
@@ -1792,11 +1792,11 @@ function batchPin(on) {
   batchSel.forEach((id) => { const s = findSession(id); if (s) s.pinned = !!on; });
   saveSessions(); renderSessions();
 }
-function batchDelete() {
+async function batchDelete() {
   if (!batchSel.size) { toast("warn", t("side.batch.none")); return; }
   if (busy && batchSel.has(busy.sessionId)) { toast("warn", t("toast.busy.title"), t("toast.busy.msg")); return; }
   const ids = [...batchSel];
-  if (!confirm(t("side.batch.delconfirm", {n: ids.length}))) return;
+  if (!(await askConfirm(t("side.batch.delconfirm", {n: ids.length})))) return;
   const backup = sessions.slice();
   sessions = sessions.filter((s) => !batchSel.has(s.id));
   if (!sessions.length) sessions.push({id: newSessionId(), title: "", workspace: "", messages: [],
@@ -1941,7 +1941,7 @@ $("kb-panel").addEventListener("click", async (e) => {
   const del = e.target.closest("[data-kb-del]");
   if (del) {
     const src = del.dataset.kbDel;
-    if (!confirm(t("mem.kb.del.source.confirm", {src}))) return;
+    if (!(await askConfirm(t("mem.kb.del.source.confirm", {src})))) return;
     try {
       await mcpCall("memory", "forget", {source: src});   // throws when the tool fails
       loadKnowledgePanel();
@@ -3888,11 +3888,11 @@ async function precondenseAndCompact(auto) {
   send();
 }
 
-function compactConversation(auto = false) {
+async function compactConversation(auto = false) {
   sparkFrozenThisEpisode = false;   // Plan A: a fresh episode may freeze once -- arm it
   if (busy || chunkedCompacting) return;
   if (!auto) precondenseDepth = 0;   // A: a fresh manual compact restarts the fold budget from zero
-  if (!auto && !confirm(t("insp.compact.confirm"))) return;
+  if (!auto && !(await askConfirm(t("insp.compact.confirm")))) return;
   pendingCompact = auto ? "auto" : "manual";
   pendingCompactOwner = activeId;   // C2: tag which session this compaction belongs to
   // Compaction IS truncation: every compact (auto or manual) arms a resume (approved 2026-10,
@@ -5569,7 +5569,7 @@ async function archiveOnOffSweep() {
     files = raw.split("\n").map((x) => x.trim()).filter(Boolean).filter((f) => /^ar_[a-z0-9]+\.md$/i.test(f));
   } catch (e) { files = []; }
   if (!files.length) { renderArchiveManager(); return; }
-  if (!confirm(t("drawer.archive.off.confirm", { n: String(files.length) }))) {
+  if (!(await askConfirm(t("drawer.archive.off.confirm", { n: String(files.length) })))) {
     renderArchiveManager(); return;
   }
   const paths = files.map((f) => dir + "/" + f);
@@ -5603,7 +5603,7 @@ $("archive-mgr-list").addEventListener("click", async (e) => {
   } else if (del) {
     const path = del.dataset.arcDel;
     const name = path.split(/[\\/]/).pop();
-    if (!confirm(t("drawer.archive.del.confirm", { name }))) return;
+    if (!(await askConfirm(t("drawer.archive.del.confirm", { name })))) return;
     const txt = await fsRead(path);
     // real Windows Recycle Bin via the same /api/recycle path (COM, never a physical delete).
     const s0 = activeSession();
@@ -5741,7 +5741,7 @@ $("mem-kb-list").addEventListener("click", async (e) => {
     pre.textContent = res || t("mem.kb.nohit"); pre.dataset.loaded = "1";
   } else if (del) {
     const name = del.dataset.kbDel;
-    if (!confirm(t("mem.kb.del.confirm", {n: name}))) return;
+    if (!(await askConfirm(t("mem.kb.del.confirm", {n: name})))) return;
     await mcpTxt("memory", "forget", {source: name});
     toast("ok", t("mem.kb.title"), t("mem.kb.deleted", {n: name}));
     renderKbCard();
@@ -6115,7 +6115,7 @@ $("mem-notes-list").addEventListener("click", async (e) => {
   } else if (cancel) { renderNotesCard(); return;
   } else if (del) {
     const path = del.dataset.noteDel;
-    if (!confirm(t("mem.notes.del.confirm"))) return;
+    if (!(await askConfirm(t("mem.notes.del.confirm")))) return;
     const s0 = activeSession(); const ws0 = (s0 && s0.workspace) ? s0.workspace.replace(/\/$/, "") : "";
     const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws0, paths: [path]})});
     const j = await r.json();
@@ -7494,7 +7494,7 @@ async function submitModelForm() {
   }
 }
 async function deleteModel(id) {
-  if (!confirm(t("model.delete.confirm"))) return;
+  if (!(await askConfirm(t("model.delete.confirm")))) return;
   try {
     await saveModels({models: (modelsDoc ? modelsDoc.models : []).filter((m) => m.id !== id)});
     renderModelList();
@@ -9808,7 +9808,7 @@ if ($("persona-preset")) $("persona-preset").onchange = function () {
   const del = $("persona-del-preset"); if (del) del.disabled = (v === "__factory__");
 };
 $("s-reset").onclick = () => { const d = store.get("sampling.default", null); loadDrawer(d ? {...DEFAULTS, ...d} : DEFAULTS); };  // 方案A: 重置回到「设为默认值」存的基线 sampling.default，没设过则回落出厂 DEFAULTS（只刷界面，仍需点「应用」才写盘）
-$("s-setdefault").onclick = async () => { try { if (!window.confirm(t("drawer.setdefault.confirm"))) return; } catch (e) { if (!confirm(t("drawer.setdefault.confirm"))) return; } await $("s-apply").onclick(); try { store.set("sampling.default", JSON.parse(JSON.stringify(settings))); } catch (e) {} };  // 方案A: 先把当前界面值 apply（写 sampling 立即生效），再把它固化成「重置时回到的默认值」sampling.default
+$("s-setdefault").onclick = async () => { if (!(await askConfirm(t("drawer.setdefault.confirm")))) return; await $("s-apply").onclick(); try { store.set("sampling.default", JSON.parse(JSON.stringify(settings))); } catch (e) {} };  // 方案A: 先把当前界面值 apply（写 sampling 立即生效），再把它固化成「重置时回到的默认值」sampling.default
 // "Pin this seed": one click turns the last random seed into the fixed one (field + saved settings),
 // so the next turn replays the same sampling. Clearing the field afterwards goes back to random.
 $("seed-lock").onclick = () => {
@@ -10402,8 +10402,8 @@ if ($("img-promptbook-save")) $("img-promptbook-save").onclick = () => {
   promptbookMem.prompts.unshift({name, positive: pos, negative: neg, params: promptbookSnapshotParams(), created: Date.now()});
   promptbookSync(); renderPromptbook();
 };
-if ($("img-promptbook-clear")) $("img-promptbook-clear").onclick = () => {
-  if (!window.confirm(t("img.promptbook.clear.confirm"))) return;
+if ($("img-promptbook-clear")) $("img-promptbook-clear").onclick = async () => {
+  if (!(await askConfirm(t("img.promptbook.clear.confirm")))) return;
   promptbookMem.prompts = []; promptbookSync(); renderPromptbook();
 };
 function renderPromptbook(){
@@ -10424,7 +10424,7 @@ function renderPromptbook(){
     li.append(nm, pv, sn, del); ul.appendChild(li);
   }
 }
-if ($("img-promptbook")) $("img-promptbook").onclick = (e) => {
+if ($("img-promptbook")) $("img-promptbook").onclick = async (e) => {
   const del = e.target.closest("[data-del]");
   if (del) { promptbookMem.prompts.splice(+del.dataset.del, 1); promptbookSync(); renderPromptbook(); return; }   // ✕ = delete this row
   const li = e.target.closest(".img-promptbook-item"); if (!li) return;
@@ -10432,7 +10432,7 @@ if ($("img-promptbook")) $("img-promptbook").onclick = (e) => {
   $("img-prompt").value = x.positive || "";
   $("img-negative").value = x.negative || "";
   const p = x.params || {};
-  if (p.steps || p.cfg || p.scheduler || p.seed) { if (window.confirm(t("img.promptbook.applyparams"))) promptbookApplyParams(p); }
+  if (p.steps || p.cfg || p.scheduler || p.seed) { if (await askConfirm(t("img.promptbook.applyparams"))) promptbookApplyParams(p); }
   else if (p.sampling || p.eta) promptbookApplyParams(p);   // only the new-control fields set: apply quietly
 };
 promptbookBoot();
@@ -10945,7 +10945,7 @@ $("img-form").onsubmit = async (ev) => {
       };
       stopBtn.addEventListener("click", async () => {
         if (cancelled) return;
-        try { if (!window.confirm(t("img.stopgen.confirm"))) return; } catch (e) { /* jsdom: ignore */ }
+        if (!(await askConfirm(t("img.stopgen.confirm")))) return;
         cancelled = true;
         galleryLiveRetire(lv);   // [SD式融合] retire the live cell; the poll sees "cancelled" and stops
         try {
@@ -11272,7 +11272,7 @@ $("schedule-panel").addEventListener("click", async (e) => {
   const ed  = e.target.closest("[data-sched-edit]");
   if (del) {
     const nm = del.dataset.schedDel;
-    if (!confirm(t("sched.del.confirm", {nm}))) return;
+    if (!(await askConfirm(t("sched.del.confirm", {nm})))) return;
     try {
       await mcpCall("schedule", "remove", {name: nm});   // throws when the tool fails
       loadSchedule();
@@ -11291,7 +11291,7 @@ $("sched-view-list").addEventListener("click", async (e) => {
   const ed  = e.target.closest("[data-sched-edit]");
   if (del) {
     const nm = del.dataset.schedDel;
-    if (!confirm(t("sched.del.confirm", {nm}))) return;
+    if (!(await askConfirm(t("sched.del.confirm", {nm})))) return;
     try { await mcpCall("schedule", "remove", {name: nm}); await renderSchedule(); loadSchedule(); }
     catch (e2) { toast("error", t("toast.removefailed.title"), e2.message, 4000); }
   } else if (ed) {
@@ -11447,7 +11447,9 @@ function askConfirm(message, opts) {
     // { confirmed, checked } so the "also delete files" callers read the tick.
     const emit = (confirmed) => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onTrap);
       overlay.remove();
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();   // 2026-11-26 focus return
       resolve(box ? { confirmed, checked: box.checked } : confirmed);
     };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); emit(false); } };
@@ -11455,6 +11457,23 @@ function askConfirm(message, opts) {
     ok.onclick = () => emit(true);
     overlay.addEventListener("click", (e) => { if (e.target === overlay) emit(false); });
     document.addEventListener("keydown", onKey);
+
+    // 2026-11-26 accessibility: remember the opener, trap Tab inside the dialog, and
+    // restore focus to the opener on close (WCAG 2.4.3 + 2.1.2 -- a keyboard user must
+    // not fall off the page onto background controls while the modal is up).
+    const opener = document.activeElement;
+    const focusables = [cancel, ok];
+    if (box) focusables.unshift(box);   // the checkbox participates in the tab ring
+    const onTrap = (e) => {
+      if (e.key !== "Tab") return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === overlay)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", onTrap);
     ok.focus();
   });
 }
@@ -11925,7 +11944,7 @@ if ($("recycle-stop")) $("recycle-stop").onclick = async () => {
 };
 if ($("recycle-trash-sel")) $("recycle-trash-sel").onclick = async () => {
   const paths = recycleChecked(); if (!paths.length) return;
-  if (!confirm(t("recycle.confirm").replace("{n}", String(paths.length)))) return;
+  if (!(await askConfirm(t("recycle.confirm").replace("{n}", String(paths.length))))) return;
   const ws = $("recycle-list").dataset.ws;
   const r = await fetch("api/recycle", {method: "POST", headers: headers(true), body: JSON.stringify({action: "trash", workspace: ws, paths})});
   const j = await r.json();

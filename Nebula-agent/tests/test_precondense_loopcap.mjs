@@ -99,6 +99,7 @@ async function makeScope(seedMessages, opts = {}) {
     const _compactInjectTok = () => { const b = maxCtx > 0 ? maxCtx : 16384; return Math.max(8000, Math.floor(b * 0.10), measuredInjectTokens()); };
     const $ = (id) => env.$(id);
     const confirm = () => { calls.confirmed++; return env.confirmYes; };
+    const askConfirm = async () => { calls.confirmed++; return env.confirmYes; };  // 2026-11-26 compactConversation now awaits this
     const toast = (kind, title) => { calls.toasts.push({ kind, title }); };
     const headers = () => ({});
     const computeTailBudgetChars = () => 1e9;

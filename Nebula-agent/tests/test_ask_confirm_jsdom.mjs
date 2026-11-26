@@ -140,5 +140,59 @@ console.log("\n=== B4. decoy 差分：点确定却期望 false 的对照（证�
     cancelRes === false && okRes === true, "A=" + cancelRes + " B=" + okRes);
 }
 
+console.log("\n=== B5. focus trap + close-restore (a11y keyboard, 2026-11-26) ===");
+{
+  const { win } = await freshBoot();
+  const doc = win.document;
+  // plant a real, focusable opener so askConfirm's `opener = document.activeElement` has a known source
+  const opener = doc.createElement("button");
+  opener.id = "the-opener";
+  doc.body.appendChild(opener);
+  opener.focus();
+  check("B5-pre the opener holds focus before the box opens", doc.activeElement === opener,
+    "ae=" + (doc.activeElement && doc.activeElement.id));
+
+  let res = "PENDING";
+  win.__ask.askConfirm("x").then((v) => { res = v; });
+  await tick();
+  const m = lastModal(win);
+  const okBtn = m.querySelector(".st-btn--primary");
+  const cancelBtn = m.querySelector(".st-btn--ghost");
+  check("B5a on open the OK button takes focus (so Tab/Enter never fall off the dialog)",
+    doc.activeElement === okBtn, "ae=" + (doc.activeElement && doc.activeElement.className));
+
+  // focus sits on the LAST focusable (ok); a bare Tab must be pulled back to the FIRST (cancel),
+  // never escaping to the page behind. jsdom does no native Tab focus management, so if the onTrap
+  // wiring were removed activeElement would stay on ok -> RED (load-bearing trap assertion).
+  doc.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+  await tick();
+  check("B5b Tab at the last focusable wraps INSIDE the dialog to the first (trap, not escape)",
+    doc.activeElement === cancelBtn,
+    "ae=" + (doc.activeElement && doc.activeElement.className) + " still-in-box=" + m.contains(doc.activeElement));
+
+  // Shift+Tab at the first focusable must wrap to the last -> the ring is bidirectional
+  doc.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }));
+  await tick();
+  check("B5c Shift+Tab at the first focusable wraps back to the last (bidirectional ring)",
+    doc.activeElement === okBtn, "ae=" + (doc.activeElement && doc.activeElement.className));
+
+  // after the two wraps activeElement is ok; one more Tab must NOT land on the page opener
+  // (it would if the trap were missing) -> proves the trap never lets focus leak.
+  doc.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+  await tick();
+  check("B5d an extra Tab never reaches the page opener while the dialog is open",
+    doc.activeElement !== opener && m.contains(doc.activeElement),
+    "ae=" + (doc.activeElement && (doc.activeElement.id || doc.activeElement.className)));
+
+  // closing (click OK) hands focus back to the remembered opener -> load-bearing: if emit() dropped
+  // `opener.focus()`, activeElement would fall to <body> once the box is removed.
+  okBtn.click();
+  await tick();
+  check("B5e after closing, focus is restored to the original opener (WCAG 2.4.3 focus return)",
+    doc.activeElement === opener, "ae=" + (doc.activeElement && (doc.activeElement.id || doc.activeElement.tagName)));
+  check("B5f the box node left the document on close (emit overlay.remove(); trap keydown is gone with it)",
+    m.isConnected === false, "isConnected=" + m.isConnected);
+}
+
 console.log("\n" + (FAILURES.length ? "ASK-CONFIRM-GATE: " + FAILURES.length + " FAILED -> " + FAILURES.join(" | ") : "ASK-CONFIRM-GATE: ALL GREEN (centered reusable confirm + 确定/取消/Esc/遮罩 + a11y + concurrency decoy)"));
 process.exit(FAILURES.length ? 1 : 0);

@@ -16,6 +16,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { clickConfirm } from "./_ask_confirm_helper.mjs";   // 2026-11-26 confirm-box migration
 
 const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
@@ -592,6 +593,7 @@ console.log("\n=== Memory view: KB / rules / notes / global ===");
   // M2: deleting a KB source calls memory.forget with that source id
   memCalls.length = 0;
   if (delBtn) delBtn.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  await clickConfirm(win);   // 2026-11-26 KB delete now awaits a DOM confirm box
   await sleep(10);
   const forgot = memCalls.find((c) => c.server === "memory" && c.tool === "forget" && c.args.source === "auto-2026-10-17-x");
   check("KB delete calls memory.forget(source)", !!forgot);
@@ -623,6 +625,7 @@ console.log("\n=== Memory view: KB / rules / notes / global ===");
   check("notes card lists an auto-*.md note with a delete control", !!noteDel);
   memCalls.length = 0;
   if (noteDel) noteDel.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  await clickConfirm(win);   // 2026-11-26 note delete now awaits a DOM confirm box
   await sleep(10);
   const fsDel = memCalls.find((c) => c.server === "recycle" && c.tool === "trash" && (c.args.paths || []).some((x) => /auto-2026-10-17-x\.md$/.test(x)));
   const noteForget = memCalls.find((c) => c.server === "memory" && c.tool === "forget" && c.args.source === "auto-2026-10-17-x");

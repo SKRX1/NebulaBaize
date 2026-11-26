@@ -88,6 +88,7 @@ async function makeScope(seedMessages, opts = {}) {
     const t = env.t;
     const $ = (id) => env.$(id);
     const confirm = () => { calls.confirmed++; return env.confirmYes; };
+    const askConfirm = async () => { calls.confirmed++; return env.confirmYes; };  // 2026-11-26 compactConversation now awaits this
     const toast = (kind, title) => { calls.toasts.push({ kind, title }); };
     const headers = () => ({});
     const estMsgChars = (m) => String(m.text || m.content || "").length;

@@ -27,6 +27,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { clickConfirm } from "./_ask_confirm_helper.mjs";   // 2026-11-26 confirm-box migration
 
 const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
@@ -155,7 +156,8 @@ const main = async () => {
     const api = win.window.__api;
     api.setMessages(seedPlan());
     api.fire(900);
-    api.compactConversation(false);                    // manual: confirm mocked true
+    api.compactConversation(false);                    // manual: now awaits a DOM box
+    await clickConfirm(win.window);   // 2026-11-26 click OK so the compact proceeds
     await sleep(3700);
     const chat = chatReqs(calls);
     check("B: two chat requests (compact, resume)", chat.length === 2, `got ${chat.length}`);

@@ -17,6 +17,7 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { JSDOM } = require("jsdom");
+import { clickConfirm, rejectConfirm } from "./_ask_confirm_helper.mjs";  // 2026-11-26 confirm-box migration
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -82,7 +83,9 @@ console.log("\n=== B. 端到端：偏离当前值 → 点按钮（确认=接受�
   api.loadDrawer(api.getSettings());
   check("前置：控件显示当前值 temperature=0.2", Number(api.$("s-temp").value) === 0.2, "field=" + api.$("s-temp").value);
   check("前置：控件显示当前值 top_k=7", Number(api.$("s-topk").value) === 7, "field=" + api.$("s-topk").value);
-  await api.$("s-setdefault").onclick();
+  { const __p = api.$("s-setdefault").onclick();
+    if (CONFIRM_ANSWER) await clickConfirm(win); else await rejectConfirm(win);
+    await __p; }   // 2026-11-26: s-setdefault now awaits a DOM confirm box
   // 语义核心：控件【不被刷回出厂默认】(出厂 temperature=1/top_k=20)，而是保留当前界面值 0.2/99
   check("点完控件保留当前值 temperature=0.2（未刷回出厂默认1）", Number(api.$("s-temp").value) === 0.2, "field=" + api.$("s-temp").value);
   check("点完控件保留当前值 top_k=7（未刷回出厂默认20）", Number(api.$("s-topk").value) === 7, "field=" + api.$("s-topk").value);
@@ -97,7 +100,9 @@ console.log("\n=== C. 确认取消（防误点）→ 不写盘 ===");
   CONFIRM_ANSWER = false;
   api.setSettings({ temperature: 0.6 });
   api.loadDrawer(api.getSettings());
-  await api.$("s-setdefault").onclick();
+  { const __p = api.$("s-setdefault").onclick();
+    if (CONFIRM_ANSWER) await clickConfirm(win); else await rejectConfirm(win);
+    await __p; }   // 2026-11-26: s-setdefault now awaits a DOM confirm box
   check("确认取消后 localStorage 仍为旧值 0.5（未写入 0.6）", Number(LS().temperature) === 0.5, JSON.stringify(LS()));
   CONFIRM_ANSWER = true;
 }

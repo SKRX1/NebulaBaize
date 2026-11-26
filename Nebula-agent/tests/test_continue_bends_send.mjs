@@ -77,6 +77,7 @@ function drive(flagSet){
     const compactReqBudgetChars = () => 200;                              // tiny -> total > budget
     const t = (k) => "T:" + k;
     const confirm = () => { env.calls.confirm++; return true; };
+    const askConfirm = async () => { env.calls.confirm++; return true; };  // 2026-11-26
     const toast = (kind, title) => { env.calls.toast.push({kind, title}); };
     let pendingCompact = false, resumeSnapshot = null;
     let activeId = "s1", pendingCompactOwner = null;   // C2 (2026-11-08): compactConversation now writes pendingCompactOwner = activeId
@@ -86,7 +87,7 @@ function drive(flagSet){
     const ceSetText = () => {};
     const $ = () => ({ value: "" });
     const send = () => { env.calls.send++; };
-    const compactConversation = function (auto = false) {${FN.slice(FN.indexOf("{") + 1, -1)}}
+    const compactConversation = async function (auto = false) {${FN.slice(FN.indexOf("{") + 1, -1)}}
     await compactConversation(true);
     return { precondense: env.calls.precondense, send: env.calls.send,
              toast: env.calls.toast.length, flagAfter: continueRequested };

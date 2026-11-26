@@ -18,6 +18,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { clickConfirm } from "./_ask_confirm_helper.mjs";   // 2026-11-26 confirm-box migration
 
 const require = createRequire("E:/Nebula/NebulaBaize/");
 const { JSDOM } = require("jsdom");
@@ -220,6 +221,7 @@ seed();
   const before = api.getSessions().length;
   wsEl(WS_A).querySelector('[data-sid="s1"] [data-task-menu]').click();
   clickMenu("delete");
+  await clickConfirm(win);   // 2026-11-26: deleteTask now awaits a DOM confirm box
   check("delete removes exactly that task", api.getSessions().length === before - 1 && !api.getSessions().some((s) => s.id === "s1"));
   check("its workspace row stays (it still has a task)", !!wsEl(WS_A));
   check("a workspace whose last task left keeps its parent row", !!wsEl(WS_B));
@@ -282,6 +284,7 @@ seed();
   const nBefore = api.getSessions().length;
   wsEl(WS_B).querySelector("[data-ws-menu]").click();
   clickMenu("remove");
+  await clickConfirm(win);   // 2026-11-26: removeWorkspace now awaits a DOM confirm box
   check("removing a workspace drops its row", !wsEl(WS_B));
   check("and the tasks that lived in it", api.getSessions().length === nBefore - 1 &&
         !api.getSessions().some((s) => s.workspace === WS_B));
@@ -319,6 +322,7 @@ seed();
 
   const n = api.getSessions().length;
   api.batchDelete();
+  await clickConfirm(win);   // 2026-11-26: batchDelete now awaits a DOM confirm box
   check("batch delete removes the selection", api.getSessions().length === n - 2, String(api.getSessions().length));
   check("batch mode ends after the delete", api.getBatchMode() === false);
   check("the bar hides again", doc.getElementById("batch-bar").hidden === true);
@@ -423,6 +427,7 @@ seed();
   api.toggleBatchSel("s1");              // select only s1 (the active, not the running one)
   const before = api.getSessions().length;
   api.batchDelete();
+  await clickConfirm(win);   // 2026-11-26: ALLOWED path -> click OK through the DOM box
   check("T8 batchDelete: sel excludes running -> DELETED", api.getSessions().length < before,
         String(api.getSessions().length));
   api.setBatchMode(false);
@@ -471,6 +476,7 @@ seed();
   api.setBusy({sessionId: BUSY_SID, msg: {role: "user", text: "x"}, origin: null});
   let n = api.getSessions().length;
   api.deleteTask("s1");                  // active, not running -> must delete
+  await clickConfirm(win);   // 2026-11-26: ALLOWED single delete -> DOM box
   check("T9 deleteTask: active-not-running -> DELETED", api.getSessions().length < n, String(api.getSessions().length));
 
   // -- non-active, non-running task -> ALLOWED --
@@ -479,6 +485,7 @@ seed();
   api.setBusy({sessionId: BUSY_SID, msg: {role: "user", text: "x"}, origin: null});
   n = api.getSessions().length;
   api.deleteTask("s3");                  // neither active nor running -> must delete
+  await clickConfirm(win);   // 2026-11-26: ALLOWED single delete -> DOM box
   check("T9 deleteTask: non-active-not-running -> DELETED", api.getSessions().length < n, String(api.getSessions().length));
 
   // -- the running task -> BLOCKED (protection kept) --

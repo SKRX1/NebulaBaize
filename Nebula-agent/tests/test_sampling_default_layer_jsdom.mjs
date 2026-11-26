@@ -23,6 +23,7 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { JSDOM } = require("jsdom");
+import { clickConfirm, rejectConfirm } from "./_ask_confirm_helper.mjs";  // 2026-11-26 confirm-box migration
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -79,7 +80,9 @@ const readKey = (win, k) => { try { return JSON.parse(win.localStorage.getItem(k
     CONFIRM_ANSWER = true;
     api.setSettings({ temperature: 0.2, top_k: 7 });
     api.loadDrawer(api.getSettings());
-    await api.$("s-setdefault").onclick();
+    { const __p = api.$("s-setdefault").onclick();
+      if (CONFIRM_ANSWER) await clickConfirm(win); else await rejectConfirm(win);
+      await __p; }   // 2026-11-26: s-setdefault now awaits a DOM confirm box
     const samp = readKey(win, "strata.sampling");
     const dflt = readKey(win, "strata.sampling.default");
     check("L1 sampling 写入当前值 temperature=0.2", samp && Number(samp.temperature) === 0.2, JSON.stringify(samp).slice(0,80));
@@ -94,7 +97,9 @@ const readKey = (win, k) => { try { return JSON.parse(win.localStorage.getItem(k
     win.localStorage.removeItem("strata.sampling.default");
     api.setSettings({ temperature: 0.9 });
     api.loadDrawer(api.getSettings());
-    await api.$("s-setdefault").onclick();
+    { const __p = api.$("s-setdefault").onclick();
+      if (CONFIRM_ANSWER) await clickConfirm(win); else await rejectConfirm(win);
+      await __p; }   // 2026-11-26: s-setdefault now awaits a DOM confirm box
     check("L2 取消后 sampling 仍为旧值 0.5", Number((readKey(win, "strata.sampling")||{}).temperature) === 0.5, JSON.stringify(readKey(win, "strata.sampling")));
     check("L2 取消后 sampling.default 未被写入(保持 null)", readKey(win, "strata.sampling.default") === null, JSON.stringify(readKey(win, "strata.sampling.default")));
   }

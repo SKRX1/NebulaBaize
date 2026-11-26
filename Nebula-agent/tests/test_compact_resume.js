@@ -83,10 +83,15 @@ ev(`messages.length = 0;
     messages.push({role:'user', text:'hi'});
     messages.push({role:'assistant', text:'done', plan:[{label:'a', done:true}]});
     resumeSnapshot = null;`);
+(async () => {
 // spy on compactConversation's send path by stubbing send to avoid a real stream
+ev(`window.askConfirm = async () => true;`);   // 2026-11-26: dangerously-loaded app.js exposes askConfirm as a real global -> override it
 ev(`var __origSend = send; send = function(){ /* no-op, do not hit network */ };`);
-ev("compactConversation(false)");           // manual compact (confirm stubbed true)
-const afterCompactFinished = ev("resumeSnapshot");
+ev("var __c3 = compactConversation(false);");           // manual compact (askConfirm stubbed true)
+// compact is async now; poll a few macrotasks until it has armed the snapshot before reading it.
+const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+let afterCompactFinished = null;
+for (let i = 0; i < 30; i++) { await tick(10); afterCompactFinished = ev("resumeSnapshot"); if (afterCompactFinished) break; }
 console.log("resumeSnapshot after compact(finished):", JSON.stringify(afterCompactFinished));
 if (!afterCompactFinished || afterCompactFinished.leftItems !== null) { console.error("TEST3 FAIL: compact must arm the neutral resume snapshot on a finished task"); process.exit(1); }
 
@@ -109,3 +114,4 @@ if (ev("compactCalls") !== 1) { console.error("TEST4 FAIL: context_overflow cont
 
 console.log("ALL COMPACT/RESUME TESTS PASSED");
 process.exit(0);
+})();
