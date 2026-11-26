@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-f`
-> （commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`，焦点陷阱 + B5 无障碍门禁原子回滚点：c1680a0（app.js 原生 confirm 全量迁入 askConfirm + 打开记住 opener / Tab·Shift+Tab 锁框内 / 关闭还原焦点 WCAG 2.4.3 + test_ask_confirm_jsdom.mjs B5 块「Tab 锁框内」「关闭 activeElement===opener」门禁）；功能代码与其回归测试 amend 原子同 commit；全套 --full ALL GREEN（RC=0 无 flaky）。说明：本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d 之后，是焦点陷阱功能点 c1680a0 的原子回滚点）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-f）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-26-g`
+> （commit `82f52e54084f4ddc8826c5f48212d12ab923d479`，账本-代码同步点（纯文档 chore）：82f52e5（向中英双账本补登现存 tag `v-baseline-2026-11-26-e`=e4ae655 节，恢复速览 a→f 时间序、消除 e 缺失歧义）；本轮据实再补登 -g 节；纯文档，无代码/回归范围变更；该 HEAD 的 --full 全套为 ALL GREEN（RC=0）。说明：本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f 之后，是账本补登 -e 节这一文档同步点的回滚锚点）。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -824,4 +824,20 @@ git tag -a v-baseline-2026-11-26-e e4ae6551dc42f117ea922c763716c99b4d5a749d -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-f c1680a0271c5ba8fe1a97c5d807d8185a0baa24f -m "baseline: askConfirm focus-trap + B5 a11y gate (atomic, all-green)"
+```
+## 2026-11-26 系列：当前最新回滚点升级到 g（账本补登 -e 节的纯文档 chore 82f52e5，全套绿）
+
+本轮在 commit `82f52e54084f4ddc8826c5f48212d12ab923d479` 打命名回滚点 `v-baseline-2026-11-26-g`，锁定「向中英双账本补登现存 tag `v-baseline-2026-11-26-e`(e4ae655) 节、恢复速览 a→f 时间序、消除 e 缺失歧义」这一账本-代码文档同步点；该 HEAD 的 --full 全套回归为 ALL GREEN（RC=0 无 flaky）。纯文档 chore，无代码 / 回归范围变更。
+本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f 之后。本轮已 push origin main（账本已上 GitHub，main 0 0）后单独 push 本 tag（ls-remote peel == `82f52e5`），并用 backup-bundle 把含 -g 的 HEAD 固化进 E/F 双盘。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-g | `82f52e54084f4ddc8826c5f48212d12ab923d479` | 账本-代码文档同步点：82f52e5（中英账本补登 -e=e4ae655 节 + 速览升 -g）；--full ALL GREEN；已在远端 |
+
+**是否已在远端**：已在远端（本轮 push origin main 后单独 `git push origin v-baseline-2026-11-26-g`；main 0 0 同步，ls-remote peel == `82f52e5`，tag object 7a4bfb72）。
+
+### 重建命令（如需恢复命名回滚点 g）
+
+```bat
+git tag -a v-baseline-2026-11-26-g 82f52e54084f4ddc8826c5f48212d12ab923d479 -m "baseline 2026-11-26-g: ledger/code sync point 82f52e5 (pure-doc, full regression green)"
 ```

@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-f`
-> (commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`, the atomic rollback point of the askConfirm focus-trap + B5 a11y gate: c1680a0 (app.js native confirm fully migrated to askConfirm + remembers opener on open / Tab and Shift+Tab kept inside the dialog / focus restored to opener on close, WCAG 2.4.3 + the B5 block in test_ask_confirm_jsdom.mjs asserting Tab-stays-inside and activeElement===opener after close); feature code and its regression lock amended into one atomic commit; full --full regression ALL GREEN (RC=0, no flaky). Note: the tag was cut under the true date 2026-11-26, continuing after a/b/c/d as the atomic rollback point of feature commit c1680a0).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-f) section wins.
+> The current latest rollback point is `v-baseline-2026-11-26-g`
+> (commit `82f52e54084f4ddc8826c5f48212d12ab923d479`, the ledger/code sync point (pure-doc chore): 82f52e5 (backfilled the existing tag `v-baseline-2026-11-26-e`=e4ae655 section into the zh/en double archive, restoring the a-f chronological order and removing the e-gap ambiguity); this round also backfills the -g section. Pure doc, no code / regression-scope change; the --full regression at this HEAD was ALL GREEN (RC=0). Note: the tag was cut under the true date 2026-11-26, continuing after a/b/c/d/e/f as the rollback anchor of the doc-sync point of backfilling the -e section).
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -624,4 +624,20 @@ The tag was cut under the true date 2026-11-26, continuing after a/b/c/d (the le
 
 ```bat
 git tag -a v-baseline-2026-11-26-f c1680a0271c5ba8fe1a97c5d807d8185a0baa24f -m "baseline: askConfirm focus-trap + B5 a11y gate (atomic, all-green)"
+```
+## 2026-11-26 series: current latest rollback point upgraded to g (pure-doc chore 82f52e5 that backfilled the -e section, full regression green)
+
+This round cut the named rollback point `v-baseline-2026-11-26-g` at commit `82f52e54084f4ddc8826c5f48212d12ab923d479`, locking the ledger/code doc-sync point of "backfilling the existing tag `v-baseline-2026-11-26-e`(e4ae655) section into the zh/en double archive, restoring the a-f chronological order and removing the e-gap ambiguity"; the --full regression at this HEAD was ALL GREEN (RC=0, no flaky). Pure-doc chore, no code / regression-scope change.
+The tag was cut under the true date 2026-11-26, continuing after a/b/c/d/e/f. This round pushed origin main (the ledger is on GitHub, main 0 0) then single-pushed this tag (ls-remote peel == `82f52e5`), and backup-bundle fixed the HEAD containing -g onto the E/F drives.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-g | `82f52e54084f4ddc8826c5f48212d12ab923d479` | ledger/code doc-sync point: 82f52e5 (zh/en archive backfilled the -e=e4ae655 section + speed-view upgraded to -g); --full ALL GREEN; on the remote |
+
+**On the remote**: already on the remote (this round pushed origin main then single-pushed `git push origin v-baseline-2026-11-26-g`; main 0 0 sync, ls-remote peel == `82f52e5`, tag object 7a4bfb72).
+
+### Rebuild command (to restore named rollback point g)
+
+```bat
+git tag -a v-baseline-2026-11-26-g 82f52e54084f4ddc8826c5f48212d12ab923d479 -m "baseline 2026-11-26-g: ledger/code sync point 82f52e5 (pure-doc, full regression green)"
 ```
