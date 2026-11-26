@@ -12,8 +12,8 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-26-k`
-> (commit `135f3f2e797c80d7944d04ae259d5b4d698c2594`, the segmented-registration line closure: a data-driven scan showed the only unregistered baseline dates are 2026-10-31 (not a-start, multi-letter ctx out-of-order) and 2026-11-02 (lone letter f) -- both structurally inapplicable to a contiguity window; the 7 registered dates 2026-10-30/2026-11-21~26 are the terminal set, the line is saturated with no candidate left. Pure-doc (CHANGELOG + ledger); full incl. post-green ALL GREEN at this HEAD. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i/j.)
+> Current latest rollback point = `v-baseline-2026-11-26-l`
+> (commit `15225792ec3504a6cfaabd1661d1df1062e6362a`, the cross-line memory-rules landing (chore rules): RULES.md +2 entries -- pure-stdlib gate split into unit-testable run_checks + IO-only main mirroring the secret_scan triad; a CI gate needing all tags/commits must set actions/checkout fetch-depth:0 + git fetch --tags --force else deref/continuity check is blind. Pure-doc (memory rules); full incl. post-green ALL GREEN at this HEAD. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i/j/k.)
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
@@ -852,5 +852,22 @@ Verified: the `ledger_tag_parity` gate is ALL GREEN; full suite ALL GREEN incl. 
 
 ```bat
 git tag -a v-baseline-2026-11-26-k 135f3f2e797c80d7944d04ae259d5b4d698c2594 -m "baseline 2026-11-26-k: segmented-registration line closure commit 135f3f2"
+```
+
+## 2026-11-26 series: current latest rollback point upgraded to l (cross-line memory-rules landing commit 1522579, all green)
+
+This round cuts named rollback point `v-baseline-2026-11-26-l` at commit `15225792ec3504a6cfaabd1661d1df1062e6362a`, pinning the *cross-line memory-rules landing* ledger rollback point: that commit is a chore(rules) landing 2 RULES.md entries that had long been learned and in effect but left uncommitted -- (1) new stdlib gate scripts should split into a unit-testable pure `run_checks` (takes already-loaded data) plus an IO-only `main`, so the CI workflow / regression test / local reuse one source of truth, mirroring the existing secret_scan.py + secret-scan.yml + test_secret_scan.py triad; (2) a CI gate workflow whose check needs all tags/commits must set actions/checkout to fetch-depth: 0 + git fetch --tags --force, else the deref/continuity check is blind to missing tags. Pure-doc (memory rules); the full suite at this HEAD is ALL GREEN incl. post-green (post-green checks out -l and re-verifies VERDICT: WORKING ROLLBACK POINT). This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g/h/i/j/k.
+Verified: the `ledger_tag_parity` gate is ALL GREEN; full suite ALL GREEN incl. post-green; the ledger tag-by-tag registration history, the overview and the tag history are all consistent.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-l | `15225792ec3504a6cfaabd1661d1df1062e6362a` | cross-line memory-rules landing commit (chore rules): RULES.md +2 entries (pure-stdlib gate split into run_checks + IO-only main mirroring secret_scan triad / CI gate needing all tags must set actions/checkout fetch-depth:0 + git fetch --tags --force); pure-doc; full incl. post-green ALL GREEN; local tag, pushed per convention |
+
+**Already on remote?**: this round first pushed origin main so HEAD advanced to this landing commit, confirmed 0 0, then separately `git push origin v-baseline-2026-11-26-l` (below); remote peel == `15225792ec3504a6cfaabd1661d1df1062e6362a` matching the ledger declaration.
+
+### Rebuild commands (to restore named rollback point l)
+
+```bat
+git tag -a v-baseline-2026-11-26-l 15225792ec3504a6cfaabd1661d1df1062e6362a -m "baseline 2026-11-26-l: cross-line memory-rules landing commit 1522579"
 ```
 

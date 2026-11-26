@@ -9,8 +9,8 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-k`
-> （commit `135f3f2e797c80d7944d04ae259d5b4d698c2594`，分段登记工作线结案：数据驱动扫描坐实未登记的仅 2026-10-31（非 a 起、含多字母 ctx 乱序）与 2026-11-02（仅孤字母 f），二者均结构不适用连续性窗；7 个已登记日（2026-10-30 / 11-21~26）即终态，分段登记线饱和无候选。纯文档（CHANGELOG + 本账本）；该 HEAD 上 full incl. post-green ALL GREEN。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i/j 之后。）
+> 当前最新回滚点 = `v-baseline-2026-11-26-l`
+> （commit `15225792ec3504a6cfaabd1661d1df1062e6362a`，跨线记忆条目落账（chore rules）：RULES.md +2 条——新增纯 stdlib 门禁拆可单测纯 run_checks + 仅 IO 装配 main 复用 secret_scan 三件套；CI 门禁需全 tag/commit 时 actions/checkout 须 fetch-depth:0 + git fetch --tags --force 否则 deref/连续性核对失明。纯文档（记忆规则）；该 HEAD 上 full incl. post-green ALL GREEN。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i/j/k 之后。）
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
@@ -1052,5 +1052,22 @@ git tag -a v-baseline-2026-11-26-j d499c196a74e238f1d4639051ff7bc4ed10e90d8 -m "
 
 ```bat
 git tag -a v-baseline-2026-11-26-k 135f3f2e797c80d7944d04ae259d5b4d698c2594 -m "baseline 2026-11-26-k: segmented-registration line closure commit 135f3f2"
+```
+
+## 2026-11-26 系列：当前最新回滚点升级到 l（跨线记忆条目落账 commit 1522579，全套绿）
+
+本轮在 commit `15225792ec3504a6cfaabd1661d1df1062e6362a` 打命名回滚点 `v-baseline-2026-11-26-l`，锁定「跨线记忆条目落账」这一账本回滚点：该 commit 是 chore(rules)，把 2 条早已沉淀生效但漏 commit 的 RULES.md 条目落账——（1）新增纯 stdlib 门禁脚本时拆成可单测的纯 run_checks（接收已加载数据）+ 仅做 IO 装配的 main，CI 工作流 / 回归测试 / 本地三处复用同一真相源，镜像既有 secret_scan.py + secret-scan.yml + test_secret_scan.py 三件套结构；（2）CI 门禁工作流若判据需要全部 tag/commit，actions/checkout 默认不带全部 tag，必须显式 fetch-depth: 0 + git fetch --tags --force，否则 deref/连续性核对会因 tag 缺失失明。纯文档（记忆规则）；该 HEAD 上 full 全套 incl. post-green ALL GREEN（post-green checkout -l 复验 VERDICT: WORKING ROLLBACK POINT）。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g/h/i/j/k 之后。
+已实测：`ledger_tag_parity` 门禁 ALL GREEN；full 全套 incl. post-green ALL GREEN；账本逐 tag 登记史、速览与 tag 历史三者账实一致。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-l | `15225792ec3504a6cfaabd1661d1df1062e6362a` | 跨线记忆条目落账 commit（chore rules）：RULES.md +2 条（纯 stdlib 门禁拆 run_checks+main 三件套复用 secret_scan 模式 / CI 门禁需全 tag 时 actions/checkout fetch-depth:0 + git fetch --tags --force）；纯文档；full incl. post-green ALL GREEN；本地 tag、按惯例待推 |
+
+**是否已在远端**：本轮先 push origin main 使 HEAD 前进到本落账 commit 坐实 0 0，再单独 `git push origin v-baseline-2026-11-26-l`（见下）；远端 peel == `15225792ec3504a6cfaabd1661d1df1062e6362a` 与账本声明一致。
+
+### 重建命令（如需恢复命名回滚点 l）
+
+```bat
+git tag -a v-baseline-2026-11-26-l 15225792ec3504a6cfaabd1661d1df1062e6362a -m "baseline 2026-11-26-l: cross-line memory-rules landing commit 1522579"
 ```
 
