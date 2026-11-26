@@ -17,6 +17,10 @@ document, register a one-line entry here (grouped by topic).
   the only safe primitive is the parenthesized group `( … || cd . )`, and the design stance "the value
   is a sentinel, not a block".
 
+- [`proxy-port-consistency.md`](proxy-port-consistency.md) / [简体中文](proxy-port-consistency.md)
+  — proxy-port consistency: three independent 7890 stores, how to locate a mismatch on a
+  machine/port change; boot-time check_proxy_config probe + download proxy-down direct-retry log.
+
 ## Design / review
 
 - [`plan-b-shell-direct-exec-review.md`](plan-b-shell-direct-exec-review.md) / [简体中文](plan-b-shell-direct-exec-review.md) — review record of

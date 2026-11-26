@@ -16,7 +16,8 @@ sys.path.insert(0, os.path.join(ROOT, "runtime"))
 
 from selfcheck import (  # noqa: E402
     run_selfcheck, check_config, check_mcp_tools, check_upstream,
-    check_build_marker, check_models_contract, check_logs_dir, _check,
+    check_build_marker, check_models_contract, check_logs_dir,
+    check_proxy_config, _check,
 )
 
 
@@ -34,6 +35,13 @@ def _good_config(path):
     with open(path, "w", encoding="utf-8") as fh:
         json.dump({"mcpServers": {"fs": {"command": "x"}, "shell": {"command": "y"}},
                    "mcp": {"timeout_s": 330}}, fh)
+
+
+def _proxy_config(path, proxy_url):
+    """config with a websearch.env.STRATA_PROXY set to proxy_url."""
+    with open(path, "w", encoding="utf-8") as fh:
+        env = {"STRATA_PROXY": proxy_url} if proxy_url is not None else {}
+        json.dump({"mcpServers": {"websearch": {"command": "x", "env": env}}}, fh)
 
 
 def _write_marker(dir_, with_marker=True):
@@ -109,6 +117,33 @@ def main() -> int:
         # ── logs_dir ──
         log_ok = os.path.join(tmp, "proj_ok")
         check("writable logs dir -> pass", check_logs_dir(log_ok)["ok"])
+
+        # ── proxy_reach ──
+        # No proxy configured anywhere -> INFO skip. Force-clear the env so a stray
+        # STRATA_PROXY in this process cannot leak into the assertion.
+        os.environ.pop("STRATA_PROXY", None)
+        np_cfg = os.path.join(tmp, "no_proxy.json")
+        _proxy_config(np_cfg, None)
+        sk = check_proxy_config(np_cfg)
+        check("no proxy -> info skip", sk["ok"] and sk["level"] == "INFO", sk)
+        # Unreachable proxy -> WARN but ok stays True (websearch has a direct primary path,
+        # so a dead proxy must NOT hard-fail boot). load-bearing: if WARN were downgraded to
+        # ERROR, not sk["ok"] would flip and this check would catch it.
+        un_cfg = os.path.join(tmp, "unreach.json")
+        _proxy_config(un_cfg, "http://127.0.0.1:1")   # nothing listens on 1
+        wr = check_proxy_config(un_cfg)
+        check("unreachable proxy -> WARN, ok=True", wr["ok"] and wr["level"] == "WARN", wr)
+        # Reachable proxy (this test's own temp listener) -> INFO pass. Use an OS-ephemeral
+        # port so it never collides. load-bearing: if the TCP probe were stubbed away, this
+        # would report WARN and fail.
+        import socket as _sk
+        _l = _sk.socket(); _l.bind(("127.0.0.1", 0)); _l.listen(1)
+        _port = _l.getsockname()[1]
+        ok_cfg = os.path.join(tmp, "ok_proxy.json")
+        _proxy_config(ok_cfg, "http://127.0.0.1:%d" % _port)
+        gi = check_proxy_config(ok_cfg)
+        _l.close()
+        check("reachable proxy -> INFO pass", gi["ok"] and gi["level"] == "INFO", gi)
 
         # ── run_selfcheck aggregation ──
         rep = run_selfcheck(good_ex, upstream_url=None, web_dir=web_ok,

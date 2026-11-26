@@ -13,6 +13,9 @@
   「软告警不阻断 + 告警落 data\backup.log + 体积轮转」。含 cmd 下 `|| true`/`|| exit /b 0` 皆错、
   唯一安全原语是括号组 `( … || cd . )` 的实测真值表，以及「价值在哨兵不在阻断」的设计取向。
 
+- [`proxy-port-consistency.md`](proxy-port-consistency.md) / [English](proxy-port-consistency.en.md)
+  — 代理端口一致性：三处独立存的 7890，换机器/换端口时如何一处定位；启动自检 check_proxy_config 探活 + 下载代理不通直连重试日志。
+
 ## 设计 / 评审
 
 - [`plan-b-shell-direct-exec-review.md`](plan-b-shell-direct-exec-review.md) / [English](plan-b-shell-direct-exec-review.en.md) —

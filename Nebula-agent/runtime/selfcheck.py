@@ -208,6 +208,56 @@ def check_logs_dir(source_root: Optional[str]) -> dict:
         return _check("logs_dir", False, f"logs dir not writable ({log_dir}): {e}")
 
 
+def check_proxy_config(config_path: Optional[str]) -> dict:
+    """Proxy-port consistency: the websearch STRATA_PROXY must actually be reachable.
+
+    One-place locator for the cross-cutting fact "the configured proxy port equals the
+    port the proxy software is really listening on". When you move machines or change
+    the proxy port, this boot check TCP-connects the configured port and reports it, so
+    a mismatch surfaces here instead of as an opaque search/download failure later.
+
+    The proxy is only the *fallback* path for websearch (the primary path dials Bing
+    directly), so an unreachable proxy is WARN (service still works), never a hard fail.
+    Port parsing mirrors websearch_server._proxy_parts(): a bare host:port is treated as
+    socks5://; scheme without an explicit port falls back to the scheme default.
+    """
+    if not config_path or not os.path.isfile(config_path):
+        return _check("proxy_reach", True, "skipped (no config)", level="INFO")
+    try:
+        raw = _load_cfg(config_path)
+    except Exception as e:
+        return _check("proxy_reach", True, f"skipped (config unreadable): {e}", level="INFO")
+    servers = (raw.get("mcpServers") if isinstance(raw, dict) else None) or {}
+    ws = servers.get("websearch") or {}
+    # config env is what gets injected into the websearch child at spawn time (the
+    # source of truth); fall back to this process's env if the config sets none.
+    proxy = ((ws.get("env") or {}).get("STRATA_PROXY") or "").strip() \
+            or (os.environ.get("STRATA_PROXY") or "").strip()
+    if not proxy:
+        return _check("proxy_reach", True, "no websearch proxy configured (direct-only)", level="INFO")
+    url = proxy if "://" in proxy else "socks5://" + proxy
+    try:
+        from urllib.parse import urlparse
+        pr = urlparse(url)
+    except Exception as e:
+        return _check("proxy_reach", True, f"skipped (unparsable proxy '{proxy}'): {e}", level="INFO")
+    host = pr.hostname or "127.0.0.1"
+    if pr.port:
+        port = pr.port
+    elif pr.scheme in ("http", "https"):
+        port = 443 if pr.scheme == "https" else 80
+    else:
+        port = 1080  # socks default
+    try:
+        s = socket.create_connection((host, port), timeout=3)
+        s.close()
+        return _check("proxy_reach", True, f"tcp ok {host}:{port} (STRATA_PROXY)", level="INFO")
+    except Exception as e:
+        return _check("proxy_reach", True,
+                      f"WARN proxy {host}:{port} unreachable ({e}); websearch direct path "
+                      f"still works, proxy fallback disabled", level="WARN")
+
+
 # ─── aggregator ────────────────────────────────────────────────────────────────
 
 def run_selfcheck(executor=None, *, upstream_url: Optional[str] = None,
@@ -224,6 +274,7 @@ def run_selfcheck(executor=None, *, upstream_url: Optional[str] = None,
     checks.append(check_build_marker(web_dir))
     checks.append(check_models_contract(source_root))
     checks.append(check_logs_dir(source_root))
+    checks.append(check_proxy_config(config_path))
 
     hard = [c for c in checks if (not c["ok"]) and c["level"] == "ERROR"]
     warns = [c for c in checks if c["level"] == "WARN"]

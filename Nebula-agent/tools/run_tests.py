@@ -524,6 +524,7 @@ SUITES = [
 
     "tests/test_websearch_download_naming.py",   # 2026-11: download naming priority name>query(keeps language)>url-basename + ext whitelist/sanitize; calls the REAL _call_download with fetch/GC stubbed (no network)
     "tests/test_websearch_brand_trap.py",   # 2026-11 brand-trap: a pinyin/romanized query that collides with a REGISTERED brand (Baize->BIAZE) gets an ASCII guide appended telling the operator to use the native script/qualifier; deterministic (no network), calls the REAL call_tool->_call_images with _images_pass stubbed
+    "tests/test_websearch_proxy_retry.py",   # 2026-11 download proxy-unreachable -> operator log + direct retry; R1-R4 stub _fetch_bytes_via/_proxy_parts (no network)
 
     "tests/test_forwarder_no_false_green.py",   # 2026-11-15: workspace-root run_all_tests.py forwarder must never false-green: locate-fail RED + exit-code propagated + args passthrough (sandbox stub exits 7 -> forwarder echoes 7, load-bearing differential)
     "tools/_single_source_gate.py",   # 2026-10-25: after parasite(8080) retirement serve/web is the ONLY frontend source; locks source clean of the 4 parasite scripts + archive reversible (replaces the now-dead mirror-parity gate)

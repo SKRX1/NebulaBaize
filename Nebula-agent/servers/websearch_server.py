@@ -489,20 +489,40 @@ def _reconcile_ext(name, data):
     return stem + canonical
 
 
+def _fetch_bytes_via(url, headers, proxy):
+    """抓一次：proxy=None 直连，否则按 scheme 构 opener。opener 不可用返回 None。"""
+    opener = _build_opener(proxy)
+    if opener is None:
+        return None
+    req = urllib.request.Request(url, headers=headers)
+    with opener.open(req, timeout=30) as r:
+        return r.read()
+
+
 def _fetch_bytes(url):
     """按 URL 抓二进制 bytes（复用代理 scheme 分派）。
 
+    代理优先、不可达自动直连重试（2026-11）：配了 STRATA_PROXY 就先走代理，若
+    代理连不上 / 后端不可用（socks 但 PySocks 缺失），就打一行日志再退回直连。
+    日志便于日后排障时区分“代理通 / 不通”，不静默吞。
     补 Referer + Accept：很多图床 CDN 检查 Referer 防盗链，裸 UA 直连会被 403。
     """
     host = urllib.parse.urlparse(url).scheme + "://" + urllib.parse.urlparse(url).netloc
-    req = urllib.request.Request(url, headers={
+    headers = {
         "User-Agent": _UA, "Referer": host + "/",
-        "Accept": "image/avif,image/webp,image/*,*/*;q=0.8"})
-    opener = _build_opener(_proxy_parts())
-    if opener is None:
-        return None
-    with opener.open(req, timeout=30) as r:
-        return r.read()
+        "Accept": "image/avif,image/webp,image/*,*/*;q=0.8"}
+    proxy = _proxy_parts()
+    if proxy:
+        try:
+            data = _fetch_bytes_via(url, headers, proxy)
+            if data is not None:
+                return data
+            print("[websearch] download: proxy backend unavailable (%s), retrying direct"
+                  % proxy, file=sys.stderr)
+        except Exception as e:
+            print("[websearch] download: proxy %s unreachable (%s: %s), retrying direct"
+                  % (proxy, type(e).__name__, e), file=sys.stderr)
+    return _fetch_bytes_via(url, headers, None)
 
 
 def _recycle(path):
