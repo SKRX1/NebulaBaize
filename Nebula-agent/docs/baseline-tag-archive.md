@@ -9,8 +9,8 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-26-g`
-> （commit `82f52e54084f4ddc8826c5f48212d12ab923d479`，账本-代码同步点（纯文档 chore）：82f52e5（向中英双账本补登现存 tag `v-baseline-2026-11-26-e`=e4ae655 节，恢复速览 a→f 时间序、消除 e 缺失歧义）；本轮据实再补登 -g 节；纯文档，无代码/回归范围变更；该 HEAD 的 --full 全套为 ALL GREEN（RC=0）。说明：本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f 之后，是账本补登 -e 节这一文档同步点的回滚锚点）。
+> 当前最新回滚点 = `v-baseline-2026-11-26-h`
+> （commit `d170ed16cdbfea8965c20944d03ccfb637c7bff1`，账本↔tag deref 一致性门禁落地点：新增 ledger_tag_parity.py + 8 用例差分锁 + .github/workflows/ledger-tag.yml，登记进 run_tests SUITES（QUICK），自动拦截 -e 类账本滞后断层；并向中英双账本补登 11-22/23/24 早期未登记 tag 以扩宽连续性窗。纯工具/文档；该 HEAD 的 --quick 全套回归 ALL GREEN，ledger-tag CI（headSha d170ed1）completed success。本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d/e/f/g 之后，是门禁落地点这一回滚锚点。）
 > 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
@@ -873,3 +873,53 @@ git tag -a v-baseline-2026-11-25-h 3827058eb209094a1d37f9f0af43798fb774a91e "v-b
 git tag -a v-baseline-2026-11-25-i 416943d2a8970c73af9aa7c947b5f3f5427a309b "v-baseline-2026-11-25-i backfill"
 git tag -a v-baseline-2026-11-25-j 8d8a27dd3852f053e810f710defa5ea34de185fe "v-baseline-2026-11-25-j backfill"
 ```
+## 2026-11-22 / 23 / 24 系列（前序补登 a-h / a-c / a-h）：补齐早期已打但账本未登记的命名回滚点（扩宽门禁连续性窗）
+
+本节一次性补登 2026-11-22 / 23 / 24 早期已打 tag 但账本（中英）当时未用门禁可解析格式（带反引号表格行）登记的命名回滚点：11-22 系列 a/b/c/d/e/f/g/h、11-23 系列 a/b/c、11-24 系列 a/b/c/d/e/f/g/h。早期各节里出现的行 sha 未用反引号包裹（不被门禁 ROW_RE 收录），故这三个日期在门禁里登记字母为空、连续性窗 OFF（整日跳过、不误报）。本节以规范带反引号格式重登，让门禁把这三日的登记字母补齐为 a-h / a-c / a-h——三日的 git 真实 tag 恰好完整覆盖此区间（窗内无缺），补登后窗 [min..max] 内无缺口、转绿，扩宽了自动断层检测的时间覆盖。每条 sha 均为 `git rev-parse <tag>^{}` 实测解引用所得，且 `git merge-base --is-ancestor <commit> HEAD` 全部 anc=0（在 HEAD 链上、可审计、可重建）。
+
+| tag | 指向 commit（40 位） | 当日语义 |
+|---|---|---|
+| v-baseline-2026-11-22-a | `bc9bc5357544811a3dad3e02b4e79deffd752108` | chore(master): 落账 license 工作线 stash（CONTRIBUTING 邮箱/画廊清理/RULES） |
+| v-baseline-2026-11-22-b | `9041d3228088845b1763a227c3c226b88a598b62` | merge: license 线（master 717 commits）并入公开 main |
+| v-baseline-2026-11-22-c | `1959dbc3a105cd24f18b743218daf59b35be9013` | fix(backup-bundle): 回滚演练改为动态解析当前分支，修 master 硬编码致 main 仓 RED |
+| v-baseline-2026-11-22-d | `1621c6e673622d54cfefb66b419942d55ed22aed` | fix(backup-bundle): rehearse 的 branch 改 keyword-only，修回归打破 _mirror_rehearse_gate |
+| v-baseline-2026-11-22-e | `d9d6b1d1f51a8050d311738fe6f8fe2529d63d44` | docs(readme): 顶栏补语言切换规范提示（全套文档中文默认化定稿点） |
+| v-baseline-2026-11-22-f | `c5aa6e1c3395fecf9be9eb96d0dca6e64a89e7a4` | feat(web): 模型表单点卡片外不再静默丢弃，补"未保存"轻提示（不关闭） |
+| v-baseline-2026-11-22-g | `a865bccfbcedf9d5fa01cbb32cfc2d7909d4cf35` | fix(web): ws-modal + bugbox-addmodal 去掉遮罩即关（会丢表单），补 Esc 与契约 |
+| v-baseline-2026-11-22-h | `aebb281cea0f2fbcffefd3b536cda6696a351738` | fix(css): 竖向滚动容器统一钉死横向轴，杜绝 composer 上方冒出的多余横滚条 |
+| v-baseline-2026-11-23-a | `48a0358e6f3ae6184b90511045795f16da2619e6` | fix(compact): 工具结果非字符串不再当 content 发给上游，修复分段压缩失败/丢上下文 |
+| v-baseline-2026-11-23-b | `34cec8d9fd13eea072b9ac79c4a0ca7a54f1e402` | fix(web): 外部 sprite.svg 图标改为内联进 index.html，杜绝回答起始的图标闪烁 |
+| v-baseline-2026-11-23-c | `c64de97067f543e7ff6698090eb80727e99121de` | setup: fs 白名单自动重置 + 一次性 backup_once（reset_fs_allowed_roots / --keep-roots） |
+| v-baseline-2026-11-24-a | `195cd758d3afb48cedb5e5d96a719707dc800fae` | chore(rules): land the 10 pending cross-line memory entries |
+| v-baseline-2026-11-24-b | `91719a511311e7716c0cb5c0f526f6ded9961914` | fix(web): 修复便签列表卡片正文误渲染注释文字 + 切换器键盘可达 + 时间模式可折叠分组 |
+| v-baseline-2026-11-24-c | `ea118ad401978df68311ef915e0bebe59f167725` | chore(gallery): image_gallery.json 运行期数据刷新（导入条目 category 等） |
+| v-baseline-2026-11-24-d | `54cea5da0344501d025bc6517956130c7b3506ea` | fix(regression): post-green 回滚校验恢复目标改为记录的真实分支，根除游离 HEAD |
+| v-baseline-2026-11-24-e | `0dd37be4085fe4fb4d0de48dc99dd88460867f4d` | chore(rules): land 2 pending memory rules from prior line（harness CRLF in-place / SUITES timing gate） |
+| v-baseline-2026-11-24-f | `df7b012448792ef6debee1d1f562c69b8fdf25b1` | feat(sampling): 采样抽屉快照上报接线 + 后端 /api/sampling-snapshot 落盘点（全绿锚点） |
+| v-baseline-2026-11-24-g | `de62e1eeaaa322c05381c6da396fe9dd0c4bead3` | docs(ledger): register v-baseline-2026-11-24-f as current rollback point（账本登记点本身） |
+| v-baseline-2026-11-24-h | `78c5142387c55e2ccff522f6fe49ff9c6cfb6a87` | feat(auto-resume): early-done lane 增"悬空 narration"子类，无 plan 块也能续跑被打断的承诺 |
+
+### 重建命令（按需恢复 11-22/23/24 早期命名回滚点）
+
+```bat
+git tag -a v-baseline-2026-11-22-a bc9bc5357544811a3dad3e02b4e79deffd752108 -m "v-baseline-2026-11-22-a backfill"
+git tag -a v-baseline-2026-11-22-b 9041d3228088845b1763a227c3c226b88a598b62 -m "v-baseline-2026-11-22-b backfill"
+git tag -a v-baseline-2026-11-22-c 1959dbc3a105cd24f18b743218daf59b35be9013 -m "v-baseline-2026-11-22-c backfill"
+git tag -a v-baseline-2026-11-22-d 1621c6e673622d54cfefb66b419942d55ed22aed -m "v-baseline-2026-11-22-d backfill"
+git tag -a v-baseline-2026-11-22-e d9d6b1d1f51a8050d311738fe6f8fe2529d63d44 -m "v-baseline-2026-11-22-e backfill"
+git tag -a v-baseline-2026-11-22-f c5aa6e1c3395fecf9be9eb96d0dca6e64a89e7a4 -m "v-baseline-2026-11-22-f backfill"
+git tag -a v-baseline-2026-11-22-g a865bccfbcedf9d5fa01cbb32cfc2d7909d4cf35 -m "v-baseline-2026-11-22-g backfill"
+git tag -a v-baseline-2026-11-22-h aebb281cea0f2fbcffefd3b536cda6696a351738 -m "v-baseline-2026-11-22-h backfill"
+git tag -a v-baseline-2026-11-23-a 48a0358e6f3ae6184b90511045795f16da2619e6 -m "v-baseline-2026-11-23-a backfill"
+git tag -a v-baseline-2026-11-23-b 34cec8d9fd13eea072b9ac79c4a0ca7a54f1e402 -m "v-baseline-2026-11-23-b backfill"
+git tag -a v-baseline-2026-11-23-c c64de97067f543e7ff6698090eb80727e99121de -m "v-baseline-2026-11-23-c backfill"
+git tag -a v-baseline-2026-11-24-a 195cd758d3afb48cedb5e5d96a719707dc800fae -m "v-baseline-2026-11-24-a backfill"
+git tag -a v-baseline-2026-11-24-b 91719a511311e7716c0cb5c0f526f6ded9961914 -m "v-baseline-2026-11-24-b backfill"
+git tag -a v-baseline-2026-11-24-c ea118ad401978df68311ef915e0bebe59f167725 -m "v-baseline-2026-11-24-c backfill"
+git tag -a v-baseline-2026-11-24-d 54cea5da0344501d025bc6517956130c7b3506ea -m "v-baseline-2026-11-24-d backfill"
+git tag -a v-baseline-2026-11-24-e 0dd37be4085fe4fb4d0de48dc99dd88460867f4d -m "v-baseline-2026-11-24-e backfill"
+git tag -a v-baseline-2026-11-24-f df7b012448792ef6debee1d1f562c69b8fdf25b1 -m "v-baseline-2026-11-24-f backfill"
+git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "v-baseline-2026-11-24-g backfill"
+git tag -a v-baseline-2026-11-24-h 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 -m "v-baseline-2026-11-24-h backfill"
+```
+

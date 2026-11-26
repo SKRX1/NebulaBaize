@@ -12,8 +12,8 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> The current latest rollback point is `v-baseline-2026-11-26-g`
-> (commit `82f52e54084f4ddc8826c5f48212d12ab923d479`, the ledger/code sync point (pure-doc chore): 82f52e5 (backfilled the existing tag `v-baseline-2026-11-26-e`=e4ae655 section into the zh/en double archive, restoring the a-f chronological order and removing the e-gap ambiguity); this round also backfills the -g section. Pure doc, no code / regression-scope change; the --full regression at this HEAD was ALL GREEN (RC=0). Note: the tag was cut under the true date 2026-11-26, continuing after a/b/c/d/e/f as the rollback anchor of the doc-sync point of backfilling the -e section).
+> Current latest rollback point = `v-baseline-2026-11-26-h`
+> (commit `d170ed16cdbfea8965c20944d03ccfb637c7bff1`, the ledger<->tag deref parity gate landing point: adds ledger_tag_parity.py + an 8-case differential lock + .github/workflows/ledger-tag.yml, registered in run_tests SUITES (QUICK), catching the -e class ledger-lag gap automatically; backfills the 11-22/23/24 early unregistered tags into both zh/en ledgers to widen the continuity window. Pure tooling/docs; the --quick regression at this HEAD was ALL GREEN and the ledger-tag CI run (headSha d170ed1) completed success. This tag is cut under the real 2026-11-26 date, after a/b/c/d/e/f/g, as the rollback anchor of the gate-landing point.)
 > The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
@@ -673,3 +673,53 @@ git tag -a v-baseline-2026-11-25-h 3827058eb209094a1d37f9f0af43798fb774a91e "v-b
 git tag -a v-baseline-2026-11-25-i 416943d2a8970c73af9aa7c947b5f3f5427a309b "v-baseline-2026-11-25-i backfill"
 git tag -a v-baseline-2026-11-25-j 8d8a27dd3852f053e810f710defa5ea34de185fe "v-baseline-2026-11-25-j backfill"
 ```
+## 2026-11-22 / 23 / 24 series (backfill a-h / a-c / a-h): register the early rollback points that were tagged but never recorded in parseable form (widens the gate continuity window)
+
+This section backfills, in one pass, the early named rollback points on 2026-11-22 / 23 / 24 that were tagged but never recorded in the (zh/en) ledger in a gate-parseable form (a table row with the sha wrapped in backticks): series 11-22 a/b/c/d/e/f/g/h, 11-23 a/b/c, 11-24 a/b/c/d/e/f/g/h. The rows that did appear in those early sections left the sha un-backticked (so the gate ROW_RE does not capture them), which is why those three dates had an empty registered-letter set and their continuity window was OFF (whole day skipped, no false positives). Re-registering them here in the canonical backticked form fills the three days' registered letters to a-h / a-c / a-h — the real git tags for those days exactly cover that range (no in-window gap), so after the backfill the [min..max] window has no missing letter and turns green, widening the automatic lag-gap detection's date coverage. Every sha is the real `git rev-parse <tag>^{}` dereference, and `git merge-base --is-ancestor <commit> HEAD` returns anc=0 for all (on the HEAD chain, auditable, rebuildable).
+
+| tag | commit (40-hex) | day semantics |
+|---|---|---|
+| v-baseline-2026-11-22-a | `bc9bc5357544811a3dad3e02b4e79deffd752108` | chore(master): land license-line stash (CONTRIBUTING email / gallery cleanup / RULES) |
+| v-baseline-2026-11-22-b | `9041d3228088845b1763a227c3c226b88a598b62` | merge: license line (master 717 commits) merged into public main |
+| v-baseline-2026-11-22-c | `1959dbc3a105cd24f18b743218daf59b35be9013` | fix(backup-bundle): rollback rehearsal resolves current branch dynamically, fixes master-hardcode RED on main |
+| v-baseline-2026-11-22-d | `1621c6e673622d54cfefb66b419942d55ed22aed` | fix(backup-bundle): rehearse branch made keyword-only, fixes regression breaking _mirror_rehearse_gate |
+| v-baseline-2026-11-22-e | `d9d6b1d1f51a8050d311738fe6f8fe2529d63d44` | docs(readme): topbar language-switch norm (docs full Chinese-default finalization point) |
+| v-baseline-2026-11-22-f | `c5aa6e1c3395fecf9be9eb96d0dca6e64a89e7a4` | feat(web): model form outside-card click no longer silently drops, adds unsaved hint (no close) |
+| v-baseline-2026-11-22-g | `a865bccfbcedf9d5fa01cbb32cfc2d7909d4cf35` | fix(web): ws-modal + bugbox-addmodal drop backdrop-close (loses form), add Esc + contract |
+| v-baseline-2026-11-22-h | `aebb281cea0f2fbcffefd3b536cda6696a351738` | fix(css): vertical scroll containers pin horizontal axis, kills spurious scrollbar above composer |
+| v-baseline-2026-11-23-a | `48a0358e6f3ae6184b90511045795f16da2619e6` | fix(compact): non-string tool results no longer sent as content upstream, fixes segmented-compact failure / context loss |
+| v-baseline-2026-11-23-b | `34cec8d9fd13eea072b9ac79c4a0ca7a54f1e402` | fix(web): external sprite.svg icons inlined into index.html, kills icon flicker at answer start |
+| v-baseline-2026-11-23-c | `c64de97067f543e7ff6698090eb80727e99121de` | setup: fs-allowlist auto-reset + one-shot backup_once (reset_fs_allowed_roots / --keep-roots) |
+| v-baseline-2026-11-24-a | `195cd758d3afb48cedb5e5d96a719707dc800fae` | chore(rules): land the 10 pending cross-line memory entries |
+| v-baseline-2026-11-24-b | `91719a511311e7716c0cb5c0f526f6ded9961914` | fix(web): fix note-list card body mis-rendering comment text + switcher keyboard a11y + collapsible time groups |
+| v-baseline-2026-11-24-c | `ea118ad401978df68311ef915e0bebe59f167725` | chore(gallery): image_gallery.json runtime-data refresh (imported-entry category etc.) |
+| v-baseline-2026-11-24-d | `54cea5da0344501d025bc6517956130c7b3506ea` | fix(regression): post-green rollback-verify target switched to the recorded real branch, eliminates detached HEAD |
+| v-baseline-2026-11-24-e | `0dd37be4085fe4fb4d0de48dc99dd88460867f4d` | chore(rules): land 2 pending memory rules from prior line (harness CRLF in-place / SUITES timing gate) |
+| v-baseline-2026-11-24-f | `df7b012448792ef6debee1d1f562c69b8fdf25b1` | feat(sampling): sampling-drawer snapshot upload + back-end /api/sampling-snapshot landing point (green anchor) |
+| v-baseline-2026-11-24-g | `de62e1eeaaa322c05381c6da396fe9dd0c4bead3` | docs(ledger): register v-baseline-2026-11-24-f as current rollback point (the ledger-sync commit itself) |
+| v-baseline-2026-11-24-h | `78c5142387c55e2ccff522f6fe49ff9c6cfb6a87` | feat(auto-resume): early-done lane adds a dangling-narration sub-lane, resumes interrupted promises without a plan block |
+
+### Rebuild commands (to restore an early 11-22/23/24 named rollback point on demand)
+
+```bat
+git tag -a v-baseline-2026-11-22-a bc9bc5357544811a3dad3e02b4e79deffd752108 -m "v-baseline-2026-11-22-a backfill"
+git tag -a v-baseline-2026-11-22-b 9041d3228088845b1763a227c3c226b88a598b62 -m "v-baseline-2026-11-22-b backfill"
+git tag -a v-baseline-2026-11-22-c 1959dbc3a105cd24f18b743218daf59b35be9013 -m "v-baseline-2026-11-22-c backfill"
+git tag -a v-baseline-2026-11-22-d 1621c6e673622d54cfefb66b419942d55ed22aed -m "v-baseline-2026-11-22-d backfill"
+git tag -a v-baseline-2026-11-22-e d9d6b1d1f51a8050d311738fe6f8fe2529d63d44 -m "v-baseline-2026-11-22-e backfill"
+git tag -a v-baseline-2026-11-22-f c5aa6e1c3395fecf9be9eb96d0dca6e64a89e7a4 -m "v-baseline-2026-11-22-f backfill"
+git tag -a v-baseline-2026-11-22-g a865bccfbcedf9d5fa01cbb32cfc2d7909d4cf35 -m "v-baseline-2026-11-22-g backfill"
+git tag -a v-baseline-2026-11-22-h aebb281cea0f2fbcffefd3b536cda6696a351738 -m "v-baseline-2026-11-22-h backfill"
+git tag -a v-baseline-2026-11-23-a 48a0358e6f3ae6184b90511045795f16da2619e6 -m "v-baseline-2026-11-23-a backfill"
+git tag -a v-baseline-2026-11-23-b 34cec8d9fd13eea072b9ac79c4a0ca7a54f1e402 -m "v-baseline-2026-11-23-b backfill"
+git tag -a v-baseline-2026-11-23-c c64de97067f543e7ff6698090eb80727e99121de -m "v-baseline-2026-11-23-c backfill"
+git tag -a v-baseline-2026-11-24-a 195cd758d3afb48cedb5e5d96a719707dc800fae -m "v-baseline-2026-11-24-a backfill"
+git tag -a v-baseline-2026-11-24-b 91719a511311e7716c0cb5c0f526f6ded9961914 -m "v-baseline-2026-11-24-b backfill"
+git tag -a v-baseline-2026-11-24-c ea118ad401978df68311ef915e0bebe59f167725 -m "v-baseline-2026-11-24-c backfill"
+git tag -a v-baseline-2026-11-24-d 54cea5da0344501d025bc6517956130c7b3506ea -m "v-baseline-2026-11-24-d backfill"
+git tag -a v-baseline-2026-11-24-e 0dd37be4085fe4fb4d0de48dc99dd88460867f4d -m "v-baseline-2026-11-24-e backfill"
+git tag -a v-baseline-2026-11-24-f df7b012448792ef6debee1d1f562c69b8fdf25b1 -m "v-baseline-2026-11-24-f backfill"
+git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "v-baseline-2026-11-24-g backfill"
+git tag -a v-baseline-2026-11-24-h 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 -m "v-baseline-2026-11-24-h backfill"
+```
+
