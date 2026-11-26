@@ -923,3 +923,20 @@ git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "
 git tag -a v-baseline-2026-11-24-h 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 -m "v-baseline-2026-11-24-h backfill"
 ```
 
+## 2026-11-26 系列：当前最新回滚点升级到 h（账本↔tag deref 一致性门禁三件套落地点 d170ed1，全套绿）
+
+本轮在 commit `d170ed16cdbfea8965c20944d03ccfb637c7bff1` 打命名回滚点 `v-baseline-2026-11-26-h`，锁定「账本↔tag deref 一致性门禁三件套」落地这一回滚点：新增 `tools/ledger_tag_parity.py`（把「git 已有某 baseline tag 但中英账本未登记该 tag 行」这类 -e 类滞后断层从人工核对固化为自动门禁，三道判据=deref 一致 / 中英集合一致 / 已登记日内字母连续）+ 8 用例差分锁 `tests/test_ledger_tag_parity.py`（登记进 run_tests SUITES·QUICK）+ `.github/workflows/ledger-tag.yml`（push main / PR / 手动三触发，与本地共用同一真相源）。本轮含向中英双账本补登 11-22(a-h)/11-23(a-c)/11-24(a-h) 早期 tag 以扩宽连续性窗（每条 sha 均 rev-parse ^{} 实测、anc=0）。`v-baseline-2026-11-26-h` 续 a/b/c/d/e/f/g 之后，tag 在 2026-11-26 真实日期下打。
+已实测：`ledger_tag_parity` 门禁 ALL GREEN；差分锁 8 用例全绿（含 S8 真仓自举）；`run_tests --quick` 250 suites ALL GREEN；本 tag 的 push 触发 ledger-tag.yml 对 headSha `d170ed1` 自动跑 completed/success（CI 绿）；账本与速览、tag 历史三者账实一致。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-h | `d170ed16cdbfea8965c20944d03ccfb637c7bff1` | 账本↔tag deref 一致性门禁三件套落地点：ledger_tag_parity.py + tests/test_ledger_tag_parity.py(8 用例差分·登记 SUITES) + .github/workflows/ledger-tag.yml；附 11-22/23/24 早期 tag 补登扩宽连续性窗；quick 全套 250 ALL GREEN；CI 已实跑 success |
+
+**是否已在远端**：已在远端（本轮先 push origin main 使 HEAD 前进到账本补登 commit 坐实 0 0，再单独 `git push origin v-baseline-2026-11-26-h`；远端 tag object `cc582616`、peel == `d170ed16cdbfea8965c20944d03ccfb637c7bff1`，与账本声明一致）。
+
+### 重建命令（如需恢复命名回滚点 h）
+
+```bat
+git tag -a v-baseline-2026-11-26-h d170ed16cdbfea8965c20944d03ccfb637c7bff1 -m "baseline 2026-11-26-h: ledger<->tag deref parity gate landing point d170ed1"
+```
+

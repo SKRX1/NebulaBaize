@@ -723,3 +723,20 @@ git tag -a v-baseline-2026-11-24-g de62e1eeaaa322c05381c6da396fe9dd0c4bead3 -m "
 git tag -a v-baseline-2026-11-24-h 78c5142387c55e2ccff522f6fe49ff9c6cfb6a87 -m "v-baseline-2026-11-24-h backfill"
 ```
 
+## 2026-11-26 series: current latest rollback point upgraded to h (ledger<->tag deref parity gate three-piece landing point d170ed1, all green)
+
+This round cuts named rollback point `v-baseline-2026-11-26-h` at commit `d170ed16cdbfea8965c20944d03ccfb637c7bff1`, pinning the landing point of the *ledger<->tag deref parity gate three-piece set*: `tools/ledger_tag_parity.py` (turns the -e class lag gap — git already has some baseline tag but the zh/en ledger never recorded that tag row — from a manual cross-check into an automatic gate; three criteria = deref match / zh-en set parity / per-registered-date letter continuity) + an 8-case differential lock `tests/test_ledger_tag_parity.py` (registered in run_tests SUITES, QUICK) + `.github/workflows/ledger-tag.yml` (push main / PR / manual, same source of truth as local). This round also backfills the 11-22(a-h)/11-23(a-c)/11-24(a-h) early tags into both zh/en ledgers to widen the continuity window (each sha is a real `rev-parse ^{}` dereference, anc=0). `v-baseline-2026-11-26-h` follows a/b/c/d/e/f/g and is cut under the real 2026-11-26 date.
+Verified: the `ledger_tag_parity` gate is ALL GREEN; the differential lock's 8 cases are all green (incl. S8 real-repo self-boot); `run_tests --quick` 250 suites ALL GREEN; this tag's push made ledger-tag.yml auto-run completed/success on headSha `d170ed1` (CI green); the ledger, the overview and the tag history are all consistent.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-h | `d170ed16cdbfea8965c20944d03ccfb637c7bff1` | ledger<->tag deref parity gate three-piece landing point: ledger_tag_parity.py + tests/test_ledger_tag_parity.py (8-case differential, SUITES-registered) + .github/workflows/ledger-tag.yml; plus the 11-22/23/24 early-tag backfill widening the continuity window; quick suite 250 ALL GREEN; CI ran success |
+
+**Already on remote?**: yes (this round first pushed origin main so HEAD advanced to the ledger-backfill commit, confirmed 0 0, then separately `git push origin v-baseline-2026-11-26-h`; remote tag object `cc582616`, peel == `d170ed16cdbfea8965c20944d03ccfb637c7bff1`, matching the ledger declaration).
+
+### Rebuild commands (to restore named rollback point h)
+
+```bat
+git tag -a v-baseline-2026-11-26-h d170ed16cdbfea8965c20944d03ccfb637c7bff1 -m "baseline 2026-11-26-h: ledger<->tag deref parity gate landing point d170ed1"
+```
+
