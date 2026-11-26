@@ -11,7 +11,7 @@
 
 > 当前最新回滚点 = `v-baseline-2026-11-26-f`
 > （commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`，焦点陷阱 + B5 无障碍门禁原子回滚点：c1680a0（app.js 原生 confirm 全量迁入 askConfirm + 打开记住 opener / Tab·Shift+Tab 锁框内 / 关闭还原焦点 WCAG 2.4.3 + test_ask_confirm_jsdom.mjs B5 块「Tab 锁框内」「关闭 activeElement===opener」门禁）；功能代码与其回归测试 amend 原子同 commit；全套 --full ALL GREEN（RC=0 无 flaky）。说明：本轮 tag 在 2026-11-26 真实日期下打，续 a/b/c/d 之后，是焦点陷阱功能点 c1680a0 的原子回滚点）。
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/f … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-f）为准。
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-26-f）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -790,6 +790,24 @@ git tag -a v-baseline-2026-11-26-c 22c6ef4e5c963de7af65af40465cbdedf5239ae0 -m "
 ```bat
 git tag -a v-baseline-2026-11-26-d 62db181122091cc541a5f6e074187b1b0d54e517 -m "baseline: lock ledger-speed-view -c parity at 62db181 (archive zh+en speed-view header/body/list all upgraded to -c; each -a/-b/-c section table-row commit == git deref truth; data-driven parity recheck PARITY OK; doc-only)"
 ```
+
+## 2026-11-26 系列：补登命名回滚点 e（别线已打的 e4ae655：8080 /web/ 分支补 cache validators，全绿）
+
+本轮据实补登账本缺失的 `v-baseline-2026-11-26-e` 节以消除速览 a→f 间 e 缺失的歧义。现存 tag `v-baseline-2026-11-26-e` 实际解引用到 `e4ae6551dc42f117ea922c763716c99b4d5a749d`（别线 commit：feat(engine) 给 8080 /web/ 分支补上与 8099 网关同款 cache validators ETag + Last-Modified + 304 revalidation，gate test_web_branch_cache.py 登记进 run_tests，全套回归绿，已 push origin/main），非速览此前误列的旧 e（超前标号清理删掉的 b67480a）。本 -e 节据实登记该现存 tag，恢复速览 a→f 链的时间序叙事一致。
+说明：本 -e tag 为别线已打、非本轮产物；本轮仅在账本据实补登，不改 tag、不改代码。旧超前标号清理节里登记的 e=b67480a 是被删的历史快照，与现存 -e=e4ae655 不同 commit，各自如实保留。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-26-e | `e4ae6551dc42f117ea922c763716c99b4d5a749d` | 别线已打：feat(engine) 8080 /web/ 分支补 cache validators(ETag+Last-Modified+304) + test_web_branch_cache 登记 run_tests；--full 绿、已在远端 |
+
+**是否已在远端**：已在远端（别线本轮 push origin main 后单独 push 本 tag；ls-remote 命中 tag object 97a491283347ebb3e428c6e0719d997ab70b50de，peel == `e4ae655`）。
+
+### 重建命令（如需恢复命名回滚点 e）
+
+```bat
+git tag -a v-baseline-2026-11-26-e e4ae6551dc42f117ea922c763716c99b4d5a749d -m "baseline 2026-11-26-e: workspace engine /web/ branch cache validators (ETag + Last-Modified + 304 revalidation)"
+```
+
 
 ## 2026-11-26 系列：当前最新回滚点升级到 f（焦点陷阱 + B5 无障碍门禁原子回滚点 c1680a0，全套绿）
 

@@ -14,7 +14,7 @@ cloning an old bundle can also restore them.
 
 > The current latest rollback point is `v-baseline-2026-11-26-f`
 > (commit `c1680a0271c5ba8fe1a97c5d807d8185a0baa24f`, the atomic rollback point of the askConfirm focus-trap + B5 a11y gate: c1680a0 (app.js native confirm fully migrated to askConfirm + remembers opener on open / Tab and Shift+Tab kept inside the dialog / focus restored to opener on close, WCAG 2.4.3 + the B5 block in test_ask_confirm_jsdom.mjs asserting Tab-stays-inside and activeElement===opener after close); feature code and its regression lock amended into one atomic commit; full --full regression ALL GREEN (RC=0, no flaky). Note: the tag was cut under the true date 2026-11-26, continuing after a/b/c/d as the atomic rollback point of feature commit c1680a0).
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/f … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-f) section wins.
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-26-f) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -590,6 +590,24 @@ This tag was created under the true date 2026-11-26, the 4th surviving 11-26 num
 ```bat
 git tag -a v-baseline-2026-11-26-d 62db181122091cc541a5f6e074187b1b0d54e517 -m "baseline: lock ledger-speed-view -c parity at 62db181 (archive zh+en speed-view header/body/list all upgraded to -c; each -a/-b/-c section table-row commit == git deref truth; data-driven parity recheck PARITY OK; doc-only)"
 ```
+
+## 2026-11-26 series: backfill named rollback point e (the other-line tag e4ae655: 8080 /web/ branch cache validators, all green)
+
+This round backfills the missing `v-baseline-2026-11-26-e` section into the ledger to remove the e-gap ambiguity between a and f in the speed-view. The existing tag `v-baseline-2026-11-26-e` actually dereferences to `e4ae6551dc42f117ea922c763716c99b4d5a749d` (an other-line commit: feat(engine) gives the 8080 /web/ branch the same cache validators as the 8099 gateway - ETag + Last-Modified + 304 revalidation, with gate test_web_branch_cache.py registered in run_tests; full regression green; pushed to origin/main), not the old e (b67480a, removed by the superseded-number cleanup) that the speed-view had previously mislisted. This -e section records that existing tag truthfully, restoring the chronological a-f narrative of the speed-view.
+Note: this -e tag was cut by another line, not by this round; this round only backfills the ledger and changes neither the tag nor code. The e=b67480a entry in the old superseded-number cleanup section is a deleted historical snapshot at a different commit from the existing -e=e4ae655; both are kept truthfully as-is.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-26-e | `e4ae6551dc42f117ea922c763716c99b4d5a749d` | other-line tag: feat(engine) 8080 /web/ branch cache validators (ETag+Last-Modified+304) + test_web_branch_cache registered in run_tests; --full green, on the remote |
+
+**On the remote**: already on the remote (the other line pushed origin main then single-pushed this tag; ls-remote hits tag object 97a491283347ebb3e428c6e0719d997ab70b50de, peel == `e4ae655`).
+
+### Rebuild command (to restore named rollback point e)
+
+```bat
+git tag -a v-baseline-2026-11-26-e e4ae6551dc42f117ea922c763716c99b4d5a749d -m "baseline 2026-11-26-e: workspace engine /web/ branch cache validators (ETag + Last-Modified + 304 revalidation)"
+```
+
 
 ## 2026-11-26 series: current latest rollback point upgraded to f (askConfirm focus-trap + B5 a11y gate atomic point c1680a0, all-green)
 
