@@ -80,12 +80,15 @@ def check(label, cond, extra=""):
 # ── 拼命令差分（真实链路：init_image 用本文件当占位，引擎被 fake 掉） ──
 i2i = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8})
 sch = val_after(i2i, "--scheduler")
-check("D1 img2img default injects NO scheduler (11/15 clean: no karras) and NO custom --sigmas",
-      sch is None and "--sigmas" not in i2i and "karras" not in i2i, "scheduler=%s" % sch)
-# D6: strength 缺省(None) -> 不注 --strength，交引擎默认 0.75（回退 A：移除 0.45 兜底）
+check("D1 img2img default (no scheduler) injects full sigma table tail->0 + --strength 1.0 (stops engine truncation)",
+      sch is None and "--sigmas" in i2i and val_after(i2i, "--strength") == "1.0"
+      and val_after(i2i, "--sigmas").split(",")[-1] == "0" and "karras" not in i2i,
+      "sigmas=%s strength=%s" % (val_after(i2i, "--sigmas"), val_after(i2i, "--strength")))
+# D6: strength 缺省(None) -> σ 表起点 0.75（引擎默认）+ --strength 1.0
 i2i_ns = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "steps": 8})
-check("D6 img2img strength None -> no --strength (engine default 0.75, no 0.45 floor)",
-      "--strength" not in i2i_ns, "strength=%s" % val_after(i2i_ns, "--strength"))
+check("D6 img2img strength None -> sigma table starts at 0.75 (engine default) + --strength 1.0",
+      val_after(i2i_ns, "--sigmas").split(",")[0] == "0.75" and val_after(i2i_ns, "--strength") == "1.0",
+      "sigmas=%s" % val_after(i2i_ns, "--sigmas"))
 # D5 用户自选 scheduler 时胜出，且不重复注 karras（--scheduler 与 custom --sigmas 互斥防双注）
 us = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8, "scheduler": "discrete"})
 check("D5 user-chosen scheduler wins, no karras double-inject, no custom --sigmas",
@@ -99,14 +102,16 @@ t2i = capture_cmd({"gen_mode": "txt2img", "steps": 8})
 check("D3 txt2img has NO --sigmas/--hires-sigmas",
       "--sigmas" not in t2i and "--hires-sigmas" not in t2i)
 
-# --- C1/C2 [i2i 步数补偿 2026-11-28 根因修复] img2img --steps 被 1/strength 放大，
-#     使实跑去噪步数回到 ~用户设定（否则 strength 截断导致欠采样=满图噪点）；txt2img 不截断故不补偿 ---
+# --- C1/C1b [流派B 完整 σ 表 2026-11-28] img2img 不再偷偷放大 --steps(恒==用户设定)，
+#     改喂完整 σ 表(长度==steps+1→恰 steps 去噪区间)+--strength 1.0 关截断；strength 只管相似度起点 ---
 _i2i_c = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8})
-check("C1 img2img --steps compensated by 1/strength (8 @ .45 -> 18) so effective denoise ~8 not 4",
-      val_after(_i2i_c, "--steps") == "18", "steps=%s" % val_after(_i2i_c, "--steps"))
+check("C1 img2img --steps NOT inflated (stays == user steps 8) and sigma table length == steps+1 (9)",
+      val_after(_i2i_c, "--steps") == "8" and len(val_after(_i2i_c, "--sigmas").split(",")) == 9,
+      "steps=%s sigmas=%s" % (val_after(_i2i_c, "--steps"), val_after(_i2i_c, "--sigmas")))
 _i2i_hi = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.75, "steps": 8})
-check("C1b img2img compensation also lifts a high strength (8 @ .75 -> 11, >8)",
-      val_after(_i2i_hi, "--steps") == "11", "steps=%s" % val_after(_i2i_hi, "--steps"))
+check("C1b img2img sigma table start == strength 0.75 (similarity) not affecting step count",
+      val_after(_i2i_hi, "--steps") == "8" and val_after(_i2i_hi, "--sigmas").split(",")[0] == "0.75",
+      "steps=%s sigmas=%s" % (val_after(_i2i_hi, "--steps"), val_after(_i2i_hi, "--sigmas")))
 _t2i_c = capture_cmd({"gen_mode": "txt2img", "steps": 8})
 check("C2 txt2img --steps NOT compensated (engine runs the full sigma table)",
       val_after(_t2i_c, "--steps") == "8", "steps=%s" % val_after(_t2i_c, "--steps"))

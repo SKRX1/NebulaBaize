@@ -2630,13 +2630,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 f.write(genreq["negative"])
             cmd += ["--negative-prompt-file", nf]
         if genreq.get("steps"):
-            _st = int(genreq["steps"])
-            # [i2i 步数补偿 2026-11-28] 引擎用 strength 从 σ 表尾截断：实跑去噪步数 = steps*strength，
-            # 导致图生图（尤其低 strength）去噪严重欠采样、σ 末值不归零，残留高频=满图噪点，像「没走完步数」。
-            # txt2img 不截断故光滑。修法：img2img 把传给引擎的 --steps 放大 1/strength，使有效去噪步数≈用户设定值。
-            if gen_mode == "img2img" and strength:
-                _st = min(150, max(_st, int(round(_st / max(float(strength), 0.1)))))
-            cmd += ["--steps", str(_st)]
+            cmd += ["--steps", str(int(genreq["steps"]))]
         if genreq.get("cfg_scale"):
             cmd += ["--cfg-scale", str(float(genreq["cfg_scale"]))]
         if genreq.get("cpu_offload"):              # [CPU卸载 建议开启] 权重驻 RAM 省显存，需要时搬进显存
@@ -2668,10 +2662,23 @@ class GatewayHandler(BaseHTTPRequestHandler):
             staged = _stage_img(genreq.get("init_image") or "", "init")
             if staged:
                 cmd += ["-i", staged]
-                if strength is not None:
+                # [流派B 完整 σ 表 2026-11-28] sd-cli 在 img2img 下默认用 strength 截断 σ 表
+                # (实跑去噪步数 = steps*strength)，strength 越小去噪越少→欠采样=满图噪点。
+                # 修法：喂一条完整 σ 表(从 strength 线性降到 0，长度 = steps+1 → 恰 steps 个去噪区间)，
+                # 并显式 --strength 1.0 关掉引擎截断。实测 effective_steps 恒 == 用户 steps、对标 txt2img。
+                # 净效果：去噪步数恒定，strength 退回只管"加噪起点=与原图相似度"(小→像原图、大→更像重画)。
+                # 用户未自选 scheduler 时才注完整 σ 表；custom --sigmas 会覆盖 --scheduler，
+                # 故用户显式选了 scheduler 就让路（用户优先，仅照常透传 strength）。
+                if not genreq.get("scheduler"):
+                    _s = 0.75 if strength is None else float(strength)   # 缺省交引擎默认 0.75
+                    _n = int(genreq.get("steps") or 8)
+                    _sg = i2i_sigmas(_s, _n + 1)                         # steps+1 点 = steps 个去噪区间
+                    if _sg:
+                        cmd += ["--sigmas", _sg, "--strength", "1.0"]
+                    elif strength is not None:
+                        cmd += ["--strength", str(float(strength))]
+                elif strength is not None:
                     cmd += ["--strength", str(float(strength))]
-                # [i2i 回退 A 2026-11-28] 不再自动注 karras——回退引擎自带的 Turbo 调校调度器。
-                # 11/15 原版不注任何 scheduler，人物按 seed 正常重绘；karras 是我误加的。
         elif gen_mode == "edit":
             if llm_vision:                        # [EDIT-VISION 2026-11-13] Qwen-Image edit needs vision weights
                 cmd += ["--llm_vision", llm_vision]
