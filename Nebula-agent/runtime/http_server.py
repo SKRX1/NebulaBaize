@@ -2666,10 +2666,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 cmd += ["-i", staged]
                 if strength is not None:
                     cmd += ["--strength", str(float(strength))]
-                # [A 治本 2026-11-27] 主去噪遍注入「σ 末端归 0」表，消除 flow-matching 残留噪声
-                sig = i2i_sigmas(strength, genreq.get("steps") or TURBO_STEPS)
-                if sig:
-                    cmd += ["--sigmas", sig]
+                # [去噪根因 2026-11-27 升级 karras] 实测真实链路(hires+hires-sigmas)：主遍用 --scheduler
+                # karras 比 custom「末端归0 σ表」更降噪——三档 lapvar 0.30:121->84.7 / 0.45:151->97.9 /
+                # 0.65:167->149.7（karras 全面更低=更平滑，0.65 已逼近 txt2img 基准148.6），与现状
+                # Pearson>=0.985（仅去高频、结构/闭眼变化完整保留没糊脸）。custom --sigmas 与
+                # --scheduler 互斥(custom 覆盖 scheduler)，故删 custom 注 karras；仅用户未自选 scheduler
+                # 时补 karras 默认(用户选了则上文已拼，不重复注)。
+                if not genreq.get("scheduler"):
+                    cmd += ["--scheduler", "karras"]
         elif gen_mode == "edit":
             if llm_vision:                        # [EDIT-VISION 2026-11-13] Qwen-Image edit needs vision weights
                 cmd += ["--llm_vision", llm_vision]
