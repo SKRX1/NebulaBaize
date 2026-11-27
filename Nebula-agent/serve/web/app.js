@@ -10984,6 +10984,7 @@ $("img-form").onsubmit = async (ev) => {
     if (st && st.value) body.steps = Math.round(Number(st.value));
     if (cf && cf.value) body.cfg_scale = Number(cf.value);
     const co = $("img-cpu-offload"); if (co) body.cpu_offload = co.checked;
+      const _hi = $("img-hires"); if (_hi) body.hires = !!_hi.checked;  // [i2i 去扭曲 2026-11-27] 高清修复开关，未勾选才传 false，否则不传走后端默认开
   }
   const cfgEl = (id) => document.getElementById(id);
   if (cfgEl("img-cfg-mode")) body.mode = cfgEl("img-cfg-mode").value;

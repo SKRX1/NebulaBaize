@@ -2468,6 +2468,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "init_image": payload.get("init_image"),   # data URL or absolute path
             "strength":   payload.get("strength"),     # img2img redraw amount
             "ref_images": payload.get("ref_images"),   # edit: list of data URLs / paths
+            "hires":      payload.get("hires", True),      # [i2i 去扭曲 2026-11-27] 默认开高清修复二次精修去糊
             "sampling_method": payload.get("sampling_method"),   # [增变化] 实测同seed下换采样方法MD5不同
             "scheduler": payload.get("scheduler"),               # [增变化] karras等调度器改sigma分布
             "eta": payload.get("eta"),                           # [增变化] 噪声乘子>0注入额外随机性
@@ -2604,6 +2605,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
             else:
                 return None
             return dest
+        # [i2i 去扭曲 2026-11-27] img2img/edit 时 strength 缺省落到 0.45（引擎默认 0.75 对 Turbo 8 步过重会扭曲），
+        # 必须在下面拼装 --strength 之前设定，否则 None 会被跳过、回退引擎 0.75。
+        if gen_mode in ("img2img", "edit") and strength is None:
+            strength = 0.45
         if gen_mode == "img2img":
             staged = _stage_img(genreq.get("init_image") or "", "init")
             if staged:
@@ -2617,6 +2622,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 staged = _stage_img(ri, f"ref{j}")
                 if staged:
                     cmd += ["-r", staged]                  # reference image for edit (repeatable)
+        # [高清修复] 默认开：Lanczos 上采样 + 二次去噪精修去糊，明显减轻 img2img/edit 的涂抹扭曲
+        if genreq.get("hires", True) and gen_mode in ("img2img", "edit"):
+            cmd += ["--hires", "--hires-upscaler", "Lanczos", "--hires-denoising-strength", "0.3", "--hires-scale", "1.5"]
         if extra:
             cmd += list(extra)
         if preview_path:                            # [实时预览 方案A] 逐步写 preview 到固定路径
