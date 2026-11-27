@@ -53,11 +53,11 @@ check('512 tier chip (data-imgres="4") is the active/default one',
   !!defaultChipTag && /is-active/.test(defaultChipTag[0]),
   defaultChipTag ? defaultChipTag[0].trim() : 'no data-imgres="4" chip tag');
 
-// default W/H inputs boot at 512
+// default W/H inputs boot at 832 x 1216 (raised from 512 on 2026-11-27)
 const wBoot = /id="img-width"[^>]*value="(\d+)"/.exec(html);
 const hBoot = /id="img-height"[^>]*value="(\d+)"/.exec(html);
-check("default width input boots at 512", wBoot && wBoot[1] === "512", wBoot ? `value=${wBoot[1]}` : "no match");
-check("default height input boots at 512", hBoot && hBoot[1] === "512", hBoot ? `value=${hBoot[1]}` : "no match");
+check("default width input boots at 832", wBoot && wBoot[1] === "832", wBoot ? `value=${wBoot[1]}` : "no match");
+check("default height input boots at 1216", hBoot && hBoot[1] === "1216", hBoot ? `value=${hBoot[1]}` : "no match");
 
 // app.js: tier "4" -> 512 and it boots on tier "4"
 check('app.js maps tier "4" -> 512', /"4"\s*:\s*512/.test(app));

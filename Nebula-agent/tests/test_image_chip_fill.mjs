@@ -83,8 +83,8 @@ const main = async () => {
   check("768 chip present (tier5)", !!chip("5"), "data-imgres=5");
   check("512 chip present (tier4)", !!chip("4"), "data-imgres=4");
 
-  // control: boot default is 512 (tier4) — the ladder's default, ladder itself starts at 32
-  check("boot inputs are 512 (control)", wh().w === "512" && wh().h === "512", JSON.stringify(wh()));
+  // control: boot default is 832x1216 (raised from 512 on 2026-11-27; the res-chip LADDER default is still tier4=512)
+  check("boot inputs are 832x1216 (control)", wh().w === "832" && wh().h === "1216", JSON.stringify(wh()));
 
   // scene A: click the 768 chip (tier5) -> inputs move OFF 512 to 768 (load-bearing: a dead handler
   // would leave them at the 512 boot value, failing this assertion)

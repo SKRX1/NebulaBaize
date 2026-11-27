@@ -412,9 +412,9 @@
         </div>
         <div class="img-row">
           <label class="st-field"><span data-i18n="img.width">Width</span>
-            <input class="st-input" id="img-width" type="number" min="32" max="4096" step="8" value="512"></label>
+            <input class="st-input" id="img-width" type="number" min="32" max="4096" step="8" value="832"></label>
           <label class="st-field"><span data-i18n="img.height">Height</span>
-            <input class="st-input" id="img-height" type="number" min="32" max="4096" step="8" value="512"></label>
+            <input class="st-input" id="img-height" type="number" min="32" max="4096" step="8" value="1216"></label>
           <label class="st-field"><span data-i18n="img.steps">Steps</span>
             <input class="st-input" id="img-steps" type="number" min="4" max="150" value="8"></label>
           <label class="st-field"><span data-i18n="img.cfg_scale">CFG</span>
@@ -632,7 +632,7 @@
       </div>
 
       <div class="st-card mcp-card" id="mcp-card" hidden>
-        <div class="req-head"><span class="card-title" data-i18n="mon.mcp">MCP servers</span><span class="muted small" id="mcp-sum"></span></div>
+        <div class="req-head"><span class="card-title" data-i18n="mon.mcp">MCP servers</span><span class="muted small" id="mcp-sum"></span><button class="st-btn st-btn--secondary adm-mini" id="mcp-reload" type="button" data-i18n="mon.mcp.reload" data-i18n-attr="title:mon.mcp.reload.tip">Reload</button></div>
         <div class="mcp-list" id="mcp-list"></div>
         <p class="muted small mcp-note" data-i18n="mon.mcp.note">Their tools run on this PC with your rights, when the model decides to call them
           (in this page's chat only; switch it off in Sampling).</p>
@@ -677,7 +677,7 @@
         <div class="req-head"><span class="card-title" data-i18n="tools.proxy">Proxy Settings</span></div>
         <p class="muted small" data-i18n="tools.proxy.desc">SOCKS5 proxy URL. websearch primary path connects directly to Bing; proxy is only a fallback.</p>
         <form class="cfg-form" id="proxy-form" onsubmit="return false">
-          <input class="st-input" id="proxy-input" size="34" type="text" data-i18n-attr="placeholder:tools.proxy.placeholder" placeholder="socks5://127.0.0.1:7897" autocomplete="off">
+          <input class="st-input" id="proxy-input" size="34" type="text" data-i18n-attr="placeholder:tools.proxy.placeholder" placeholder="socks5://127.0.0.1:7890" autocomplete="off">
         </form>
         <div class="cfg-actions"><button class="st-btn st-btn--primary" id="proxy-save" type="button" data-i18n="tools.proxy.save">Save</button>
           <span class="muted small" id="proxy-msg" role="status"></span></div>

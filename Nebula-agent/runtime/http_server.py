@@ -93,6 +93,9 @@ GENERATED_DIR = os.path.join(ROOT, "data", "generated", "images")
 # [Turbo 官方默认档] 前后端留空即用这两个值（Qwen-Image-2.1-Turbo: 8 steps, CFG 1）
 TURBO_STEPS = 8
 TURBO_CFG = 1.0
+# [负面兜底 2026-11-27] 用户负面框留空时注入的通用画质负面词（前端空框不 POST negative_prompt，
+# 此处兜底，避免引擎拿到空负面丢掉低分辨率/畸形/水印的抑制；用户自填则原样胜出）。
+DEFAULT_NEGATIVE = "lowres, blurry, deformed, extra limbs, malformed hands, bad anatomy, watermark, text, signature, oversaturated, flat lighting, jpeg artifacts"
 
 # [实时预览 2026-11-14 方案A] 本地生成异步化：后台线程跑 sd-cli（拼 --preview），主线程立即返回
 # job_id+preview_url，前端每约2秒轮询 GET /api/image-preview?job= 刷新预览图。预览 png 落在
@@ -2395,7 +2398,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # generation request params (txt2img / img2img / edit) — pass through to the engine
         genreq = {
             "negative":   payload.get("negative_prompt")
-                     or (payload.get("n") if isinstance(payload.get("n"), str) else "") or "",   # [FIX] n=OpenAI 数量字段，别名只认 str，否则 n=2 被当负向词喵 f.write(int) 崩
+                     or (payload.get("n") if isinstance(payload.get("n"), str) else "") or DEFAULT_NEGATIVE,   # [FIX] n=OpenAI 数量字段，别名只认 str，否则 n=2 被当负向词喵 f.write(int) 崩；[兜底 2026-11-27] 留空落到 DEFAULT_NEGATIVE
             "steps":      payload.get("steps") or TURBO_STEPS,          # [默认档] 留空=Turbo 官方 8 步
             "cfg_scale":  payload.get("cfg_scale") or TURBO_CFG,        # [默认档] 留空=Turbo 官方 CFG 1
             "cpu_offload": payload.get("cpu_offload", False),   # [默认不勾=更快] 显存够用；不足时勾上(走PCIe搬运很慢)            # [CPU卸载 建议开启] 默认开
