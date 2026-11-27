@@ -11,7 +11,8 @@
 # 移除后 karras+hires=110.3 比 txt2img 基准118 还平滑，且 hires 本体反而降噪 139->110 故保留)。
 #
 # 差分锁 load-bearing：
-#   D1 img2img -> 拼出的 cmd 必含 --sigmas 且其值末端归 0（去掉 A 注入此项即翻红）
+#   D1 img2img 默认 -> cmd 不含 --scheduler（11/15 回退：不注 karras，交引擎自带调度器）且不含 --sigmas
+#   D6 img2img strength 缺省(None) -> cmd 不含 --strength（交引擎默认 0.75，不再兜底 0.45）
 #   D2 img2img+hires -> 不含 --hires-sigmas（B腿已移除=load-bearing，加回去即翻红）
 #   D3 txt2img -> cmd 不含 --sigmas / --hires-sigmas（σ 表只属 img2img/edit，txt2img 走全程无需）
 #   纯函数：σ 表末端恒 0、strength<=0 或 steps<2 返回 None、值从 strength 单调递减。
@@ -79,8 +80,12 @@ def check(label, cond, extra=""):
 # ── 拼命令差分（真实链路：init_image 用本文件当占位，引擎被 fake 掉） ──
 i2i = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8})
 sch = val_after(i2i, "--scheduler")
-check("D1 img2img defaults to --scheduler karras (no custom --sigmas)",
-      sch == "karras" and "--sigmas" not in i2i, "scheduler=%s" % sch)
+check("D1 img2img default injects NO scheduler (11/15 clean: no karras) and NO custom --sigmas",
+      sch is None and "--sigmas" not in i2i and "karras" not in i2i, "scheduler=%s" % sch)
+# D6: strength 缺省(None) -> 不注 --strength，交引擎默认 0.75（回退 A：移除 0.45 兜底）
+i2i_ns = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "steps": 8})
+check("D6 img2img strength None -> no --strength (engine default 0.75, no 0.45 floor)",
+      "--strength" not in i2i_ns, "strength=%s" % val_after(i2i_ns, "--strength"))
 # D5 用户自选 scheduler 时胜出，且不重复注 karras（--scheduler 与 custom --sigmas 互斥防双注）
 us = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8, "scheduler": "discrete"})
 check("D5 user-chosen scheduler wins, no karras double-inject, no custom --sigmas",
@@ -112,6 +117,6 @@ hv = HS.i2i_hires_sigmas(0.3, 8)
 check("P6 hires_sigmas ends at 0 & <=strength",
       hv.endswith(",0") and float(hv.split(",")[0]) <= 0.3 + 1e-6, hv)
 
-print("\n%s" % ("I2I-SIGMAS-GATE: ALL GREEN (img2img defaults to karras scheduler, no custom --sigmas, user-scheduler wins w/o double-inject; hires/edit carry NO --hires-sigmas, txt2img carries none)"
+print("\n%s" % ("I2I-SIGMAS-GATE: ALL GREEN (11/15 clean img2img: default injects NO scheduler/no custom --sigmas, strength None -> engine 0.75; user scheduler wins; hires/edit carry NO --hires-sigmas, txt2img carries none)"
                 if fails == 0 else "I2I-SIGMAS-GATE: %d FAIL" % fails))
 sys.exit(1 if fails else 0)

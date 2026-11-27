@@ -363,7 +363,7 @@
             <input class="st-input" id="img-init-file" type="file" accept="image/*" hidden></label>
           <button type="button" class="st-btn st-btn--ghost" id="img-init-browse" data-i18n="img.browse_image">Browse…</button>
           <label class="st-field"><span data-i18n="img.strength">Strength</span>
-            <input class="st-input" id="img-strength" type="number" min="0.1" max="1.0" step="0.05" value="0.45"></label>
+            <input class="st-input" id="img-strength" type="number" min="0.1" max="1.0" step="0.05" value="0.75"></label>
         </div>
         <div class="img-gen-preview" id="img-gen-preview" style="display:none">
           <img id="img-gen-preview-img" alt="" style="max-width:200px;max-height:150px;border-radius:6px">
@@ -432,7 +432,7 @@
         </div>
         <div class="img-row">
           <label class="model-check"><input type="checkbox" id="img-cpu-offload" checked> <span data-i18n="img.cpu_offload">启用CPU卸载（显存不足时建议开启）</span></label>
-          <label class="model-check"><input type="checkbox" id="img-hires" checked> <span data-i18n="img.hires">生成后高清修复（Lanczos 放大 + 二次精修去糊，默认开启）</span></label>
+          <label class="model-check"><input type="checkbox" id="img-hires"> <span data-i18n="img.hires">生成后高清修复（Lanczos 放大 + 二次精修去糊，默认开启）</span></label>
         </div>
         <!-- [增变化 2026-11-14] 采样方法/调度器/Eta 三调节：留空/默认=不传=引擎默认；实测同seed下换任一即MD5变。value=sd-cli --help 实测枚举 -->
         <div class="img-row">

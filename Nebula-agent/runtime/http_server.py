@@ -2519,7 +2519,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "init_image": payload.get("init_image"),   # data URL or absolute path
             "strength":   payload.get("strength"),     # img2img redraw amount
             "ref_images": payload.get("ref_images"),   # edit: list of data URLs / paths
-            "hires":      payload.get("hires", True),      # [i2i 去扭曲 2026-11-27] 默认开高清修复二次精修去糊
+            "hires":      payload.get("hires", False),     # [i2i 回退 A 2026-11-28] 默认关 hires，回退 11/15 无二次精修
             "sampling_method": payload.get("sampling_method"),   # [增变化] 实测同seed下换采样方法MD5不同
             "scheduler": payload.get("scheduler"),               # [增变化] karras等调度器改sigma分布
             "eta": payload.get("eta"),                           # [增变化] 噪声乘子>0注入额外随机性
@@ -2656,24 +2656,16 @@ class GatewayHandler(BaseHTTPRequestHandler):
             else:
                 return None
             return dest
-        # [i2i 去扭曲 2026-11-27] img2img/edit 时 strength 缺省落到 0.45（引擎默认 0.75 对 Turbo 8 步过重会扭曲），
-        # 必须在下面拼装 --strength 之前设定，否则 None 会被跳过、回退引擎 0.75。
-        if gen_mode in ("img2img", "edit") and strength is None:
-            strength = 0.45
+        # [i2i 回退 A 2026-11-28] 完全回退到 11/15 干净链路：strength 不兜底 0.45，
+        # 留 None 交引擎默认（Turbo 官方 0.75）——实测原版 0.75 换 seed 能重绘不同人物且不扭曲。
         if gen_mode == "img2img":
             staged = _stage_img(genreq.get("init_image") or "", "init")
             if staged:
                 cmd += ["-i", staged]
                 if strength is not None:
                     cmd += ["--strength", str(float(strength))]
-                # [去噪根因 2026-11-27 升级 karras] 实测真实链路(hires+hires-sigmas)：主遍用 --scheduler
-                # karras 比 custom「末端归0 σ表」更降噪——三档 lapvar 0.30:121->84.7 / 0.45:151->97.9 /
-                # 0.65:167->149.7（karras 全面更低=更平滑，0.65 已逼近 txt2img 基准148.6），与现状
-                # Pearson>=0.985（仅去高频、结构/闭眼变化完整保留没糊脸）。custom --sigmas 与
-                # --scheduler 互斥(custom 覆盖 scheduler)，故删 custom 注 karras；仅用户未自选 scheduler
-                # 时补 karras 默认(用户选了则上文已拼，不重复注)。
-                if not genreq.get("scheduler"):
-                    cmd += ["--scheduler", "karras"]
+                # [i2i 回退 A 2026-11-28] 不再自动注 karras——回退引擎自带的 Turbo 调校调度器。
+                # 11/15 原版不注任何 scheduler，人物按 seed 正常重绘；karras 是我误加的。
         elif gen_mode == "edit":
             if llm_vision:                        # [EDIT-VISION 2026-11-13] Qwen-Image edit needs vision weights
                 cmd += ["--llm_vision", llm_vision]
@@ -2682,7 +2674,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 if staged:
                     cmd += ["-r", staged]                  # reference image for edit (repeatable)
         # [高清修复] 默认开：Lanczos 上采样 + 二次去噪精修去糊，明显减轻 img2img/edit 的涂抹扭曲
-        if genreq.get("hires", True) and gen_mode in ("img2img", "edit"):
+        if genreq.get("hires", False) and gen_mode in ("img2img", "edit"):
             cmd += ["--hires", "--hires-upscaler", "Lanczos", "--hires-denoising-strength", "0.3", "--hires-scale", "1.5"]
             # [回归修复 2026-11-28] 移除 hires 二遍的 custom --hires-sigmas：实测它是「图生图噪、文生图光滑」
             # 的真元凶。主遍已注 karras(--scheduler)，hires 二遍若再被 --hires-sigmas 强加线性递减 σ 表，会
