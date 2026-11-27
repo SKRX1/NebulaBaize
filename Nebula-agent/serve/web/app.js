@@ -771,6 +771,35 @@ function renderMcp() {
   }).join("");
 }
 
+
+// [reload MCP subprocesses] Re-spawn every MCP server child from the on-disk mcp_servers.json
+// via POST /api/servers/reload (the gateway rebuilds the executor). A server's env (e.g. a websearch
+// proxy port) is injected once at spawn time, so editing the config json then pressing this picks the
+// new value up WITHOUT restarting the gateway. Restarting the children briefly stalls tool calls.
+async function reloadMcpServers(btn) {
+  const msg = t("mon.mcp.reload.confirm");
+  if (msg && msg !== "mon.mcp.reload.confirm" && !(await askConfirm(msg))) return;
+  if (btn) { btn.disabled = true; btn.dataset.busy = "1"; }
+  try {
+    const r = await fetch("api/servers/reload", {method: "POST", headers: headers(true)});
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) {
+      toast("ok", t("mon.mcp.reload.ok", {servers: (d.servers || []).length, tools: d.tools || 0}));
+      await loadMcp();
+    } else {
+      toast("error", t("mon.mcp.reload.fail"), d && d.error ? d.error : ("HTTP " + r.status));
+    }
+  } catch (e) {
+    toast("error", t("mon.mcp.reload.fail"), String(e && e.message ? e.message : e));
+  } finally {
+    if (btn) { btn.disabled = false; delete btn.dataset.busy; }
+  }
+}
+document.addEventListener("DOMContentLoaded", function () {
+  var _mr = $("mcp-reload");
+  if (_mr) _mr.addEventListener("click", function () { reloadMcpServers(_mr); });
+});
+
 // ------------------------------------------------------------------ Model settings (GET / POST /config, #564)
 // A few documented keys of the run config (strata-<model>.json), for every client, from the next start on.  The
 // server lists them, checks every value and keeps every other key of the file as it is.
@@ -10601,8 +10630,65 @@ function galleryViewList(){
   if (gallerySort === "old") rows = rows.slice().reverse();
   return rows;
 }
+// [防闪烁修复 2026-11-27 sig_guard] the gallery's structural fingerprint. It deliberately
+// EXCLUDES the per-poll preview cache-buster (lv.bust) and the transient progress text
+// (lv.phTxt / lv.eta), so a live-preview tick (the poll repaints every ~2 s) does NOT
+// count as a structural change. When this signature is unchanged, renderGallery skips the
+// whole innerHTML="" rebuild -- the finished grid <img> nodes survive and the browser does
+// not re-fetch / re-decode them (that re-decode frame is what rendered as a broken/blank
+// image every 2 s, the reported "破图 + 一闪一闪"). Only a REAL change (a finished entry lands,
+// the view/sort/layout/query/selection moves, or a live cell goes url-less -> url) rebuilds.
+let _gallerySig = "";   // last painted structural signature (module-scoped; reset on boot)
+function galleryStructSig(){
+  const v = galleryViewList();   // the authoritative (filtered/sorted) finished-row order
+  const live = galleryLiveRows();
+  const parts = [
+    galleryView, gallerySort, galleryLayout, galleryQuery.trim().toLowerCase(),
+    String(gallerySel), galleryMultiSel ? "1" : "0", String(gallerySelSet.size),
+    // finished entries: url is the stable identity (prompt/seed ride alongside a url that
+    // never changes once registered), so url+prompt is enough to detect add/remove/edit.
+    v.length + ":" + v.map((r) => (r.x.url || "") + "" + (r.x.prompt || "")).join(""),
+    // live cells: id + whether a preview url has landed (0->1 IS structural: the cell gains
+    // an <img>); the url VALUE / bust is preview-progress, excluded so ticks do not rebuild.
+    "L" + live.length + ":" + live.map((l) => l.id + ((l.url ? "u" : "p") +
+        (l.id === galleryLiveSel ? "s" : ""))).join(""),
+    // selection-set membership (identity: entries by url, live rows by id) so a tick-toggle
+    // repaints the batch bar, independent of the focus index.
+    "S" + [...gallerySelSet].map((x) => (x && x.id ? "L" + x.id : (x && x.url) ? x.url : "?")).join(""),
+  ];
+  return parts.join("");
+}
+// [防闪烁修复 2026-11-27] the light per-tick path: refresh ONLY the live preview on the
+// stage panel + the live grid cells, leaving every finished <img> untouched. Safe to call
+// repeatedly (the panel is removed+rebuilt each time so it never stacks; cell <img> src is
+// patched in place via the cache-buster). Called by renderGallery whenever the structural
+// signature is unchanged, so the finished grid is never torn down.
+function galleryLiveRefresh(){
+  const host = $("img-gallery"); if (!host) return;
+  const liveSel = galleryLiveSel ? (galleryLive.find((l) => l.id === galleryLiveSel && !l.retired) || null) : null;
+  const stage = host.querySelector(".img-gallery__stage");
+  if (stage) {   // re-paint the live panel (placeholder-seconds / eta / preview img) in place
+    const old = stage.querySelector(".img-gallery__live"); if (old) old.remove();
+    if (liveSel) galleryLivePass(liveSel);
+  }
+  galleryLiveRows().forEach((lv) => {   // patch each live cell's preview <img> cache-buster
+    const cell = host.querySelector('.img-gallery__cell[data-live="' + lv.id + '"]');
+    if (!cell) return;
+    const li = cell.querySelector("img");
+    if (lv.url) {
+      const want = lv.url + (lv.bust || "");
+      if (li) { if (li.getAttribute("src") !== want) li.setAttribute("src", want); }
+      else { const e = document.createElement("img"); e.src = want; e.alt = lv.prompt || "image"; cell.prepend(e); }
+    } else if (li) { li.remove(); }   // preview reset to loading
+  });
+}
 function renderGallery(){
   const host = $("img-gallery"); if (!host) return;
+  const sig = galleryStructSig();   // [防闪烁修复 2026-11-27] structural fingerprint (preview ticks excluded)
+  if (sig === _gallerySig && host.childElementCount) {   // nothing structural moved: light refresh, never rebuild the finished grid
+    galleryLiveRefresh();
+    return;
+  }
   host.innerHTML = "";   // [SD式融合] full repaint: the stage panel + the live cells self-paint from lv
   if (gallerySelSet.size) {   // [删除增强] batch bar appears only while the set is non-empty (selection survives every repaint)
     const bar = document.createElement("div"); bar.className = "img-gallery__batchbar";
@@ -10665,6 +10751,7 @@ function renderGallery(){
   });
   host.append(stage, grid);
   if (liveSel) galleryLivePass(liveSel);   // [SD式融合] the live panel claims the stage (the gate-locked placeholder class, self-painted) — AFTER the stage enters the DOM (the helper re-queries it)
+  _gallerySig = sig;   // [防闪烁修复 2026-11-27] remember what we just painted so the next identical tick skips the rebuild
 }
 // ---- gallery: 操作 (单条/批量删除送回收站 + 批量收藏) ----
 async function galleryAction(act){
