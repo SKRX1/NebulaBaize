@@ -135,7 +135,7 @@ def _is_hidden(entry):
     return False
 
 
-def list_dirs(path=None, workspace_root=None):
+def list_dirs(path=None, workspace_root=None, file_ext=None):
     """One level of sub-directories, for the workspace picker's folder browser.
 
     Returns ``{"path", "parent", "dirs": [{"name","path","hidden"}], "exists",
@@ -148,7 +148,7 @@ def list_dirs(path=None, workspace_root=None):
     """
     p = _norm_dir(path)
     if p is None:
-        return {"path": "", "parent": None, "dirs": [], "exists": False, "readable": False}
+        return {"path": "", "parent": None, "dirs": [], "files": [], "exists": False, "readable": False}
 
     out = {"path": str(p), "parent": None, "dirs": [], "exists": p.is_dir(), "readable": False}
     if not out["exists"]:
@@ -172,6 +172,25 @@ def list_dirs(path=None, workspace_root=None):
     except OSError:
         out["readable"] = False               # exists but denied (e.g. System Volume Information)
     out["dirs"].sort(key=lambda d: d["name"].casefold())
+    if file_ext:                      # [A1 2026-11-27] the image-model picker needs FILES,
+        # not just folders: list files whose name ends with this extension (e.g. ".gguf")
+        # so a model .gguf can be picked directly instead of landing on a folder path.
+        ext = file_ext.lower()
+        out["files"] = []
+        try:
+            with os.scandir(p) as it:
+                for e in it:
+                    try:
+                        if not e.is_file():
+                            continue
+                    except OSError:
+                        continue
+                    if e.name.lower().endswith(ext):
+                        out["files"].append({"name": e.name, "path": str(p / e.name),
+                                             "hidden": _is_hidden(e)})
+        except OSError:
+            pass                      # dir became unreadable mid-scan; dirs already listed
+        out["files"].sort(key=lambda f: f["name"].casefold())
     return out
 
 

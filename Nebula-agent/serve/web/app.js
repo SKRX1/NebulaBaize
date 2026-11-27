@@ -2132,6 +2132,7 @@ function openBrowser(start) {
   wbLoad(wbCurrent);
 }
 function closeBrowser() {
+  _imgBrowseExt = null;   // [A1] a fresh browse is folder-only again
   $("ws-browse").hidden = true;
   $("scrim").hidden = true;
 }
@@ -2148,6 +2149,7 @@ async function wbLoad(path) {
     wbPlacesReady = true;
   }
   const l = j.listing;
+  const files = (_imgBrowseExt && l && l.files) ? l.files : [];   // [A1] model picker shows matching files
   const list = $("ws-browse-list");
   const note = $("ws-browse-note");
   if (!l) { list.innerHTML = ""; note.hidden = true; return; }
@@ -2165,7 +2167,11 @@ async function wbLoad(path) {
     rows.push(`<button class="ws-browse__row${d.hidden ? " is-hidden" : ""}" data-path="${esc(d.path)}">
         <span class="ws-browse__row-ico">▸</span><span class="ws-browse__row-name">${esc(d.name)}</span></button>`);
   }
-  list.innerHTML = rows.join("") || `<div class="ws-browse__empty" data-i18n="ws.browse.empty">此文件夹内没有其他文件夹</div>`;
+  for (const f of files) {   // [A1 2026-11-27] a matching model/exe FILE -> click fills the field directly
+    rows.push(`<button class="ws-browse__row ws-browse__row--file${f.hidden ? " is-hidden" : ""}" data-file="${esc(f.path)}" title="${esc(f.name)}">
+        <span class="ws-browse__row-ico ws-browse__row-ico--file">📄</span><span class="ws-browse__row-name">${esc(f.name)}</span></button>`);
+  }
+  list.innerHTML = rows.join("") || `<div class="ws-browse__empty" data-i18n="${_imgBrowseExt ? 'ws.browse.empty_file' : 'ws.browse.empty'}">${esc(_imgBrowseExt ? t("ws.browse.empty_file") : t("ws.browse.empty"))}</div>`;
   if (!l.exists || !l.readable) {
     note.hidden = false;
     note.textContent = l.exists ? t("ws.browse.noaccess") : t("ws.browse.gone");
@@ -2191,6 +2197,11 @@ $("ws-browse").addEventListener("click", (e) => {
   if (e.target.closest(".ws-browse__places") || e.target.closest(".ws-browse__crumb")) {
     // a shortcut or breadcrumb -> jump straight there
     wbLoad(btn.dataset.path);
+  } else if (btn.dataset.file) {
+    // [A1 2026-11-27] a model/exe FILE row -> fill the target input, close the modal
+    const cbEl = _imgBrowseCb ? document.getElementById(_imgBrowseCb) : null;
+    if (cbEl) { cbEl.value = btn.dataset.file; _imgBrowseCb = null; }
+    closeBrowser();
   } else if (e.target.closest(".ws-browse__list")) {
     wbLoad(btn.dataset.path);       // a folder row -> descend / go up
   }
@@ -10175,8 +10186,11 @@ poll();
 
 let _imgBrowseCb = null;   // input id to fill when browse confirms (null = default workspace picker)
 
-function browseInto(inputId, startPath) {
+let _imgBrowseExt = null;   // [A1 2026-11-27] ".gguf"/".exe" => the picker also lists matching FILES;
+                          // null = folder-only (the workspace picker). Reset on every open/close.
+function browseInto(inputId, startPath, ext) {
   _imgBrowseCb = inputId;
+  _imgBrowseExt = ext || null;
   openBrowser(startPath || "");
 }
 
@@ -10243,10 +10257,10 @@ setTimeout(() => {
   if (el("img-cfg-save"))       el("img-cfg-save").onclick       = saveImageSettings;
   if (el("img-cfg-browse-model")) el("img-cfg-browse-model").onclick = () => browseInto("img-cfg-model-dir");
   if (el("img-cfg-browse-exe")) el("img-cfg-browse-exe").onclick = () => browseInto("img-cfg-exe");
-  if (el("img-cfg-browse-dm"))      el("img-cfg-browse-dm").onclick      = () => browseInto("img-cfg-diffusion_model");
-  if (el("img-cfg-browse-vae"))     el("img-cfg-browse-vae").onclick     = () => browseInto("img-cfg-vae");
-  if (el("img-cfg-browse-llm"))     el("img-cfg-browse-llm").onclick     = () => browseInto("img-cfg-llm");
-  if (el("img-cfg-browse-vision"))  el("img-cfg-browse-vision").onclick  = () => browseInto("img-cfg-llm_vision");
+  if (el("img-cfg-browse-dm"))      el("img-cfg-browse-dm").onclick      = () => browseInto("img-cfg-diffusion_model", "", ".gguf");
+  if (el("img-cfg-browse-vae"))     el("img-cfg-browse-vae").onclick     = () => browseInto("img-cfg-vae", "", ".gguf");
+  if (el("img-cfg-browse-llm"))     el("img-cfg-browse-llm").onclick     = () => browseInto("img-cfg-llm", "", ".gguf");
+  if (el("img-cfg-browse-vision"))  el("img-cfg-browse-vision").onclick  = () => browseInto("img-cfg-llm_vision", "", ".gguf");
   if (el("img-cfg-scan"))           el("img-cfg-scan").onclick           = () => scanImageModels();
   // [VIZ-QUANT 2026-11-14] scan the model folder, fill each field's datalist so the user
   // can pick a quantized .gguf by name (grouped by role_guess) then Save.
@@ -10275,14 +10289,21 @@ setTimeout(() => {
       // already sorted by (role_guess, name), so cand[0] is the deterministic pick per role.
       const fieldOf = { diffusion_model: "img-cfg-diffusion_model", vae: "img-cfg-vae",
                         llm: "img-cfg-llm", llm_vision: "img-cfg-llm_vision" };
-      let filled = 0;
+      let filled = 0, fixed = 0;
+      const isGguf = (v) => /\.gguf$/i.test((v || "").trim());
       for (const role of Object.keys(fieldOf)) {
         const inp = el(fieldOf[role]); if (!inp) continue;
-        if (inp.value.trim()) continue;                       // never clobber a filled field
         const cand = files.filter((f) => f.role_guess === role);
-        if (cand.length) { inp.value = cand[0].path; filled++; }
+        if (!cand.length) continue;
+        const v = inp.value.trim();
+        if (!v) { inp.value = cand[0].path; filled++; }
+        // [B1 2026-11-27] fix a WRONG non-empty value (a folder path left by the old folder-only
+        // browser, or any non-.gguf text) with the scan result. A value that already ends in .gguf
+        // is left untouched -- it may be a hand-set path outside this scan dir (legit).
+        else if (!isGguf(v)) { inp.value = cand[0].path; fixed++; }
       }
-      if (filled) toast("success", t("img.cfg.scan_autofill", { n: filled }));
+      if (fixed) toast("success", t("img.cfg.scan_fixed", { n: fixed }));
+      else if (filled) toast("success", t("img.cfg.scan_autofill", { n: filled }));
       else toast("success", t("img.cfg.scan_ok", { n: files.length }));
     } catch (e) { toast("error", t("img.cfg.scan_fail"), String((e && e.message) || e)); }
   };

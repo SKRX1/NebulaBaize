@@ -159,5 +159,40 @@ class BrowseRootsTests(unittest.TestCase):
             self.assertEqual(len(paths), len(set(paths)))   # no duplicate folders
 
 
+class ListFileExtTests(unittest.TestCase):
+    # [A1 2026-11-27] file_ext lets the model picker list matching FILES (a .gguf/.exe) in the
+    # folder browser, instead of only landing on a folder path. list_dirs(path, file_ext=...) now
+    # returns an extra out["files"] list of files whose name ends with that extension.
+    def test_file_ext_returns_matching_files_sorted(self):
+        with tempfile.TemporaryDirectory() as root:
+            Path(root, "z-model.gguf").write_text("x")
+            Path(root, "a-model.gguf").write_text("x")
+            Path(root, "readme.txt").write_text("x")      # wrong ext -> excluded
+            Path(root, "sub").mkdir()                      # a folder is not a file -> excluded
+            out = workspace_fs.list_dirs(root, file_ext=".gguf")
+            names = [f["name"] for f in out["files"]]
+            self.assertEqual(names, ["a-model.gguf", "z-model.gguf"])   # casefold-sorted, only .gguf
+            # the folder list is unaffected -- the picker still descends folders alongside files
+            self.assertEqual([d["name"] for d in out["dirs"]], ["sub"])
+
+    def test_file_ext_is_case_insensitive_on_name(self):
+        with tempfile.TemporaryDirectory() as root:
+            Path(root, "Big.GGUF").write_text("x")         # uppercase suffix still matches .gguf
+            out = workspace_fs.list_dirs(root, file_ext=".gguf")
+            self.assertEqual([f["name"] for f in out["files"]], ["Big.GGUF"])
+
+    def test_no_file_ext_yields_no_files_key_side_effects(self):
+        # default call (folder-only, the workspace picker) must not crash; out has no usable files.
+        with tempfile.TemporaryDirectory() as root:
+            Path(root, "m.gguf").write_text("x")
+            out = workspace_fs.list_dirs(root)
+            self.assertFalse(out.get("files"))            # no ext -> empty/absent, files untouched
+
+    def test_missing_dir_empty_path_still_safe(self):
+        out = workspace_fs.list_dirs("/no/such/folder/xyzzy", file_ext=".gguf")
+        self.assertFalse(out["exists"])
+        empty = workspace_fs.list_dirs("", file_ext=".gguf")
+        self.assertEqual(empty["files"], [])             # early return carries files:[] (no KeyError)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

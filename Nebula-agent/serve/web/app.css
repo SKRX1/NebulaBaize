@@ -966,6 +966,10 @@ body.side-collapsed #ws-modal { display: none; }
 .ws-browse__row-ico { color: var(--st-ink-muted); width: 16px; text-align: center; flex: none; }
 .ws-browse__row--up .ws-browse__row-name { color: var(--st-ink-soft); }
 .ws-browse__row.is-hidden { opacity: .45; }
+/* [A1 2026-11-27] model/exe FILE rows in the browse picker (vs folder rows): the file icon
+   is tinted so a selectable model reads as a distinct affordance, not a drill-down folder. */
+.ws-browse__row--file .ws-browse__row-ico--file { color: var(--st-accent); }
+.ws-browse__row--file .ws-browse__row-name { color: var(--st-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-browse__empty { padding: 16px; text-align: center; color: var(--st-ink-muted); font-size: var(--st-fs-sm); }
 .ws-browse__picked { display: flex; align-items: baseline; gap: 8px; font-size: var(--st-fs-sm); }
 .ws-browse__current { font: 500 var(--st-fs-xs)/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;

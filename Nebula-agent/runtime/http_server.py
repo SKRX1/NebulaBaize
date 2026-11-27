@@ -3130,7 +3130,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
         root = _workspace_root(self.state)
         q = parse_qs(urlsplit(self.path).query)
         raw = (q.get("path") or [""])[0]
-        listing = ws.list_dirs(raw, root) if (raw or "").strip() else None
+        # [A1 2026-11-27] ext=<.gguf|.exe> lets the model-path picker ALSO list matching FILES
+        # (not just folders), so a .gguf/.exe can be picked directly instead of landing on a folder.
+        fe = (q.get("ext") or [""])[0].strip().lower()
+        if not re.fullmatch(r"\.[a-z0-9]{1,8}", fe):   # sanitize: only ".gguf"/".exe"-like; else ignore
+            fe = None
+        listing = ws.list_dirs(raw, root, file_ext=fe) if (raw or "").strip() else None
         self._json(200, {"listing": listing, **ws.browse_roots(root)})
 
     def _workspace_mutate(self, path: str):

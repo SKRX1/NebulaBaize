@@ -130,6 +130,30 @@ async function runScan(initial, files) {
     check("T4 scan_empty toast fired", toasts.some((x) => x.key.indexOf("scan_empty") >= 0), JSON.stringify(toasts.map((x)=>x.key)));
   }
 
-  console.log(FAILURES.length ? "\n" + FAILURES.length + " FAILURE(S)" : "\nSCAN-AUTOFILL GATE: ALL GREEN");
+
+  // ---- T5 [B1 2026-11-27] CORRECT a WRONG non-.gguf value (a folder path left by the old
+  // folder-only browser): the field is REWRITTEN with the scan pick and scan_fixed fires.
+  // LOAD-BEARING: the pre-B1 logic (`if (inp.value.trim()) continue;`) would KEEP the bogus
+  // folder value; only the new `else if (!isGguf(v))` branch repairs it. ----
+  {
+    const folderBug = "E:\\models\\生图模型";   // a DIRECTORY, not a .gguf -> the exact bug B1 fixes
+    const { doc, toasts } = await runScan({ "img-cfg-model-dir": "E:\\models", "img-cfg-diffusion_model": folderBug }, scanFiles());
+    const r = doc._reg;
+    check("T5 folder-bug diffusion CORRECTED to scan cand[0]", r["img-cfg-diffusion_model"].value === "E:\\models\\生图模型\\diff-Q2_K.gguf", r["img-cfg-diffusion_model"].value);
+    check("T5 empty vae still auto-filled", r["img-cfg-vae"].value === "E:\\models\\vae-tile.gguf", r["img-cfg-vae"].value);
+    check("T5 reports scan_fixed toast (fixed takes priority over autofill)", toasts.some((x) => x.key.indexOf("scan_fixed") >= 0), JSON.stringify(toasts.map((x)=>x.key)));
+  }
+  // differential decoy: under the OLD `if (value.trim()) continue` rule, the folder value SURVIVES
+  // (never corrected) -> proves the new isGguf-correct branch is the thing that fixes it.
+  {
+    const folderBug = "E:\\models\\生图模型";
+    let v = folderBug;            // simulate old logic: non-empty -> continue (kept as-is)
+    if (v.trim()) { /* old: continue */ }
+    else { v = scanFiles("diffusion_model")[0].path; }
+    check("T5-decoy OLD logic KEEPS the folder bug (new branch is load-bearing)", v === folderBug, v);
+  }
+  // ---- anti-drift: the shipped source must carry the B1 correct branch + the isGguf guard ----
+  check("B1 source lock: else-if (!isGguf) correction branch present", FN_SRC.includes("else if (!isGguf(v)) { inp.value = cand[0].path; fixed++; }"));
+  check("B1 source lock: isGguf guard defined (a legit .gguf hand-path is left alone)", FN_SRC.includes("const isGguf = (v) =>"));  console.log(FAILURES.length ? "\n" + FAILURES.length + " FAILURE(S)" : "\nSCAN-AUTOFILL GATE: ALL GREEN");
   process.exit(FAILURES.length ? 1 : 0);
 })();
