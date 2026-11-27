@@ -5,12 +5,14 @@
 # 真实链路(hires+hires-sigmas)三档 lapvar 0.30:121->84.7 / 0.45:151->97.9 / 0.65:167->149.7（karras
 # 全面更低=更平滑，0.65 已逼近 txt2img 基准148.6），与现状 Pearson>=0.985（仅去高频、闭眼变化保留）。
 # 现方案：img2img 主遍默认注 --scheduler karras（用户未自选 scheduler 时）；custom --sigmas 与
-# --scheduler 互斥(custom 覆盖 scheduler)故主遍不再注 custom σ 表；hires 二遍仍注末端归 0 的
-# --hires-sigmas（独立的二遍 σ 表，与 scheduler 不冲突）。flow-shift/eta/加步数(>8超训练分布)实测无效。
+# --scheduler 互斥(custom 覆盖 scheduler)故主遍不再注 custom σ 表。hires 二遍也不再注 custom
+# --hires-sigmas(2026-11-28 回归修复：实测它是「图生图噪、文生图光滑」的真元凶——主遍 karras 下，
+# 同链路只差这一个 flag，lapvar 110.3->176.0，它给 denoise0.3 二遍强加线性 σ 表盖过 karras 注颗粒；
+# 移除后 karras+hires=110.3 比 txt2img 基准118 还平滑，且 hires 本体反而降噪 139->110 故保留)。
 #
 # 差分锁 load-bearing：
 #   D1 img2img -> 拼出的 cmd 必含 --sigmas 且其值末端归 0（去掉 A 注入此项即翻红）
-#   D2 img2img+hires -> 必含 --hires-sigmas 且末端归 0（去掉 B 注入此项即翻红）
+#   D2 img2img+hires -> 不含 --hires-sigmas（B腿已移除=load-bearing，加回去即翻红）
 #   D3 txt2img -> cmd 不含 --sigmas / --hires-sigmas（σ 表只属 img2img/edit，txt2img 走全程无需）
 #   纯函数：σ 表末端恒 0、strength<=0 或 steps<2 返回 None、值从 strength 单调递减。
 import io
@@ -85,17 +87,16 @@ check("D5 user-chosen scheduler wins, no karras double-inject, no custom --sigma
       val_after(us, "--scheduler") == "discrete" and "karras" not in us and "--sigmas" not in us,
       "scheduler=%s" % val_after(us, "--scheduler"))
 hs = val_after(i2i, "--hires-sigmas")
-check("D2 img2img+hires has --hires-sigmas ending at 0",
-      hs is not None and hs.endswith(",0"), "hires_sigmas=%s" % hs)
+check("D2 img2img+hires carries NO --hires-sigmas (B-leg removed; it re-injected grain onto the karras hires 2nd pass)",
+      hs is None, "hires_sigmas=%s" % hs)
 
 t2i = capture_cmd({"gen_mode": "txt2img", "steps": 8})
 check("D3 txt2img has NO --sigmas/--hires-sigmas",
       "--sigmas" not in t2i and "--hires-sigmas" not in t2i)
 
 edit = capture_cmd({"gen_mode": "edit", "ref_images": [__file__], "steps": 8})
-check("D4 edit has --hires-sigmas ending at 0",
-      val_after(edit, "--hires-sigmas") is not None
-      and val_after(edit, "--hires-sigmas").endswith(",0"))
+check("D4 edit carries NO --hires-sigmas (B-leg removed, same root cause as D2)",
+      val_after(edit, "--hires-sigmas") is None)
 
 # ── 纯函数行为 ──
 v = HS.i2i_sigmas(0.45, 8)
@@ -111,6 +112,6 @@ hv = HS.i2i_hires_sigmas(0.3, 8)
 check("P6 hires_sigmas ends at 0 & <=strength",
       hv.endswith(",0") and float(hv.split(",")[0]) <= 0.3 + 1e-6, hv)
 
-print("\n%s" % ("I2I-SIGMAS-GATE: ALL GREEN (img2img defaults to karras scheduler, no custom --sigmas, user-scheduler wins w/o double-inject; hires/edit carry --hires-sigmas ending 0, txt2img carries none)"
+print("\n%s" % ("I2I-SIGMAS-GATE: ALL GREEN (img2img defaults to karras scheduler, no custom --sigmas, user-scheduler wins w/o double-inject; hires/edit carry NO --hires-sigmas, txt2img carries none)"
                 if fails == 0 else "I2I-SIGMAS-GATE: %d FAIL" % fails))
 sys.exit(1 if fails else 0)

@@ -2684,10 +2684,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # [高清修复] 默认开：Lanczos 上采样 + 二次去噪精修去糊，明显减轻 img2img/edit 的涂抹扭曲
         if genreq.get("hires", True) and gen_mode in ("img2img", "edit"):
             cmd += ["--hires", "--hires-upscaler", "Lanczos", "--hires-denoising-strength", "0.3", "--hires-scale", "1.5"]
-            # [B 兜底 2026-11-27] hires 二遍也铺末端归 0 的 σ 表，低 denoise-strength 时更稳
-            hsig = i2i_hires_sigmas(0.3, genreq.get("steps") or TURBO_STEPS)
-            if hsig:
-                cmd += ["--hires-sigmas", hsig]
+            # [回归修复 2026-11-28] 移除 hires 二遍的 custom --hires-sigmas：实测它是「图生图噪、文生图光滑」
+            # 的真元凶。主遍已注 karras(--scheduler)，hires 二遍若再被 --hires-sigmas 强加线性递减 σ 表，会
+            # 盖过引擎 karras 并注入高频颗粒。干净差分(同链路只差这一个 flag)：karras+hires lapvar 110.3
+            # (比 txt2img 基准118 还平滑) vs karras+hires+hires-sigmas 176.0。hires 本体(Lanczos+denoise0.3
+            # 二次去噪)实测反而降噪(karras无hires 139->karras有hires 110)，故保留 hires、仅删 B 腿 σ 表。
         if extra:
             cmd += list(extra)
         if preview_path:                            # [实时预览 方案A] 逐步写 preview 到固定路径
