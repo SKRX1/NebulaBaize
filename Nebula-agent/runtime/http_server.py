@@ -2663,10 +2663,18 @@ class GatewayHandler(BaseHTTPRequestHandler):
             fname = f"gen_{stamp}_{uuid.uuid4().hex[:8]}.png"
             dest = os.path.join(GENERATED_DIR, fname)
             shutil.copyfile(pngp, dest)
+            # [成品入库校验 2026-11-27] copyfile 后校验 dest 确为写完整的 PNG（含 IEND 尾）
+            # 才登记画廊：偶发 8B PNG 签名残片（仅 \\x89PNG 魔数、零 chunk）一旦入库就成
+            # 永久破图条目。dest 是本次刚写的损坏残片（非用户既有数据），物理删即可杜绝入库，
+            # 并 raise 让本次生成诚实报错（源 pngp 仍在 work/ 供排查），绝不登记半写残片。
+            if not _png_is_complete(dest):
+                with contextlib.suppress(OSError):
+                    os.remove(dest)
+                raise RuntimeError(f"engine produced an incomplete PNG (no IEND): {pngp}")
             item = {"revised_prompt": prompt, "seed": seed + i,
                     "url": "/data/generated/images/" + fname,   # served by _serve_static
                     "saved_path": dest}
-            item["b64_json"] = base64.b64encode(open(pngp,"rb").read()).decode("ascii")
+            item["b64_json"] = base64.b64encode(open(dest,"rb").read()).decode("ascii")
             data.append(item)
         # tidy the scratch work dir
         for fn in os.listdir(work):
