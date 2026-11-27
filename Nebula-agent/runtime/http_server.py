@@ -3182,7 +3182,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # [A1 2026-11-27] ext=<.gguf|.exe> lets the model-path picker ALSO list matching FILES
         # (not just folders), so a .gguf/.exe can be picked directly instead of landing on a folder.
         fe = (q.get("ext") or [""])[0].strip().lower()
-        if not re.fullmatch(r"\.[a-z0-9]{1,8}", fe):   # sanitize: only ".gguf"/".exe"-like; else ignore
+        # [A1 2026-11-28] accept a comma list (e.g. ".gguf,.safetensors") so the VAE picker
+        # can offer both the .gguf and the diffusers .safetensors form. Each token must look
+        # like a bare extension; any bad token drops the whole filter (fail-safe, folder-only).
+        if fe and not all(re.fullmatch(r"\.[a-z0-9]{1,16}", t) for t in fe.split(",")):
             fe = None
         listing = ws.list_dirs(raw, root, file_ext=fe) if (raw or "").strip() else None
         self._json(200, {"listing": listing, **ws.browse_roots(root)})

@@ -91,7 +91,7 @@ check("source lock: click branch gated on data-file (vs folder descend)", appSrc
 check("source lock: only FILES whose path is in data-file fill (folder rows use data-path)",
   appSrc.includes('data-file="${esc(f.path)}"'));
 const wired = ['browseInto("img-cfg-diffusion_model", "", ".gguf")',
-               'browseInto("img-cfg-vae", "", ".gguf")',
+               'browseInto("img-cfg-vae", "", ".gguf,.safetensors")',
                'browseInto("img-cfg-llm", "", ".gguf")',
                'browseInto("img-cfg-llm_vision", "", ".gguf")'];
 check("source lock: all 4 model browse buttons pass \".gguf\"", wired.every((w) => appSrc.includes(w)),

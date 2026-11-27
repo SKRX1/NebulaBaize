@@ -2139,7 +2139,9 @@ function closeBrowser() {
 async function wbLoad(path) {
   let j;
   try {
-    const r = await fetch("workspace/list?path=" + encodeURIComponent(path || ""), {headers: headers()});
+    let _u = "workspace/list?path=" + encodeURIComponent(path || "");
+    if (_imgBrowseExt) _u += "&ext=" + encodeURIComponent(_imgBrowseExt);   // [A1] forward the model/exe filter so the backend lists matching FILES
+    const r = await fetch(_u, {headers: headers()});
     j = await r.json();
   } catch (e) { return; }
   if (!wbPlacesReady && j.drives) {
@@ -10256,9 +10258,13 @@ setTimeout(() => {
   const el = (id) => document.getElementById(id);
   if (el("img-cfg-save"))       el("img-cfg-save").onclick       = saveImageSettings;
   if (el("img-cfg-browse-model")) el("img-cfg-browse-model").onclick = () => browseInto("img-cfg-model-dir");
-  if (el("img-cfg-browse-exe")) el("img-cfg-browse-exe").onclick = () => browseInto("img-cfg-exe");
+  if (el("img-cfg-browse-exe")) el("img-cfg-browse-exe").onclick = () => {
+    const cur = el("img-cfg-exe") ? el("img-cfg-exe").value.trim() : "";
+    const dir = cur ? cur.replace(/[\\\/][^\\\/]*$/, "") : "";   // start at the folder that already holds the exe
+    browseInto("img-cfg-exe", dir, ".exe");
+  };
   if (el("img-cfg-browse-dm"))      el("img-cfg-browse-dm").onclick      = () => browseInto("img-cfg-diffusion_model", "", ".gguf");
-  if (el("img-cfg-browse-vae"))     el("img-cfg-browse-vae").onclick     = () => browseInto("img-cfg-vae", "", ".gguf");
+  if (el("img-cfg-browse-vae"))     el("img-cfg-browse-vae").onclick     = () => browseInto("img-cfg-vae", "", ".gguf,.safetensors");
   if (el("img-cfg-browse-llm"))     el("img-cfg-browse-llm").onclick     = () => browseInto("img-cfg-llm", "", ".gguf");
   if (el("img-cfg-browse-vision"))  el("img-cfg-browse-vision").onclick  = () => browseInto("img-cfg-llm_vision", "", ".gguf");
   if (el("img-cfg-scan"))           el("img-cfg-scan").onclick           = () => scanImageModels();

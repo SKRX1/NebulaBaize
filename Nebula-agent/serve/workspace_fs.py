@@ -175,7 +175,7 @@ def list_dirs(path=None, workspace_root=None, file_ext=None):
     if file_ext:                      # [A1 2026-11-27] the image-model picker needs FILES,
         # not just folders: list files whose name ends with this extension (e.g. ".gguf")
         # so a model .gguf can be picked directly instead of landing on a folder path.
-        ext = file_ext.lower()
+        ext = tuple(x for x in file_ext.lower().split(",") if x) or file_ext.lower()
         out["files"] = []
         try:
             with os.scandir(p) as it:
