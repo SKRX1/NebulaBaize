@@ -2101,6 +2101,76 @@ class GatewayHandler(BaseHTTPRequestHandler):
         out["api"] = dict(d.get("api") or {})
         return out
 
+    # [方案A 2026-11-27] read a model file's HEADER to decide its true role -- the filename is
+    # unreliable (the LLM trunk here is named 编码器\...Abliterated-Uncensored-AD-Q3_K.gguf, no 'llm'
+    # token), so we parse GGUF KV metadata / safetensors JSON header and fall back to the old
+    # filename keywords only when no readable header exists. Returns one of the four engine tags.
+    _SCAN_VLM_ARCH = ("qwen2vl", "qwen2_5_vl", "qwen3vl", "qwen3_vl", "llava", "clip",
+                      "internvl", "gemma3")   # multimodal/LM archs -> the LLM trunk (not the DiT)
+    _SCAN_VISION_ARCH = ("clip", "clipvision", "vision", "siglip")   # vision-encoder archs -> mmproj
+    def _scan_model_role(self, path: str) -> str:
+        """Decide a model file's engine role from its HEADER, falling back to filename keywords.
+        Cheap: reads only the first ~1 MB (GGUF KV is at the front; the safetensors JSON header is
+        too). Never raises -- any parse miss routes to the filename fallback."""
+        low = os.path.basename(path).lower()
+        try:
+            with open(path, "rb") as fh:
+                head = fh.read(1024 * 1024)
+            if head[:4] == b"GGUF":
+                import struct
+                n_kv = struct.unpack_from("<Q", head, 16)[0]
+                if n_kv == 0:            # bare weights, no metadata -> the diffusion DiT
+                    return "diffusion_model"
+                if n_kv < 200000:        # sane bound before parsing the KV table
+                    off, arch, mtype = 24, "", ""
+                    def _rd_str(buf, o):
+                        ln = struct.unpack_from("<Q", buf, o)[0]; o += 8
+                        return buf[o:o + ln].decode("utf-8", "replace"), o + ln
+                    for _ in range(n_kv):
+                        if off + 8 > len(head):
+                            break
+                        key, off = _rd_str(head, off)
+                        typ = struct.unpack_from("<I", head, off)[0]; off += 4
+                        if typ == 8:                       # string
+                            val, off = _rd_str(head, off)
+                            if key == "general.architecture":
+                                arch = val.lower()
+                            elif key == "general.type":
+                                mtype = val.lower()
+                            if arch and mtype:
+                                break
+                        else:                              # skip the non-string value
+                            sz = {0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8}.get(typ)
+                            if sz is None:
+                                break
+                            off += sz
+                    if mtype == "mmproj" or arch in self._SCAN_VISION_ARCH:
+                        return "llm_vision"   # mmproj arch (clip/siglip) -> the vision/mmproj weights
+                    if arch and arch in self._SCAN_VLM_ARCH:
+                        return "llm"
+                    if arch and mtype == "model":          # an arch-typed LM that isn't a DiT
+                        return "llm"
+            else:
+                # safetensors: 8-byte little-endian header length + a JSON header. Its __metadata__
+                # often names the role (vae.gguf here -> modelspec.architecture=qwen_image_2.1_vae).
+                import struct, json
+                hlen = struct.unpack_from("<Q", head, 0)[0]
+                if 0 < hlen <= len(head) - 8:
+                    meta = json.loads(head[8:8 + hlen].decode("utf-8", "replace")).get("__metadata__", {}) or {}
+                    spec = str(meta.get("modelspec.architecture", "")).lower()
+                    if "vae" in spec:
+                        return "vae"
+        except Exception:
+            pass
+        # ---- filename fallback (unchanged behaviour) when no readable header exists ----
+        if "mmproj" in low or "vision" in low:
+            return "llm_vision"
+        if "vae" in low:
+            return "vae"
+        if "llm" in low:
+            return "llm"
+        return "diffusion_model"
+
     def _api_image_scan_models(self) -> None:
         """GET /api/image-scan-models?dir=<path> - list *.gguf under that model folder
         (one level deep) so the image tab can pick a quantized model by name instead of
@@ -2123,15 +2193,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 for fn in fnames:
                     if fn.lower().endswith(".gguf"):
                         full = os.path.join(root, fn)
-                        low = fn.lower()
-                        if "mmproj" in low or "vision" in low:
-                            role = "llm_vision"
-                        elif "vae" in low:
-                            role = "vae"
-                        elif "llm" in low:
-                            role = "llm"
-                        else:
-                            role = "diffusion_model"
+                        role = self._scan_model_role(full)   # [方案A] header-first; filename fallback inside
                         files.append({"name": fn, "path": full, "role_guess": role})
         except OSError as e:
             self._json(500, {"error": {"type": "server_error", "message": str(e)}})

@@ -6,7 +6,7 @@
     "runtime/audit.py": 2,
     "runtime/config_loader.py": 3,
     "runtime/executor.py": 7,
-    "runtime/http_server.py": 24,
+    "runtime/http_server.py": 25,
     "runtime/loop.py": 2,
     "runtime/registry.py": 7,
     "runtime/scheduler.py": 1,
