@@ -96,6 +96,21 @@ TURBO_CFG = 1.0
 # [负面兜底 2026-11-27] 用户负面框留空时注入的通用画质负面词（前端空框不 POST negative_prompt，
 # 此处兜底，避免引擎拿到空负面丢掉低分辨率/畸形/水印的抑制；用户自填则原样胜出）。
 DEFAULT_NEGATIVE = "lowres, blurry, deformed, extra limbs, malformed hands, bad anatomy, watermark, text, signature, oversaturated, flat lighting, jpeg artifacts"
+# [预览半写修复 2026-11-27] sd-cli --preview 每步非原子重写同一预览文件；isfile 仅证明
+# 存在不代表这一帧写完整（前端抓到半截 png 会解码出撕裂/旧帧=预览闪烁重叠的根因）。
+# 一个写完整的 PNG 必以 IEND chunk 结尾，据此判定「已写完」才放行给前端。
+def _png_is_complete(path: str) -> bool:
+    """True only when path is a fully-written PNG (tail == IEND chunk + its CRC).
+    Guards against serving a preview file the engine is still mid-overwrite."""
+    try:
+        sz = os.path.getsize(path)
+        if sz < 12:
+            return False
+        with open(path, "rb") as fh:
+            fh.seek(sz - 8)
+            return fh.read(8) == b"\x49\x45\x4e\x44\xae\x42\x60\x82"  # IEND + CRC
+    except OSError:
+        return False
 
 # [实时预览 2026-11-14 方案A] 本地生成异步化：后台线程跑 sd-cli（拼 --preview），主线程立即返回
 # job_id+preview_url，前端每约2秒轮询 GET /api/image-preview?job= 刷新预览图。预览 png 落在
@@ -2773,8 +2788,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
             # handler 崩、连接被掐 → 前端轮询永远 RemoteDisconnected（「看不到进度/结果」的根因）。
             snapshot = {k: v for k, v in job.items() if k not in ("cancel", "proc")}
             # [FIX 2026-11-14] 就绹位：预览 png 真落盘了才让前端挂 src（否则 404 破图）
-            snapshot["preview_ready"] = bool(snapshot.get("preview_url")) and os.path.isfile(
-                os.path.join(PREVIEWS_DIR, os.path.basename(snapshot["preview_url"])))
+            _prev_path = (os.path.join(PREVIEWS_DIR, os.path.basename(snapshot["preview_url"]))
+                            if snapshot.get("preview_url") else "")
+            # [预览半写修复 2026-11-27] isfile 只证明文件在，不代表引擎写完了这一帧（--preview
+            # 每步重写同一 png、非原子）。改判 PNG 含 IEND 尾=写完整，避免前端抓到半截 png
+            # 解码出撕裂/旧帧——正是「渐变预览与下层预览不停闪烁重叠」的根因。
+            snapshot["preview_ready"] = bool(_prev_path) and _png_is_complete(_prev_path)
         if snapshot["status"] in ("done", "cancelled", "error"):   # 终态读后回收（预览图保留）
             with _IMAGE_JOBS_LOCK:
                 _IMAGE_JOBS.pop(job_id, None)
