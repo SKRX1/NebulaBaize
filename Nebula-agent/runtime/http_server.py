@@ -2630,7 +2630,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 f.write(genreq["negative"])
             cmd += ["--negative-prompt-file", nf]
         if genreq.get("steps"):
-            cmd += ["--steps", str(int(genreq["steps"]))]
+            _st = int(genreq["steps"])
+            # [i2i 步数补偿 2026-11-28] 引擎用 strength 从 σ 表尾截断：实跑去噪步数 = steps*strength，
+            # 导致图生图（尤其低 strength）去噪严重欠采样、σ 末值不归零，残留高频=满图噪点，像「没走完步数」。
+            # txt2img 不截断故光滑。修法：img2img 把传给引擎的 --steps 放大 1/strength，使有效去噪步数≈用户设定值。
+            if gen_mode == "img2img" and strength:
+                _st = min(150, max(_st, int(round(_st / max(float(strength), 0.1)))))
+            cmd += ["--steps", str(_st)]
         if genreq.get("cfg_scale"):
             cmd += ["--cfg-scale", str(float(genreq["cfg_scale"]))]
         if genreq.get("cpu_offload"):              # [CPU卸载 建议开启] 权重驻 RAM 省显存，需要时搬进显存

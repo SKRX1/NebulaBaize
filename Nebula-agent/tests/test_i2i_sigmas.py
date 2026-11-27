@@ -99,6 +99,17 @@ t2i = capture_cmd({"gen_mode": "txt2img", "steps": 8})
 check("D3 txt2img has NO --sigmas/--hires-sigmas",
       "--sigmas" not in t2i and "--hires-sigmas" not in t2i)
 
+# --- C1/C2 [i2i 步数补偿 2026-11-28 根因修复] img2img --steps 被 1/strength 放大，
+#     使实跑去噪步数回到 ~用户设定（否则 strength 截断导致欠采样=满图噪点）；txt2img 不截断故不补偿 ---
+_i2i_c = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8})
+check("C1 img2img --steps compensated by 1/strength (8 @ .45 -> 18) so effective denoise ~8 not 4",
+      val_after(_i2i_c, "--steps") == "18", "steps=%s" % val_after(_i2i_c, "--steps"))
+_i2i_hi = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.75, "steps": 8})
+check("C1b img2img compensation also lifts a high strength (8 @ .75 -> 11, >8)",
+      val_after(_i2i_hi, "--steps") == "11", "steps=%s" % val_after(_i2i_hi, "--steps"))
+_t2i_c = capture_cmd({"gen_mode": "txt2img", "steps": 8})
+check("C2 txt2img --steps NOT compensated (engine runs the full sigma table)",
+      val_after(_t2i_c, "--steps") == "8", "steps=%s" % val_after(_t2i_c, "--steps"))
 edit = capture_cmd({"gen_mode": "edit", "ref_images": [__file__], "steps": 8})
 check("D4 edit carries NO --hires-sigmas (B-leg removed, same root cause as D2)",
       val_after(edit, "--hires-sigmas") is None)
