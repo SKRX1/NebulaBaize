@@ -10667,9 +10667,30 @@ function galleryLiveRefresh(){
   const host = $("img-gallery"); if (!host) return;
   const liveSel = galleryLiveSel ? (galleryLive.find((l) => l.id === galleryLiveSel && !l.retired) || null) : null;
   const stage = host.querySelector(".img-gallery__stage");
-  if (stage) {   // re-paint the live panel (placeholder-seconds / eta / preview img) in place
-    const old = stage.querySelector(".img-gallery__live"); if (old) old.remove();
-    if (liveSel) galleryLivePass(liveSel);
+  if (stage) {   // [防闪烁·stage 大图 2026-11-27] the grid <img>s are patched in place below and never
+                 // flicker, but the STAGE panel used to be torn down + rebuilt every ~2s poll tick
+                 // (remove the whole .img-gallery__live -> galleryLivePass builds a brand-new <img> whose
+                 // src carries a fresh ?t=). The browser then re-fetched AND re-decoded that fresh img, and
+                 // the gap between the old frame being gone and the new one decoding rendered as the stage
+                 // preview blanking/flashing then "snapping back" (the reported "下面预览甩到生成图位置、
+                 // 闪一下才正常"). Reusing the SAME <img> and swapping its src in place lets the browser keep
+                 // painting the previous frame while the new one decodes -> no blank, no flicker.
+    const panel = liveSel ? stage.querySelector('.img-gallery__live[data-live="' + liveSel.id + '"]') : null;
+    if (panel) {   // light in-place refresh: eta text + the preview frame on the SAME img (or the ph txt)
+      const eta = panel.querySelector(".img-gallery__live-eta"); if (eta) eta.textContent = liveSel.eta || "";
+      if (liveSel.url) {
+        const pi = panel.querySelector("img");
+        const want = liveSel.url + (liveSel.bust || "");
+        if (pi) { if (pi.getAttribute("src") !== want) pi.setAttribute("src", want); }
+      } else {   // still loading: refresh the placeholder seconds in place (url 0->1 is a STRUCTURAL change,
+                 // it goes through renderGallery's full rebuild, so a tick here never needs to build the img)
+        const pht = panel.querySelector(".live-preview-ph__txt");
+        if (pht) pht.textContent = liveSel.phTxt || t("img.generating");
+      }
+    } else {     // no matching live panel (or liveSel cleared): drop any stale one, rebuild only when needed
+      const old = stage.querySelector(".img-gallery__live"); if (old) old.remove();
+      if (liveSel) galleryLivePass(liveSel);
+    }
   }
   galleryLiveRows().forEach((lv) => {   // patch each live cell's preview <img> cache-buster
     const cell = host.querySelector('.img-gallery__cell[data-live="' + lv.id + '"]');
