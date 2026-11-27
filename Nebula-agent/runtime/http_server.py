@@ -96,6 +96,42 @@ TURBO_CFG = 1.0
 # [负面兜底 2026-11-27] 用户负面框留空时注入的通用画质负面词（前端空框不 POST negative_prompt，
 # 此处兜底，避免引擎拿到空负面丢掉低分辨率/畸形/水印的抑制；用户自填则原样胜出）。
 DEFAULT_NEGATIVE = "lowres, blurry, deformed, extra limbs, malformed hands, bad anatomy, watermark, text, signature, oversaturated, flat lighting, jpeg artifacts"
+# [img2img 去噪根因修复 2026-11-27 方案B 治本] Qwen-Image-2.1-Turbo 在 sd-cli 走 FLOW mode +
+# Flux scheduler，截断的 σ 表末端停在非零值 → 去噪轨迹没走满到 σ=0，残留高频颗粒（用户看到的
+# "像没完成"）。flow-shift/karras/eta/steps 实测都救不了，唯一实测消噪的是把 σ 表末端归 0。
+# 这条 σ 表按用户可调的 strength/steps 动态构造：从 σ≈strength 线性递减、末端强制归 0，让去噪
+# 轨迹走完。实测坐实（tools/_q_ab.py，真实 strength0.45+hires 链路）：lapvar 163.9→146.9，比
+# txt2img 基准(148.6)更平滑；与现状 Pearson 0.947（仅去高频、不改结构/人脸）。strength<=0 或
+# steps<2 返回 None 交引擎自选，保持旧行为。
+def i2i_sigmas(strength, steps):
+    """flow-matching img2img/edit 的「σ 末端归 0」表；None = 不注入（保持引擎自选）。"""
+    try:
+        s = float(strength); n = int(steps)
+    except (TypeError, ValueError):
+        return None
+    if s <= 0 or n < 2:
+        return None
+    s = min(s, 1.0)                                   # flow-matching σ 上限 1
+    vals = [round(s * (n - 1 - i) / (n - 1), 4) for i in range(n)]
+    vals[-1] = 0.0                                    # 末端强制归 0（治本核心）
+    return ",".join(("%g" % v) for v in vals)
+
+
+# [img2img 去噪 方案A 立竿见影兜底] hires 二遍的 denoising-strength=0.3 同样受「σ 末端不归 0」
+# 影响；给二遍也铺一条末端归 0 的 σ 表（hires-sigmas）。实测 A+B 与仅 A 几乎持平(Pearson
+# 0.991)，但 B 在低 hires-strength 时更稳，无害故一并注入。hires 关闭时由调用处不注入。
+def i2i_hires_sigmas(denoise_strength, steps):
+    try:
+        s = float(denoise_strength); n = int(steps)
+    except (TypeError, ValueError):
+        return None
+    if s <= 0 or n < 2:
+        return None
+    s = min(s, 1.0)
+    vals = [round(s * (n - 1 - i) / (n - 1), 4) for i in range(n)]
+    vals[-1] = 0.0
+    return ",".join(("%g" % v) for v in vals)
+
 # [预览半写修复 2026-11-27] sd-cli --preview 每步非原子重写同一预览文件；isfile 仅证明
 # 存在不代表这一帧写完整（前端抓到半截 png 会解码出撕裂/旧帧=预览闪烁重叠的根因）。
 # 一个写完整的 PNG 必以 IEND chunk 结尾，据此判定「已写完」才放行给前端。
@@ -2630,6 +2666,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 cmd += ["-i", staged]
                 if strength is not None:
                     cmd += ["--strength", str(float(strength))]
+                # [A 治本 2026-11-27] 主去噪遍注入「σ 末端归 0」表，消除 flow-matching 残留噪声
+                sig = i2i_sigmas(strength, genreq.get("steps") or TURBO_STEPS)
+                if sig:
+                    cmd += ["--sigmas", sig]
         elif gen_mode == "edit":
             if llm_vision:                        # [EDIT-VISION 2026-11-13] Qwen-Image edit needs vision weights
                 cmd += ["--llm_vision", llm_vision]
@@ -2640,6 +2680,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # [高清修复] 默认开：Lanczos 上采样 + 二次去噪精修去糊，明显减轻 img2img/edit 的涂抹扭曲
         if genreq.get("hires", True) and gen_mode in ("img2img", "edit"):
             cmd += ["--hires", "--hires-upscaler", "Lanczos", "--hires-denoising-strength", "0.3", "--hires-scale", "1.5"]
+            # [B 兜底 2026-11-27] hires 二遍也铺末端归 0 的 σ 表，低 denoise-strength 时更稳
+            hsig = i2i_hires_sigmas(0.3, genreq.get("steps") or TURBO_STEPS)
+            if hsig:
+                cmd += ["--hires-sigmas", hsig]
         if extra:
             cmd += list(extra)
         if preview_path:                            # [实时预览 方案A] 逐步写 preview 到固定路径
