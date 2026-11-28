@@ -129,10 +129,10 @@
     },
     {
       "id": "inkling-2-mini-sq-20.strata",
-      "name": "Inkling-2-Mini-SQ-15",
+      "name": "Inkling-2-Mini-SQ-15-abliterated",
       "kind": "local",
       "base_url": "",
-      "model": "Inkling-2-Mini-SQ-15",
+      "model": "Inkling-2-Mini-SQ-15-abliterated",
       "tools": true,
       "vision": true,
       "think_modes": [

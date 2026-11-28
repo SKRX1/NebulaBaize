@@ -2,11 +2,11 @@
   "mode": "local",
   "local": {
     "model_dir": "E:\\QwenImage2.1Turbo\\models",
-    "exe": "E:\\QwenImage2.1Turbo\\stable-diffusion.cpp\\sd-master-1b0ba10-bin-win-cuda12-x64\\sd-cli.exe",
-    "diffusion_model": "E:\\QwenImage2.1Turbo\\models\\生图模型\\Qwen-Image-2.1-Turbo-AD-Q2_K.gguf",
-    "vae": "E:\\QwenImage2.1Turbo\\models\\vae.gguf",
-    "llm": "E:\\QwenImage2.1Turbo\\models\\编码器\\Qwen-Image-2.1-Turbo-Abliterated-Uncensored-AD-Q2_K.gguf",
-    "llm_vision": "E:\\QwenImage2.1Turbo\\models\\编码器\\mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-BF16.gguf",
+    "exe": "E:\\QwenImage2.1Turbo\\stable-diffusion.cpp\\sd-new-3b0426f\\sd-cli.exe",
+    "diffusion_model": "E:\\QwenImage2.1Turbo\\models\\image\\Qwen-Image-2.1-Turbo-AD-Q3_K.gguf",
+    "vae": "E:\\QwenImage2.1Turbo\\models\\vae\\qwen_image_2.1_vae_official-bf16.safetensors",
+    "llm": "E:\\QwenImage2.1Turbo\\models\\Encoder\\Qwen-Image-2.1-Turbo-Abliterated-Uncensored-AD-Q3_K.gguf",
+    "llm_vision": "E:\\QwenImage2.1Turbo\\models\\Encoder\\mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-BF16.gguf",
     "args": [
       "--max-vram",
       "10",
