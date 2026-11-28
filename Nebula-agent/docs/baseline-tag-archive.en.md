@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-28-b`
-> (commit `dbc36d9865f3c541c68dff1eef26bb87cad25dc1`, sampling method / scheduler can now be set as a persisted default + sampling-area layout re-flow: runtime/http_server.py adds GET/POST /api/sampling-defaults persisting to data/sampling_defaults.json (runtime state, gitignored); frontend opt-*-default label text is now filled at runtime from the stored default (paintSamplingDefaultLabel) instead of hardcoded, and "Set as default" is an independent i-pin icon action row (fixing the earlier in-label placement that broke the three-column equal-height + flex-wrap alignment); i18n adds img.setAsDefault.hint (zh+en pair); new tests test_sampling_default_wiring.mjs + test_sampling_defaults_endpoint.py registered into run_tests SUITES (quick tier). quick regression 92/93 (the only FAIL is _single_source_gate, a pre-existing sparse-checkout archive environment state, not introduced this round). This tag is cut under the real 2026-11-28 date, after that day's a.)
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-b) section wins.
+> Current latest rollback point = `v-baseline-2026-11-28-c`
+> (commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`, edit-modal input area not scrollable when text overflows: root cause (statically proven) = #edit-area (class "st-textarea ce-input", dynamically built in app.js:8704) has its inline height clamped by autosize to innerHeight*0.4, while the ONLY rule giving a .ce-input an overflow window is scoped .st-composer .ce-input and matches only the composer #input, missing the modal body #edit-area (not inside .st-composer); once height-clamped, overflow content beyond the clamp uses the default overflow:visible (painted below the card edge, unscrollable) = "cannot view full content after editing". Fix (app.css): add an unscoped `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }` whose specificity (0,1,0) is lower than .st-composer .ce-input (0,2,0) so the composer keeps identical behaviour via the higher-specificity rule, covering only .ce-input used outside .st-composer (#edit-area and future peers); add a pure static lock tests/test_ce_input_overflow_lock.py (jsdom/sim cannot compute CSS, so it reads shipped app.css textually; C1 some exact .ce-input block carries overflow-y:auto+overflow-x, C2 the composer rule is still pinned, C3 stripping overflow-x flips C1 red = load-bearing), registered into run_tests SUITES; headless real Chromium (NOT jsdom) loaded a harness importing the real app.css, replicated the edit-modal structure + injected 120 long lines, and read #edit-area computed style = overflowY:auto, overflowX:hidden, maxHeight:176.4px (=40vh), scrollHeight 2359 >> clientHeight 174, scrollTop=scrollHeight -> scrolledToEnd:true; full quick suite REGRESSION ALL GREEN. This tag is cut under the real 2026-11-28 date, after that day's a/b.)
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-c) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -911,4 +911,26 @@ Verified: tag deref a == `374cf9de9bd3`, b == `dbc36d9865f3`; numstat == --ignor
 ```bat
 git tag -a v-baseline-2026-11-28-a 374cf9de9bd3de0fdcf31228b8389f843f2f006c -m "baseline rollback point at 374cf9d - img2img Flux scheduler restored, live-preview flicker fixed, IEND completeness gate"
 git tag -a v-baseline-2026-11-28-b dbc36d9865f3c541c68dff1eef26bb87cad25dc1 -m "baseline: sampling persisted default + sampling-area layout re-flow (commit dbc36d9)"
+```
+
+
+
+## 2026-11-28 series: current latest rollback point upgraded to c (edit-modal scroll fix, commit 4c4306c)
+
+This round cuts named rollback point `v-baseline-2026-11-28-c` at commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`, pinning the fix of the "edit-modal input area cannot scroll when text overflows" frontend defect. Root cause (statically proven): #edit-area's class is `st-textarea ce-input` (built dynamically at app.js:8704); autosize() clamps its inline height to `innerHeight*0.4`, while the ONLY rule giving a `.ce-input` an overflow window is scoped `.st-composer .ce-input` -- matching only the composer `#input`, missing the modal body `#edit-area` (it is not inside `.st-composer`). Once height-clamped, content taller than the clamp falls back to the default `overflow:visible` (painted below the card edge and unscrollable) = "cannot view the full content after editing".
+
+Fix (app.css): add an unscoped `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }`. Its specificity (0,1,0) is lower than `.st-composer .ce-input` (0,2,0), so the composer keeps the identical value via the higher-specificity rule (no behaviour change) while #edit-area -- and any future .ce-input used outside .st-composer -- gets the same scrollable clamp. Hardened with a new pure static lock `tests/test_ce_input_overflow_lock.py` (jsdom/sim cannot compute CSS, so it reads shipped app.css textually; C1 asserts some exact `.ce-input` block declares overflow-y:auto + an overflow-x pin, C2 confirms the composer rule is still pinned, C3 strips the overflow-x pin to prove C1 flips red = load-bearing), registered into run_tests SUITES. We deliberately did NOT reuse test_css_scroll_x_lock.py's REQUIRED (its find_block returns the FIRST exact match = the plain base block, which has no overflow, so reusing it would false-red).
+
+Verified: a headless real Chromium (NOT a jsdom stub) loaded a harness importing the real app.css, replicated the edit-modal structure and injected 120 long lines, then read #edit-area's computed style = overflowY:auto, overflowX:hidden, maxHeight:176.4px (=40vh), scrollHeight 2359 >> clientHeight 174; setting scrollTop=scrollHeight yields scrolledToEnd:true -- "a vertical scrollbar appears and it scrolls to the end" holds in a real browser. After backfill the full quick suite is `REGRESSION: ALL GREEN` (this test included ALL GREEN); tag deref == `4c4306c9e724966ee37f1f378b693e2c0b3b58db`; numstat equals --ignore-cr-at-eol, zero line-ending churn.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-28-c | `4c4306c9e724966ee37f1f378b693e2c0b3b58db` | edit-modal input not scrollable fix (commit 4c4306c): #edit-area (class st-textarea ce-input) missed the .ce-input overflow fallback -> added an unscoped `.ce-input{max-height:40vh;overflow-y:auto;overflow-x:hidden}` + pure static lock test_ce_input_overflow_lock.py; headless-Chromium verified it scrolls to the end |
+
+**Already on remote?**: `-c` was pushed after this round's push origin main; remote peel confirmed == `4c4306c9e724966ee37f1f378b693e2c0b3b58db`, matching this ledger; the backfill commit then pushed origin main so HEAD advanced and confirmed 0 0.
+
+### Rebuild command (to restore named rollback point c)
+
+```bat
+git tag -a v-baseline-2026-11-28-c 4c4306c9e724966ee37f1f378b693e2c0b3b58db -m "baseline 2026-11-28-c: edit-modal scroll fix (4c4306c); headless-Chromium verified #edit-area overflowY:auto + scrolls-to-end; lock test_ce_input_overflow_lock.py ALL GREEN"
 ```

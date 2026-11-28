@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-28-b`
-> （commit `dbc36d9865f3c541c68dff1eef26bb87cad25dc1`，采样方法/调度器可设为持久默认 + 采样区布局重排：runtime/http_server.py 新增 GET/POST /api/sampling-defaults 落盘 data/sampling_defaults.json（运行时态、被 gitignore）；前端 opt-*-default 默认项文案运行时按已存默认动态填（paintSamplingDefaultLabel）不再硬编码、「设为默认」独立成带 i-pin 图标操作行；i18n 新增 img.setAsDefault.hint 中英成对；新增 test_sampling_default_wiring.mjs + test_sampling_defaults_endpoint.py 登记进 run_tests SUITES；quick 全套 92/93（唯一 FAIL=_single_source_gate 既有 sparse-checkout 归档环境态、非本轮）。本轮 tag 在 2026-11-28 真实日期下打，续当天 a 之后。）
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-b）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-28-c`
+> （commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`，编辑弹窗输入区不可滚动修复：根因=#edit-area(class="st-textarea ce-input"，app.js 动态生成)的 autosize 把内联 height 钉到 innerHeight*0.4，而唯一给它 overflow 窗口的规则被 .st-composer 限定只命中 composer #input、漏掉弹窗体 #edit-area，钉高后超长内容默认 overflow:visible 画到框外且不可滚=编辑后看不到全文；修复=app.css 补独立 `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }`（特异性(0,1,0) 低于 .st-composer .ce-input(0,2,0)，composer 行为不变、仅覆盖不在 .st-composer 内的 .ce-input 如 #edit-area 及未来同类）；新增纯静态锁 test_ce_input_overflow_lock.py（C1 某 exact .ce-input 块带滚动窗口 + C2 composer 规则仍在 + C3 剥 overflow-x 差分翻红）登记进 run_tests SUITES；已用无头真实 Chromium 注入 120 行超长文本实测 #edit-area computed overflowY:auto + overflowX:hidden + maxHeight:40vh、scrollHeight≫clientHeight、设 scrollTop=scrollHeight 后真滚到底(scrolledToEnd:true)，非 jsdom 桩；quick 全套 REGRESSION ALL GREEN；tag 在 2026-11-28 真实日期下续当天 a/b 之后打、已单推远端。）
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-c）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -1111,4 +1111,26 @@ git tag -a v-baseline-2026-11-27-b 843f8ce9c74c880c918513fbb063ada86326e2f4 -m "
 ```bat
 git tag -a v-baseline-2026-11-28-a 374cf9de9bd3de0fdcf31228b8389f843f2f006c -m "baseline rollback point at 374cf9d - img2img Flux scheduler restored, live-preview flicker fixed, IEND completeness gate"
 git tag -a v-baseline-2026-11-28-b dbc36d9865f3c541c68dff1eef26bb87cad25dc1 -m "baseline: 采样方法/调度器可设为持久默认 + 采样区布局重排 (commit dbc36d9)"
+```
+
+
+
+## 2026-11-28 系列：当前最新回滚点升级到 c（编辑弹窗输入区不可滚动修复 4c4306c）
+
+本轮在 commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db` 打命名回滚点 `v-baseline-2026-11-28-c`，锁定「编辑弹窗 #edit-area 超长文本不可滚动」这一前端缺陷的修复：根因（静态实证）=#edit-area 的 class 是 `st-textarea ce-input`（app.js:8704 动态生成），autosize 把它的内联 height 钉到 `innerHeight*0.4`；而唯一给 `.ce-input` overflow 窗口的规则被 `.st-composer ` 前缀限定，只命中 composer 的 `#input`、漏掉弹窗体 `#edit-area`（它不在 `.st-composer` 内）。钉高后内容超出时默认 `overflow:visible` 把文本画到卡片框外且无法滚动 = 「编辑后看不到全文」。
+
+修复（app.css）：新增独立 `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }`，特异性 (0,1,0) 低于 `.st-composer .ce-input`(0,2,0)——composer 经更高特异性规则保持原行为不变，仅覆盖不在 `.st-composer` 内的 `.ce-input`（如 `#edit-area` 及未来同类）。固化：新建纯静态锁 `tests/test_ce_input_overflow_lock.py`（jsdom/sim 不算 CSS 布局，故纯静态读 app.css；C1 断言某 exact `.ce-input` 块带 overflow-y:auto+overflow-x、C2 确认 composer 规则仍在、C3 剥 overflow-x 令 C1 翻红证 load-bearing），登记进 run_tests SUITES。刻意不复用 test_css_scroll_x_lock.py 的 REQUIRED（其 find_block 只取首条 exact 匹配会绑到无 overflow 的基础块假红）。
+
+已实测：用无头真实 Chromium（非 jsdom 桩）加载含真实 app.css 的 harness、复刻 edit-modal 结构 + 注入 120 行超长文本，读 `#edit-area` computed style = `overflowY:auto`、`overflowX:hidden`、`maxHeight:176.4px`(=40vh)，`scrollHeight 2359 ≫ clientHeight 174`、设 `scrollTop=scrollHeight` 后 `scrolledToEnd:true` —— 「出现竖向滚动条可滚到底」在真实浏览器成立。补登后 quick 全套 `REGRESSION: ALL GREEN`（含本测试 ALL GREEN）；tag deref == `4c4306c9e724966ee37f1f378b693e2c0b3b58db`；numstat == --ignore-cr-at-eol 零行尾污染。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-28-c | `4c4306c9e724966ee37f1f378b693e2c0b3b58db` | 编辑弹窗输入区不可滚动修复（commit 4c4306c）：#edit-area(class st-textarea ce-input) 漏 .ce-input overflow 兜底→补独立 `.ce-input{max-height:40vh;overflow-y:auto;overflow-x:hidden}` + 纯静态锁 test_ce_input_overflow_lock.py；无头 Chromium 实测可滚到底 |
+
+**是否已在远端**：`-c` 已随本轮 push origin main 后单推该 tag，远端 peel 坐实 == `4c4306c9e724966ee37f1f378b693e2c0b3b58db` 与账本声明一致；本补登 commit 随后 push origin main 使 HEAD 前进坐实 0 0。
+
+### 重建命令（如需恢复命名回滚点 c）
+
+```bat
+git tag -a v-baseline-2026-11-28-c 4c4306c9e724966ee37f1f378b693e2c0b3b58db -m "baseline 2026-11-28-c: edit-modal scroll fix (4c4306c); headless-Chromium verified #edit-area overflowY:auto + scrolls-to-end; lock test_ce_input_overflow_lock.py ALL GREEN"
 ```
