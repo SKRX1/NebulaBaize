@@ -85,3 +85,38 @@ dark when `AppsUseLightTheme=0`.
   `Shell.Application.NameSpace(10).MoveHere` (Recycle Bin).
 - For these to paint on a RUNNING instance, restart port 8099 to reload (a self-terminating action;
   the timing is the user's call).
+
+## Addendum · file-dialog ctypes cast fix + forensic confirmation of both dialogs
+(Plan D: keep the legacy folder dialog unchanged)
+
+**Hazard**: on this Python 3.14 box, `GetOpenFileNameW` raised
+`TypeError('incompatible types, LP_c_wchar instance instead of c_wchar_p instance')`. Root cause:
+3.14 tightened `LPWSTR` to `c_wchar_p` (no longer `POINTER(c_wchar)`), so the old line
+`ofn.lpstrFile = ctypes.cast(buf, ctypes.POINTER(ctypes.c_wchar))` produced an `LP_c_wchar`
+incompatible with the new field type -> native file dialog creation threw, was caught by
+`_pick_file_windows`'s except, logged a `[native_picker] GetOpenFileNameW failed` line, then
+fell back to `_pick_tk()`. Although tkinter's `askopenfilename` on Windows still resolves to a
+native common dialog (visual unchanged), the extra hop + stderr noise was a real latent defect.
+
+**Fix**: `ofn.lpstrFile = ctypes.cast(buf, ctypes.c_wchar_p)`. Round-trip verified: after the
+cast the field pointer == `addressof(buf)`, and after simulating a native write `buf.value` reads
+back correctly -- i.e. GetOpenFileNameW can still write its result into buf (the cast only swaps
+the pointer wrapper; the buffer stays writable).
+
+**Verified**: after the fix the real file dialog is foreground `class=#32770 / title=` our
+`FixCheckFile` (genuinely native, not the tkinter fallback), `NATIVE_FAILED_LINE=False` (the
+stderr failed line is gone), watchdog posts `WM_COMMAND/IDCANCEL` to auto-dismiss -> `cancelled`.
+
+**Both-dialogs current-state forensic evidence** (screenshots via real desktop PIL grab --
+native dialogs are system windows, not web DOM, so `browser__screenshot` cannot capture them;
+window classes read via `EnumWindows`; saved under `data/uploads/search/`):
+
+- **folder** (Plan D keeps legacy `SHBrowseForFolderW`): observed `class=#32770 / title=Browse For
+  Folder` -- a genuine legacy native tree dialog (dark titlebar covered by Fix 3 above).
+- **file** (`GetOpenFileNameW`): before the fix it fell back to tkinter which still resolved to a
+  native common dialog (`class=#32770`); after the fix it goes straight through GetOpenFileNameW,
+  still `class=#32770`.
+
+Both dialogs belong to the same Win32 common-dialog family `#32770`: the folder dialog uses the
+legacy tree with a dark titlebar, the file dialog is Explorer-style. **Visually consistent** --
+no native-vs-webview mismatch, and no risk of regressing to a non-native look.

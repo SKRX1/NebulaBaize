@@ -69,3 +69,32 @@ lpfn 回调不崩、取消返回 `cancelled`。判定系统主题：`AppsUseLigh
 - 代码卫生：吞异常用 `contextlib.suppress(Exception)`，勿用裸 `except Exception: pass`（runtime/ 禁 silent swallow）。
 - 沙箱 shell deny list 拦 `rmdir /s /q`；清临时 clone/目录用 `Shell.Application.NameSpace(10).MoveHere` 送回收站。
 - 这些改动要在**正在运行的实例**上呈现像素，需重启 8099 重载（自杀型动作，需用户拍板时机）。
+
+## 补充 · 文件框 ctypes cast 隐患修复 + 两框现状取证坐实（方案 D：保留旧版 folder 不改）
+
+**隐患**：本机 Python 3.14 下 `GetOpenFileNameW` 报
+`TypeError('incompatible types, LP_c_wchar instance instead of c_wchar_p instance')`。
+根因：3.14 把 `LPWSTR` 收紧为 `c_wchar_p`（不再是 `POINTER(c_wchar)`），生产原写法
+`ofn.lpstrFile = ctypes.cast(buf, ctypes.POINTER(ctypes.c_wchar))` 产出的 `LP_c_wchar` 与新字段
+类型不兼容 → 原生文件框创建抛 `TypeError`，被 `_pick_file_windows` 的 except 捕获、打一条
+`[native_picker] GetOpenFileNameW failed` 噪音后回退 `_pick_tk()`。虽 tkinter 在 Windows 上
+`askopenfilename` 底层仍转原生 common dialog、最终视觉不变，但多绕一层 + stderr 噪音属真实既有隐患。
+
+**修复**：改为 `ofn.lpstrFile = ctypes.cast(buf, ctypes.c_wchar_p)`。坐实 round-trip：cast 后
+字段指针 == `addressof(buf)`，模拟原生写入路径后 `buf.value` 正确读回 —— 即改完 GetOpenFileNameW
+仍能往 buf 写入所选结果，不会取不到路径（cast 只是换指针包装、缓冲区可写性不变）。
+
+**实测**：修复后真弹文件框，前台窗 `class=#32770 / title=` 传入的 `FixCheckFile`（真走原生、非 tkinter
+回退）、`NATIVE_FAILED_LINE=False`（stderr 那条 failed 已消除）、watchdog 发 `WM_COMMAND/IDCANCEL`
+自动关框返回 `cancelled`。
+
+**两框现状取证坐实**（截图取证用 PIL 真桌面抓屏——原生框是系统窗口、非网页 DOM，
+`browser__screenshot` 截不到；并用 `EnumWindows` 读窗口类坐实身份，落 `data/uploads/search/`）：
+
+- **folder**（方案 D 保留旧版 `SHBrowseForFolderW`）：实测 `class=#32770 / title=「浏览文件夹」`
+  —— 真·原生旧版经典树形框（深色标题栏见上方修复 3）。
+- **file**（`GetOpenFileNameW`）：修复前经 tk 回退仍转原生 common dialog 实测 `class=#32770`；
+  修复后直接走 `GetOpenFileNameW`，仍 `class=#32770`。
+
+两框同属 Win32 通用对话框家族 `#32770`：文件夹旧树形已配深色标题栏、文件框 Explorer 风格，
+**视觉协调成立**，无「一个原生一个网页感」的割裂，也无回退到非原生外观的风险。

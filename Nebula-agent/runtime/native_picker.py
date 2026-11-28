@@ -348,7 +348,9 @@ def _pick_file_windows(title, start, ext):
         ofn.hwndOwner = owner   # modal child of the current foreground window
         ofn.lStructSize = ctypes.sizeof(ofn)
         ofn.lpstrFilter = flt
-        ofn.lpstrFile = ctypes.cast(buf, ctypes.POINTER(ctypes.c_wchar))
+        ofn.lpstrFile = ctypes.cast(buf, ctypes.c_wchar_p)  # py3.14: LPWSTR == c_wchar_p (not POINTER(c_wchar))
+        # cast to c_wchar_p so GetOpenFileNameW still writes its result
+        # into buf (field pointer == addressof(buf); verified round-trip).
         ofn.nMaxFile = 600
         ofn.lpstrInitialDir = start or None
         ofn.lpstrTitle = title or "Select a file"
