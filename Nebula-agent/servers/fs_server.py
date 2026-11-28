@@ -184,6 +184,13 @@ class FsServer(McpServerBase):
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}}},
         {"name": "delete", "description": "删除允许根目录内的一个文件",
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
+        {"name": "pick_native",
+         "description": "弹出操作系统原生的文件夹/文件选择对话框，返回用户选中的本机绝对路径。供 agent 交互式取路径（如工作区/模型目录）。与前端浏览按钮共用同一弹框实现。kind=folder 选文件夹，kind=file 选文件（可用 ext 过滤，如 .gguf）。返回路径字符串，或 cancelled/unavailable 说明。",
+         "inputSchema": {"type": "object", "properties": {
+             "kind": {"type": "string", "enum": ["folder", "file"]},
+             "title": {"type": "string"},
+             "start": {"type": "string"},
+             "ext": {"type": "string"}}}},
     ]
 
     def _target(self, args, tool) -> tuple[str, str]:
@@ -289,6 +296,40 @@ class FsServer(McpServerBase):
                 return f"not found: {p} ({_where(p, ap)})"
             _with_lock_retry(os.remove, ap)
             return f"deleted {p}"
+        if name == "pick_native":
+            # Reuse the gateway's native_picker (runtime/) so the AGENT raises the
+            # SAME OS dialog the frontend Browse buttons use -- one shared picker.
+            # runtime/ is a sibling of servers/; we add it to sys.path and import
+            # lazily HERE (not at module load) so a host without a desktop, or
+            # without runtime/, still loads fs_server fine and only THIS tool fails.
+            try:
+                _rt = os.path.abspath(os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "..", "runtime"))
+                if _rt not in sys.path:
+                    sys.path.insert(0, _rt)
+                import native_picker
+            except Exception as e:
+                return f"pick_native unavailable: cannot import native_picker ({e!r})"
+            kind = str(args.get("kind") or "folder").strip().lower()
+            if kind not in ("folder", "file"):
+                kind = "folder"
+            title = (str(args.get("title") or "").strip()) or None
+            start = (str(args.get("start") or "").strip()) or None
+            ext = (str(args.get("ext") or "").strip()) or None
+            try:
+                if kind == "file":
+                    path, status = native_picker.pick_file(
+                        title=title, start=start, ext=ext)
+                else:
+                    path, status = native_picker.pick_folder(
+                        title=title, start=start)
+            except Exception as e:
+                return f"pick_native error: {e!r}"
+            if status == "native" and path:
+                return path
+            if status == "cancelled":
+                return "cancelled (the user dismissed the dialog)"
+            return "unavailable (no native dialog could be shown in this environment)"
         raise Exception(f"unknown tool: {name}")
 
 

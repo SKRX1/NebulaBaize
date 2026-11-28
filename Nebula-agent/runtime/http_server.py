@@ -1510,6 +1510,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.state.request_count += 1
         path = self.path.split("?")[0]
 
+        # [native picker GET alias 2026-11-28] the browser can fire this by
+        # navigation (or an iframe / fetch GET), no JSON body needed -- params
+        # ride the query string. MUST precede the generic /api/ proxy so the
+        # gateway runs the dialog ITSELF instead of forwarding /api/pick upstream.
+        if path == "/api/pick":
+            self._api_pick()
+            return
+
         if path.startswith("/api/"):
             self._api("GET")
             return
@@ -3240,11 +3248,25 @@ class GatewayHandler(BaseHTTPRequestHandler):
         caller falls back to the in-app /workspace/list browser.
         Body: {"kind":"folder"|"file", "title", "start", "ext"}.
         Reply: {"path": <abs path|null>, "status":"native|cancelled|unavailable"}."""
+        # GET alias carries the same fields via ?kind=&title=&start=&ext= so a
+        # plain browser navigation (or an iframe / fetch GET) can raise the dialog
+        # without a JSON POST body. POST still reads its JSON body. Query wins on
+        # overlap so the GET alias is authoritative.
+        body = {}
         try:
-            body = self._read_json() or {}
+            q = parse_qs(urlsplit(self.path).query)
+            for k in ("kind", "title", "start", "ext"):
+                v = (q.get(k) or [""])[0]
+                if v:
+                    body[k] = v
         except Exception as e:
-            print("[native_picker] bad /api/pick body: %r" % (e,))
-            body = {}
+            print("[native_picker] bad /api/pick query: %r" % (e,))
+        if not body:   # no query params -> this is a POST; use the JSON body
+            try:
+                body = self._read_json() or {}
+            except Exception as e:
+                print("[native_picker] bad /api/pick body: %r" % (e,))
+                body = {}
         kind = (body.get("kind") or "folder").lower()
         if kind not in ("folder", "file"):
             kind = "folder"
