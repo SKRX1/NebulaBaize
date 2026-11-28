@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-28-f`
-> (commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`, edit-modal input area not scrollable when text overflows: root cause (statically proven) = #edit-area (class "st-textarea ce-input", dynamically built in app.js:8704) has its inline height clamped by autosize to innerHeight*0.4, while the ONLY rule giving a .ce-input an overflow window is scoped .st-composer .ce-input and matches only the composer #input, missing the modal body #edit-area (not inside .st-composer); once height-clamped, overflow content beyond the clamp uses the default overflow:visible (painted below the card edge, unscrollable) = "cannot view full content after editing". Fix (app.css): add an unscoped `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }` whose specificity (0,1,0) is lower than .st-composer .ce-input (0,2,0) so the composer keeps identical behaviour via the higher-specificity rule, covering only .ce-input used outside .st-composer (#edit-area and future peers); add a pure static lock tests/test_ce_input_overflow_lock.py (jsdom/sim cannot compute CSS, so it reads shipped app.css textually; C1 some exact .ce-input block carries overflow-y:auto+overflow-x, C2 the composer rule is still pinned, C3 stripping overflow-x flips C1 red = load-bearing), registered into run_tests SUITES; headless real Chromium (NOT jsdom) loaded a harness importing the real app.css, replicated the edit-modal structure + injected 120 long lines, and read #edit-area computed style = overflowY:auto, overflowX:hidden, maxHeight:176.4px (=40vh), scrollHeight 2359 >> clientHeight 174, scrollTop=scrollHeight -> scrolledToEnd:true; full quick suite REGRESSION ALL GREEN. This tag is cut under the real 2026-11-28 date, after that day's a/b.)
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-f) section wins.
+> Current latest rollback point = `v-baseline-2026-11-28-g`
+> (commit `b3e6899f39d830e2c26c7712c05944b15cd64c21`, native_picker py3.14 GetOpenFileNameW lpstrFile cast fix + both-dialog forensic confirmation: on py3.14 ctypes `wintypes.LPWSTR` is tightened to `c_wchar_p` (no longer `POINTER(c_wchar)`), so the old `ofn.lpstrFile = cast(buf, POINTER(c_wchar))` produced an `LP_c_wchar` incompatible with the field, native file dialog creation threw TypeError and fell back to `_pick_tk` (visual unchanged but an extra hop + stderr noise). Fixed to `cast(buf, c_wchar_p)`; round-trip verified the field pointer == `addressof(buf)` and buf.value reads back correctly after a simulated native write (buffer stays writable). Real test: after the fix the file dialog is genuinely native `class=#32770` (not the tk fallback), `NATIVE_FAILED_LINE=False` (noise gone); both dialogs belong to the same Win32 common-dialog family `#32770`, visually consistent. Backfilled a forensic section into docs/native-picker-dialog-fixes(.en).md; full quick suite REGRESSION ALL GREEN, three files numstat == --ignore-cr-at-eol zero line-ending churn; -g pushed to main then the tag pushed alone. -g is 5 commits ahead of -f (395a625): 98f1b5f/1e3a3ec/8c6a77e/ebda411/b3e6899.)
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-g) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -994,4 +994,30 @@ Verified: after backfill `ledger_tag_parity.py` gate + `test_ledger_tag_parity.p
 
 ```bat
 git tag -a v-baseline-2026-11-28-f 395a6253f9aeb5ceb03d7c5f816271e25d9f5520 -m "baseline 2026-11-28-f: ledger backfill of 11-28 d/e into both zh+en ledgers + overview upgrade to e + new native-picker-dialog-fixes cheatsheet (doc-only, 395a625). d=GET alias + MCP pick_native reuse, e=dark theme, e03f217=foreground unlock; ledger_tag_parity gate + differential S8 + quick regression ALL GREEN, zero line-ending churn."
+```
+
+
+
+## 2026-11-28 series (cont.): current latest rollback point upgraded to g (native_picker py3.14 GetOpenFileNameW lpstrFile cast fix + both-dialog forensic, 5 commits past 395a625)
+
+This round cuts named rollback point `v-baseline-2026-11-28-g` (**the current latest rollback point**) at commit `b3e6899f39d830e2c26c7712c05944b15cd64c21`, pinning the landing of "native_picker py3.14 file-dialog cast fix + both-dialog forensic confirmation + cheatsheet backfill".
+
+- `runtime/native_picker.py`: on Python 3.14 ctypes `wintypes.LPWSTR` is tightened to `c_wchar_p` (no longer `POINTER(c_wchar)`), so `ofn.lpstrFile = cast(buf, POINTER(c_wchar))` produced an `LP_c_wchar` incompatible with the field type -> native file dialog creation threw `TypeError('incompatible types, LP_c_wchar instance instead of c_wchar_p instance')`, was swallowed by except and fell back to `_pick_tk` (visual unchanged but an extra hop + stderr noise). Fixed to `cast(buf, c_wchar_p)`; round-trip verified the field pointer == `addressof(buf)` and `buf.value` reads back correctly after a simulated native write (buffer stays writable). Real test: after the fix the real file dialog is foreground `class=#32770 / title=` the passed title (genuinely native, not the tk fallback), `NATIVE_FAILED_LINE=False` (the failed noise is gone).
+- Both-dialogs forensic evidence (real desktop PIL grab + EnumWindows window classes, under gitignored `data/uploads/search/`): folder keeps legacy `SHBrowseForFolderW` (`#32770` Browse For Folder), file is `#32770` before and after the fix; both belong to the same Win32 common-dialog family, visually consistent.
+- `docs/native-picker-dialog-fixes.md` + `.en.md`: appended a forensic section (folder legacy + file both #32770 before/after the cast fix, visual consistency confirmed).
+
+`-g` is 5 commits ahead of `-f` (`395a625`): `98f1b5f` (docs ledger backfill of -f), `1e3a3ec` (fix app.js galleryMultiSel top-level TDZ), `8c6a77e` (fix servers shell/page-sim timeout ceiling configurable), `ebda411` (chore memory RULES backfill), `b3e6899` (fix native_picker).
+
+Verified: full quick suite `REGRESSION ALL GREEN` (returncode 0); three files `numstat == --ignore-cr-at-eol` zero line-ending churn; tag deref == `b3e6899f39d830e2c26c7712c05944b15cd64c21`; zh/en ledger 11-28 range [a..g] contiguous, `test_ledger_tag_parity.py` differential S8 bootstrap ALL GREEN.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-28-g | `b3e6899f39d830e2c26c7712c05944b15cd64c21` | native_picker py3.14 GetOpenFileNameW lpstrFile cast fix (LPWSTR tightened to c_wchar_p; cast(buf, c_wchar_p), round-trip verified writable; file dialog genuinely native #32770, failed noise gone) + both-dialog #32770 forensic consistency + cheatsheet backfill (commit b3e6899); quick regression ALL GREEN, zero line-ending churn |
+
+**Already on remote?**: `-g` is an annotated tag; this round's push origin main advances origin/main to the latest HEAD containing the `-g` anchor (b3e6899), then this tag is **pushed alone** (only this one, not --tags), and the remote peel is confirmed == `b3e6899f39d830e2c26c7712c05944b15cd64c21`, matching this ledger (same convention as `-f`: baseline tags are pushed individually after being cut).
+
+### Rebuild command (to restore named rollback point g)
+
+```bat
+git tag -a v-baseline-2026-11-28-g b3e6899f39d830e2c26c7712c05944b15cd64c21 -m "baseline 2026-11-28-g: native_picker py3.14 GetOpenFileNameW lpstrFile cast fix (LPWSTR tightened to c_wchar_p; cast(buf, c_wchar_p), round-trip verified writable) + both-dialog #32770 forensic consistency + picker cheatsheet backfill; quick regression ALL GREEN, zero line-ending churn."
 ```

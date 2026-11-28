@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-28-f`
-> （commit `395a6253f9aeb5ceb03d7c5f816271e25d9f5520`，账本补登 11-28 d/e 中英两本 + 新增 picker 三连修复速查文档 doc-only：d=GET 别名+MCP `pick_native` 复用（ee14581）、e=原生框跟随系统深色（1d18031：进程级 SetPreferredAppMode AllowDark + 窗口级 DwmSetWindowAttribute immersive-dark 20/19）、e03f217=前台解锁（合成 Alt + AttachThreadInput 设 hwndOwner），速查见 docs/native-picker-dialog-fixes(.en).md；已实测 ledger_tag_parity 门禁 + 差分 S8 + quick 全套 REGRESSION ALL GREEN、CRLF 纯 bareLF=0 零行尾污染；-f 本轮 push main 后单独推该 tag，远端 peel 坐实==395a625。-d/-e 仍为本地 tag 未推。）
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-f）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-28-g`
+> （commit `b3e6899f39d830e2c26c7712c05944b15cd64c21`，native_picker py3.14 GetOpenFileNameW lpstrFile cast 修复 + 两框取证坐实：py3.14 把 ctypes LPWSTR 收紧为 c_wchar_p，原 `cast(buf, POINTER(c_wchar))` 产 LP_c_wchar 报 TypeError 回退 _pick_tk，改 `cast(buf, c_wchar_p)`（round-trip 坐实字段指针==addressof(buf)、原生写入后 buf.value 可读回）；实测文件框真走原生 #32770（非 tk 回退）、failed 噪音消除，两框同属 Win32 通用对话框家族 #32770 视觉协调；同步补 docs/native-picker-dialog-fixes(.en).md 取证小节；quick 全套 REGRESSION ALL GREEN、三文件 numstat==--ignore-cr-at-eol 零行尾污染；-g 本轮 push main 后单独推该 tag。g 较 -f（395a625）领先 5 个 commit：98f1b5f/1e3a3ec/8c6a77e/ebda411/b3e6899。）
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-g）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -1194,4 +1194,30 @@ git tag -a v-baseline-2026-11-28-e 1d18031f8c7beb78f174ce598f72222b98798729 -m "
 
 ```bat
 git tag -a v-baseline-2026-11-28-f 395a6253f9aeb5ceb03d7c5f816271e25d9f5520 -m "baseline 2026-11-28-f: ledger backfill of 11-28 d/e into both zh+en ledgers + overview upgrade to e + new native-picker-dialog-fixes cheatsheet (doc-only, 395a625). d=GET alias + MCP pick_native reuse, e=dark theme, e03f217=foreground unlock; ledger_tag_parity gate + differential S8 + quick regression ALL GREEN, zero line-ending churn."
+```
+
+
+
+## 2026-11-28 系列（继）：当前最新回滚点升级到 g（native_picker py3.14 GetOpenFileNameW lpstrFile cast 修复 + 两框取证 395a625 之后 5 commit）
+
+本轮在 commit `b3e6899f39d830e2c26c7712c05944b15cd64c21` 打命名回滚点 `v-baseline-2026-11-28-g`（**当前最新回滚点**），锁定「native_picker py3.14 文件框 cast 隐患修复 + 两框取证坐实 + 补 docs 小节」。
+
+- `runtime/native_picker.py`：py3.14 把 ctypes `wintypes.LPWSTR` 收紧为 `c_wchar_p`（不再是 `POINTER(c_wchar)`），原 `ofn.lpstrFile = cast(buf, POINTER(c_wchar))` 产出的 `LP_c_wchar` 与字段类型不兼容，原生文件框创建报 `TypeError('incompatible types, LP_c_wchar instance instead of c_wchar_p instance')`、被 except 吞掉后回退 `_pick_tk`（视觉不变但多绕一层 + stderr 噪音）。改为 `cast(buf, c_wchar_p)`；round-trip 坐实 cast 后字段指针 == `addressof(buf)`、模拟原生写入后 `buf.value` 正确读回（缓冲区可写性不变）。实测修复后真弹文件框 `class=#32770 / title=` 传入值（真走原生非 tk 回退）、`NATIVE_FAILED_LINE=False`（failed 噪音消除）。
+- 两框取证坐实（PIL 真桌面抓屏 + EnumWindows 读窗口类，落 `data/uploads/search/` 属 gitignore 不进账本）：folder 保留旧版 `SHBrowseForFolderW`（`#32770`「浏览文件夹」）、file 修复前后均 `#32770`，两框同属 Win32 通用对话框家族，视觉协调成立。
+- `docs/native-picker-dialog-fixes.md` + `.en.md`：追加补取证小节（folder 旧版 + file cast 修复前后均 #32770 视觉协调坐实）。
+
+`-g` 较 `-f`（`395a625`）领先 5 个 commit：`98f1b5f`（docs 账本补登 -f）、`1e3a3ec`（fix app.js galleryMultiSel 顶层 TDZ）、`8c6a77e`（fix servers shell/page-sim 超时天花板可配）、`ebda411`（chore memory RULES 落账）、`b3e6899`（fix native_picker）。
+
+已实测：quick 全套 `REGRESSION ALL GREEN`（returncode 0）；三文件 `numstat == --ignore-cr-at-eol` 零行尾污染；tag deref == `b3e6899f39d830e2c26c7712c05944b15cd64c21`；中英账本登记日 11-28 区间 [a..g] 连续、`test_ledger_tag_parity.py` 差分 S8 自举 ALL GREEN。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-28-g | `b3e6899f39d830e2c26c7712c05944b15cd64c21` | native_picker py3.14 GetOpenFileNameW lpstrFile cast 修复（LPWSTR 收紧为 c_wchar_p，改 cast(buf, c_wchar_p)，round-trip 坐实写入可读回；文件框真走原生 #32770、failed 噪音消除）+ 两框取证坐实视觉协调 + 补 docs/native-picker-dialog-fixes(.en).md 取证小节（commit b3e6899）；quick 全套全绿、零行尾污染 |
+
+**是否已在远端**：`-g` 为 annotated tag，本轮 push origin main 使 origin/main 快进到含 `-g` 锚点的最新 HEAD（b3e6899），再**单独 push 该 tag**（仅推这一个、不裹全量），远端 peel 坐实 == `b3e6899f39d830e2c26c7712c05944b15cd64c21` 与本账本声明一致（与 `-f` 同惯例：baseline tag 打完单推该 tag）。
+
+### 重建命令（如需恢复命名回滚点 g）
+
+```bat
+git tag -a v-baseline-2026-11-28-g b3e6899f39d830e2c26c7712c05944b15cd64c21 -m "baseline 2026-11-28-g: native_picker py3.14 GetOpenFileNameW lpstrFile cast fix (LPWSTR tightened to c_wchar_p; cast(buf, c_wchar_p), round-trip verified writable) + both-dialog #32770 forensic consistency + picker cheatsheet backfill; quick regression ALL GREEN, zero line-ending churn."
 ```
