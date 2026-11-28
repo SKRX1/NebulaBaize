@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-27-b`
-> （commit `843f8ce9c74c880c918513fbb063ada86326e2f4`，运维生效方式文档化：CONTRIBUTING §3.5 中英「改动生效方式」三进程矩阵 + backend-modularization 中英「进程边界」节坐实 `_reload_executor` 只重 spawn `servers/` 子进程、不碰网关已 import 的 `runtime/`+`serve/`，并交叉引用前端门禁 `tests/test_mcp_reload_jsdom.mjs` 互为佐证（plan A 贡献取向：易变逻辑优先落 `servers/` MCP 工具免重启）。纯文档；numstat == --ignore-cr-at-eol 零行尾污染。本轮 tag 在 2026-11-27 真实日期下打，续 a 之后。）
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-27-b）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-28-b`
+> （commit `dbc36d9865f3c541c68dff1eef26bb87cad25dc1`，采样方法/调度器可设为持久默认 + 采样区布局重排：runtime/http_server.py 新增 GET/POST /api/sampling-defaults 落盘 data/sampling_defaults.json（运行时态、被 gitignore）；前端 opt-*-default 默认项文案运行时按已存默认动态填（paintSamplingDefaultLabel）不再硬编码、「设为默认」独立成带 i-pin 图标操作行；i18n 新增 img.setAsDefault.hint 中英成对；新增 test_sampling_default_wiring.mjs + test_sampling_defaults_endpoint.py 登记进 run_tests SUITES；quick 全套 92/93（唯一 FAIL=_single_source_gate 既有 sparse-checkout 归档环境态、非本轮）。本轮 tag 在 2026-11-28 真实日期下打，续当天 a 之后。）
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-b）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -1087,4 +1087,28 @@ git tag -a v-baseline-2026-11-26-l 15225792ec3504a6cfaabd1661d1df1062e6362a -m "
 
 ```bat
 git tag -a v-baseline-2026-11-27-b 843f8ce9c74c880c918513fbb063ada86326e2f4 -m "baseline 2026-11-27-b: reload gate + proxy boot-check + docs (CONTRIBUTING 3.5 / backend process boundary)"
+```
+
+
+## 2026-11-28 系列：当前最新回滚点升级到 b（img2img 修复 -a + 采样持久默认/布局重排 -b）
+
+本轮在 2026-11-28 真实日期下连续登记两个命名回滚点（a→b 同日线性连续，满足 parity 门禁日内连续锁）：
+
+- `-a` 在 commit `374cf9de9bd3de0fdcf31228b8389f843f2f006c` 打，锁定「img2img Flux scheduler 复原 + 实时预览闪烁修复 + IEND 完整性闸」；
+- `-b` 在 commit `dbc36d9865f3c541c68dff1eef26bb87cad25dc1` 打，锁定「采样方法/调度器可设为持久默认 + 采样区布局重排」——（1）`runtime/http_server.py` 新增 GET/POST `/api/sampling-defaults`，落盘 `data/sampling_defaults.json`（运行时态、被 gitignore），`load_sampling_defaults` 缺失返回 None；（2）前端 `opt-*-default` 默认项文案改运行时按已存默认动态填（`paintSamplingDefaultLabel`）不再硬编码，「设为默认」独立成带 i-pin 图标操作行（修复原塞进调度器 label 致三列不等高 + flex-wrap 错位）；（3）`i18n.js` 新增 `img.setAsDefault.hint` 中英成对；（4）新增 `tests/test_sampling_default_wiring.mjs` + `tests/test_sampling_defaults_endpoint.py` 并登记进 `run_tests.py` SUITES（quick 档）。quick 全套 92/93（唯一 FAIL=`_single_source_gate` 既有 sparse-checkout 归档环境态、非本轮引入）。
+
+已实测：tag deref a == `374cf9de9bd3`、b == `dbc36d9865f3`；numstat == --ignore-cr-at-eol 零行尾污染；补登后 `test_ledger_tag_parity.py` S8 自举坐实 11-28 日连续 a→b 全绿。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-28-a | `374cf9de9bd3de0fdcf31228b8389f843f2f006c` | img2img Flux scheduler 复原 + 实时预览闪烁修复 + IEND 完整性闸（commit 374cf9d）；本地 tag、按 baseline 惯例未推远端（ls-remote 坐实远端无该 tag） |
+| v-baseline-2026-11-28-b | `dbc36d9865f3c541c68dff1eef26bb87cad25dc1` | 采样方法/调度器可设为持久默认 + 采样区布局重排（commit dbc36d9）：/api/sampling-defaults + 前端动态默认项文案 + i-pin 操作行 + 两个新测试登记；quick 92/93；本轮先 push origin main（374cf9d..dbc36d9 0 0）再单独 push 该 tag，远端 peel == dbc36d9865f3c541c68dff1eef26bb87cad25dc1 |
+
+**是否已在远端**：`-b` 已随本轮 push origin main 后单推该 tag，远端 peel 坐实 == `dbc36d9865f3c541c68dff1eef26bb87cad25dc1` 与账本声明一致；`-a`（374cf9d）本地 tag、按 baseline 惯例未推、留待拍板。
+
+### 重建命令（如需恢复命名回滚点 a / b）
+
+```bat
+git tag -a v-baseline-2026-11-28-a 374cf9de9bd3de0fdcf31228b8389f843f2f006c -m "baseline rollback point at 374cf9d - img2img Flux scheduler restored, live-preview flicker fixed, IEND completeness gate"
+git tag -a v-baseline-2026-11-28-b dbc36d9865f3c541c68dff1eef26bb87cad25dc1 -m "baseline: 采样方法/调度器可设为持久默认 + 采样区布局重排 (commit dbc36d9)"
 ```

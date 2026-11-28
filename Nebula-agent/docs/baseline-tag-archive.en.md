@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-27-b`
-> (commit `843f8ce9c74c880c918513fbb063ada86326e2f4`, codifying how changes take effect: CONTRIBUTING 3.5 (zh+en) a three-process take-effect matrix + backend-modularization (zh+en) a "process boundary" section stating `_reload_executor` re-spawns only the `servers/` children and never touches the gateway's own already-imported `runtime/`+`serve/`, cross-referencing the frontend gate `tests/test_mcp_reload_jsdom.mjs` as mutual corroboration (plan A stance: volatile logic first as an MCP tool under `servers/` so it reloads without a restart). Pure-doc; numstat == --ignore-cr-at-eol, zero line-ending churn. This tag is cut under the real 2026-11-27 date, after that day's a.)
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-27-b) section wins.
+> Current latest rollback point = `v-baseline-2026-11-28-b`
+> (commit `dbc36d9865f3c541c68dff1eef26bb87cad25dc1`, sampling method / scheduler can now be set as a persisted default + sampling-area layout re-flow: runtime/http_server.py adds GET/POST /api/sampling-defaults persisting to data/sampling_defaults.json (runtime state, gitignored); frontend opt-*-default label text is now filled at runtime from the stored default (paintSamplingDefaultLabel) instead of hardcoded, and "Set as default" is an independent i-pin icon action row (fixing the earlier in-label placement that broke the three-column equal-height + flex-wrap alignment); i18n adds img.setAsDefault.hint (zh+en pair); new tests test_sampling_default_wiring.mjs + test_sampling_defaults_endpoint.py registered into run_tests SUITES (quick tier). quick regression 92/93 (the only FAIL is _single_source_gate, a pre-existing sparse-checkout archive environment state, not introduced this round). This tag is cut under the real 2026-11-28 date, after that day's a.)
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-b) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -887,4 +887,28 @@ Verified: `node --check` / doc gates pass immediately after the edit; per-file n
 
 ```bat
 git tag -a v-baseline-2026-11-27-b 843f8ce9c74c880c918513fbb063ada86326e2f4 -m "baseline 2026-11-27-b: reload gate + proxy boot-check + docs (CONTRIBUTING 3.5 / backend process boundary)"
+```
+
+
+## 2026-11-28 series: current latest rollback point upgraded to b (img2img fixes -a + sampling persisted-default / layout re-flow -b)
+
+Under the real 2026-11-28 date two named rollback points are registered back-to-back (a->b linear-continuous within the day, satisfying the parity gate's intra-day continuity lock):
+
+- `-a` cut at commit `374cf9de9bd3de0fdcf31228b8389f843f2f006c`, locking "img2img Flux scheduler restored + live-preview flicker fix + IEND completeness gate";
+- `-b` cut at commit `dbc36d9865f3c541c68dff1eef26bb87cad25dc1`, locking "sampling method / scheduler settable as a persisted default + sampling-area layout re-flow" — (1) `runtime/http_server.py` adds GET/POST `/api/sampling-defaults` persisting to `data/sampling_defaults.json` (runtime state, gitignored), `load_sampling_defaults` returns None on missing; (2) frontend `opt-*-default` label text filled at runtime from the stored default (`paintSamplingDefaultLabel`) instead of hardcoded, "Set as default" an independent i-pin icon action row (fixing the earlier in-label placement that broke three-column equal-height + flex-wrap alignment); (3) `i18n.js` adds `img.setAsDefault.hint` (zh+en pair); (4) new `tests/test_sampling_default_wiring.mjs` + `tests/test_sampling_defaults_endpoint.py` registered into `run_tests.py` SUITES (quick tier). quick regression 92/93 (the only FAIL is `_single_source_gate`, a pre-existing sparse-checkout archive environment state, not introduced this round).
+
+Verified: tag deref a == `374cf9de9bd3`, b == `dbc36d9865f3`; numstat == --ignore-cr-at-eol, zero line-ending churn; after backfill `test_ledger_tag_parity.py` S8 self-bootstrap confirms the 11-28 intra-day continuity a->b is ALL GREEN.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-28-a | `374cf9de9bd3de0fdcf31228b8389f843f2f006c` | img2img Flux scheduler restored + live-preview flicker fix + IEND completeness gate (commit 374cf9d); local tag, per baseline convention not pushed to origin (ls-remote confirms the remote has no such tag) |
+| v-baseline-2026-11-28-b | `dbc36d9865f3c541c68dff1eef26bb87cad25dc1` | sampling method/scheduler settable as persisted default + sampling-area layout re-flow (commit dbc36d9): /api/sampling-defaults + frontend dynamic-default label + i-pin action row + two new tests registered; quick 92/93; this round first pushed origin main (374cf9d..dbc36d9, 0 0) then pushed this single tag; remote peel == dbc36d9865f3c541c68dff1eef26bb87cad25dc1 |
+
+**On the remote**: `-b` was pushed after this round's push origin main; remote peel confirmed == `dbc36d9865f3c541c68dff1eef26bb87cad25dc1`, matching this ledger. `-a` (374cf9d) is a local tag, per baseline convention not pushed, pending owner's call.
+
+### Rebuild commands (to restore named rollback points a / b)
+
+```bat
+git tag -a v-baseline-2026-11-28-a 374cf9de9bd3de0fdcf31228b8389f843f2f006c -m "baseline rollback point at 374cf9d - img2img Flux scheduler restored, live-preview flicker fixed, IEND completeness gate"
+git tag -a v-baseline-2026-11-28-b dbc36d9865f3c541c68dff1eef26bb87cad25dc1 -m "baseline: sampling persisted default + sampling-area layout re-flow (commit dbc36d9)"
 ```
