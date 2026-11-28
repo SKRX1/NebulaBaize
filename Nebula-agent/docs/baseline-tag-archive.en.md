@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-28-c`
+> Current latest rollback point = `v-baseline-2026-11-28-e`
 > (commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`, edit-modal input area not scrollable when text overflows: root cause (statically proven) = #edit-area (class "st-textarea ce-input", dynamically built in app.js:8704) has its inline height clamped by autosize to innerHeight*0.4, while the ONLY rule giving a .ce-input an overflow window is scoped .st-composer .ce-input and matches only the composer #input, missing the modal body #edit-area (not inside .st-composer); once height-clamped, overflow content beyond the clamp uses the default overflow:visible (painted below the card edge, unscrollable) = "cannot view full content after editing". Fix (app.css): add an unscoped `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }` whose specificity (0,1,0) is lower than .st-composer .ce-input (0,2,0) so the composer keeps identical behaviour via the higher-specificity rule, covering only .ce-input used outside .st-composer (#edit-area and future peers); add a pure static lock tests/test_ce_input_overflow_lock.py (jsdom/sim cannot compute CSS, so it reads shipped app.css textually; C1 some exact .ce-input block carries overflow-y:auto+overflow-x, C2 the composer rule is still pinned, C3 stripping overflow-x flips C1 red = load-bearing), registered into run_tests SUITES; headless real Chromium (NOT jsdom) loaded a harness importing the real app.css, replicated the edit-modal structure + injected 120 long lines, and read #edit-area computed style = overflowY:auto, overflowX:hidden, maxHeight:176.4px (=40vh), scrollHeight 2359 >> clientHeight 174, scrollTop=scrollHeight -> scrolledToEnd:true; full quick suite REGRESSION ALL GREEN. This tag is cut under the real 2026-11-28 date, after that day's a/b.)
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-c) section wins.
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-e) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -933,4 +933,42 @@ Verified: a headless real Chromium (NOT a jsdom stub) loaded a harness importing
 
 ```bat
 git tag -a v-baseline-2026-11-28-c 4c4306c9e724966ee37f1f378b693e2c0b3b58db -m "baseline 2026-11-28-c: edit-modal scroll fix (4c4306c); headless-Chromium verified #edit-area overflowY:auto + scrolls-to-end; lock test_ce_input_overflow_lock.py ALL GREEN"
+```
+
+
+
+## 2026-11-28 series (cont.): current latest rollback point upgraded to d (native dialog reused for MCP + /api/pick GET alias, commit ee14581)
+
+This round cuts named rollback point `v-baseline-2026-11-28-d` at commit `ee14581a7a8bde3362f9344d6982c4167fc288eb`, pinning "reuse the native folder/file dialog for the agent (MCP tool) + /api/pick GET alias": (1) `servers/fs_server.py` adds a `pick_native` tool (`kind=folder|file`, optional `title/start/ext`) that **lazily imports** `runtime/native_picker` (runtime is a sibling of servers/, added to sys.path at call time), sharing the SAME dialog implementation as the frontend Browse buttons, so the agent can also raise the native dialog and get an absolute path; module load does not depend on runtime, so a host without a desktop / without runtime still loads fs_server and only this tool degrades to `unavailable`. (2) `do_GET` in `runtime/http_server.py` **prepends** a `/api/pick` branch (before the generic `path.startswith("/api/")` proxy, else `_api("GET")` forwards it upstream), and `_api_pick` reads `kind/title/start/ext` from the **query first**, falling back to the POST body only when there is no query -- browsers can trigger the native dialog by direct navigation.
+
+Verified: fs_server tool list includes `pick_native` (the agent call really raises the dialog and returns `cancelled`), the GET alias raised the dialog (`DIALOG_SHOWN=True`), full regression ALL GREEN; tag deref == `ee14581a7a8bde3362f9344d6982c4167fc288eb`; numstat equals --ignore-cr-at-eol, zero line-ending churn.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-28-d | `ee14581a7a8bde3362f9344d6982c4167fc288eb` | native dialog reused for MCP (fs_server `pick_native`, lazy import shares the dialog) + `/api/pick` GET alias (do_GET prepend branch, _api_pick query-first) (commit ee14581); agent dialog + GET alias both verified live; local tag, not pushed per baseline convention (ls-remote confirms the remote lacks it) |
+
+**Already on remote?**: `-d` is a **local tag**; this round's `git ls-remote --tags origin` confirms the remote has **no** `v-baseline-2026-11-28-d`; not pushed per baseline convention, left for the user's separate call.
+
+### Rebuild command (to restore named rollback point d)
+
+```bat
+git tag -a v-baseline-2026-11-28-d ee14581a7a8bde3362f9344d6982c4167fc288eb -m "baseline 2026-11-28-d: native_picker reused for MCP (fs_server pick_native, lazy import) + /api/pick GET alias (do_GET prepend, _api_pick query-first); agent dialog + GET alias both verified live; full regression ALL GREEN"
+```
+
+## 2026-11-28 series (cont.): current latest rollback point upgraded to e (native dialog follows the system dark theme, commit 1d18031)
+
+This round cuts named rollback point `v-baseline-2026-11-28-e` (**the current latest rollback point**) at commit `1d18031f8c7beb78f174ce598f72222b98798729`, pinning the "native folder/file dialog follows the system dark theme" fix. Root cause (read from source): `HKCU\…\Themes\Personalize AppsUseLightTheme=0` (system is dark) yet `native_picker.py` had zero dark-mode declaration -> the native dialog defaulted to light, clashing with the system. Fix (centralised in `_enable_dark_mode`, all three GET/POST/fs_server paths benefit): (1) **process-wide** `uxtheme.dll!SetPreferredAppMode(0=AllowDark)` makes common controls/dialogs follow the OS theme (dark when dark, light when light, never forcing a clash) -- not in the export name table, resolved defensively by name + ordinal 135 (Win10 1809+ & Win11) / 49 (older); uxtheme loaded with `ctypes.WinDLL` (stdcall) under a try-guard. (2) **window-level** `DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE=20, fall back 19 on 1809)` paints the titlebar/border dark -- the folder dialog grabs the hwnd via the `BROWSEINFO.lpfn` callback at `BFFM_INITIALIZED(=1)`, the file dialog grabs the hdlg via `OPENFILENAME.lpfnHook` (requires `OFN_ENABLEHOOK 0x20`). A same-line precursor commit `e03f217` (foreground lock: inject a synthetic Alt key-up/down to defeat the lock + `AttachThreadInput` onto the foreground window and set `hwndOwner` to it, fixing the dialog being flashed to the taskbar and needing a manual click) is the foreground leg of the picker triple-fix and is already on this tag's anchor chain.
+
+Verified: `DwmGetWindowAttribute rc=0 attr=1` (titlebar truly dark), `_dark_applied=True`, the lpfn callback does not crash and cancel returns `cancelled`, SetPreferredAppMode resolves; full regression ALL GREEN; tag deref == `1d18031f8c7beb78f174ce598f72222b98798729`; numstat equals --ignore-cr-at-eol, zero line-ending churn. See docs/native-picker-dialog-fixes.en.md (bilingual cheatsheet).
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-28-e | `1d18031f8c7beb78f174ce598f72222b98798729` | native folder/file dialog follows the system dark theme (commit 1d18031): process-level uxtheme SetPreferredAppMode(AllowDark) + window-level DwmSetWindowAttribute(immersive-dark 20/19 via BROWSEINFO.lpfn / OFN hook); titlebar DWM dark attribute reads back 1; the dark leg of the picker triple-fix (foreground-unlock e03f217 on the same chain); local tag, not pushed per baseline convention |
+
+**Already on remote?**: `-e` is a **local tag**; this round's `git ls-remote --tags origin` confirms the remote has **no** `v-baseline-2026-11-28-e`; not pushed per baseline convention, left for the user's separate call (HEAD 1d18031 is already synced with origin/main, 0 0).
+
+### Rebuild command (to restore named rollback point e)
+
+```bat
+git tag -a v-baseline-2026-11-28-e 1d18031f8c7beb78f174ce598f72222b98798729 -m "baseline 2026-11-28-e: native folder/file dialog follows system dark theme (process-level uxtheme SetPreferredAppMode AllowDark + window-level DwmSetWindowAttribute immersive-dark 20/19 via BROWSEINFO.lpfn / OFN hook); DwmGetWindowAttribute titlebar attr=1 verified; part of the picker triple-fix (foreground-unlock e03f217 on the same chain); full regression ALL GREEN"
 ```

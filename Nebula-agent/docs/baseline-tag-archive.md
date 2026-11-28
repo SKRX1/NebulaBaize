@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-28-c`
-> （commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`，编辑弹窗输入区不可滚动修复：根因=#edit-area(class="st-textarea ce-input"，app.js 动态生成)的 autosize 把内联 height 钉到 innerHeight*0.4，而唯一给它 overflow 窗口的规则被 .st-composer 限定只命中 composer #input、漏掉弹窗体 #edit-area，钉高后超长内容默认 overflow:visible 画到框外且不可滚=编辑后看不到全文；修复=app.css 补独立 `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }`（特异性(0,1,0) 低于 .st-composer .ce-input(0,2,0)，composer 行为不变、仅覆盖不在 .st-composer 内的 .ce-input 如 #edit-area 及未来同类）；新增纯静态锁 test_ce_input_overflow_lock.py（C1 某 exact .ce-input 块带滚动窗口 + C2 composer 规则仍在 + C3 剥 overflow-x 差分翻红）登记进 run_tests SUITES；已用无头真实 Chromium 注入 120 行超长文本实测 #edit-area computed overflowY:auto + overflowX:hidden + maxHeight:40vh、scrollHeight≫clientHeight、设 scrollTop=scrollHeight 后真滚到底(scrolledToEnd:true)，非 jsdom 桩；quick 全套 REGRESSION ALL GREEN；tag 在 2026-11-28 真实日期下续当天 a/b 之后打、已单推远端。）
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-c）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-28-e`
+> （commit `1d18031f8c7beb78f174ce598f72222b98798729`，原生浏览对话框跟随系统深色主题：根因=HKCU AppsUseLightTheme=0 系统深色而 native_picker 零深色声明→原生框默认亮色；修复=进程级 uxtheme SetPreferredAppMode(AllowDark) 跟随系统主题 + 窗口级 DwmSetWindowAttribute(immersive-dark=20/降级19) 染标题栏，folder 经 BROWSEINFO.lpfn、file 经 OFN hook 取窗句；实测 DwmGetWindowAttribute 标题栏属性读回=1、_dark_applied=True、取消返 cancelled、全套回归 ALL GREEN。此为 picker 三连修复最新环（d=GET 别名+MCP 复用 ee14581、e03f217=前台解锁、e=深色 1d18031），速查见 docs/native-picker-dialog-fixes.md。-d/-e 均为本地 tag、按 baseline 惯例未推远端。）
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-e）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -1133,4 +1133,42 @@ git tag -a v-baseline-2026-11-28-b dbc36d9865f3c541c68dff1eef26bb87cad25dc1 -m "
 
 ```bat
 git tag -a v-baseline-2026-11-28-c 4c4306c9e724966ee37f1f378b693e2c0b3b58db -m "baseline 2026-11-28-c: edit-modal scroll fix (4c4306c); headless-Chromium verified #edit-area overflowY:auto + scrolls-to-end; lock test_ce_input_overflow_lock.py ALL GREEN"
+```
+
+
+
+## 2026-11-28 系列（继）：当前最新回滚点升级到 d（原生浏览对话框复用到 MCP + /api/pick GET 别名 ee14581）
+
+本轮在 commit `ee14581a7a8bde3362f9344d6982c4167fc288eb` 打命名回滚点 `v-baseline-2026-11-28-d`，锁定「原生文件夹·文件对话框复用到 agent（MCP 工具）+ /api/pick GET 别名」：（1）`servers/fs_server.py` 新增 `pick_native` 工具（`kind=folder|file`，可选 `title/start/ext`），**惰性 import** `runtime/native_picker`（runtime 是 servers 兄弟目录，调用时才加入 sys.path 再 import），与前端 Browse 按钮共用同一弹框实现，agent 也能弹系统原生框取本机绝对路径；模块加载期不依赖 runtime，无桌面/无 runtime 的宿主仍能加载 fs_server，仅该工具降级 `unavailable`。（2）`runtime/http_server.py` 的 `do_GET` **前置** `/api/pick` 分支（须先于通用 `path.startswith("/api/")` 代理，否则被 `_api("GET")` 当上游 API 转发掉），`_api_pick` 改 **query 优先**读 `kind/title/start/ext`、无 query 才读 POST body，浏览器可直接导航触发原生框。
+
+已实测：fs_server 工具列表含 `pick_native`（agent 调用真弹框返 `cancelled`）、GET 别名实测框真弹（`DIALOG_SHOWN=True`）、全套回归 ALL GREEN；tag deref == `ee14581a7a8bde3362f9344d6982c4167fc288eb`；numstat == --ignore-cr-at-eol 零行尾污染。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-28-d | `ee14581a7a8bde3362f9344d6982c4167fc288eb` | 原生浏览对话框复用到 MCP（fs_server `pick_native` 惰性 import 共用弹框）+ `/api/pick` GET 别名（do_GET 前置分支、_api_pick query 优先）（commit ee14581）；agent 实弹框返 cancelled、GET 框真弹；本地 tag、按 baseline 惯例未推远端（ls-remote 坐实远端无该 tag） |
+
+**是否已在远端**：`-d` 为**本地 tag**，本轮 `git ls-remote --tags origin` 坐实远端**无** `v-baseline-2026-11-28-d`，按 baseline 惯例未推、留待主人另行拍板。
+
+### 重建命令（如需恢复命名回滚点 d）
+
+```bat
+git tag -a v-baseline-2026-11-28-d ee14581a7a8bde3362f9344d6982c4167fc288eb -m "baseline 2026-11-28-d: native_picker reused for MCP (fs_server pick_native, lazy import) + /api/pick GET alias (do_GET prepend, _api_pick query-first); agent dialog + GET alias both verified live; full regression ALL GREEN"
+```
+
+## 2026-11-28 系列（继）：当前最新回滚点升级到 e（原生浏览对话框跟随系统深色主题 1d18031）
+
+本轮在 commit `1d18031f8c7beb78f174ce598f72222b98798729` 打命名回滚点 `v-baseline-2026-11-28-e`（**当前最新回滚点**），锁定「原生浏览对话框跟随系统深色主题」修复：根因（读实）= `HKCU\…\Themes\Personalize AppsUseLightTheme=0`（系统深色）而 `native_picker.py` 零深色声明 → 原生对话框默认走亮色、与系统不符。修复（集中在 `_enable_dark_mode` 一处，GET/POST/fs_server 三路径全受益）：（1）**进程级** `uxtheme.dll!SetPreferredAppMode(0=AllowDark)` 让通用控件/对话框跟随系统主题（深则深、亮则亮，不强钉）——不在导出名表，按名+序号 135（Win10 1809+ & Win11）/49（旧）防御性解析，uxtheme 用 `ctypes.WinDLL`（stdcall）加载带 try 兜底；（2）**窗口级** `DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE=20，1809 降级 19)` 把标题栏/边框也染深色——folder 用 `BROWSEINFO.lpfn` 在 `BFFM_INITIALIZED(=1)` 拿 hwnd、file 用 `OPENFILENAME.lpfnHook`（需 `OFN_ENABLEHOOK 0x20`）拿 hdlg。本轮另有同线前置 commit `e03f217`（前台锁：弹框前注入合成 Alt key-up/down 解锁 + `AttachThreadInput` 挂到前台窗并把 `hwndOwner` 设为该窗，修框被 flash 到任务栏需手点），属 picker 三连修复的前台一环，已含在本 tag 锚点链上。
+
+已实测：`DwmGetWindowAttribute rc=0 attr=1`（标题栏确为深色）、`_dark_applied=True`、lpfn 回调不崩取消返 `cancelled`、SetPreferredAppMode 解析成功；全套回归 ALL GREEN；tag deref == `1d18031f8c7beb78f174ce598f72222b98798729`；numstat == --ignore-cr-at-eol 零行尾污染。详见 docs/native-picker-dialog-fixes.md（中英对照速查）。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-28-e | `1d18031f8c7beb78f174ce598f72222b98798729` | 原生浏览对话框跟随系统深色主题（commit 1d18031）：进程级 uxtheme SetPreferredAppMode(AllowDark)+ 窗口级 DwmSetWindowAttribute(immersive dark=20/降级19)，folder 经 BROWSEINFO.lpfn / file 经 OFN hook 取窗句；实测标题栏 DWM 深色属性读回=1；picker 三连修复之深色一环（前台锁 e03f217 已含同链）；本地 tag、按 baseline 惯例未推远端 |
+
+**是否已在远端**：`-e` 为**本地 tag**，本轮 `git ls-remote --tags origin` 坐实远端**无** `v-baseline-2026-11-28-e`，按 baseline 惯例未推、留待主人另行拍板（HEAD 1d18031 已与 origin/main 同步 0 0）。
+
+### 重建命令（如需恢复命名回滚点 e）
+
+```bat
+git tag -a v-baseline-2026-11-28-e 1d18031f8c7beb78f174ce598f72222b98798729 -m "baseline 2026-11-28-e: native folder/file dialog follows system dark theme (process-level uxtheme SetPreferredAppMode AllowDark + window-level DwmSetWindowAttribute immersive-dark 20/19 via BROWSEINFO.lpfn / OFN hook); DwmGetWindowAttribute titlebar attr=1 verified; part of the picker triple-fix (foreground-unlock e03f217 on the same chain); full regression ALL GREEN"
 ```
