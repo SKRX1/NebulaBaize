@@ -277,3 +277,34 @@ jsdom harness 要触发 app.js 里调 renderSessions/workspaceGroups 的路径�
 askConfirm 焦点陷阱 a11y 门禁锁点在 tests/test_ask_confirm_jsdom.mjs 的 B5 块：jsdom 无原生 Tab 焦点管理，dispatch Tab 后 activeElement 仅能由 onTrap 的 preventDefault+focus 改变，故 B5b(Tab 锁框内)/B5c(Shift+Tab 双向)/B5e(关闭还原 opener) 天然 load-bearing；B5f 断言框节点 isConnected===false（index.html 预置 app modal 也占 .st-modal，不能用 length===0 数框）。
 新增纯 stdlib 门禁脚本时，把判据拆成可单测的纯函数（run_checks 接收已加载数据、main 只做 IO 装配），CI 工作流与回归测试与本地三处复用同一真相源，镜像既有 secret_scan.py + secret-scan.yml + test_secret_scan.py 三件套结构。
 CI 门禁工作流若判据需要全部 tag/commit，actions/checkout 默认不带全部 tag，必须显式 fetch-depth: 0 + git fetch --tags --force，否则 deref/连续性核对会因 tag 缺失失明。
+run_tests.py 的 SUITES 列表是混合行尾（HEAD blob CRLF771+裸LF2）：登记新条目须从 `git show HEAD:<file>` 取原字节二进制插入（new 行以 \r\n 结尾、保留原裸LF），禁止 split/join 全文 normalize，否则把裸LF翻成CRLF致 numstat 虚高违反==NOCR 铁律
+MCP 面板监控页 mcp-card 的 req-head 内有「重载子进程」按钮(id=mcp-reload,零inline handler,onclick在app.js挂)：POST api/servers/reload→网关 _reload_executor 重读 mcp_servers.json 并 new.start_all 重 spawn 全部子进程后 stop_all 杀旧；改 websearch 代理等 env 后免重启 8099 即生效（子进程 env 在 spawn 时一次性注入）
+自触发 /api/servers/reload 的固有代价：它是全局换血，会 stop_all 杀掉正在驱动当前 agent 回合的 shell/filesystem/browser 等 MCP server 句柄——当前会话后续所有 MCP 工具（含 self-verify 探针）会持续报 "server process not alive" 且本会话内不自愈，须网关/会话重启重绑 state.executor 才恢复；落盘验证报告要用 Start-Process 分离 powershell 写盘（独立进程不受换血影响）
+改动生效方式查表：前端 serve/web/*（硬刷新即可，静态每次请求读盘 http_server.py:1711）→ 不必重启；MCP server servers/*.py 或 mcp_servers.json 的 env/args（点 MCP 面板「重载子进程」=_reload_executor 重读 json + new.start_all 重新 spawn）→ 不必重启；后端网关 runtime/*.py、serve/*.py 的新路由/新逻辑（网关进程 import 时已编进内存）→ 必须重启 8099，reload 子进程救不了它
+新功能落点取向：易变的业务逻辑优先做成 MCP server 工具（住 servers/，改后 reload 即热生效，不碰网关）；不得不进网关进程的核心（路由骨架/鉴权/流式转发）才接受重启 8099。判据=这段代码跑在哪个进程、是不是常驻
+check_proxy_config（runtime/selfcheck.py）：启动时读 mcp_servers.json websearch.env.STRATA_PROXY（口径同 websearch_server._proxy_parts，裸 host:port 按 socks5）做 3s TCP 探活，通=INFO / 不通=WARN 不阻断启动（websearch 主路径直连 Bing，代理仅回退）。换机器/换代理端口时端口不一致在此一处显形
+补登 baseline-tag-archive 速览/新节后必单跑 `python -X utf8 tests\test_ledger_tag_parity.py` 坐实 S8 真实仓库自举 ALL GREEN（锁登记日字母连续+deref全符+中英集合一致），否则 CI ledger-tag.yml 会红；速览升级用 pointer 行+注释行+末尾 append 三处精确锚点各断言命中 1 次，二进制读保 CRLF
+核对账本「无新断层」须双管：(1) 跑 test_ledger_tag_parity.py 坐实登记日连续性；(2) 另写独立探针比对 git 现存该日 tag 全链 contiguous_from_a + 中英速览 pointer == 现存最新 tag；门禁绿不等于现存 tag 全链与登记集合三方一致（门禁只锁该侧已登记范围内部）
+renderGallery 这类被 poll 高频(每~2s)调用的全量 innerHTML 重建函数，若网格含成品 <img>，须用「结构签名守卫」跳过重建：签名排除每拍预览缓存串(lv.bust)+进度文字，签名不变则增量刷新预览并 return，否则浏览器每拍重抓重解码=解码前空白帧=用户报的「一闪+破图」(2026-11-27 实测坐实根因，非 vae)
+全套 --full 出现非本轮 FAIL 时，用四重差分坐实 HEAD 既有再决定不越界修：git diff 证明本轮未碰相关文件(净零) + python subprocess 读真实退出码(排 flaky) + 崩溃栈是否提及本轮改的文件 + git show HEAD 读 HEAD blob 自证 bug 已存在
+改 http_server.py 新增一处防御性 except(Exception):pass 会触发 tests/test_code_hygiene.py 棘轮(swallow per-file 计数超 baseline)：应在 tests/_hygiene_baseline.json 把该文件 swallow 计数精准 +1（非 --bless 全量重写以免扰动），再复跑 hygiene 确认转绿
+新增 quick 层门禁测试后必须登记进 tools/run_tests.py 的 SUITES 列表(否则不进回归)，紧跟同族测试行之后插入，二进制读写保 CRLF/无 BOM
+图生图/编辑去扭曲：strength 缺省必须在拼装 --strength 的命令段「之前」设定，否则前端不传时 `if strength is not None` 会跳过、回退引擎 0.75（时序坑）
+img2img 引擎参数 hires 用内置 Lanczos（--hires --hires-upscaler Lanczos），不需 --hires-upscalers-dir 模型目录
+实时预览 png 的 preview_ready 必须判「写完整」(PNG 含 IEND chunk+CRC 尾) 而非仅 os.path.isfile——sd-cli --preview 每步非原子重写同一 png，isfile 真不代表写完
+成品图持久化铁律：_gen_local 在 shutil.copyfile(pngp,dest) 后、登记画廊前必须 `_png_is_complete(dest)` 判 IEND，不完整则 os.remove(dest)（本次刚写残片物理删）+ raise，杜绝 8B PNG 签名残片入库成永久破图
+往 CHANGELOG/docs 写含 `\x89PNG\r\n\x1a\n` 这类反斜杠转义字面量时，Python 字符串里必须用双反斜杠 `\\x89`；单反斜杠会被解析成真字节（0x89+CR+LF+1A+0A）污染文档正文，二进制 replace 回字面文本可修
+舞台大图 live 预览（galleryLivePass/Refresh）防闪烁铁律：每拍刷新必须复用同一 .img-gallery__live[data-live] panel + 在同一 <img> 上 setAttribute 换 src + 原地改 eta 文本，不得整块 remove 重建（网格 cell 早已是原地换 src 故不闪；大图是 sig_guard 修复的残留盲区）
+改 browseInto 各浏览按钮的 ext 传参，必须同步更新 tests/test_browse_file_pick_jsdom.mjs 的 source lock（wired 数组含 img-cfg-vae 那行），否则全套回归该门禁红
+测试报 ModuleNotFoundError / No such file 且该文件 git ls-files 显示 S(skip-worktree)时，用 git checkout-index -f --ignore-skip-worktree-bits -- <path> 恢复，禁止新建或用 shell mkdir 顶替。
+改 http_server.py 后端 _gen_local 生图分支后，必须重启 8099 网关进程才生效（重启前不要让用户去前端实测，会测到旧代码）。
+生图采样「默认值」是用户可持久化配置，落 data/sampling_defaults.json（运行时态、被 gitignore，勿写进 sparse-checkout 外的 config/）；默认项文案由前端读 GET /api/sampling-defaults 动态填 t("img.defaultWithVal",{v})，禁止在 HTML/i18n 硬编码默认项文字（换引擎即失效）。
+http_server.py 新增 API 端点三处固定改法：①ROOT/data 下加 os.environ.get 兜底常量 ②在 do_GET/do_POST 路由分发区按 path.rstrip("/")=="/api/x" 分支 + self._api_x(method) ③class GatewayHandler 内加 def _api_x；门禁用 fake-self（替 _read_json/_json）直调方法真测，STRATA_* env 隔离落盘到 temp。
+远端只放 main 版：baseline tag 仅本地保留（git tag -a 后不 push），ls-remote --tags origin 确认远端无该 tag；推远端动作只针对 origin/main，baseline tag 由 E/F 双盘 bundle 兜底。
+本机 git 默认 http(s).proxy 配为 127.0.0.1:7890 但该代理未必监听；工具页/当前实际可用代理为 127.0.0.1:7897。git 联网失败时用 `-c http.proxy= -c https.proxy=` 直连，或 `-c http.proxy=http://127.0.0.1:7897` 临时覆盖，不擅改 config 本体。
+本机 git 默认代理已对齐为 127.0.0.1:7897（global + 仓库 local 两层均设，2026-11-28 实跑 ls-remote 坐实可用），push/fetch 不再需命令行临时覆盖；若代理端口再变，须同时改 global 与 .git/config local 两层——git config get 优先读 local，只改 global 会被 local 旧值遮蔽仍显旧端口。
+生图采样区「设为默认」按钮必须是独立操作行（class img-default-action-row，带图标+提示），禁止塞进 .st-field label 内部——否则该列被撑高破坏 .img-row 三列等高对齐，且 flex-wrap 下视觉错位。按钮内 svg 图标时，data-i18n 只能挂内部 span、按钮本身用 data-i18n-attr，否则切语言 applyI18n 抹掉图标。
+baseline tag 命名：v-baseline-YYYY-MM-DD-<字母>，同日多次按 a/b/c 递增；打 tag 后必单推该 tag（不裹全量 push），并 git rev-list -n1 <tag> deref 验证指向目标 commit。
+编辑弹窗 #edit-area 与底部 #input 同属 .ce-input contenteditable 富文本，autosize 封顶 innerHeight*0.4；凡 .ce-input 用在 .st-composer 之外（如 #edit-modal），必须自带 max-height:40vh+overflow-y:auto+overflow-x:hidden，否则 autosize 钉高后内容 overflow:visible 画到框外。修这类溢出只补 CSS，勿动 autosize。
+本机原生文件夹/文件对话框在 IFileDialog(COM) 注册失败(E_NOINTERFACE)时改用经典 Win32：SHBrowseForFolderW(夹)+GetOpenFileNameW(文件)，worker 线程内实测能弹并正常返回；判活桌面用 GetShellWindow+IsWindowVisible 计数
+servers/*.py 里的 per-call 超时天花板(如 shell 的 _MAX_TIMEOUT、browser 的 _SIM_MAX_TIMEOUT)不写死，用 module-local _env_int 读 STRATA_<NAME>_MAX_TIMEOUT(默认300、钳[30,3600])；per-call 请求超钳制时在返回里挂 [warn] requested N clamped to ceiling M 显式告知，绝不静默 min() 吞掉。
