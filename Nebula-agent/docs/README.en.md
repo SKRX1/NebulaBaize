@@ -21,6 +21,12 @@ document, register a one-line entry here (grouped by topic).
   — proxy-port consistency: three independent 7890 stores, how to locate a mismatch on a
   machine/port change; boot-time check_proxy_config probe + download proxy-down direct-retry log.
 
+- [`sparse-checkout-trim-trap.md`](sparse-checkout-trim-trap.md) / [简体中文](sparse-checkout-trim-trap.md)
+  — troubleshooting note: enabling sparse-checkout by mistake pruned servers/ and tools/ out of the
+  main repo; cone mode deletes off-list dirs and flags them skip-worktree so git status stays "clean";
+  recover via `checkout-index --ignore-skip-worktree-bits` + de-mine via `sparse-checkout disable`;
+  the main repo should never use sparse-checkout.
+
 ## Design / review
 
 - [`plan-b-shell-direct-exec-review.md`](plan-b-shell-direct-exec-review.md) / [简体中文](plan-b-shell-direct-exec-review.md) — review record of

@@ -16,6 +16,11 @@
 - [`proxy-port-consistency.md`](proxy-port-consistency.md) / [English](proxy-port-consistency.en.md)
   — 代理端口一致性：三处独立存的 7890，换机器/换端口时如何一处定位；启动自检 check_proxy_config 探活 + 下载代理不通直连重试日志。
 
+- [`sparse-checkout-trim-trap.md`](sparse-checkout-trim-trap.md) / [English](sparse-checkout-trim-trap.en.md)
+  — 误开 sparse-checkout 致主仓 servers/ 与 tools/ 集体「消失」的排障笔记：cone 模式裁列表外目录、
+  skip-worktree 让 git status 仍显干净假象；`checkout-index --ignore-skip-worktree-bits` 找回 +
+  `sparse-checkout disable` 拆雷；主仓永不该用稀疏检出。
+
 ## 设计 / 评审
 
 - [`plan-b-shell-direct-exec-review.md`](plan-b-shell-direct-exec-review.md) / [English](plan-b-shell-direct-exec-review.en.md) —
