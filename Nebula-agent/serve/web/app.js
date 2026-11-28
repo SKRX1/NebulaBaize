@@ -8630,6 +8630,13 @@ function autosize(el) {
   t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`;
 }
 $("input").addEventListener("input", autosize);
+// sched task box: grow as the typed command wraps, scroll internally at 40vh.
+// compositionend covers IME-confirm (Chinese) which may not fire a plain "input".
+if ($("sched-task")) {
+  const _stSched = $("sched-task");
+  _stSched.addEventListener("input", () => autosize(_stSched));
+  _stSched.addEventListener("compositionend", () => autosize(_stSched));
+}
 // IME / paste do not always fire a standard "input" event the instant text lands (a known gap for
 // CJK input). Bind compositionend + paste so the send label & custom preview refresh on commit.
 const __nsSync = () => { syncStepsSendLabel(); };
@@ -11518,6 +11525,7 @@ async function openSchedModal(name) {
     if (!e) return;
     $("sched-name").value = e.name || "";
     $("sched-task").value = e.task || "";
+    autosize($("sched-task"));
     const modeMap = {every_minutes: "every_minutes", every_hours: "every_hours", daily_at: "daily_at", at: "at", weekly_at: "weekly_at", monthly_at: "monthly_at", yearly_at: "yearly_at"};
     const parts = (e.trigger || "").split(" ");
     $("sched-mode").value = modeMap[parts[0]] || "every_minutes";

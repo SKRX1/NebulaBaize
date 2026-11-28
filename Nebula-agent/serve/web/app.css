@@ -396,6 +396,9 @@ main { flex: 1; min-height: 0; display: flex; }
 .mem-kb-item:last-child { border-bottom: none; }
 .mem-actions { margin-top: 10px; }
 .st-textarea#mem-rules-edit { width: 100%; min-height: 120px; resize: vertical; }
+/* sched task box: multi-line command field that grows with its content (mirrors
+   the composer/edit-modal autosize ceiling), then scrolls internally at 40vh. */
+#sched-task { min-height: 72px; max-height: 40vh; overflow-y: auto; overflow-x: hidden; }
 .st-composer { max-width: var(--st-chat-w); margin: 0 auto; }
 .st-composer textarea { max-height: 40vh; }
 .st-btn--send { width: 42px; padding: 0; }
