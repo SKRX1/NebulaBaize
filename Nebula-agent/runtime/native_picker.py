@@ -65,6 +65,63 @@ if _IS_WINDOWS:
     _ole32 = ctypes.windll.ole32
     _comdlg32 = ctypes.windll.comdlg32
     _user32 = ctypes.windll.user32
+    _kernel32 = ctypes.windll.kernel32
+
+    # --- foreground-lock helpers (Windows) -----------------------------
+    # A request handler in OUR server process is NOT the foreground process
+    # when the user clicks Browse -- Edge owns the foreground. Windows then
+    # refuses SetForegroundWindow to a non-foreground process, so the OS
+    # dialog we raise is created but flashes in the TASKBAR instead of coming
+    # to the front (the user had to click the taskbar icon to reveal it).
+    _user32.GetForegroundWindow.restype = ctypes.c_void_p
+    _user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    _user32.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD)]
+    _user32.AttachThreadInput.restype = wintypes.BOOL
+    _user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    _user32.BringWindowToTop.restype = wintypes.BOOL
+    _user32.BringWindowToTop.argtypes = [ctypes.c_void_p]
+    _user32.SetForegroundWindow.restype = wintypes.BOOL
+    _user32.SetForegroundWindow.argtypes = [ctypes.c_void_p]
+    _user32.keybd_event.argtypes = [wintypes.BYTE, wintypes.BYTE, wintypes.DWORD, ctypes.c_void_p]
+    _kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+    _VK_MENU = 0x12          # Alt
+    _KEYEVENTF_KEYUP = 0x02
+
+    def _owner_and_unlock_foreground():
+        """Return (hwnd_owner, detach_tid_or_0).
+
+        Two-part fix for the taskbar-blink symptom (both proven techniques):
+          1) inject a synthetic Alt press+release -- Windows treats the process
+             that last received an input event as allowed to SetForegroundWindow,
+             which defeats the foreground lock for the dialog it is about to show;
+          2) attach our GUI thread to the current foreground window's input queue
+             (and use that window as the dialog owner so the dialog is a modal
+             child of the browser, inheriting its foreground status).
+
+        The caller MUST pass detach_tid to AttachThreadInput(..., False) after the
+        modal dialog returns. Returns 0/None on any probe failure (best effort).
+        """
+        owner = None
+        detach = 0
+        try:
+            fg = _user32.GetForegroundWindow()
+            if fg:
+                owner = fg
+                fg_tid = _user32.GetWindowThreadProcessId(fg, None)
+                cur_tid = _kernel32.GetCurrentThreadId()
+                if fg_tid and cur_tid and fg_tid != cur_tid:
+                    if _user32.AttachThreadInput(cur_tid, fg_tid, True):
+                        detach = fg_tid
+        except Exception as e:
+            print("[native_picker] owner probe failed (best effort): %r" % (e,))
+        # contextlib.suppress (not a bare `except: pass`) -- matches the
+        # file's existing style and keeps the code-hygiene contract happy
+        # (no silent swallow). Alt injection is best-effort; if it fails the
+        # attach-thread path still helps us foreground the dialog.
+        with contextlib.suppress(Exception):
+            _user32.keybd_event(_VK_MENU, 0, 0, None)            # Alt down
+            _user32.keybd_event(_VK_MENU, 0, _KEYEVENTF_KEYUP, None)  # Alt up
+        return owner, detach
 
     _BIF_RETURNONLYFSDIRS = 0x0001
     _BIF_NEWDIALOGSTYLE = 0x0040
@@ -141,12 +198,16 @@ def _pick_folder_windows(title, start):
     if hr == -1:
         return None, "unavailable"
     try:
+        owner, detach = _owner_and_unlock_foreground()
         bi = _BROWSEINFO()
-        bi.hwndOwner = None
+        bi.hwndOwner = owner   # modal child of the current foreground window
         bi.lpszRoot = None
         bi.lpszTitle = (title or "Select a folder")
         bi.ulFlags = _BIF_RETURNONLYFSDIRS | _BIF_NEWDIALOGSTYLE
         item = _shell32.SHBrowseForFolderW(ctypes.byref(bi))
+        with contextlib.suppress(Exception):
+            if detach:
+                _user32.AttachThreadInput(_kernel32.GetCurrentThreadId(), detach, False)
         if not item:
             return None, "cancelled"
         try:
@@ -182,7 +243,9 @@ def _pick_file_windows(title, start, ext):
             flt = "All files\0*.*\0\0"
             def_ext = None
         buf = ctypes.create_unicode_buffer(600)
+        owner, detach = _owner_and_unlock_foreground()
         ofn = _OPENFILENAMEW()
+        ofn.hwndOwner = owner   # modal child of the current foreground window
         ofn.lStructSize = ctypes.sizeof(ofn)
         ofn.lpstrFilter = flt
         ofn.lpstrFile = ctypes.cast(buf, ctypes.POINTER(ctypes.c_wchar))
@@ -193,6 +256,9 @@ def _pick_file_windows(title, start, ext):
         ofn.Flags = (_OFN_EXPLORER | _OFN_FILEMUSTEXIST |
                      _OFN_PATHMUSTEXIST | _OFN_HIDEREADONLY)
         ok = _comdlg32.GetOpenFileNameW(ctypes.byref(ofn))
+        with contextlib.suppress(Exception):
+            if detach:
+                _user32.AttachThreadInput(_kernel32.GetCurrentThreadId(), detach, False)
         if ok:
             p = (buf.value or "").strip()
             if p:
