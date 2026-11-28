@@ -10637,6 +10637,7 @@ let galleryLayout = "grid";   // [SD式融合] C toggle: grid | strip (default g
 const galleryLive = [];       // [SD式融合] live records: session-only, never written to the authoritative file
 let galleryLiveSel = null;
 const gallerySelSet = new Set();   // [删除增强] B1 multi-select: entry refs (identity keys), independent of gallerySel so the single-select gates stay byte-intact
+let galleryMultiSel = false;   // [勾选框多选 2026-11-15b][TDZ-fix] moved up beside its siblings (gallerySel/gallerySelSet) and BEFORE the top-level galleryBoot() call: the old spot sat after boot, so galleryBoot -> renderGallery -> galleryStructSig read it in the TDZ (reproduced in jsdom); OFF keeps the modifier behaviour byte-identical
 // ---- gallery: 持久化与引导 (localStorage 镜像 + api/image-gallery 后端权威) ----
 function galleryLocalLoad(){ try { const d = JSON.parse(localStorage.getItem(GALLERY_KEY) || "null"); return (d && Array.isArray(d.items)) ? d.items : []; } catch (e) { return []; } }
 function gallerySave(){
@@ -12031,7 +12032,6 @@ function populateRecycleControls() {
   const savedCats = store.get("recycle.cats", null);
   if (sel && Array.isArray(savedCats)) document.querySelectorAll(".recycle-cat").forEach((c) => { c.checked = savedCats.indexOf(c.dataset.cat) >= 0; });
 }
-let galleryMultiSel = false;   // [勾选框多选 2026-11-15b] the bar's multi-select toggle: every rendered cell (any view) shows a tick box; OFF keeps the modifier behaviour byte-identical
 function galleryResolvePath(u){   // [删除增强 2026-11-15b] root-cause fix: a server url (/data/generated/images/..., /data/saved_images/...) maps to the INSTALL ROOT, not to the workspace — the old workspace+url splice missed the strata-agent/ segment and the backend silently skipped every file
   const clean = String(u || "").split("?")[0];
   const _norm = clean.startsWith("/") ? clean : "/" + clean;   // [缺前导斜杠修复 2026-11-16] normalize a missing leading slash so old localStorage shapes still reach the backend mapping
