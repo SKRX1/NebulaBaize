@@ -9,9 +9,9 @@
 
 ## 当前回滚点（速览 · 以本节为准）
 
-> 当前最新回滚点 = `v-baseline-2026-11-28-e`
-> （commit `1d18031f8c7beb78f174ce598f72222b98798729`，原生浏览对话框跟随系统深色主题：根因=HKCU AppsUseLightTheme=0 系统深色而 native_picker 零深色声明→原生框默认亮色；修复=进程级 uxtheme SetPreferredAppMode(AllowDark) 跟随系统主题 + 窗口级 DwmSetWindowAttribute(immersive-dark=20/降级19) 染标题栏，folder 经 BROWSEINFO.lpfn、file 经 OFN hook 取窗句；实测 DwmGetWindowAttribute 标题栏属性读回=1、_dark_applied=True、取消返 cancelled、全套回归 ALL GREEN。此为 picker 三连修复最新环（d=GET 别名+MCP 复用 ee14581、e03f217=前台解锁、e=深色 1d18031），速查见 docs/native-picker-dialog-fixes.md。-d/-e 均为本地 tag、按 baseline 惯例未推远端。）
-> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-e）为准。
+> 当前最新回滚点 = `v-baseline-2026-11-28-f`
+> （commit `395a6253f9aeb5ceb03d7c5f816271e25d9f5520`，账本补登 11-28 d/e 中英两本 + 新增 picker 三连修复速查文档 doc-only：d=GET 别名+MCP `pick_native` 复用（ee14581）、e=原生框跟随系统深色（1d18031：进程级 SetPreferredAppMode AllowDark + 窗口级 DwmSetWindowAttribute immersive-dark 20/19）、e03f217=前台解锁（合成 Alt + AttachThreadInput 设 hwndOwner），速查见 docs/native-picker-dialog-fixes(.en).md；已实测 ledger_tag_parity 门禁 + 差分 S8 + quick 全套 REGRESSION ALL GREEN、CRLF 纯 bareLF=0 零行尾污染；-f 本轮 push main 后单独推该 tag，远端 peel 坐实==395a625。-d/-e 仍为本地 tag 未推。）
+> 下方各章节标题里的「当前回滚点 / 当前最新回滚点」字样，是打该 tag 当时的历史快照（11-21-i、11-22-d、11-23-c、11-24-f、11-25-n/o/p/q/r/s/t/u、11-26-a/b/c/d/e/f/g … 各为其当时最新基线）；凡与本速览不一致，一律以本节（最新 = 11-28-f）为准。
 
 ## 2026-11-21 系列清理（保留 -h = v0.1.0 当前回滚点）
 
@@ -1171,4 +1171,27 @@ git tag -a v-baseline-2026-11-28-d ee14581a7a8bde3362f9344d6982c4167fc288eb -m "
 
 ```bat
 git tag -a v-baseline-2026-11-28-e 1d18031f8c7beb78f174ce598f72222b98798729 -m "baseline 2026-11-28-e: native folder/file dialog follows system dark theme (process-level uxtheme SetPreferredAppMode AllowDark + window-level DwmSetWindowAttribute immersive-dark 20/19 via BROWSEINFO.lpfn / OFN hook); DwmGetWindowAttribute titlebar attr=1 verified; part of the picker triple-fix (foreground-unlock e03f217 on the same chain); full regression ALL GREEN"
+```
+
+
+
+## 2026-11-28 系列（继）：当前最新回滚点升级到 f（账本补登 d/e + picker 三连修复速查文档 395a625）
+
+本轮在 commit `395a6253f9aeb5ceb03d7c5f816271e25d9f5520` 打命名回滚点 `v-baseline-2026-11-28-f`（**当前最新回滚点**），锁定「picker 三连修复账本补登 + 中英速查文档」这一纯文档落地点。本轮 commit 为 doc-only（仅账本补登 d/e 节 + 新增 native-picker-dialog-fixes 中英对照），无代码改动：
+
+- `baseline-tag-archive(.en).md`：补登 11-28 `-d`（`ee14581`，`native_picker` 复用到 MCP `pick_native` 惰性 import 共用弹框 + `/api/pick` GET 别名 do_GET 前置分支）与 `-e`（`1d18031`，原生对话框跟随系统深色主题：进程级 uxtheme `SetPreferredAppMode(AllowDark)` + 窗口级 `DwmSetWindowAttribute(immersive-dark 20/降级19)`，folder 经 BROWSEINFO.lpfn、file 经 OFN hook 取窗句），并把「当前最新回滚点」速览从 `-c` 升级到 `-e`（含前台解锁 `e03f217` 为三连之一环）。
+- 新增 `docs/native-picker-dialog-fixes.md` + `.en.md`：沉淀原生文件夹·文件对话框三连修复（前台锁 / 深色 / GET 别名）的根因 + 双招（`SetPreferredAppMode` + `DwmSetWindowAttribute` / `AttachThreadInput` + `hwndOwner` / `do_GET` 前置分支）。
+
+已实测：补登后 `ledger_tag_parity.py` 门禁 + `test_ledger_tag_parity.py` 差分 S8 自举均 **ALL GREEN**（11-28 日区间 [a..e] 连续、deref 全符、中英集合一致）；quick 全套 `REGRESSION ALL GREEN`；两账本 CRLF 纯、`bareLF=0` 零行尾污染；tag deref == `395a6253f9aeb5ceb03d7c5f816271e25d9f5520`；numstat == --ignore-cr-at-eol 零行尾污染。
+
+| tag | commit | 性质 |
+|---|---|---|
+| v-baseline-2026-11-28-f | `395a6253f9aeb5ceb03d7c5f816271e25d9f5520` | 账本补登 11-28 d/e 中英两本 + 速览升级 e + 新增 picker 三连修复速查文档（commit 395a625，doc-only）：d=GET 别名+MCP 复用、e=深色主题、e03f217=前台解锁，速查见 docs/native-picker-dialog-fixes(.en).md；已实测 ledger_tag_parity 门禁 + 差分 S8 + quick 全套全绿、零行尾污染 |
+
+**是否已在远端**：`-f` 为 annotated tag，本轮随补登 doc commit 落账后 push origin main 使 origin/main 快进到含 `-f` 锚点的最新 HEAD，再**单独 push 该 tag**（仅推这一个、不裹全量），远端 peel 坐实 == `395a6253f9aeb5ceb03d7c5f816271e25d9f5520` 与本账本声明一致。
+
+### 重建命令（如需恢复命名回滚点 f）
+
+```bat
+git tag -a v-baseline-2026-11-28-f 395a6253f9aeb5ceb03d7c5f816271e25d9f5520 -m "baseline 2026-11-28-f: ledger backfill of 11-28 d/e into both zh+en ledgers + overview upgrade to e + new native-picker-dialog-fixes cheatsheet (doc-only, 395a625). d=GET alias + MCP pick_native reuse, e=dark theme, e03f217=foreground unlock; ledger_tag_parity gate + differential S8 + quick regression ALL GREEN, zero line-ending churn."
 ```

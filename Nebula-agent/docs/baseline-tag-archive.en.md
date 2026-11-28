@@ -12,9 +12,9 @@ cloning an old bundle can also restore them.
 
 ## Current rollback point (overview · this section is authoritative)
 
-> Current latest rollback point = `v-baseline-2026-11-28-e`
+> Current latest rollback point = `v-baseline-2026-11-28-f`
 > (commit `4c4306c9e724966ee37f1f378b693e2c0b3b58db`, edit-modal input area not scrollable when text overflows: root cause (statically proven) = #edit-area (class "st-textarea ce-input", dynamically built in app.js:8704) has its inline height clamped by autosize to innerHeight*0.4, while the ONLY rule giving a .ce-input an overflow window is scoped .st-composer .ce-input and matches only the composer #input, missing the modal body #edit-area (not inside .st-composer); once height-clamped, overflow content beyond the clamp uses the default overflow:visible (painted below the card edge, unscrollable) = "cannot view full content after editing". Fix (app.css): add an unscoped `.ce-input { max-height:40vh; overflow-y:auto; overflow-x:hidden }` whose specificity (0,1,0) is lower than .st-composer .ce-input (0,2,0) so the composer keeps identical behaviour via the higher-specificity rule, covering only .ce-input used outside .st-composer (#edit-area and future peers); add a pure static lock tests/test_ce_input_overflow_lock.py (jsdom/sim cannot compute CSS, so it reads shipped app.css textually; C1 some exact .ce-input block carries overflow-y:auto+overflow-x, C2 the composer rule is still pinned, C3 stripping overflow-x flips C1 red = load-bearing), registered into run_tests SUITES; headless real Chromium (NOT jsdom) loaded a harness importing the real app.css, replicated the edit-modal structure + injected 120 long lines, and read #edit-area computed style = overflowY:auto, overflowX:hidden, maxHeight:176.4px (=40vh), scrollHeight 2359 >> clientHeight 174, scrollTop=scrollHeight -> scrolledToEnd:true; full quick suite REGRESSION ALL GREEN. This tag is cut under the real 2026-11-28 date, after that day's a/b.)
-> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-e) section wins.
+> The "current rollback point / current latest rollback point" wording in each section heading below is a point-in-time snapshot from when that tag was cut (11-21-i, 11-22-d, 11-23-c, 11-24-f, 11-25-n/o/p/q/r/s/t/u, 11-26-a/b/c/d/e/f/g … each was the newest baseline at its time); wherever it disagrees with this overview, this (newest = 11-28-f) section wins.
 
 ## 2026-11-21 series cleanup (keep -h = the v0.1.0 current rollback point)
 
@@ -971,4 +971,27 @@ Verified: `DwmGetWindowAttribute rc=0 attr=1` (titlebar truly dark), `_dark_appl
 
 ```bat
 git tag -a v-baseline-2026-11-28-e 1d18031f8c7beb78f174ce598f72222b98798729 -m "baseline 2026-11-28-e: native folder/file dialog follows system dark theme (process-level uxtheme SetPreferredAppMode AllowDark + window-level DwmSetWindowAttribute immersive-dark 20/19 via BROWSEINFO.lpfn / OFN hook); DwmGetWindowAttribute titlebar attr=1 verified; part of the picker triple-fix (foreground-unlock e03f217 on the same chain); full regression ALL GREEN"
+```
+
+
+
+## 2026-11-28 series (cont.): current latest rollback point upgraded to f (ledger backfill of d/e + picker triple-fix cheatsheet, commit 395a625)
+
+This round cuts named rollback point `v-baseline-2026-11-28-f` (**the current latest rollback point**) at commit `395a6253f9aeb5ceb03d7c5f816271e25d9f5520`, pinning the doc-only landing of "picker triple-fix ledger backfill + bilingual cheatsheet". The commit is doc-only (ledger backfill of d/e sections + new native-picker-dialog-fixes bilingual, no code change):
+
+- `baseline-tag-archive(.en).md`: backfilled 11-28 `-d` (`ee14581`, native_picker reused for MCP via fs_server `pick_native` lazy-import sharing the dialog + `/api/pick` GET alias via a do_GET prepend branch) and `-e` (`1d18031`, native dialog follows the system dark theme: process-level uxtheme `SetPreferredAppMode(AllowDark)` + window-level `DwmSetWindowAttribute(immersive-dark 20/19)`, folder via BROWSEINFO.lpfn, file via OFN hook), and upgraded the "current latest rollback point" overview from `-c` to `-e` (the foreground-unlock `e03f217` is one leg of the triple-fix).
+- New `docs/native-picker-dialog-fixes.md` + `.en.md`: distils the root cause + two-part fix of the native folder/file dialog triple-fix (foreground lock / dark theme / GET alias) -- `SetPreferredAppMode` + `DwmSetWindowAttribute` / `AttachThreadInput` + `hwndOwner` / do_GET prepend branch.
+
+Verified: after backfill `ledger_tag_parity.py` gate + `test_ledger_tag_parity.py` differential S8 bootstrap are BOTH **ALL GREEN** (the 11-28 day range [a..e] is contiguous, all derefs match, zh/en sets equal); full quick suite `REGRESSION ALL GREEN`; both ledgers CRLF-pure, `bareLF=0`, zero line-ending churn; tag deref == `395a6253f9aeb5ceb03d7c5f816271e25d9f5520`; numstat equals --ignore-cr-at-eol, zero line-ending churn.
+
+| tag | commit | nature |
+|---|---|---|
+| v-baseline-2026-11-28-f | `395a6253f9aeb5ceb03d7c5f816271e25d9f5520` | ledger backfill of 11-28 d/e into both zh+en ledgers + overview upgrade to e + new picker triple-fix cheatsheet (commit 395a625, doc-only): d=GET alias + MCP pick_native reuse, e=dark theme, e03f217=foreground unlock, cheatsheet at docs/native-picker-dialog-fixes(.en).md; verified ledger_tag_parity gate + differential S8 + quick regression ALL GREEN, zero line-ending churn |
+
+**Already on remote?**: `-f` is an annotated tag; after this round's backfill doc commit, push origin main advances origin/main to the latest HEAD containing the `-f` anchor, then this tag is **pushed alone** (only this one, not --tags), and the remote peel is confirmed == `395a6253f9aeb5ceb03d7c5f816271e25d9f5520`, matching this ledger.
+
+### Rebuild command (to restore named rollback point f)
+
+```bat
+git tag -a v-baseline-2026-11-28-f 395a6253f9aeb5ceb03d7c5f816271e25d9f5520 -m "baseline 2026-11-28-f: ledger backfill of 11-28 d/e into both zh+en ledgers + overview upgrade to e + new native-picker-dialog-fixes cheatsheet (doc-only, 395a625). d=GET alias + MCP pick_native reuse, e=dark theme, e03f217=foreground unlock; ledger_tag_parity gate + differential S8 + quick regression ALL GREEN, zero line-ending churn."
 ```
