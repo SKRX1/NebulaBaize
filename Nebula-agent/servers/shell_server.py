@@ -23,7 +23,28 @@ _ABS_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|[\\/]{2}|/)")
 # up to _MAX_TIMEOUT. Keep _MAX_TIMEOUT below the executor's mcp.timeout_s in
 # config/mcp_servers.json, otherwise the transport gives up before this server answers.
 _TIMEOUT = 30
-_MAX_TIMEOUT = 300
+
+
+def _env_int(name, default, lo, hi):
+    """Read an integer from the environment, clamped to [lo, hi], falling back to
+    `default` on missing/blank/non-numeric. Lets an operator raise a ceiling
+    (e.g. the per-call timeout cap) without editing code."""
+    try:
+        v = int(os.environ.get(name, "").strip())
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(v, hi))
+
+
+# _MAX_TIMEOUT is NOT a baked literal: it reads STRATA_SHELL_MAX_TIMEOUT (seconds) so
+# an operator can lift the ceiling for genuinely slow suites (full regression, bundle,
+# model warm-up) without editing code -- default 300, clamped to [30, 3600] so a
+# mistyped env cannot make it absurd. It MUST stay strictly below the executor's
+# mcp.timeout_s in config/mcp_servers.json (currently 330): if the ceiling meets or
+# exceeds the transport timeout, the gateway drops the call first and this server never
+# reports its own timeout. Raise BOTH together leaving a margin, then reload the shell
+# subprocess to apply.
+_MAX_TIMEOUT = _env_int("STRATA_SHELL_MAX_TIMEOUT", 300, 30, 3600)
 # Raised 800KB -> 2MB (2026-10-26): daily outputs almost never reach 2MB, so truncation
 # -- and with it the multi-byte-boundary mojibake -- basically never fires now. The
 # _trim_incomplete_utf8_tail guard below covers the rare case it does.
@@ -298,10 +319,18 @@ class ShellServer(McpServerBase):
         # the model had no way to run a legitimately slow task and fell back to
         # `start /b` + `ping` sleep loops, which burned the whole budget and then looped.
         try:
-            tmo = int(args.get("timeout", _TIMEOUT))
+            _req = int(args.get("timeout", _TIMEOUT))
         except (TypeError, ValueError):
-            tmo = _TIMEOUT
-        tmo = max(1, min(tmo, _MAX_TIMEOUT))
+            _req = _TIMEOUT
+        tmo = max(1, min(_req, _MAX_TIMEOUT))
+        # A request ABOVE the ceiling is capped here (it has to be: bounded by the
+        # gateway transport timeout), but surface that instead of swallowing it --
+        # otherwise the model believes it got its longer budget and retries blindly
+        # when the task is cut short. Tell it how to lift the ceiling.
+        _clamped_note = "" if _req <= tmo else (
+            "\n[warn] requested timeout %ds clamped to ceiling %ds (raise "
+            "STRATA_SHELL_MAX_TIMEOUT + mcp.timeout_s together, leaving a margin, "
+            "then reload the shell subprocess, to lift it)" % (_req, tmo))
 
         # Capture into temp FILES, not pipes. With a pipe, a background child started by
         # `start /b` inherits the write handle and keeps it open after the foreground
@@ -368,7 +397,7 @@ class ShellServer(McpServerBase):
                             _kill_tree(proc.pid)    # reaps start /b grandchildren too
                             stop.set()
                             thr.join(timeout=2)
-                            return _timeout_note(cmd, tmo)
+                            return _timeout_note(cmd, tmo) + _clamped_note
                         continue
                 stop.set()
                 thr.join(timeout=2)
@@ -400,6 +429,7 @@ class ShellServer(McpServerBase):
         if exit_code != 0:
             result += f"\n[exit {exit_code}]"
         result += f"\n[elapsed {elapsed:.1f}s]"
+        result += _clamped_note
         if _unbalanced_quotes(cmd):
             result += ("\n[warn] unbalanced double quotes in the command "
                        "(a trailing backslash escapes the closing quote)")

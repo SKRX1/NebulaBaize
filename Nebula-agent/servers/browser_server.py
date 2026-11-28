@@ -305,7 +305,27 @@ def _to_url(target: str) -> str:
 _SIM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pagesim")
 _SIM_RUNNER = os.path.join(_SIM_DIR, "run.cjs")
 _SIM_TIMEOUT = 60
-_SIM_MAX_TIMEOUT = 300
+
+
+def _env_int(name, default, lo, hi):
+    """Read an integer from the environment, clamped to [lo, hi], falling back to
+    `default` on missing/blank/non-numeric. Lets an operator raise a ceiling
+    (e.g. the page-sim per-call timeout cap) without editing code."""
+    try:
+        v = int(os.environ.get(name, "").strip())
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(v, hi))
+
+
+# _SIM_MAX_TIMEOUT is NOT a baked literal: it reads STRATA_SIM_MAX_TIMEOUT (seconds) so an
+# operator can lift the page-sandbox ceiling for slow suites without editing code --
+# default 300, clamped to [30, 3600]. As in shell_server.py it MUST stay strictly below
+# the executor's mcp.timeout_s in config/mcp_servers.json (currently 330): if the ceiling
+# meets or exceeds the transport timeout the gateway drops the call first and this server
+# never reports its own timeout. Raise BOTH together leaving a margin, then reload this
+# server subprocess to apply.
+_SIM_MAX_TIMEOUT = _env_int("STRATA_SIM_MAX_TIMEOUT", 300, 30, 3600)
 _SIM_MAX_CHARS = 4000
 
 
@@ -624,10 +644,17 @@ class BrowserServer(McpServerBase):
             for k, v in parse_qsl(target.split("?", 1)[1], keep_blank_values=True):
                 params.setdefault(k, v)
         try:
-            tmo = int(args.get("timeout", _SIM_TIMEOUT))
+            _req = int(args.get("timeout", _SIM_TIMEOUT))
         except (TypeError, ValueError):
-            tmo = _SIM_TIMEOUT
-        tmo = max(1, min(tmo, _SIM_MAX_TIMEOUT))
+            _req = _SIM_TIMEOUT
+        tmo = max(1, min(_req, _SIM_MAX_TIMEOUT))
+        # A request above the ceiling is capped (it has to be: bounded by the gateway
+        # transport timeout), but surface it instead of swallowing -- the model otherwise
+        # believes it got its longer budget. Tell it how to lift the ceiling.
+        _clamped_note = "" if _req <= tmo else (
+            "\n[warn] requested timeout %ds clamped to ceiling %ds (raise "
+            "STRATA_SIM_MAX_TIMEOUT + mcp.timeout_s together, leaving a margin, then "
+            "reload the browser subprocess, to lift it)" % (_req, tmo))
 
         job = {"page": path, "params": params, "steps": args.get("steps", 60),
                "viewport": args.get("viewport"), "seed": args.get("seed"),
@@ -643,7 +670,7 @@ class BrowserServer(McpServerBase):
         except subprocess.TimeoutExpired:
             return (f"error: page sandbox timed out after {tmo}s "
                     f"(a page script probably loops forever without yielding; try fewer steps "
-                    f"or a larger timeout)")
+                    f"or a larger timeout)" + _clamped_note)
         finally:
             try:
                 os.unlink(job_path)
@@ -659,8 +686,8 @@ class BrowserServer(McpServerBase):
                     rep = None
         if rep is None:
             tail = (out.strip()[-800:] + "\n" + err.strip()[-800:]).strip()
-            return f"error: page sandbox produced no report\n{tail}"
-        return _format_sim(rep, path)
+            return f"error: page sandbox produced no report\n{tail}" + _clamped_note
+        return _format_sim(rep, path) + _clamped_note
 
     def call_tool(self, name, args):
         if name == "sim":
