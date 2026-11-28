@@ -18,7 +18,7 @@ REM  gw_watchdog.bat 同类隐患); ROOT 已在下一行定义,整目录迁移�
 REM ============================================================================
 
 set ROOT=%~dp0
-set PYTHON=%ROOT%.venv\Scripts\python.exe
+set PYTHON=E:\Nebula\NebulaBaize\Nebula-agent\.venv\Scripts\python.exe
 
 REM --- Upstream API (change for remote endpoints) ---
 set UPSTREAM_URL=http://127.0.0.1:8080/v1
