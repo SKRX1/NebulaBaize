@@ -10493,6 +10493,54 @@ async function promptbookBoot(){
   }
   renderPromptbook(); renderSeedbook();
 }
+// ── 方案A（2026-11-28）：生图默认采样方法/调度器（全局一套，用户可「设为默认」）──
+// 默认值落后端 data/sampling-defaults 端点；两个 value="" 默认项的文案按读到的值动态显示
+// 「默认（<值>）」，不再硬编码（换默认后即显示新值）。boot 拉取一次；「设为默认」POST 写盘后
+// 重拉刷新；语言切换（strata:langchange）用缓存值重刷文案。失败回落兜底 euler_a/simple。
+let _samplingDefaults = {sampling: "euler_a", scheduler: "simple"};
+function applySamplingDefaultLabels() {
+  const so = $("opt-sampling-default"), sc = $("opt-scheduler-default");
+  if (so) so.textContent = t("img.defaultWithVal", {v: _samplingDefaults.sampling});
+  if (sc) sc.textContent = t("img.defaultWithVal", {v: _samplingDefaults.scheduler});
+}
+function loadSamplingDefaults() {
+  try {
+    return fetch("api/sampling-defaults", {headers: headers(true)})
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const st = d && d.settings;
+        if (st && typeof st === "object") {
+          if (typeof st.sampling === "string" && st.sampling) _samplingDefaults.sampling = st.sampling;
+          if (typeof st.scheduler === "string" && st.scheduler) _samplingDefaults.scheduler = st.scheduler;
+        }
+        applySamplingDefaultLabels();
+      }).catch(() => { applySamplingDefaultLabels(); });
+  } catch (e) { applySamplingDefaultLabels(); return Promise.resolve(); }
+}
+if ($("opt-sampling-default") || $("opt-scheduler-default")) applySamplingDefaultLabels();  // 即时显示兜底，随后被 GET 覆盖
+if ($("img-set-sampling-default")) $("img-set-sampling-default").onclick = async () => {
+  const sm = $("img-sampling-method"), sc = $("img-scheduler");
+  const hint = $("img-hint");
+  const smV = sm ? String(sm.value).trim() : "";
+  const scV = sc ? String(sc.value).trim() : "";
+  if (!smV && !scV) {   // 当前选的是「默认」空项，无法把空设为默认
+    if (hint) hint.textContent = t("img.setAsDefault.pickfirst");
+    return;
+  }
+  if (!(await askConfirm(t("img.setAsDefault.confirm")))) return;
+  const body = {};
+  if (smV) body.sampling = smV;
+  if (scV) body.scheduler = scV;
+  try {
+    const r = await fetch("api/sampling-defaults", {method: "POST", headers: headers(true),
+      body: JSON.stringify(body)});
+    if (r.ok) { if (hint) hint.textContent = t("img.setAsDefault.done"); await loadSamplingDefaults(); }
+    else if (hint) hint.textContent = t("img.setAsDefault.fail");
+  } catch (e) { if (hint) hint.textContent = t("img.setAsDefault.fail"); }
+};
+document.addEventListener("strata:langchange", applySamplingDefaultLabels);  // 切换语言时重刷默认项文案
+loadSamplingDefaults();  // boot 拉取当前生效默认（fire-and-forget）
+
 function promptbookSnapshotParams(){
   const v = (id) => { const el = $(id); return el ? String(el.value).trim() : ""; };
   return {steps: v("img-steps"), cfg: v("img-cfg-scale"), sampling: v("img-sampling-method"),

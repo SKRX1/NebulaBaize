@@ -438,25 +438,42 @@
         <div class="img-row">
           <label class="st-field"><span data-i18n="img.sampler">Sampling method</span>
             <select class="st-input" id="img-sampling-method">
-              <option value="" data-i18n="img.var.default">default</option>
+              <option value="" id="opt-sampling-default">default</option>
               <option value="euler">euler</option><option value="euler_a">euler_a</option>
               <option value="heun">heun</option><option value="dpm2">dpm2</option>
               <option value="dpm++2s_a">dpm++2s_a</option><option value="dpm++2m">dpm++2m</option>
               <option value="dpm++2mv2">dpm++2mv2</option><option value="dpm++2m_sde">dpm++2m_sde</option>
-              <option value="ipndm">ipndm</option><option value="lcm">lcm</option>
-              <option value="lms">lms</option><option value="er_sde">er_sde</option>
+              <option value="ipndm">ipndm</option><option value="ipndm_v">ipndm_v</option>
+              <option value="lcm">lcm</option>
+              <option value="ddim_trailing">ddim_trailing</option><option value="tcd">tcd</option>
+              <option value="res_multistep">res_multistep</option><option value="res_2s">res_2s</option>
+              <option value="er_sde">er_sde</option>
+              <option value="euler_cfg_pp">euler_cfg_pp</option><option value="euler_a_cfg_pp">euler_a_cfg_pp</option>
+              <option value="euler_ge">euler_ge</option><option value="dpm++2m_sde_bt">dpm++2m_sde_bt</option>
+              <option value="lms">lms</option>
             </select></label>
           <label class="st-field"><span data-i18n="img.scheduler">Scheduler</span>
             <select class="st-input" id="img-scheduler">
-              <option value="" data-i18n="img.var.default">default</option>
+              <option value="" id="opt-scheduler-default">default</option>
               <option value="discrete">discrete</option><option value="karras">karras</option>
               <option value="exponential">exponential</option><option value="sgm_uniform">sgm_uniform</option>
               <option value="simple">simple</option><option value="smoothstep">smoothstep</option>
               <option value="ays">ays</option><option value="gits">gits</option>
-              <option value="kl_optimal">kl_optimal</option>
+              <option value="kl_optimal">kl_optimal</option><option value="lcm">lcm</option>
+              <option value="logit_normal">logit_normal</option><option value="beta">beta</option>
+              <option value="bong_tangent">bong_tangent</option><option value="ltx2">ltx2</option>
+              <option value="flux">flux</option><option value="flux2">flux2</option>
+              <option value="llada_image">llada_image</option>
             </select></label>
           <label class="st-field"><span data-i18n="img.eta">Eta</span>
             <input class="st-input" id="img-eta" type="number" min="0" max="1" step="0.05" placeholder="0"></label>
+        </div>
+        <div class="img-row img-default-action-row">
+          <button type="button" class="st-btn st-btn--sm st-btn--ghost" id="img-set-sampling-default" data-i18n-attr="title:img.setAsDefault.tip">
+            <svg class="st-icon st-icon--sm" aria-hidden="true"><use href="web/sprite.svg#i-pin"/></svg>
+            <span data-i18n="img.setAsDefault">Set as default</span>
+          </button>
+          <span class="muted small" data-i18n="img.setAsDefault.hint">Set the selected sampling / scheduler as default</span>
         </div>
         <!-- [种子收藏 2026-11-14] localStorage: strata.imgSeedBook，生成成功即记真实seed，点击回填 -->
         <div class="img-row img-seedbook-head">

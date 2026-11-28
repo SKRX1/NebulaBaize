@@ -269,6 +269,13 @@ ILOG_TAIL_MAX = 500               # hard cap for GET ?n=
 SAMPLING_SNAPSHOT = os.environ.get("STRATA_SAMPLING_SNAPSHOT",
                                  os.path.join(ROOT, "data", "sampling_snapshot.json"))
 
+# 方案A（2026-11-28）：生图采样方法/调度器的「默认值」落盘（用户「设为默认」写它）。
+# 默认项文案按此动态显示，不再硬编码。缺文件/缺字段回落到 FALLBACK（引擎 help 对当前 DiT
+# 类模型的解析默认：sampling=euler_a、scheduler=simple；换 Flux/SD3/Wan 类引擎时用户可设 euler）。
+SAMPLING_DEFAULTS = os.environ.get("STRATA_SAMPLING_DEFAULTS",
+                                  os.path.join(ROOT, "data", "sampling_defaults.json"))
+SAMPLING_DEFAULTS_FALLBACK = {"sampling": "euler_a", "scheduler": "simple"}
+
 # Per-ROUND output cap sent to the engine. It used to be a hardcoded 4096 that ALSO ignored the
 # composer's own max_tokens, so one long reasoning round (or a whole file written inside a single
 # tool call) ran out of budget mid-way: the round ended with finish_reason="length", no answer text
@@ -2049,6 +2056,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/api/sampling-snapshot":
             self._api_sampling_snapshot(method)   # [sampling snapshot 2026-11-24] 整套采样设置落盘
             return True
+        if path.rstrip("/") == "/api/sampling-defaults":
+            self._api_sampling_defaults(method)   # [方案A 2026-11-28] 默认采样方法/调度器落盘
+            return True
         if path.rstrip("/") == "/api/version":
             # the web app's brand badge: single-source VERSION file (ROOT/VERSION) + the
             # last commit's short sha and date (git runs with cwd=ROOT). On any failure the
@@ -2960,6 +2970,51 @@ class GatewayHandler(BaseHTTPRequestHandler):
             print("[sampling-snapshot] read failed: %s" % e, file=sys.stderr)
             data = {}
         self._json(200, {"ok": True, "path": path, "settings": data})
+
+    def _api_sampling_defaults(self, method: str):
+        """方案A：GET 读生图默认采样方法/调度器（缺字段填兜底）；POST 写用户「设为默认」。
+        落 data/sampling_defaults.json。POST 仅接受白名单两键 sampling/scheduler。"""
+        path = SAMPLING_DEFAULTS
+        if method == "POST":
+            body = self._read_json()
+            if not isinstance(body, dict):
+                self._json(400, {"error": {"type": "invalid_request",
+                                       "message": "object required"}})
+                return
+            clean = {k: body[k] for k in ("sampling", "scheduler")
+                     if isinstance(body.get(k), str) and body.get(k).strip()}
+            if not clean:
+                self._json(400, {"error": {"type": "invalid_request",
+                                          "message": "sampling/scheduler required"}})
+                return
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with io.open(path, "w", encoding="utf-8") as fh:
+                    json.dump(clean, fh, ensure_ascii=False, indent=2)
+            except OSError as e:
+                print("[sampling-defaults] write failed: %s" % e, file=sys.stderr)
+                self._json(500, {"error": {"type": "internal",
+                                    "message": f"cannot write defaults: {e}"}})
+                return
+            self._json(200, {"ok": True, "path": path, "settings": clean})
+            return
+        if method != "GET":
+            self._json(405, {"error": {"type": "method_not_allowed",
+                                     "message": f"{method} not allowed"}})
+            return
+        try:
+            with io.open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        merged = dict(SAMPLING_DEFAULTS_FALLBACK)
+        for k in ("sampling", "scheduler"):
+            v = data.get(k)
+            if isinstance(v, str) and v.strip():
+                merged[k] = v.strip()
+        self._json(200, {"ok": True, "path": path, "settings": merged})
 
     def _api_models(self, method: str, path: str):
         """GET/POST /api/models, POST /api/models/test - the composer's model switcher."""

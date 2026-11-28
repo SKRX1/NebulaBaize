@@ -275,6 +275,8 @@ SUITES = [
     "tests/test_interrupt_log.mjs",
 
     "tests/test_sampling_snapshot_wiring.mjs",   # 2026-11-24 sampling-snapshot wiring (static lock): frontend reportSampling def + boot call + s-apply call co-exist, backend /api/sampling-snapshot route + _api_sampling_snapshot + SAMPLING_SNAPSHOT path all present, endpoint strings match front/back; 2 decoy diffs prove the boot-call and method locks are load-bearing
+    "tests/test_sampling_default_wiring.mjs",   # 2026-11-30 img sampling-default feature (static lock): img-set-sampling-default button wired (HTML + app.js onclick), GET/POST /api/sampling-defaults route+_api method+DEFAULTS path present front/back match, opt-*-default dynamic-text paintSamplingDefaultLabel def+boot call; decoy diffs prove each lock load-bearing
+    "tests/test_sampling_defaults_endpoint.py",   # 2026-11-30 /api/sampling-defaults GET/POST: roundtrip persist to STRATA_SAMPLING_DEFAULTS, non-dict body rejected, missing->defaults, load_sampling_defaults None-on-missing, fake-self direct-call, env-isolated
 
     "tests/test_stream_done.mjs",
 
