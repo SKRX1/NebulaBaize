@@ -1545,6 +1545,15 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.state.request_count += 1
         path = self.path.split("?")[0]
 
+        # [native folder/file picker 2026-11-28] the OS dialog runs in THIS
+        # process's own desktop session and returns a REAL absolute path, which the
+        # browser's own picker cannot. Only meaningful when this process owns the
+        # desktop (direct/standalone mode); the frontend falls back to the in-app
+        # /workspace/list browser when this returns status="unavailable".
+        if path == "/api/pick":
+            self._api_pick()
+            return
+
         if path.startswith("/api/"):
             self._api("POST")
             return
@@ -3219,6 +3228,42 @@ class GatewayHandler(BaseHTTPRequestHandler):
             pass
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+    def _api_pick(self):
+        """POST /api/pick -- raise the OS native folder/file dialog in THIS
+        server's own desktop session and return the absolute path the user chose.
+        Blocks this handler thread while the modal dialog is up (one thread per
+        request under ThreadingHTTPServer, so other requests and streaming are
+        unaffected). Returns status="unavailable" when no native dialog can be shown
+        (proxy mode, a headless session, or another dialog already open) so the
+        caller falls back to the in-app /workspace/list browser.
+        Body: {"kind":"folder"|"file", "title", "start", "ext"}.
+        Reply: {"path": <abs path|null>, "status":"native|cancelled|unavailable"}."""
+        if not getattr(self.state, "direct_mode", False):
+            self._json(200, {"path": None, "status": "unavailable"})
+            return
+        try:
+            body = self._read_json() or {}
+        except Exception as e:
+            print("[native_picker] bad /api/pick body: %r" % (e,))
+            body = {}
+        kind = (body.get("kind") or "folder").lower()
+        if kind not in ("folder", "file"):
+            kind = "folder"
+        title = (body.get("title") or "") or None
+        start = (body.get("start") or "") or None
+        ext = (body.get("ext") or "") or None
+        p, st = None, "unavailable"
+        try:
+            import native_picker  # sibling module in runtime/ (sys.path[0])
+            if kind == "file":
+                p, st = native_picker.pick_file(title=title, start=start, ext=ext)
+            else:
+                p, st = native_picker.pick_folder(title=title, start=start)
+        except Exception as e:
+            print("[native_picker] dispatch failed: %r" % (e,))
+            p, st = None, "unavailable"
+        self._json(200, {"path": p, "status": st})
 
     def _workspace_list(self):
         """GET /workspace/list - the folder browser. Mirrors serve/server.py so the picker

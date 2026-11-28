@@ -1995,7 +1995,7 @@ $("new-task-btn").onclick = () => {
 // explicit: the close button or Esc - matching model-modal / sched-modal / edit-modal.
 document.addEventListener("keydown", (e) => { if ($("ws-modal") && !$("ws-modal").hidden && e.key === "Escape") closeWorkspacePicker(); });
 $("ws-close").onclick = closeWorkspacePicker;
-$("ws-pick").onclick = () => openBrowser($("ws-path").value.trim());
+$("ws-pick").onclick = () => browseInto("ws-path", $("ws-path").value.trim());
 // The workspace needs the folder's REAL absolute path. The browser's own picker
 // (showDirectoryPicker) cannot give it -- a FileSystemDirectoryHandle carries only a
 // leaf name, so it would hand the agent a relative path that resolves against the
@@ -10190,7 +10190,32 @@ let _imgBrowseCb = null;   // input id to fill when browse confirms (null = defa
 
 let _imgBrowseExt = null;   // [A1 2026-11-27] ".gguf"/".exe" => the picker also lists matching FILES;
                           // null = folder-only (the workspace picker). Reset on every open/close.
-function browseInto(inputId, startPath, ext) {
+// [native folder/file picker 2026-11-28] UNIFIED entry for every path browse:
+// workspace ws-pick + the seven img-cfg browse buttons all route through here so
+// the OS-native dialog is the single main path. We ask the server (/api/pick) to
+// raise the real Windows dialog in its own desktop session and hand back a REAL
+// absolute path. On status=unavailable (proxy mode / headless / another dialog open)
+// we fall back to the in-app /workspace/list browser (openBrowser) so behaviour is
+// preserved everywhere native cannot run. ext non-empty => pick a FILE; else folder.
+async function browseInto(inputId, startPath, ext) {
+  const kind = ext ? "file" : "folder";
+  const title = (kind === "folder" && typeof t === "function") ? t("ws.browse.title") : "";
+  let res;
+  try {
+    const r = await fetch("api/pick", { method: "POST", headers: headers(),
+      body: JSON.stringify({ kind, title, start: startPath || "", ext: ext || "" }) });
+    res = await r.json();
+  } catch (e) {
+    res = { status: "unavailable" };   // no route / offline -> use the in-app browser
+  }
+  if (res && res.status === "native" && res.path) {
+    const el = document.getElementById(inputId);
+    if (el) el.value = res.path;
+    if (inputId === "ws-path" && typeof updateResolved === "function") { updateResolved(); $("ws-path").focus(); }
+    return;
+  }
+  if (res && res.status === "cancelled") return;   // user dismissed the native dialog
+  // unavailable -> in-app fallback (the original behaviour)
   _imgBrowseCb = inputId;
   _imgBrowseExt = ext || null;
   openBrowser(startPath || "");
