@@ -486,7 +486,7 @@ def main(argv=None) -> int:
 
             # front-end browser__sim probe; any red makes the whole gate red.
 
-            def _combo_check(executor=executor, _cmd=_vcfg.get("command"),
+            def _combo_check(_cmd=_vcfg.get("command"),
 
                              _checks=_vchecks, _cwd=ROOT, _to=int(_vcfg.get("timeout_s", 120))):
 
@@ -512,7 +512,7 @@ def main(argv=None) -> int:
 
                     try:
 
-                        _res = executor.call("browser__sim", _a) or ""
+                        _res = gw_state.executor.call("browser__sim", _a) or ""
 
                     except Exception as _e:
 
