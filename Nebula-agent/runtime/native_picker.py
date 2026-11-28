@@ -66,6 +66,100 @@ if _IS_WINDOWS:
     _comdlg32 = ctypes.windll.comdlg32
     _user32 = ctypes.windll.user32
     _kernel32 = ctypes.windll.kernel32
+    _dwmapi = ctypes.windll.dwmapi
+    # uxtheme.dll holds the UNDOCUMENTED SetPreferredAppMode entry point
+    # that turns the common controls / common dialogs (folder + file) to the
+    # dark theme. It is exported by ordinal on some builds and by name on
+    # others, so we resolve it defensively in _enable_dark_mode(). The ordinal
+    # is 135 on Win10 1809-21H2 and Win11, 49 on a few older builds.
+    try:
+        # uxtheme.dll is always present on Vista+; WinDLL because the two
+        # theme entry points we reach (SetPreferredAppMode) are __stdcall.
+        _uxtheme = ctypes.WinDLL("uxtheme.dll")
+    except Exception as e:
+        print("[native_picker] uxtheme.dll load failed (dialog stays light): %r" % (e,))
+        _uxtheme = None
+    _DWMWA_USE_IMMERSIVE_DARK_MODE = 20   # Win10 2004+ / Win11 (19 on 1809)
+    _dwmapi.DwmSetWindowAttribute.argtypes = [
+        ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
+    _dwmapi.DwmSetWindowAttribute.restype = ctypes.c_long
+    _dark_applied = [False]   # SetPreferredAppMode is process-wide; once is enough
+
+    def _apply_dark_titlebar(hwnd):
+        """Paint ONE dialog's non-client titlebar/border dark. Best effort."""
+        try:
+            if hwnd and _dark_applied[0]:
+                on = ctypes.c_int(1)
+                # Win11 honours attr 20; fall back to the old 19 on 1809.
+                rc = _dwmapi.DwmSetWindowAttribute(
+                    ctypes.c_void_p(int(hwnd)), _DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ctypes.byref(on), ctypes.sizeof(on))
+                if rc != 0:
+                    _dwmapi.DwmSetWindowAttribute(
+                        ctypes.c_void_p(int(hwnd)), 19,
+                        ctypes.byref(on), ctypes.sizeof(on))
+        except Exception as e:
+            print("[native_picker] dark titlebar failed (best effort): %r" % (e,))
+
+    def _enable_dark_mode():
+        """Opt the WHOLE process into the dark theme for common dialogs.
+
+        SetPreferredAppMode(PreferredAppMode) with:
+            0 = AllowDark, 1 = ForceDark, 2 = ForceLight, 3 = Classic.
+        We choose AllowDark (0) so the dialog follows the user's OS theme
+        -- light when the system is light, dark when the system is dark --
+        instead of forcing a colour that could clash with a light desktop.
+        Resolution order: name, then ordinal 135, then 49 (best effort).
+        """
+        if _dark_applied[0]:
+            return
+        fn = None
+        if _uxtheme is not None:
+            try:
+                fn = getattr(_uxtheme, "SetPreferredAppMode", None)
+            except Exception:
+                fn = None
+        if fn is None:
+            for ordinal in (135, 49):
+                try:
+                    fn = _uxtheme[ordinal]
+                    break
+                except Exception:
+                    fn = None
+        if fn is not None:
+            try:
+                fn.argtypes = [ctypes.c_int]
+                fn.restype = ctypes.c_int
+                fn(0)   # AllowDark -> follow the OS AppsUseLightTheme setting
+                _dark_applied[0] = True
+            except Exception as e:
+                print("[native_picker] SetPreferredAppMode failed: %r" % (e,))
+        else:
+            print("[native_picker] SetPreferredAppMode not found; dialog stays light")
+
+    # folder-browser callback: BFFM_INITIALIZED (1) fires with hwnd in the
+    # first arg; at that point we paint the titlebar dark. Return 0.
+    _PROCBF = ctypes.WINFUNCTYPE(
+        ctypes.c_int, wintypes.HWND, ctypes.c_uint, wintypes.LPARAM, wintypes.LPARAM)
+    _BFFM_INITIALIZED = 1
+    def _bf_proc(hwnd, umsg, lparam, ldata):
+        if umsg == _BFFM_INITIALIZED:
+            _apply_dark_titlebar(int(hwnd) if hwnd else 0)
+        return 0
+    _BF_PROC = _PROCBF(_bf_proc)   # keep a strong ref so ctypes does not free it
+
+    # file-open hook: OFN_INITIALIZDMSG (0x466) fires once with the OFN*
+    # in lParam; the live dialog hwnd is in lpOfn[0].hwndOwner-equivalent,
+    # but during init the real dialog hwnd is passed as hdlg (arg 1).
+    _LPOFNHOOKPROC = ctypes.WINFUNCTYPE(
+        wintypes.UINT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM,
+        ctypes.c_void_p)
+    _OFN_INITIALIZDMSG = 0x0466
+    def _ofn_hook(hdlg, umsg, wparam, lparam):
+        if umsg == _OFN_INITIALIZDMSG:
+            _apply_dark_titlebar(int(hdlg) if hdlg else 0)
+        return 0
+    _OFN_HOOK = _LPOFNHOOKPROC(_ofn_hook)
 
     # --- foreground-lock helpers (Windows) -----------------------------
     # A request handler in OUR server process is NOT the foreground process
@@ -130,6 +224,7 @@ if _IS_WINDOWS:
     _OFN_PATHMUSTEXIST = 0x00000800
     _OFN_HIDEREADONLY = 0x00000004
     _OFN_NOCHOOSECURRENTFILE = 0x00000040
+    _OFN_ENABLEHOOK = 0x00000020   # needed so lpfnHook receives messages
 
     class _BROWSEINFO(ctypes.Structure):
         _fields_ = [
@@ -198,12 +293,14 @@ def _pick_folder_windows(title, start):
     if hr == -1:
         return None, "unavailable"
     try:
+        _enable_dark_mode()
         owner, detach = _owner_and_unlock_foreground()
         bi = _BROWSEINFO()
         bi.hwndOwner = owner   # modal child of the current foreground window
         bi.lpszRoot = None
         bi.lpszTitle = (title or "Select a folder")
         bi.ulFlags = _BIF_RETURNONLYFSDIRS | _BIF_NEWDIALOGSTYLE
+        bi.lpfn = ctypes.cast(_BF_PROC, ctypes.c_void_p)  # paint titlebar dark on init
         item = _shell32.SHBrowseForFolderW(ctypes.byref(bi))
         with contextlib.suppress(Exception):
             if detach:
@@ -243,8 +340,11 @@ def _pick_file_windows(title, start, ext):
             flt = "All files\0*.*\0\0"
             def_ext = None
         buf = ctypes.create_unicode_buffer(600)
+        _enable_dark_mode()
         owner, detach = _owner_and_unlock_foreground()
         ofn = _OPENFILENAMEW()
+        ofn.lpfnHook = ctypes.cast(_OFN_HOOK, ctypes.c_void_p)  # paint titlebar dark
+        ofn.Flags |= _OFN_ENABLEHOOK   # required for lpfnHook to fire
         ofn.hwndOwner = owner   # modal child of the current foreground window
         ofn.lStructSize = ctypes.sizeof(ofn)
         ofn.lpstrFilter = flt
