@@ -1548,7 +1548,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         # [native folder/file picker 2026-11-28] the OS dialog runs in THIS
         # process's own desktop session and returns a REAL absolute path, which the
         # browser's own picker cannot. Only meaningful when this process owns the
-        # desktop (direct/standalone mode); the frontend falls back to the in-app
+        # desktop (any mode -- the gateway process owns the desktop); the frontend
+        # falls back to the in-app
         # /workspace/list browser when this returns status="unavailable".
         if path == "/api/pick":
             self._api_pick()
@@ -3235,13 +3236,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
         Blocks this handler thread while the modal dialog is up (one thread per
         request under ThreadingHTTPServer, so other requests and streaming are
         unaffected). Returns status="unavailable" when no native dialog can be shown
-        (proxy mode, a headless session, or another dialog already open) so the
+        (a headless session, or another dialog already open) so the
         caller falls back to the in-app /workspace/list browser.
         Body: {"kind":"folder"|"file", "title", "start", "ext"}.
         Reply: {"path": <abs path|null>, "status":"native|cancelled|unavailable"}."""
-        if not getattr(self.state, "direct_mode", False):
-            self._json(200, {"path": None, "status": "unavailable"})
-            return
         try:
             body = self._read_json() or {}
         except Exception as e:
