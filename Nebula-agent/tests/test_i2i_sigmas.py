@@ -80,15 +80,15 @@ def check(label, cond, extra=""):
 # ── 拼命令差分（真实链路：init_image 用本文件当占位，引擎被 fake 掉） ──
 i2i = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8})
 sch = val_after(i2i, "--scheduler")
-check("D1 img2img default (no scheduler) injects full sigma table tail->0 + --strength 1.0 (stops engine truncation)",
-      sch is None and "--sigmas" in i2i and val_after(i2i, "--strength") == "1.0"
-      and val_after(i2i, "--sigmas").split(",")[-1] == "0" and "karras" not in i2i,
-      "sigmas=%s strength=%s" % (val_after(i2i, "--sigmas"), val_after(i2i, "--strength")))
-# D6: strength 缺省(None) -> σ 表起点 0.75（引擎默认）+ --strength 1.0
+check("D1 img2img default hands to native Flux: NO --scheduler/--sigmas/karras, passes strength 0.45 through",
+      sch is None and "--sigmas" not in i2i and "karras" not in i2i
+      and val_after(i2i, "--strength") == "0.45",
+      "strength=%s" % val_after(i2i, "--strength"))
+# D6: strength 缺省(None) -> 不注 --sigmas 也不注 --strength（交引擎默认 0.75 + Flux）
 i2i_ns = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "steps": 8})
-check("D6 img2img strength None -> sigma table starts at 0.75 (engine default) + --strength 1.0",
-      val_after(i2i_ns, "--sigmas").split(",")[0] == "0.75" and val_after(i2i_ns, "--strength") == "1.0",
-      "sigmas=%s" % val_after(i2i_ns, "--sigmas"))
+check("D6 img2img strength None -> NO --sigmas and NO --strength (engine Flux default 0.75)",
+      "--sigmas" not in i2i_ns and "--strength" not in i2i_ns,
+      "strength=%s sigmas=%s" % (val_after(i2i_ns, "--strength"), val_after(i2i_ns, "--sigmas")))
 # D5 用户自选 scheduler 时胜出，且不重复注 karras（--scheduler 与 custom --sigmas 互斥防双注）
 us = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8, "scheduler": "discrete"})
 check("D5 user-chosen scheduler wins, no karras double-inject, no custom --sigmas",
@@ -102,16 +102,18 @@ t2i = capture_cmd({"gen_mode": "txt2img", "steps": 8})
 check("D3 txt2img has NO --sigmas/--hires-sigmas",
       "--sigmas" not in t2i and "--hires-sigmas" not in t2i)
 
-# --- C1/C1b [流派B 完整 σ 表 2026-11-28] img2img 不再偷偷放大 --steps(恒==用户设定)，
-#     改喂完整 σ 表(长度==steps+1→恰 steps 去噪区间)+--strength 1.0 关截断；strength 只管相似度起点 ---
+# --- C1/C1b [img2img 交原生 Flux 2026-11-28] 撤自定义 σ 表后 img2img 不放大 --steps(恒==用户设定)，
+#     也不注 --sigmas(让引擎用 Flux 排 σ)，strength 以原值透传(只管相似度，不再是 1.0) ---
 _i2i_c = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.45, "steps": 8})
-check("C1 img2img --steps NOT inflated (stays == user steps 8) and sigma table length == steps+1 (9)",
-      val_after(_i2i_c, "--steps") == "8" and len(val_after(_i2i_c, "--sigmas").split(",")) == 9,
-      "steps=%s sigmas=%s" % (val_after(_i2i_c, "--steps"), val_after(_i2i_c, "--sigmas")))
+check("C1 img2img --steps NOT inflated (== user 8), NO --sigmas, strength passed through 0.45",
+      val_after(_i2i_c, "--steps") == "8" and "--sigmas" not in _i2i_c
+      and val_after(_i2i_c, "--strength") == "0.45",
+      "steps=%s strength=%s" % (val_after(_i2i_c, "--steps"), val_after(_i2i_c, "--strength")))
 _i2i_hi = capture_cmd({"gen_mode": "img2img", "init_image": __file__, "strength": 0.75, "steps": 8})
-check("C1b img2img sigma table start == strength 0.75 (similarity) not affecting step count",
-      val_after(_i2i_hi, "--steps") == "8" and val_after(_i2i_hi, "--sigmas").split(",")[0] == "0.75",
-      "steps=%s sigmas=%s" % (val_after(_i2i_hi, "--steps"), val_after(_i2i_hi, "--sigmas")))
+check("C1b img2img high strength -> steps stays 8, NO --sigmas, strength passed through 0.75",
+      val_after(_i2i_hi, "--steps") == "8" and "--sigmas" not in _i2i_hi
+      and val_after(_i2i_hi, "--strength") == "0.75",
+      "steps=%s strength=%s" % (val_after(_i2i_hi, "--steps"), val_after(_i2i_hi, "--strength")))
 _t2i_c = capture_cmd({"gen_mode": "txt2img", "steps": 8})
 check("C2 txt2img --steps NOT compensated (engine runs the full sigma table)",
       val_after(_t2i_c, "--steps") == "8", "steps=%s" % val_after(_t2i_c, "--steps"))

@@ -2662,22 +2662,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
             staged = _stage_img(genreq.get("init_image") or "", "init")
             if staged:
                 cmd += ["-i", staged]
-                # [流派B 完整 σ 表 2026-11-28] sd-cli 在 img2img 下默认用 strength 截断 σ 表
-                # (实跑去噪步数 = steps*strength)，strength 越小去噪越少→欠采样=满图噪点。
-                # 修法：喂一条完整 σ 表(从 strength 线性降到 0，长度 = steps+1 → 恰 steps 个去噪区间)，
-                # 并显式 --strength 1.0 关掉引擎截断。实测 effective_steps 恒 == 用户 steps、对标 txt2img。
-                # 净效果：去噪步数恒定，strength 退回只管"加噪起点=与原图相似度"(小→像原图、大→更像重画)。
-                # 用户未自选 scheduler 时才注完整 σ 表；custom --sigmas 会覆盖 --scheduler，
-                # 故用户显式选了 scheduler 就让路（用户优先，仅照常透传 strength）。
-                if not genreq.get("scheduler"):
-                    _s = 0.75 if strength is None else float(strength)   # 缺省交引擎默认 0.75
-                    _n = int(genreq.get("steps") or 8)
-                    _sg = i2i_sigmas(_s, _n + 1)                         # steps+1 点 = steps 个去噪区间
-                    if _sg:
-                        cmd += ["--sigmas", _sg, "--strength", "1.0"]
-                    elif strength is not None:
-                        cmd += ["--strength", str(float(strength))]
-                elif strength is not None:
+                # [img2img 交引擎原生 Flux 2026-11-28] 撤掉自定义 --sigmas：实测喂 --sigmas 会让
+                # sd-cli 放弃原生 Flux 调度器(mu=0.555 shift_terminal=0.020，flow-matching 非线性 σ)，
+                # 反而更噪(lapvar 208)。交回和文生图同款 Flux：只 -i + 透传 --strength（strength 仅
+                # 定加噪起点=与原图相似度，引擎自己用 Flux 排 σ 并按 strength 截断）。实测 lapvar 176 < 208。
+                if strength is not None:
                     cmd += ["--strength", str(float(strength))]
         elif gen_mode == "edit":
             if llm_vision:                        # [EDIT-VISION 2026-11-13] Qwen-Image edit needs vision weights
